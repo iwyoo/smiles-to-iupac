@@ -4,7 +4,7 @@ skeletal replacement ('a') names 'triimino-tetraazanonane-diimidamide'."""
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, group_substituents
+from ._common import UnsupportedStructure, adjacency
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 

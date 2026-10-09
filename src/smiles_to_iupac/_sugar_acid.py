@@ -702,7 +702,6 @@ def ketoaldonic_chain_name(mol):
     if parent is None:
         return None
     core = parent[0]
-    number = len(chain)
     if not core.endswith("ose"):
         return None
     position = next(i for i, (kind, _, _) in enumerate(decorations, start=1) if kind == "oxo")

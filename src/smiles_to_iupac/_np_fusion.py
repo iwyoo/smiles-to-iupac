@@ -102,7 +102,6 @@ def _naphthalene_numberings(atoms, adj):
     fusion = [a for a in atoms if degree[a] == 3]
     if len(fusion) != 2 or len(atoms) != 10:
         return []
-    rim = {a: [n for n in adj[a] if n in atoms and degree[n] == 2] for a in atoms}
     numberings = []
     for f in fusion:
         for first in [n for n in adj[f] if n in atoms and degree[n] == 2]:

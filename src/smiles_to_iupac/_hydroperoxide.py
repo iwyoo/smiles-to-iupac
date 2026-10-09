@@ -72,7 +72,6 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
-    heteroaromatic_monocycle_prefix_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,

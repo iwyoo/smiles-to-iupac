@@ -1,6 +1,5 @@
 import pytest
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 
 
 @pytest.mark.parametrize(

@@ -788,7 +788,7 @@ def _bridged_components(mol, links):
     bridges = {}
     for l in links:
         if l.kind == "anhydride":
-            entry = bridges.setdefault(frozenset(l.chain), [l.chain, l.center, l.far])
+            bridges.setdefault(frozenset(l.chain), [l.chain, l.center, l.far])
     if not bridges:
         raise UnsupportedStructure("no anhydride bridge")
     cuts = []
@@ -801,7 +801,7 @@ def _bridged_components(mol, links):
 def _locants_of(mol, atoms, centers, with_symmetry=False):
     """{centre: locant} of the acid groups `centers` in the substitutive name of the acid made of `atoms`;
     with `with_symmetry` also whether all the centres are equivalent in that acid (then no locants are needed)."""
-    from ._polyfunctional import _group_of, _principal_class, _ring_occurrences, _select
+    from ._polyfunctional import _select
 
     editable = Chem.RWMol(mol)
     for center in centers:

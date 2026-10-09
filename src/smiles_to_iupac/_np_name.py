@@ -169,7 +169,6 @@ def classify(cand, view, ignored=frozenset()):
     skel = cand.skel
     mapping = cand.mapping
     mapped = set(mapping.values())
-    image = {a: loc for loc, a in mapping.items()}
     ring_atoms = skel.ring_atoms()
     groups = Groups()
     mol = view.mol

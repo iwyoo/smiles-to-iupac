@@ -531,7 +531,6 @@ def _name_benzoate_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_ox
             "a specified stereocenter alongside a benzoate ester is not "
             "supported yet"
         )
-    excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())

@@ -9,7 +9,6 @@ from ._anion import has_general_anion_shape, name_anion
 from ._carbanide import name_carbanide
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
-from ._numerals import multiplying_prefix
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._thioate import has_thioate_shape, name_thioate
 

@@ -1,9 +1,8 @@
 import pytest
-from fractions import Fraction
 from rdkit import Chem
 from rdkit.Chem import Atom, BondType, RWMol
 from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure, adjacency, ring_cycle
+from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._phane_general import phane_seniority_key
 from smiles_to_iupac._pyrimidinedione import has_pyrimidinedione_shape
 from smiles_to_iupac._ring_system_seniority import ring_seniority_key

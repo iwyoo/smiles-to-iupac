@@ -71,3 +71,9 @@ pythonpath = ["src"]
 addopts = "-n auto"
 markers = ["slow: takes over a second to name; the pull-request run skips it (pytest -m 'not slow')"]
 filterwarnings = ["ignore::smiles_to_iupac.NonPreferredNameWarning"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E9", "F"]

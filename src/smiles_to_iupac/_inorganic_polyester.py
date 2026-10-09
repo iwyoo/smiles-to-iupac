@@ -5,7 +5,7 @@ the multiplied anion, 'ethane-1,2-diyl bis(hydrogen sulfate)'."""
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
-from ._diester_anions import _INORGANIC_ANIONS, inorganic_anion_name
+from ._diester_anions import _INORGANIC_ANIONS
 from ._diester_ring_diyl import name_diester_ring_diyl
 
 _CENTRES = (15, 16)

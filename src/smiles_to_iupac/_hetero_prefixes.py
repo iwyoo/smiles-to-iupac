@@ -1574,7 +1574,6 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     bonding = atom.GetTotalValence()
     if bonding > valence and ((bonding - valence) % 2 or bonding > valence + 4):
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
-    hydroxyls = [n for n in others if _hydroxy_oxygen(mol, n)]
     if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others) and not any(
         mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON
     ):

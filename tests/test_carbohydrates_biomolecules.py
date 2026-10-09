@@ -1,7 +1,6 @@
 import pytest
 from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._amino_acid import _SIDE_CHAIN_TABLE
-from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_side_chain_table_has_no_collisions():

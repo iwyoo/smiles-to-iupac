@@ -248,7 +248,6 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
         order = bond.GetBondTypeAsDouble()
         if order == 1.0:
             continue
-        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         if order not in _VALID_ORDERS:
             raise UnsupportedStructure(
                 "only carbon-carbon double and triple bonds are "

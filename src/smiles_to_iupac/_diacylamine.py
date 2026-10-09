@@ -96,7 +96,6 @@ def diacylamine_name(mol):
         placeholders[donor] = None
     for idx in keep:
         editable.RemoveAtom(idx)
-    mapping = {}
     shift = 0
     old_to_new = {}
     for i in range(mol.GetNumAtoms()):
