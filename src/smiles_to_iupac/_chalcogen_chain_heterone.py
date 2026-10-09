@@ -54,6 +54,8 @@ def _chain(mol):
             return None
         previous = order[-1]
         order.append(following[0])
+    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(order, order[1:])):
+        return None
     return order
 
 

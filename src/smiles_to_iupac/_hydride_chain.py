@@ -266,6 +266,43 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
     return _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating)
 
 
+def _one_arrangement(substituents, capacity):
+    """P-14.3.4.4: whether every placement of the substituents on the chain atoms (each atom taking no more than its
+    substitutable hydrogens and substituents) gives the same compound, so that no locant is needed."""
+    positions = len(capacity)
+    counts = {}
+    for entries in substituents.values():
+        for entry in entries:
+            counts[entry] = counts.get(entry, 0) + 1
+    if not counts or sum(counts.values()) > 14 or positions > 8:
+        return False
+    names = sorted(counts)
+    seen = set()
+
+    def compositions(total, room):
+        if len(room) == 1:
+            if total <= room[0]:
+                yield (total,)
+            return
+        for first in range(min(total, room[0]) + 1):
+            for rest in compositions(total - first, room[1:]):
+                yield (first, *rest)
+
+    def place(index, room, chosen):
+        if index == len(names):
+            layout = tuple(tuple(sorted(c)) for c in chosen)
+            seen.add(min(layout, layout[::-1]))
+            return len(seen) > 1
+        for split in compositions(counts[names[index]], room):
+            added = [chosen[i] + (names[index],) * split[i] for i in range(positions)]
+            if place(index + 1, [room[i] - split[i] for i in range(positions)], added):
+                return True
+        return False
+
+    place(0, list(capacity), [()] * positions)
+    return len(seen) == 1
+
+
 def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating):
     chain_set = set(chain)
     best = None
@@ -286,16 +323,16 @@ def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alt
         ene = [i + 1 for i in range(len(candidate) - 1) if mol.GetBondBetweenAtoms(candidate[i], candidate[i + 1]).GetBondTypeAsDouble() == 2.0]
         yne = [i + 1 for i in range(len(candidate) - 1) if mol.GetBondBetweenAtoms(candidate[i], candidate[i + 1]).GetBondTypeAsDouble() == 3.0]
         lam = {i + 1: n for i, atom in enumerate(candidate) if (n := nonstandard_bonding(mol.GetAtomWithIdx(atom)))}
+        capacity = [len(substituents.get(i + 1, [])) + mol.GetAtomWithIdx(a).GetTotalNumHs() for i, a in enumerate(candidate)]
         omit = not lam and (
             len(chain) == 1
             or (len(chain) == 2 and sum(len(info["locants"]) for info in grouped.values()) == 1)
-            or all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
+            or _one_arrangement(substituents, capacity)
         )
         if alternating is not None:
             parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2, ene, yne)
             cited = sum(len(info["locants"]) for info in grouped.values())
-            fully_substituted = all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
-            omit = not lam and ((len(chain) == 3 and cited == 1) or fully_substituted)
+            omit = not lam and ((len(chain) == 3 and cited == 1) or _one_arrangement(substituents, capacity))
         elif unsaturated:
             parent, omit = _unsaturated_parent(z, len(chain), ene, yne, grouped)
         else:
