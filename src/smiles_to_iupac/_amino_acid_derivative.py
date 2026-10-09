@@ -14,7 +14,7 @@ from ._common import UnsupportedStructure, adjacency
 
 _TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
-_ESTER = Chem.MolFromSmarts("[CX3](=O)[OX2;!R]([#6])")
+_ESTER = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2;!R]([#6])")
 
 
 def _anion_stem(plain):
