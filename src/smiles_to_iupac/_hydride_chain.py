@@ -162,6 +162,8 @@ def _split_chain(mol, graph):
         return None
     (z,) = elements
     atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == z and not _is_nitro_or_nitroso(a)}
+    if any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms):
+        return None
     runs, seen = [], set()
     for start in sorted(atoms):
         if start in seen:
