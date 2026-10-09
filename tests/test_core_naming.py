@@ -851,10 +851,6 @@ def test_a_stereocentre_outside_the_cited_descriptors_is_not_dropped():
         smiles_to_iupac("CCCCC/C=C\\CCC(=O)N[C@@H](CCP(=O)(O)O)Cc1ccccc1")
 
 
-def test_different_alkyl_groups_on_one_polyacid_are_never_cited_without_locants():
-    smiles = "COC(=O)C1(C(=O)OC)[C@@H]2[C@H]1c1cccc(C)c1N(C(=O)OCc1ccccc1)[C@H]2O"
-    try:
-        name = smiles_to_iupac(smiles)
-    except NotImplementedError:
-        return
-    assert "3-benzyl 1,1-dimethyl" in name
+def test_different_alkyl_groups_on_one_polyacid_are_cited_with_the_locants_of_their_esters():
+    name = smiles_to_iupac("COC(=O)C1(C(=O)OC)[C@@H]2[C@H]1c1cccc(C)c1N(C(=O)OCc1ccccc1)[C@H]2O")
+    assert name.startswith("3-benzyl 1,1-dimethyl (1aS,2S,7bS)-2-hydroxy-4-methyl-")
