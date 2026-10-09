@@ -1162,3 +1162,25 @@ def test_diamines_whose_nitrogens_carry_boranyl_groups(smiles, expected):
 )
 def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[Si](C)(C)O[Si](C)(C)C", "hexamethyldisiloxane", id="one_arrangement_needs_no_locants"),
+        pytest.param("C[Si](C)(C)O[Si](C)(C)c1ccccc1", "pentamethyl(phenyl)disiloxane", id="moving_the_phenyl_gives_the_same_compound"),
+        pytest.param("C[SiH2]O[SiH2]C", "1,3-dimethyldisiloxane", id="two_placements_need_locants"),
+        pytest.param(
+            "C[Si](O[Si](C)(C)C1CC2C=CC1C2)(c1ccccc1)c1ccccc1",
+            "1-(bicyclo[2.2.1]hept-5-en-2-yl)-1,1,3-trimethyl-3,3-diphenyldisiloxane",
+            id="exchanging_groups_between_the_silicons_gives_isomers",
+        ),
+    ],
+)
+def test_locants_of_heteroatom_chains_follow_the_arrangement_rule(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_chalcogen_chain_with_a_double_bond_between_chalcogens_is_not_named_as_saturated():
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac("CS(C)(C)(C)=S")
