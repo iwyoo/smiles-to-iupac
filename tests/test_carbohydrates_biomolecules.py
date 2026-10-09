@@ -717,3 +717,7 @@ def test_substituted_glycosides_and_glycosyl_derivatives(smiles, expected):
 def test_aldonic_acid_lactones(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
+
+
+def test_substituted_amino_acid_keeps_its_second_fragment():
+    assert smiles_to_iupac("CN[C@@H](C(C)C)C(=O)O.Cl") == "N-methyl-L-valine—hydrogen chloride (1/1)"
