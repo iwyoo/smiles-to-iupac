@@ -134,10 +134,9 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._numerals import alkane_name, alkyl_name, multiplying_prefix
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
     substituents_for_chain,
-    alpha_sort_key,
     format_substituent_prefixes,
     name_branch,
 )

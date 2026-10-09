@@ -56,11 +56,10 @@ from ._multiplicative_ring import (
     multiple_locants,
     name_ring_component,
     numberings,
-    parent_text,
     spec_of,
 )
 from ._fused_numbering import HETERO_RANK as _HETERO_RANK
-from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
+from ._ring_diyl_numbering import _exocyclic_oxo
 from ._ring_system_seniority import ring_seniority_key
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
@@ -1506,7 +1505,6 @@ def _carbon_group_label(mol, rest, reselect):
 
 
 def _name_labelled(mol, labels, finish=None):
-    from ._isotope_labels import descriptor
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
     mol = _demote_junior_groups(mol, labels)
@@ -2273,7 +2271,6 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         for z, word in _CHALCOGENOL_WORDS.items()
     }
     principal_word = next((w for w, atoms in chalcogenols.items() if atoms), None)
-    hydroxyls = chalcogenols["ol"] if principal_word == "ol" else []
     junior_chalcogenols = {n for w, atoms in chalcogenols.items() if w != principal_word for n in atoms}
     amines = [
         n

@@ -13,7 +13,6 @@ from rdkit import Chem
 from ._free_valence import valence_word
 from ._common import (
     UnsupportedStructure,
-    alpha_sort_key,
     citation_order_key,
     heteroaromatic_monocycle_name,
     multiplied_word,

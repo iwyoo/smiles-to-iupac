@@ -46,7 +46,7 @@ from ._common import (
 )
 from ._locant_omission import omits_all_locants
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring
+from ._substituents import format_substituent_prefixes, ring_branch_stereo_display, substituents_for_ring
 
 
 

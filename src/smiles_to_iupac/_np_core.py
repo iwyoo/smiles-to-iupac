@@ -322,7 +322,6 @@ def with_bonds(parent, bonds):
     ext.mol = mol.GetMol()
     ext.mol.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(ext.mol)
-    ring_info = ext.mol.GetRingInfo()
     ext.rings = [frozenset(parent.loc_of[i] for i in ring) for ring in Chem.GetSymmSSSR(ext.mol)]
     ext.ring_atoms = set().union(*ext.rings) if ext.rings else set()
     ext.ring_bonds = {frozenset((a, b)) for a in ext.adj for b in ext.adj[a] if any({a, b} <= r for r in ext.rings)}

@@ -279,7 +279,6 @@ def _name_once(mol):
             break
         found = []
         for name in _promising(view, cost, exact):
-            parent = get_parent(name)
             terminal_only = view.cyclomatic < 2
             skels = _skeletons(name, view, cost, terminal_only)
             for skel in skels:

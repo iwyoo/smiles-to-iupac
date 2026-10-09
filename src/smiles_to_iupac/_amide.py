@@ -709,7 +709,6 @@ def _name_benzamide(mol, ring_atoms, exempt_atoms=None):
         )
 
     graph = adjacency(mol)
-    excluded_atoms = {amide_oxygen, amide_nitrogen}
     ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
     if len(ring_neighbors) != 1:
         raise UnsupportedStructure(

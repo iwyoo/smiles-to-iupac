@@ -3,14 +3,12 @@ nitrogen is expressed as an amide, 'N-(triazan-1-yl)benzamide'; two identical ac
 chain are named multiplicatively, 'N,N'-(hydrazine-1,2-diyl)dibenzamide'. The rest of the chain is stood in for by a
 carbon whose name is replaced, as for the diacylamines."""
 
-import re
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._diacylamine import _acyl_roots, _side
 from ._dipolar import _smiles_with_order
-from ._numerals import multiplying_prefix
 from ._substituents import FORCED_BRANCH_NAMES, name_branch
 
 _LINKER = {1: ("methylene", "azanediyl"), 2: ("ethane-1,2-diyl", "hydrazine-1,2-diyl")}
@@ -206,7 +204,6 @@ def _multiplicative(mol, graph, ends):
     if keys[0] != keys[1]:
         return None
     carbons = Chem.RWMol(mol)
-    bridge = [n1, *interior, n2]
     for index in interior:
         carbons.GetAtomWithIdx(index).SetAtomicNum(6)
         carbons.GetAtomWithIdx(index).SetNoImplicit(False)

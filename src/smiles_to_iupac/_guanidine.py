@@ -45,7 +45,7 @@ from rdkit import Chem
 
 from ._chalcogenourea import is_core_substituent_root, n_substituent_names, unprimed_first
 from ._common import UnsupportedStructure, adjacency, group_substituents
-from ._substituents import alpha_sort_key, format_substituent_prefixes
+from ._substituents import format_substituent_prefixes
 
 
 def _guanidine_core(mol):

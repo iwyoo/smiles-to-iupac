@@ -64,7 +64,6 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    carbon_adjacency,
     non_single_bonds,
     plain_phenyl_substituent_atoms,
 )
@@ -180,7 +179,6 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     unsaturated_bonds = [b for b in non_single_bonds(mol) if b[0] != metal_idx and b[1] != metal_idx]
-    carbon_graph = carbon_adjacency(mol) if unsaturated_bonds else None
 
     substituent_names = []
     for root in roots:

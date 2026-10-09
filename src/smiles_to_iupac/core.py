@@ -555,20 +555,25 @@ def smiles_to_iupac(smiles: str) -> str:
     legacy = Chem.GetUseLegacyStereoPerception()
     Chem.SetUseLegacyStereoPerception(False)
     try:
-        if "[H+]" in smiles:
-            hydrogen_salt = hydrogen_salt_name(smiles, smiles_to_iupac)
-            if hydrogen_salt is not None:
-                return hydrogen_salt
-        name = cite_spiro_stereo(smiles, cite_axial_stereo(smiles, _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))))
-        mol = _parse_smiles(smiles)
-        if mol is not None:
-            _require_isotopes_cited(mol, name)
-            _require_radicals_cited(mol, name)
-        if mol is not None and _has_free_anion(mol):
-            name = acetyl_names(name)
-        return name
+        with rdBase.BlockLogs():
+            return _name_checked(smiles)
     finally:
         Chem.SetUseLegacyStereoPerception(legacy)
+
+
+def _name_checked(smiles: str) -> str:
+    if "[H+]" in smiles:
+        hydrogen_salt = hydrogen_salt_name(smiles, smiles_to_iupac)
+        if hydrogen_salt is not None:
+            return hydrogen_salt
+    name = cite_spiro_stereo(smiles, cite_axial_stereo(smiles, _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))))
+    mol = _parse_smiles(smiles)
+    if mol is not None:
+        _require_isotopes_cited(mol, name)
+        _require_radicals_cited(mol, name)
+    if mol is not None and _has_free_anion(mol):
+        name = acetyl_names(name)
+    return name
 
 
 _RADICAL_ENDINGS = ("yl", "ylidene", "ylidyne", "yne", "ylium", "yloxy", "yliumyl")
@@ -667,7 +672,7 @@ def _cited_nuclides(name):
         multiplier = _MULTIPLIED_GROUP.search(name[: found.start()])
         factor = _MULTIPLIER_VALUE[multiplier.group(1)] if multiplier else 1
         items = group.split(",")
-        located, pending = [], []
+        pending = []
         for item in items:
             locant, _, tail = item.rpartition("-")
             token = _NUCLIDE_ITEM.match(tail or locant)

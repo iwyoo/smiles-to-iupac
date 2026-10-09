@@ -46,7 +46,6 @@ class Skel:
     def cycle_atoms(self):
         """Atoms that lie on a cycle (a bond not on any cycle is a bridge of the graph)."""
         order = list(self.adj)
-        position = {a: i for i, a in enumerate(order)}
         low, depth, found = {}, {}, set()
 
         def visit(atom, parent):

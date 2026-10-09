@@ -7,7 +7,6 @@ import re
 
 from ._common import alpha_sort_key
 from ._multiplicative_text import enclose
-from ._numerals import multiplying_prefix
 from ._substituents import prefix_multiplier
 
 _SUBSTITUTED_RETAINED_ACYL = re.compile(r"(?<=.)(?:acetyl|formyl)$")

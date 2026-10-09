@@ -73,7 +73,6 @@ def name_sulfuric_amide(mol) -> str:
             entries.setdefault(locant, []).append(item)
     grouped = group_substituents(entries)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    kinds = [kind for kind, _ in ligands]
     if len(nitrogens) == 2:
         word = "sulfuric diamide" if oxo == 2 else "sulfurous diamide"
         return prefix + word

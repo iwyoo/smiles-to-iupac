@@ -135,8 +135,6 @@ def bidentate_anion(mol, metal, donors_in, atoms):
     if len(middle) == 1:
         (c3,) = middle
         if sym(c3) == 6 and mol.GetAtomWithIdx(c3).GetDegree() == 2 and mol.GetAtomWithIdx(c3).GetTotalNumHs() <= 1:
-            o1_double = _bond(mol, c1, ids[0])
-            o2_double = _bond(mol, c2, ids[1])
 
             def edit(rw, index):
                 rw.GetBondBetweenAtoms(index[c1], index[ids[0]]).SetBondType(Chem.BondType.DOUBLE)
