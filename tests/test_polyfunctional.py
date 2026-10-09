@@ -1285,3 +1285,28 @@ def test_skeletal_replacement_parents_with_groups_on_heteroatom_bonded_carbons_a
 def test_ring_nitrogens_are_never_chain_or_acyl_group_atoms_with_ring_copies(smiles):
     with pytest.raises(NotImplementedError):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(O)COC(=O)NCCN", "2-hydroxypropyl (2-aminoethyl)carbamate", id="blue_book_example"),
+        pytest.param(
+            "N#Cc1c(F)cc(C#CCCNC(=O)OCc2ccccc2)cc1F",
+            "benzyl [4-(4-cyano-3,5-difluorophenyl)but-3-yn-1-yl]carbamate",
+            id="nitrile_and_halogens_are_prefixes",
+        ),
+        pytest.param(
+            "CC(C)(C)OC(=O)N(CCCNC(=O)c1cccnc1SC(F)F)Cc1cccnc1",
+            "tert-butyl (3-{2-[(difluoromethyl)sulfanyl]pyridine-3-carboxamido}propyl)[(pyridin-3-yl)methyl]carbamate",
+            id="two_nitrogen_substituents_and_a_junior_amide",
+        ),
+        pytest.param(
+            "C[C@@H](NC(=O)OCc1ccccc1)C(=O)NCC",
+            "benzyl [(2R)-1-(ethylamino)-1-oxopropan-2-yl]carbamate",
+            id="stereocentre_in_the_nitrogen_substituent",
+        ),
+    ],
+)
+def test_carbamate_esters_are_the_parent_of_polyfunctional_molecules(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

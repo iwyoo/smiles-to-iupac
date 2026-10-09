@@ -13,6 +13,7 @@ from ._carbonic_family import name_carbonic_family
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
+from ._carbamate_ester import name_carbamate_ester
 from ._alcohol import name_alcohol
 from ._alcohol_amine import has_alcohol_amine_shape, name_alcohol_amine
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
@@ -1169,6 +1170,7 @@ def _run_fallbacks(smiles, original):
             name_halogen_acid_ester,
             name_halogen_oxo,
             name_polyfunctional,
+            name_carbamate_ester,
             _name_o_substituted_hydroxylamine,
             _name_hydride_onium,
             _name_chain_onium,
