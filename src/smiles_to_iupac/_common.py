@@ -1417,6 +1417,8 @@ def von_baeyer_bond_citation(position, a, b):
     chain's or a monocyclic ring's own bond locant, a von Baeyer parent's
     numbering has no ring-wraparound between its highest and lowest
     locants in general, so this never wraps."""
+    if a not in position or b not in position:
+        raise UnsupportedStructure("a multiple bond lies outside the numbered von Baeyer skeleton")
     pa, pb = position[a], position[b]
     lo, hi = min(pa, pb), max(pa, pb)
     if hi - lo == 1:

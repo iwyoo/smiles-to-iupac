@@ -170,4 +170,7 @@ def name_amino_acid(mol) -> str:
             return _name_plain(mol)
     except UnsupportedStructure:
         pass
-    return _derivative_name(mol)
+    name = _derivative_name(mol)
+    if name is None:
+        raise UnsupportedStructure("this amino acid has no retained-name derivative form")
+    return name

@@ -301,6 +301,8 @@ def _name_ring_zwitterion(mol, centers, cation):
     if found is None:
         raise UnsupportedStructure("this zwitterionic ring system has no supported name yet")
     locants = sorted(found[2][i] for i in indices)
+    if not 1 <= len(locants) <= 3:
+        raise UnsupportedStructure("this zwitterionic ring system has no supported number of anionic centers")
     count = {1: "", 2: "di", 3: "tri"}[len(locants)]
     return f"{found[1]}-{','.join(str(x) for x in locants)}-{count}ide"
 

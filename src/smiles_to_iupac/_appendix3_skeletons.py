@@ -86,7 +86,10 @@ def _kekule_forms(mol, restrict=None):
     """Every Kekule arrangement of the multiple bonds as a frozenset of (atom pair, order), limited to atoms in
     `restrict`: the non-aromatic multiple bonds as drawn, and each way of pairing the atoms of an aromatic system."""
     base = Chem.Mol(mol)
-    Chem.Kekulize(base, clearAromaticFlags=False)
+    try:
+        Chem.Kekulize(base, clearAromaticFlags=False)
+    except Chem.KekulizeException as error:
+        raise UnsupportedStructure("the aromatic system has no Kekule structure") from error
     inside = lambda a: restrict is None or a in restrict
     fixed = set()
     aromatic_edges = {}

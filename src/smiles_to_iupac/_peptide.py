@@ -115,7 +115,10 @@ def _name(smiles):
     from .core import smiles_to_iupac
 
     mol = Chem.MolFromSmiles(smiles)
-    cuts, pieces = _cut(mol)
+    try:
+        cuts, pieces = _cut(mol)
+    except Chem.MolSanitizeException:
+        return None
     fragments = Chem.GetMolFrags(pieces)
     if not cuts or len(fragments) != len(cuts) + 1:
         return None

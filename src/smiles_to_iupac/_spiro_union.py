@@ -36,9 +36,11 @@ class SpiroLocant:
     """A locant of a spiro system, ordered by number, then primes, then fusion letters: 4 < 4a < 4′ < 4′a < 5."""
 
     def __init__(self, text):
-        match = re.fullmatch(r"(\d+)(′*)([a-z]*)", text)
+        match = re.fullmatch(r"(\d+)(′*)([a-z]*)(\d*)", text)
+        if match is None:
+            raise UnsupportedStructure(f"the spiro locant {text!r} is not supported")
         self.text = text
-        self.key = (int(match.group(1)), len(match.group(2)), match.group(3))
+        self.key = (int(match.group(1)), len(match.group(2)), match.group(3), int(match.group(4) or 0))
 
     def __eq__(self, other):
         return isinstance(other, SpiroLocant) and self.key == other.key

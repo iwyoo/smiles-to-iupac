@@ -249,7 +249,10 @@ def _labels(restored, skeleton, atom_of):
     rdCIPLabeler.AssignCIPLabels(restored)
 
     def label(position):
-        atom = restored.GetAtomWithIdx(atom_of[skeleton.carbons[position - 1]])
+        index = atom_of.get(skeleton.carbons[position - 1])
+        if index is None:
+            raise UnsupportedStructure("a skeleton carbon of this sugar is part of a removed substituent")
+        atom = restored.GetAtomWithIdx(index)
         return atom.GetProp("_CIPCode") if atom.HasProp("_CIPCode") else None
 
     first = 3 if skeleton.ketose else 2

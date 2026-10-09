@@ -794,3 +794,41 @@ def test_unsaturated_heteroatom_chains_and_heteroarynes(smiles, expected):
 )
 def test_ring_parent_and_substituent_chain_prefer_r_to_s(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("FC(F)(F)Oc1ccccc1.c1cc2ccc1-2", id="two_aromatic_rings_in_separate_fragments"),
+        pytest.param("CC(OC)CNC(=O)N[C@@H](C(=O)O)C(C)C", id="amino_acid_without_derivative_form"),
+        pytest.param("O=C(CO)c1ccc(OCC(F)(F)F)cn1", id="sugar_skeleton_inside_removed_substituent"),
+        pytest.param("[O-][N+]1=N[NH2+]c2cccnc21", id="zwitterionic_ring_without_anionic_center"),
+        pytest.param("C#C[C@@]12[C@H]3[C@@H]4[C@@H]5CC(=O)[C@H]([C@@H]43)[C@@H]1[C@H]52", id="multiple_bond_outside_von_baeyer_skeleton"),
+        pytest.param("O=C(CCSc1nc[nH][n+]1-c1ccccc1)N1CCCCCC1", id="acyl_group_cut_from_aromatic_cation"),
+    ],
+)
+def test_valid_structures_are_named_or_unsupported_never_crash(smiles):
+    try:
+        assert isinstance(smiles_to_iupac(smiles), str)
+    except NotImplementedError:
+        pass
+
+
+def test_spiro_locants_order_interior_atoms_and_reject_unknown_text():
+    from smiles_to_iupac._spiro_union import SpiroLocant
+
+    assert sorted(map(SpiroLocant, ["4b", "4a1", "4′", "4a", "4"])) == list(map(SpiroLocant, ["4", "4a", "4a1", "4b", "4′"]))
+    with pytest.raises(UnsupportedStructure):
+        SpiroLocant("4*")
+
+
+def test_amplificant_locant_with_prime_is_unsupported():
+    from smiles_to_iupac._phane_amplificant import AmpLoc
+
+    with pytest.raises(UnsupportedStructure):
+        AmpLoc("1′")
+
+
+def test_stereodescriptors_cited_by_the_ring_parent_are_not_repeated():
+    name = smiles_to_iupac("C#C[C@@]12[C@H]3[C@@H]4[C@@H]5CC(=O)[C@H]([C@@H]43)[C@@H]1[C@H]52")
+    assert name.startswith("(1S,1aS,1a1S,1bS,2R,2aS,2a1S,2bR)-1a1-ethynyl") and name.count("(1S,1aS") == 1

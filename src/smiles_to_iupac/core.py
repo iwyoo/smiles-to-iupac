@@ -1196,7 +1196,8 @@ def _kekule_forms_without_fusion_name(mol):
     except Chem.KekulizeException:
         return []
     forms = [base]
-    (benzene,) = [ring for ring in info.AtomRings() if all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring)] or [None]
+    aromatic_rings = [ring for ring in info.AtomRings() if all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring)]
+    benzene = aromatic_rings[0] if len(aromatic_rings) == 1 else None
     if benzene is not None and len(benzene) == 6:
         ring = set(benzene)
         ring_bonds = [b.GetIdx() for b in base.GetBonds() if b.GetBeginAtomIdx() in ring and b.GetEndAtomIdx() in ring]
