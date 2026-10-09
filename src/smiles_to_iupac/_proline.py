@@ -14,14 +14,16 @@ retained name and L/D stereodescriptor, per the IUPAC 2013 Recommendations
   L-/D-proline currently misroute to `_ketone.py`'s hetero-ring-ketone
   path, an unrelated module that claims any saturated single-heteroatom
   5/6/7-membered ring purely by shape).
-- P-103.1.3.1: 'L' corresponds to CIP 'S' at the alpha-carbon (proline is
-  not the cysteine exception), confirmed against real PubChem L-/D-
-  proline structures during scoping.
+- P-103.1.3.1: 'L' corresponds to CIP 'S' at the alpha-carbon of the
+  unsubstituted proline.
 
 Scope: a pyrrolidine ring whose ring nitrogen carries only hydrogen and whose C-2 bears the exocyclic -COOH.
 Substituents on C-3, C-4 and C-5 are cited as prefixes, and their centres by CIP descriptors before the prefixes while
 the alpha centre keeps D or L (P-103.1.3.2.1, P-103.2.3).
 """
+
+from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
 from ._carboxylic_acid_amine import _find_carboxylic_acid_carbon
 from ._common import adjacency, specified_stereocenters
@@ -104,6 +106,29 @@ def has_proline_shape(mol) -> bool:
     return _match(mol) is not None
 
 
+def _alpha_descriptor(mol, alpha_carbon, substituents):
+    """D or L from the alpha carbon of the proline with every ring substituent replaced by hydrogen: a substituent such
+    as a sulfur on C-3 can outrank the carboxy group and reverse the CIP label (P-103.1.3.1)."""
+    graph = adjacency(mol)
+    removed = set()
+    for _, site, root in substituents:
+        stack = [root]
+        while stack:
+            node = stack.pop()
+            if node not in removed:
+                removed.add(node)
+                stack.extend(n for n in graph[node] if n != site)
+    editable = Chem.RWMol(mol)
+    editable.GetAtomWithIdx(alpha_carbon).SetIntProp("_alpha", 1)
+    for index in sorted(removed, reverse=True):
+        editable.RemoveAtom(index)
+    parent = editable.GetMol()
+    Chem.SanitizeMol(parent)
+    rdCIPLabeler.AssignCIPLabels(parent)
+    atom = next(a for a in parent.GetAtoms() if a.HasProp("_alpha"))
+    return _ALPHA_TO_LD[atom.GetProp("_CIPCode")]
+
+
 def name_proline(mol) -> str:
     from ._amino_acid import _substituent_prefixes
 
@@ -114,5 +139,5 @@ def name_proline(mol) -> str:
         (int(locant_of[atom]), f"{locant_of[atom]}{label}") for atom, label in labels.items() if atom != alpha_carbon
     )
     descriptors = f"({','.join(text for _, text in other)})-" if other else ""
-    stem = f"{_ALPHA_TO_LD[labels[alpha_carbon]]}-proline" if alpha_carbon in labels else "proline"
+    stem = f"{_alpha_descriptor(mol, alpha_carbon, substituents)}-proline" if alpha_carbon in labels else "proline"
     return descriptors + prefixes + ("-" if prefixes and alpha_carbon in labels else "") + stem

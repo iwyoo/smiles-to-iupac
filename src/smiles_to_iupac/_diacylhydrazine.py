@@ -5,9 +5,9 @@ names are replaced by the acyl prefixes, as for the diacylamines."""
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._diacylamine import _acyl_roots, _rank, _side
+from ._diacylamine import _acyl_roots, _rank, _side, donor_names
 from ._dipolar import _smiles_with_order
-from ._substituents import FORCED_BRANCH_NAMES, name_branch
+from ._substituents import FORCED_BRANCH_NAMES
 
 
 def _hydrazine_pair(mol):
@@ -45,7 +45,7 @@ def diacylhydrazine_name(mol):
     halogens = halogen_substituents(mol)
     aromatic = frozenset(x.GetIdx() for x in mol.GetAtoms() if x.GetIsAromatic())
     try:
-        names = {r: name_branch(graph, r, n, halogens, aromatic, mol=mol) for r, n in donors}
+        names = donor_names(mol, graph, donors, halogens, aromatic)
     except UnsupportedStructure:
         return None
     editable = Chem.RWMol(mol)
