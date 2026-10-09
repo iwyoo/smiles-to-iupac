@@ -733,3 +733,18 @@ def test_substituted_amino_acid_keeps_its_second_fragment():
 )
 def test_rings_with_ketones_are_not_cited_as_sugar_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "OC(=O)CC[C@H](NC(=O)OCc1ccccc1)C(=O)OCc1ccccc1",
+            "1-benzyl N-[(benzyloxy)carbonyl]-L-glutamate",
+            id="carbamate_of_the_amino_group_is_a_substituent_not_an_ester_of_the_acid",
+        ),
+        pytest.param("CC(C)(C)OC(=O)N[C@@H](C)C(=O)OC", "methyl N-(tert-butoxycarbonyl)-L-alaninate", id="boc_and_methyl_ester"),
+    ],
+)
+def test_amino_acid_esters_with_a_carbamate_on_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
