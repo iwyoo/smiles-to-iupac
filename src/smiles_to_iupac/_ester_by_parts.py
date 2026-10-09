@@ -90,6 +90,38 @@ def _restore_labels(editable, clean, labels, removed):
                 editable.AddBond(idx, editable.AddAtom(hydrogen), Chem.BondType.SINGLE)
 
 
+def _ester_locants(mol, acid, removed, matches, named_by_arm):
+    """{alkyl name: sorted locants of its ester groups} in the substitutive name of the acid, or {} when the ester carbons
+    are equivalent in the acid and the bare name is unambiguous (P-65.6.3.2.2, P-14.3.4.4)."""
+    from ._polyfunctional import _select
+
+    kept = [i for i in range(mol.GetNumAtoms()) if i not in removed]
+    new_index = {old: new for new, old in enumerate(kept)}
+    carbons = [new_index[acyl] for acyl, _, _, _ in matches]
+    plain = Chem.Mol(acid)
+    ranks = Chem.CanonicalRankAtoms(plain, breakTies=False)
+    if len({ranks[c] for c in carbons}) == 1:
+        return {}
+    for atom in acid.GetAtoms():
+        atom.SetAtomMapNum(atom.GetIdx() + 1)
+    try:
+        _, _, parts = _select(acid)
+    except UnsupportedStructure:
+        raise UnsupportedStructure("the locants of the ester groups are not available")
+    position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1: loc for i, loc in parts[4].items()}
+    found = {}
+    for arm, carbon in enumerate(carbons):
+        if carbon in position:
+            locant = position[carbon]
+        else:
+            attach = [n.GetIdx() for n in acid.GetAtomWithIdx(carbon).GetNeighbors() if n.GetIdx() in position]
+            if len(attach) != 1:
+                raise UnsupportedStructure("the locants of the ester groups are not available")
+            locant = position[attach[0]]
+        found.setdefault(named_by_arm[arm], []).append(str(locant))
+    return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in found.items()}
+
+
 def _name_ester_parts(mol, labels) -> str:
     from ._substituents import ISOTOPE_LABELS
     from .core import smiles_to_iupac
@@ -163,6 +195,7 @@ def _name_ester_parts(mol, labels) -> str:
         "used": set(),
     }
     named = {}
+    named_by_arm = {}
     arm_label = {i: nuclide for nuclide, i in ester_labels.values() if i is not None}
     token = BRANCH_STEREO.set(context)
     isotope_context = {"labels": {a: e for a, e in labels.items() if a in removed}, "consumed": set(), "mol": mol}
@@ -173,6 +206,7 @@ def _name_ester_parts(mol, labels) -> str:
             locant = (f"{arm_label[arm][:-1]}O" if arm in arm_label and len(ester_labels) > 1 else "O") if ester_labels else ""
             entry = named.setdefault((name, locant), [0, compound, []])
             entry[0] += 1
+            named_by_arm[arm] = name
     finally:
         BRANCH_STEREO.reset(token)
         ISOTOPE_LABELS.reset(isotope_token)
@@ -188,13 +222,21 @@ def _name_ester_parts(mol, labels) -> str:
             counts[nuclide] = counts.get(nuclide, 0) + 1
         text = "(" + ",".join(f"{n}{c}" for n, c in sorted(counts.items())) + ")"
         anion = text + anion if anion == "carbonate" else _insert_before_ending(anion, text)
-    if len({name for name, _ in named}) > 1 and not ester_labels:
-        raise UnsupportedStructure("different alkyl groups on one acid need the locants of their ester positions")
     grouped = {}
     for (name, locant), (count, compound, _) in named.items():
         grouped.setdefault(name, []).append((locant, count, compound))
+    located = {}
+    if len(grouped) > 1 and not ester_labels:
+        located = _ester_locants(mol, acid, removed, matches, named_by_arm)
     parts = []
     for name in sorted(grouped, key=alpha_sort_key):
+        if name in located:
+            locants = located[name]
+            compound = grouped[name][0][2]
+            word = multiplying_prefix(len(locants), compound=compound) if len(locants) > 1 else ""
+            text = f"{word}({name})" if compound and len(locants) > 1 else word + name
+            parts.append(f"{','.join(locants)}-{text}")
+            continue
         for locant, count, compound in sorted(grouped[name]):
             text = name if count == 1 else (
                 f"{multiplying_prefix(count, compound=compound)}({name})" if compound else f"{multiplying_prefix(count, compound=compound)}{name}"
