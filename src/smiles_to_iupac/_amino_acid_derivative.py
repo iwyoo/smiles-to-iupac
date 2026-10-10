@@ -10,7 +10,8 @@ from ._amino_acid_retained import has_retained_amino_acid_shape, name_retained_a
 from ._amino_acid import SYSTEMATIC_ACID_PROBE, _match, has_amino_acid_shape as _has_plain, name_amino_acid as _name_plain
 from ._histidine import has_histidine_shape, name_histidine
 from ._cited_group import cited_group, subtree
-from ._common import UnsupportedStructure, adjacency
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key
+from ._multiplicative_text import enclose
 
 _TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
@@ -95,7 +96,8 @@ def _ester_words(groups, locants, anion):
         name, compound = groups[0][1]
         word = f"bis({name})" if compound else f"di{name}"
         return f"{word} {anion}"
-    parts = [f"{locants[carbon]}-{name}" for carbon, (name, _) in sorted(groups, key=lambda item: locants[item[0]])]
+    ordered = sorted(groups, key=lambda item: alpha_sort_key(item[1][0]))
+    parts = [f"{locants[carbon]}-{enclose(name) if compound else name}" for carbon, (name, compound) in ordered]
     return f"{' '.join(parts)} {anion}"
 
 
