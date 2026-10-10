@@ -398,6 +398,8 @@ def test_deuterium_alkene_stereodescriptor_writes_no_rdkit_logs_to_stderr(capfd)
         pytest.param("[15NH2]CC[13CH2][13CH2][15NH2]", "(1,2-13C2,15N2)butane-1,4-diamine", id="two_elements_one_in_the_amine_groups"),
         pytest.param("[2H]OOC(=C)C", "prop-1-ene-2-(2H)peroxol", id="nuclide_on_a_peroxol_of_an_unsaturated_chain"),
         pytest.param("CC(C)S[2H]", "propane-2-(2H)thiol", id="nuclide_on_the_sulfur_of_a_thiol"),
+        pytest.param("[2H][N+]([2H])([2H])[2H]", "(2H4)azanium", id="ion_of_a_mononuclear_hydride"),
+        pytest.param("[13NH2]", "(13N)azanyl", id="radical_of_a_mononuclear_hydride"),
     ],
 )
 def test_nuclides_on_other_parent_hydrides(smiles, expected):
