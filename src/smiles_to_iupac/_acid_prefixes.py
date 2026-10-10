@@ -178,6 +178,14 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
             return _CARBAM[x], False
         if x in _HYDRAZINECARBONYL and len(subs) == 1 and not n_entries and _is_amino_nitrogen(mol, subs[0], z_idx):
             return _HYDRAZINECARBONYL[x], True
+        if x in _HYDRAZINECARBONYL and not n_entries:
+            from ._hetero_prefixes import substituted_hydrazinecarbonyl
+
+            substituted = substituted_hydrazinecarbonyl(
+                graph, root, z_idx, subs, halogens, aromatic_atoms, mol, _HYDRAZINECARBONYL[x]
+            )
+            if substituted is not None:
+                return substituted, True
         stem = _CARBAM[x]
         if subs and mol.GetAtomWithIdx(z_idx).IsInRing() and x in ("O", "S"):
             from ._hetero_prefixes import _ring_nitrogen_acyl

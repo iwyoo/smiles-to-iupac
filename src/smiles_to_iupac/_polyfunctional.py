@@ -2029,6 +2029,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             )
             and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and atom.GetIdx() in groups.get("hydrazide", {}))
             and _is_ester_like(mol, atom.GetIdx())
+            and not (principal in _AMIDE_FAMILY and _nitrogen_acyl(mol, atom.GetIdx()))
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
             and not (FORCED_PRINCIPAL.get() == principal and principal == "nitrile")
             and principal != "ide"
@@ -4246,6 +4247,22 @@ def _acyloxy_lambda_centre_oxygen(oxygen, carbon):
     if far is None or far.GetAtomicNum() not in LAMBDA_CENTRE_STEMS or far.GetFormalCharge() or far.IsInRing():
         return False
     return far.GetTotalValence() > LAMBDA_CENTRE_STEMS[far.GetAtomicNum()][1]
+
+
+_AMIDE_FAMILY = frozenset(
+    {"amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values()}
+)
+
+
+def _nitrogen_acyl(mol, carbon):
+    """An acyl carbon whose only hetero neighbours besides the carbonyl atom are nitrogens: an amide, hydrazide, urea or imide group,
+    which is junior to an amide parent and so a prefix beside it (P-41)."""
+    atom = mol.GetAtomWithIdx(carbon)
+    return not any(
+        (n.GetAtomicNum() not in (6, 7) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0)
+        or (n.GetAtomicNum() == 7 and any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds()))
+        for n in atom.GetNeighbors()
+    )
 
 
 def _is_ester_like(mol, carbon):

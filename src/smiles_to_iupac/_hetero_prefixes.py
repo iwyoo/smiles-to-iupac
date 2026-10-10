@@ -1092,6 +1092,34 @@ def _nitrile_oxide_prefix(mol, nitrogen):
     return None
 
 
+def substituted_hydrazinecarbonyl(graph, carbon, alpha, alpha_subs, halogens, aromatic_atoms, mol, base):
+    """'2-methylhydrazine-1-carbonyl': the acyl group of an N-substituted hydrazide, hydrazine numbered 1 at the nitrogen
+    bonded to the carbonyl carbon (P-65.1.3.2); None unless a chain nitrogen follows. `base` is 'hydrazinecarbonyl' or its
+    thio analogue."""
+    from ._common import group_substituents
+    from ._substituents import name_branch
+
+    betas = [
+        n for n in alpha_subs
+        if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(n).IsInRing()
+        and mol.GetBondBetweenAtoms(alpha, n).GetBondTypeAsDouble() == 1.0 and not mol.GetAtomWithIdx(n).GetFormalCharge()
+    ]
+    if len(betas) != 1:
+        return None
+    beta = betas[0]
+    entries = {}
+    for locant, nitrogen, origin in ((1, alpha, carbon), (2, beta, alpha)):
+        for n in graph[nitrogen]:
+            if n in (origin, beta if nitrogen == alpha else alpha):
+                continue
+            if mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) or mol.GetBondBetweenAtoms(nitrogen, n).GetBondTypeAsDouble() != 1.0:
+                return None
+            entries.setdefault(locant, []).append(name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol))
+    from ._substituents import format_substituent_prefixes
+
+    return format_substituent_prefixes(group_substituents(entries)) + base.replace("hydrazine", "hydrazine-1-", 1)
+
+
 def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     from ._substituents import ISOTOPE_LABELS, _labelled_carboxy, name_branch
 
