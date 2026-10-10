@@ -162,6 +162,70 @@ def has_isotope_shape(mol) -> bool:
     return any(atom.GetIsotope() != 0 for atom in mol.GetAtoms())
 
 
+_MONONUCLEAR_HYDRIDES = {
+    5: "borane", 7: "azane", 8: "oxidane", 13: "alumane", 14: "silane", 15: "phosphane", 16: "sulfane", 31: "gallane",
+    32: "germane", 33: "arsane", 34: "selane", 49: "indigane", 50: "stannane", 51: "stibane", 52: "tellane",
+    81: "thallane", 82: "plumbane", 83: "bismuthane",
+}
+
+
+def _heavy_chain(mol):
+    """The ordered heavy atoms of an unbranched acyclic chain of one hydride-forming element, else None."""
+    heavy = [a for a in mol.GetAtoms() if a.GetAtomicNum() != 1]
+    if not heavy or len({a.GetAtomicNum() for a in heavy}) != 1 or heavy[0].GetAtomicNum() not in _MONONUCLEAR_HYDRIDES:
+        return None
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.IsInRing() or a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()):
+        return None
+    degrees = {a.GetIdx(): sum(1 for n in a.GetNeighbors() if n.GetAtomicNum() != 1) for a in heavy}
+    ends = [i for i, d in degrees.items() if d <= 1]
+    if any(d > 2 for d in degrees.values()) or (len(heavy) > 1 and len(ends) != 2) or (len(heavy) == 1 and not ends):
+        return None
+    order, previous = [ends[0]], None
+    while len(order) < len(heavy):
+        onward = [n.GetIdx() for n in mol.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetAtomicNum() != 1 and n.GetIdx() != previous]
+        previous = order[-1]
+        order.append(onward[0])
+    return order
+
+
+def has_isotope_hydride_shape(mol) -> bool:
+    """A parent hydride of one element from Groups 13 to 16, a single atom or an unbranched chain, whose skeletal atoms
+    or hydrogens are nuclides (P-82.2.1, P-21.2.2)."""
+    return any(a.GetIsotope() for a in mol.GetAtoms()) and _heavy_chain(mol) is not None
+
+
+def name_isotope_hydride(mol) -> str:
+    """'(2H3)azane', '(13N)azane', '(18O)oxidane', '(1,1-2H2)hydrazine': the descriptor of the nuclides, symbols in
+    alphabetical order (P-82.3.1), then the hydride name; the numbering gives the modified atoms the lowest locants
+    (P-82.5.2) and a position that every atom shares needs none (P-82.6.1.3)."""
+    from ._isotope_labels import descriptor, split_isotopes
+    from ._numerals import multiplying_prefix
+
+    order = _heavy_chain(mol)
+    clean, labels, index = split_isotopes(mol)
+    z = mol.GetAtomWithIdx(order[0]).GetAtomicNum()
+    chain = [index[i] for i in order]
+    best = None
+    for candidate in (chain, chain[::-1]):
+        positions = {atom: place for place, atom in enumerate(candidate, start=1)}
+        key = sorted(positions[a] for a in labels)
+        if best is None or key < best[0]:
+            best = (key, positions)
+    positions = best[1]
+    uniform = (
+        set(labels) == set(chain)
+        and len({repr(sorted(e["H"].items())) + str(e["skeleton"]) for e in labels.values()}) == 1
+        and all(sum(e["H"].values()) == clean.GetAtomWithIdx(a).GetTotalNumHs() for a, e in labels.items())
+    )
+    capacity = {a: clean.GetAtomWithIdx(a).GetTotalNumHs() for a in chain}
+    text = descriptor(labels, positions, len(chain) == 1 or uniform, capacity=capacity)
+    stem = _MONONUCLEAR_HYDRIDES[z]
+    parent = stem if len(chain) == 1 else "hydrazine" if z == 7 and len(chain) == 2 else multiplying_prefix(len(chain)) + stem
+    return text + parent
+
+
 def _validate_other_atoms(other_atoms, mol, bonded_carbon_idx):
     for atom in other_atoms:
         if atom.GetAtomicNum() not in {1, *HALOGEN_PREFIXES}:

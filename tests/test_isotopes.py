@@ -384,3 +384,21 @@ def test_substituent_chains_and_prefixes_are_chosen_by_isotopic_modification(smi
 def test_deuterium_alkene_stereodescriptor_writes_no_rdkit_logs_to_stderr(capfd):
     assert smiles_to_iupac("C(=C\\C)/[2H]") == "(1E)-(1-2H1)prop-1-ene"
     assert capfd.readouterr().err == ""
+
+
+# P-82.2.1, P-82.3.1, P-82.5.2, P-82.6.1.3: nuclides on parent hydrides other than hydrocarbons
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]N([2H])[2H]", "(2H3)azane", id="every_hydrogen_of_a_mononuclear_hydride"),
+        pytest.param("[18OH2]", "(18O)oxidane", id="skeletal_nuclide_of_a_mononuclear_hydride"),
+        pytest.param("[15NH2][2H]", "(2H1,15N)azane", id="nuclide_symbols_alphabetical"),
+        pytest.param("[2H]N([2H])N([2H])[2H]", "(2H4)hydrazine", id="chain_hydride_modified_everywhere"),
+        pytest.param("[2H]N([2H])N", "(1,1-2H2)hydrazine", id="chain_hydride_modified_in_part"),
+        pytest.param("[15NH2]CC[13CH2][13CH2][15NH2]", "(1,2-13C2,15N2)butane-1,4-diamine", id="two_elements_one_in_the_amine_groups"),
+        pytest.param("[2H]OOC(=C)C", "prop-1-ene-2-(2H)peroxol", id="nuclide_on_a_peroxol_of_an_unsaturated_chain"),
+        pytest.param("CC(C)S[2H]", "propane-2-(2H)thiol", id="nuclide_on_the_sulfur_of_a_thiol"),
+    ],
+)
+def test_nuclides_on_other_parent_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
