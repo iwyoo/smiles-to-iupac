@@ -331,17 +331,37 @@ def _organyloxy(mol, chalcogen, nitrogen):
 
 
 def _carbamimidoyl_on(mol, atom, nitrogen):
-    """Whether `atom` is the carbon of an unsubstituted carbamimidoyl group -C(=NH)NH2 bonded to `nitrogen`."""
-    if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3 or atom.GetFormalCharge() or atom.IsInRing():
+    """Whether `atom` is the carbon of an amidine group -C(=NR)-R' bonded to `nitrogen`, R' being hydrogen, a plain carbon
+    group or an amino group: the N-substituent is an imidoyl or carbamimidoyl prefix, since the amide outranks the
+    amidine (P-41, P-66.4.1.2.1.3, P-66.4.1.3)."""
+    if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() or atom.IsInRing():
         return False
     if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
         return False
     ends = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
-    orders = sorted(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in ends)
-    return (
-        orders == [1.0, 2.0]
-        and all(n.GetAtomicNum() == 7 and n.GetDegree() == 1 and not n.GetFormalCharge() for n in ends)
-        and sum(n.GetTotalNumHs() for n in ends) == 3
+    imino = [n for n in ends if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+    rest = [n for n in ends if n not in imino]
+    if len(imino) != 1 or len(rest) > 1 or imino[0].GetAtomicNum() != 7 or imino[0].GetFormalCharge() or imino[0].IsInRing():
+        return False
+    if atom.GetTotalNumHs() != (0 if rest else 1) or not _plain_nitrogen_substituents(mol, imino[0], atom.GetIdx()):
+        return False
+    return not rest or (
+        rest[0].GetAtomicNum() == 6 and not is_functional_carbon(mol, rest[0].GetIdx())
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
+    ) or (
+        rest[0].GetAtomicNum() == 7 and not rest[0].GetFormalCharge() and not rest[0].IsInRing()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
+        and _plain_nitrogen_substituents(mol, rest[0], atom.GetIdx())
+    )
+
+
+def _plain_nitrogen_substituents(mol, nitrogen, origin):
+    """Whether every neighbour of `nitrogen` other than `origin` is a plain carbon group joined by a single bond."""
+    return all(
+        n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx())
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        for n in nitrogen.GetNeighbors()
+        if n.GetIdx() != origin
     )
 
 
@@ -393,19 +413,39 @@ def _ring_nitrogen_substituent(mol, atom, nitrogen):
     )
 
 
+def _amidine_ylidene(mol, atom, nitrogen):
+    """An acyclic carbon =N- whose other neighbours are amino groups with plain carbon substituents, a plain carbon or
+    hydrogen: the N-acyl amidine or guanidine drawn on its imine nitrogen, cited as a (diaminomethylidene)-type prefix on
+    the amide (P-41, P-66.4.1.2.1.3)."""
+    rest = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    if not rest or any(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in rest):
+        return False
+    amino = [n for n in rest if n.GetAtomicNum() == 7]
+    carbon = [n for n in rest if n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx())]
+    return (
+        len(amino) + len(carbon) == len(rest)
+        and bool(amino)
+        and all(not n.GetFormalCharge() and not n.IsInRing() and _plain_nitrogen_substituents(mol, n, atom.GetIdx()) for n in amino)
+    )
+
+
 def _hydride_group_on_nitrogen(mol, atom, nitrogen, sibling_count):
     """An N-substituent that is a mononuclear hydride group (phosphanyl, silyl, boranyl ...) or, on a nitrogen with no
     other substituent, an ylidene of a hydride atom or of a plain carbon (P-66.1.1.4.3, P-68.1)."""
     from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 
-    if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+    if atom.GetFormalCharge() or atom.GetIsotope():
         return False
     order = mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble()
+    if atom.IsInRing():
+        return order == 2.0 and sibling_count == 1 and atom.GetAtomicNum() == 6
     if order == 1.0:
         return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and atom.GetAtomicNum() != 7
     if order == 2.0 and sibling_count == 1:
         if atom.GetAtomicNum() == 6:
-            return not _double_oxygens(mol, atom.GetIdx()) and not is_functional_carbon(mol, atom.GetIdx())
+            return not _double_oxygens(mol, atom.GetIdx()) and (
+                not is_functional_carbon(mol, atom.GetIdx()) or _amidine_ylidene(mol, atom, nitrogen)
+            )
         return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and atom.GetAtomicNum() != 7
     return False
 

@@ -192,10 +192,30 @@ def _find(mol):
     ]
     found = centers + lone
     if len(found) > 1:
+        found = [c for c in found if not _acyl_on_other_center(mol, c, found)]
+    if len(found) > 1:
         rest = [c for c in found if not _is_urea_core(mol, c)]
         if len(rest) == 1 and _has_acid_ligand(mol, rest[0]):
             found = rest
     return found[0] if len(found) == 1 else None
+
+
+def _acyl_on_other_center(mol, idx, centers):
+    """A carboxylic acyl carbon (=O, one carbon, one nitrogen) on the nitrogen of an imidic acid centre: the N-acyl prefix
+    of that centre's ester, acid or amidine, which outranks the amide (P-41)."""
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetDegree() != 3 or not any(n.GetAtomicNum() == 8 and _bond(mol, idx, n.GetIdx()) == 2.0 for n in atom.GetNeighbors()):
+        return False
+    if sum(n.GetAtomicNum() == 6 for n in atom.GetNeighbors()) != 1:
+        return False
+    return any(
+        m.GetIdx() in centers
+        and m.GetIdx() != idx
+        and any(k.GetAtomicNum() == 7 and _bond(mol, m.GetIdx(), k.GetIdx()) == 2.0 for k in m.GetNeighbors())
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() == 7
+        for m in n.GetNeighbors()
+    )
 
 
 def _is_urea_core(mol, idx):

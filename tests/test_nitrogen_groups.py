@@ -1210,6 +1210,21 @@ def test_n_alkoxy_and_n_aryloxy_amides(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("CC(=O)NC(=NC)SC", "methyl N-acetyl-N'-methylcarbamimidothioate", id="acyl_isothiourea_is_an_ester"),
+        pytest.param("CC(=O)NC(=NC)NC", "N-(N,N'-dimethylcarbamimidoyl)acetamide", id="substituted_carbamimidoyl_on_amide_nitrogen"),
+        pytest.param("CC(=O)NC(=N)C", "N-(ethanimidoyl)acetamide", id="imidoyl_on_amide_nitrogen"),
+        pytest.param("CC(=O)N=C(N)N", "N-(diaminomethylidene)acetamide", id="acyl_guanidine_is_an_amide"),
+        pytest.param("CC(=O)N=C(C)N", "N-(1-aminoethylidene)acetamide", id="amidine_ylidene_chain_end_on_amide_nitrogen"),
+        pytest.param("CC(=O)N=C1SC=CN1C", "N-(3-methyl-1,3-thiazol-2(3H)-ylidene)acetamide", id="ring_ylidene_on_amide_nitrogen"),
+    ],
+)
+def test_amide_nitrogen_bonded_to_an_amidine_or_ylidene_carbon(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("COC(=O)NC(C)C(=O)C", "methyl (3-oxobutan-2-yl)carbamate", id="ketone_in_the_n_substituent_is_a_prefix"),
         pytest.param("COC(=O)NC(C)(C(=O)CCl)c1ccccc1", "methyl (4-chloro-3-oxo-2-phenylbutan-2-yl)carbamate", id="ketone_halogen_and_phenyl_in_the_n_substituent"),
         pytest.param(
