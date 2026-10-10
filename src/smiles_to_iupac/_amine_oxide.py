@@ -1,95 +1,63 @@
-"""Naming of secondary/tertiary amine N-oxides (P-62.5, Chapter P-6,
-https://iupac.qmul.ac.uk/BlueBook/PDF/P6.pdf):
-
-Method (1) of P-62.5: a molecule with exactly one amine/imine oxide is
-named by functional class nomenclature, appending ' N-oxide' to the name
-of the underlying amine, e.g. (CH3)3N+-O- -> 'N,N-dimethylmethanamine
-N-oxide (PIN)' (trimethylamine N-oxide, confirmed against the primary
-source's own worked example).
-
-This module accepts a primary, secondary or tertiary amine N-oxide, N-sulfide, N-selenide or N-telluride: a single
-nitrogen, formal charge +1, bonded to exactly one terminal chalcogenide atom
-(formal charge -1, single bond) and 1-3 carbon substituents shaped like
-whatever `_amine.py`'s existing secondary/tertiary amine logic already
-supports (unbranched, saturated, acyclic alkyl chains). The underlying
-amine name is produced by literally calling `name_amine` on a version of
-the molecule with the oxide oxygen removed and the nitrogen's charge reset
-to neutral -- not a separate, parallel implementation.
-
-Explicitly out of scope (the molecule simply isn't matched by
-`has_amine_oxide_shape`, so it falls through to whatever other module or
-rejection applies -- or `name_amine` itself rejects the reduced molecule):
-- An imine oxide (P-62.5's other named class) -- `_imine.py`'s territory,
-  not attempted here.
-- More than one amine/imine oxide, or a coexisting separate amino group
-  elsewhere in the molecule -- P-62.5's Method (1) restricts functional
-  class nomenclature to a single such group; anything else needs the
-  'amino'-prefix treatment the source describes, out of scope here.
-- Anything `_amine.py` itself would reject for the reduced (neutral)
-  molecule -- a ring, a branched/unsaturated N-substituent, a halogen
-  substituent coexisting with the secondary/tertiary nitrogen, etc.
-"""
+"""Amine and imine oxides and their chalcogen analogues (P-62.5): functional class nomenclature for one oxide,
+'N,N-dimethylmethanamine N-oxide'; an oxide on a further nitrogen is cited as an '(oxo-λ5-azanyl)' prefix."""
 
 import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._phosphanyl_group import PREFIX_PROP
+from ._prefix_groups import enclose
+from ._substituents import name_branch
 
 
 _CHALCOGEN_CLASS = {8: "oxide", 16: "sulfide", 34: "selenide", 52: "telluride"}
 
 
-def has_amine_oxide_shape(mol) -> bool:
-    charged_nitrogens = [
-        atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1
-    ]
-    if len(charged_nitrogens) != 1:
-        return False
-    nitrogen = charged_nitrogens[0]
-    if nitrogen.GetIsotope() != 0 or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() not in (3, 4):
-        return False
-
-    oxide_neighbors = [
+def _oxide_ligand(mol, nitrogen):
+    """The terminal chalcogenide atom of an amine or imine oxide nitrogen, else None."""
+    if nitrogen.GetAtomicNum() != 7 or nitrogen.GetFormalCharge() != 1 or nitrogen.GetIsotope() != 0:
+        return None
+    if nitrogen.GetDegree() + nitrogen.GetTotalNumHs() not in (3, 4):
+        return None
+    ligands = [
         n
         for n in nitrogen.GetNeighbors()
         if n.GetAtomicNum() in _CHALCOGEN_CLASS and n.GetFormalCharge() == -1 and n.GetDegree() == 1
     ]
-    if len(oxide_neighbors) != 1:
-        return False
-    (oxide_oxygen,) = oxide_neighbors
-    if oxide_oxygen.GetIsotope() != 0:
-        return False
-    if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), oxide_oxygen.GetIdx()).GetBondTypeAsDouble() != 1.0:
-        return False
+    if len(ligands) != 1 or ligands[0].GetIsotope() != 0:
+        return None
+    (ligand,) = ligands
+    if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), ligand.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return None
+    others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != ligand.GetIdx()]
+    if len(others) not in (1, 2, 3) or any(n.GetAtomicNum() != 6 for n in others):
+        return None
+    if any(mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
+        return None
+    return ligand
 
-    other_neighbors = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != oxide_oxygen.GetIdx()]
-    if len(other_neighbors) not in (1, 2, 3):
-        return False
-    if any(n.GetAtomicNum() != 6 for n in other_neighbors):
-        return False
-    return all(
-        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
-        for n in other_neighbors
-    )
+
+def _oxide_nitrogens(mol):
+    return [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7 and a.GetFormalCharge() == 1]
+
+
+def has_amine_oxide_shape(mol) -> bool:
+    nitrogens = _oxide_nitrogens(mol)
+    return bool(nitrogens) and all(_oxide_ligand(mol, n) is not None for n in nitrogens)
 
 
 def name_amine_oxide(mol) -> str:
     from ._amine import name_amine
 
-    nitrogen = next(
-        atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1
-    )
-    oxide_oxygen = next(
-        n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in _CHALCOGEN_CLASS and n.GetFormalCharge() == -1
-    )
+    nitrogens = _oxide_nitrogens(mol)
+    if len(nitrogens) > 1:
+        return _name_among_oxides(mol, nitrogens)
+    nitrogen = nitrogens[0]
+    oxide_oxygen = _oxide_ligand(mol, nitrogen)
     class_word = _CHALCOGEN_CLASS[oxide_oxygen.GetAtomicNum()]
 
-    reduced = Chem.RWMol(mol)
-    reduced.GetAtomWithIdx(nitrogen.GetIdx()).SetFormalCharge(0)
-    reduced.RemoveAtom(oxide_oxygen.GetIdx())
-    reduced_mol = reduced.GetMol()
-    Chem.SanitizeMol(reduced_mol)
+    reduced_mol = _reduce(mol, nitrogen, oxide_oxygen)
 
     amine_nitrogens = [a for a in reduced_mol.GetAtoms() if _is_amine_nitrogen(a)]
     other_nitrogens = sum(a.GetAtomicNum() == 7 for a in reduced_mol.GetAtoms()) - len(amine_nitrogens)
@@ -137,15 +105,104 @@ def _name_with_nitrile_prefix(reduced_mol):
     return re.sub(r"^1-(?=[a-z(\[{])", "", name) if name.endswith("methanamine") else name
 
 
+def _reduce(mol, nitrogen, oxide_oxygen):
+    reduced = Chem.RWMol(mol)
+    reduced.GetAtomWithIdx(nitrogen.GetIdx()).SetFormalCharge(0)
+    reduced.RemoveAtom(oxide_oxygen.GetIdx())
+    reduced_mol = reduced.GetMol()
+    Chem.SanitizeMol(reduced_mol)
+    return reduced_mol
+
+
+def _reduced_position(nitrogen_idx, oxide_idx):
+    return nitrogen_idx - (1 if oxide_idx < nitrogen_idx else 0)
+
+
+def _name_among_oxides(mol, nitrogens):
+    """P-62.5: one oxide gives the class term, each further one is an '(oxo-λ5-azanyl)' prefix; the parent amine is the
+    one whose carbon skeleton is senior (ring before chain, then the larger acyclic carbon set, then the senior chalcogen)."""
+    from .core import _name_mol
+
+    graph = adjacency(mol)
+    ranked = []
+    for parent in nitrogens:
+        contracted = _cite_other_oxides(mol, graph, parent, nitrogens)
+        if contracted is None:
+            continue
+        try:
+            name = _name_mol(contracted)
+        except UnsupportedStructure:
+            continue
+        ranked.append((_skeleton_rank(mol, graph, parent), name))
+    if not ranked:
+        raise UnsupportedStructure("no amine parent carries one of the oxidized nitrogens of this polyamine oxide")
+    best = max(rank for rank, _ in ranked)
+    return min(name for rank, name in ranked if rank == best)
+
+
+def _cite_other_oxides(mol, graph, parent, nitrogens):
+    """`mol` with every oxidized nitrogen but `parent` collapsed to a placeholder carrying its prefix, or None."""
+    halogens = halogen_substituents(mol)
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    groups, removed = [], set()
+    for other in nitrogens:
+        idx = other.GetIdx()
+        if idx == parent.GetIdx() or idx in removed:
+            continue
+        toward = [n for n in graph[idx] if n in _reachable(graph, parent.GetIdx(), {idx})]
+        if len(toward) != 1 or other.IsInRing():
+            return None
+        try:
+            name, compound = name_branch(graph, idx, toward[0], halogens, aromatic, mol=mol)
+        except UnsupportedStructure:
+            return None
+        atoms = _reachable(graph, idx, {toward[0]})
+        if parent.GetIdx() in atoms:
+            return None
+        groups.append((toward[0], enclose(name) if compound else name))
+        removed |= atoms
+    rw = Chem.RWMol(mol)
+    for anchor, name in groups:
+        placeholder = rw.AddAtom(Chem.Atom(53))
+        rw.AddBond(anchor, placeholder, Chem.BondType.SINGLE)
+        rw.GetAtomWithIdx(placeholder).SetProp(PREFIX_PROP, name)
+    for idx in sorted(removed, reverse=True):
+        rw.RemoveAtom(idx)
+    out = rw.GetMol()
+    Chem.SanitizeMol(out)
+    return out
+
+
+def _reachable(graph, start, blocked):
+    seen, stack = {start}, [start]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n not in seen and n not in blocked:
+                seen.add(n)
+                stack.append(n)
+    return seen
+
+
+def _skeleton_rank(mol, graph, parent):
+    def acyclic_carbon(idx):
+        atom = mol.GetAtomWithIdx(idx)
+        return atom.GetAtomicNum() == 6 and not atom.IsInRing()
+
+    carbons = [n for n in graph[parent.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 6]
+    blocked = {i for i in range(mol.GetNumAtoms()) if not acyclic_carbon(i)}
+    longest = max((len(_reachable(graph, c, blocked)) for c in carbons if acyclic_carbon(c)), default=0)
+    ring = any(mol.GetAtomWithIdx(c).IsInRing() for c in carbons)
+    return ring, longest, -_oxide_ligand(mol, parent).GetAtomicNum()
+
+
 def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
     """P-62.5: the oxidized nitrogen is the amine suffix nitrogen of the parent, so every other amino group is cited
     as a prefix ('5-(dimethylamino)-N,N-dimethylpentan-1-amine N-oxide')."""
     from .core import _name_mol
-    from ._common import UnsupportedStructure
     from ._hetero_chain import contract_hetero_groups_candidates
     from ._polyfunctional import name_polyfunctional
 
-    position = nitrogen_idx - (1 if oxide_idx < nitrogen_idx else 0)
+    position = _reduced_position(nitrogen_idx, oxide_idx)
     names = []
     for contracted in contract_hetero_groups_candidates(reduced_mol, {position}):
         try:

@@ -260,7 +260,7 @@ def test_nitrile_imide_still_and_related_raise(smiles):
         pytest.param("CC#[N+][C-](C)C", "2-(acetonitriliumyl)propan-2-ide", id="nitrile_ylide"),
         pytest.param("[CH2]C([CH2])c1ccc(cc1)[P+]([O-])(c1ccccc1)c1ccccc1", "2-{4-[oxidodi(phenyl)phosphaniumyl]phenyl}propane-1,3-diyl", id="dipolar_phosphorus_substituent_group"),
         pytest.param("[CH2]C([CH2])c1ccc(cc1)CC#[N+][O-]", "2-{4-[2-(oxidoazaniumylidyne)ethyl]phenyl}propane-1,3-diyl", id="dipolar_nitrile_oxide_substituent_group"),
-        pytest.param("[CH2]C[N+]([O-])(C)C", "2-[dimethyl(oxido)azaniumyl]ethyl", id="dipolar_amine_oxide_substituent_group"),
+        pytest.param("[CH2]C[N+]([O-])(C)C", "2-[dimethyl(oxo)-\u03bb5-azanyl]ethyl", id="amine_oxide_substituent_group_as_oxo_azanyl"),
     ],
 )
 def test_dipolar_compounds(smiles, expected):
@@ -761,6 +761,7 @@ def test_heteroaromatic_n_oxide(smiles, expected):
         pytest.param("C[N+]1(C)CCCC1C(=O)O", "2-carboxy-1,1-dimethylpyrrolidin-1-ium", id="cation_outranks_acid_on_a_saturated_ring"),
         pytest.param("c1ccc2oc[nH+]c2c1", "1,3-benzoxazol-3-ium", id="protonated_fused_azole"),
         pytest.param("[O-][N+]1(C)CCCCC1", "1-methylpiperidine 1-oxide", id="saturated_ring_n_oxide"),
+        pytest.param("[O-][NH+]1CCOCC1", "morpholine 4-oxide", id="saturated_ring_nh_oxide"),
         pytest.param("[O-][n+]1ccoc1", "1,3-oxazole 3-oxide", id="azole_n_oxide_locant"),
     ],
 )
