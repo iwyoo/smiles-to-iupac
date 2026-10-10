@@ -603,6 +603,10 @@ def _require_radicals_cited(mol, name):
         raise UnsupportedStructure("the name does not cite the radical centre")
 
 
+def _is_nucleoside_derivative(mol) -> bool:
+    return has_nucleoside_name(mol) or oligonucleotide_name(mol) is not None or has_substituted_nucleoside_name(mol)
+
+
 def _has_nameable_radical_group(mol) -> bool:
     if not has_radical_group_shape(mol):
         return False
@@ -786,7 +790,7 @@ def _name_unabridged_body(smiles: str) -> str:
             return name
         if parsed is not None and has_anisole_shape(parsed):
             return name_anisole(parsed)
-        if parsed is not None and has_noncarbon_oxoacid_shape(parsed):
+        if parsed is not None and has_noncarbon_oxoacid_shape(parsed) and not _is_nucleoside_derivative(parsed):
             return name_noncarbon_oxoacid(parsed)
         if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
             return name_functional_replacement_oxoacid(parsed)
