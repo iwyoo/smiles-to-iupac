@@ -107,38 +107,57 @@ def _chain(mol, radicals):
     return f"{base}-{joined}-{_MULTIPLIER[number]}{suffix}"
 
 
-def _substituted_chain(mol, radicals):
-    """Radical centres of one kind on an unbranched chain of one heteroatom that carries other groups: the chain is the
-    parent (P-44.1.2.2), its radical locants come first and every other group is a prefix (P-71.2.3)."""
-    from ._common import adjacency, group_substituents, halogen_substituents, substituent_locant_set_and_citation
-    from ._hydride_chain import _STEMS
+def _chain_parent(mol, graph, radicals):
+    """(ordered chain atoms, parent hydride name) of the unbranched heteroatom chain that holds every radical centre: one
+    element (disilane) or alternating elements (dialuminoxane, P-21.2.3.1); None for any other skeleton."""
+    from ._hydride_chain import _STEMS, _alternating_chain, _alternating_parent
     from ._numerals import multiplying_prefix
+
+    ids = {a.GetIdx() for a in radicals}
+    z = radicals[0].GetAtomicNum()
+    if all(a.GetAtomicNum() == z for a in radicals) and z in _STEMS:
+        chain_atoms = {radicals[0].GetIdx()}
+        stack = [radicals[0]]
+        while stack:
+            for n in stack.pop().GetNeighbors():
+                if n.GetAtomicNum() == z and n.GetIdx() not in chain_atoms:
+                    chain_atoms.add(n.GetIdx())
+                    stack.append(n)
+        ends = [i for i in chain_atoms if sum(n.GetIdx() in chain_atoms for n in mol.GetAtomWithIdx(i).GetNeighbors()) <= 1]
+        if len(chain_atoms) >= 2 and len(ends) == 2 and ids <= chain_atoms and not any(
+            sum(n.GetIdx() in chain_atoms for n in mol.GetAtomWithIdx(i).GetNeighbors()) > 2 for i in chain_atoms
+        ):
+            order, previous = [ends[0]], None
+            while len(order) < len(chain_atoms):
+                order.append(next(n.GetIdx() for n in mol.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetIdx() in chain_atoms and n.GetIdx() != previous))
+                previous = order[-2]
+            parent = "hydrazine" if z == 7 and len(order) == 2 else f"{multiplying_prefix(len(order))}{_STEMS[z]}"
+            return order, parent
+    found = _alternating_chain(mol, graph)
+    if found is None or not ids <= set(found[2]):
+        return None
+    terminal_z, inner_z, chain = found
+    return chain, _alternating_parent(terminal_z, inner_z, (len(chain) + 1) // 2)
+
+
+def _substituted_chain(mol, radicals):
+    """Radical centres on an unbranched chain of heteroatoms that carries other groups: the chain is the parent
+    (P-44.1.2.2), its radical locants come first and every other group is a prefix (P-71.2.3)."""
+    from ._common import adjacency, group_substituents, halogen_substituents, substituent_locant_set_and_citation
     from ._substituents import format_substituent_prefixes, name_branch
 
-    z = radicals[0].GetAtomicNum()
-    if z not in _STEMS or any(a.GetAtomicNum() != z or a.GetNumRadicalElectrons() not in _SUFFIX for a in radicals):
+    if any(a.GetNumRadicalElectrons() not in _SUFFIX for a in radicals):
         return None
     if any(a.GetFormalCharge() or a.GetIsotope() or a.IsInRing() for a in mol.GetAtoms()) or any(
         b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()
     ):
         return None
-    chain_atoms = {radicals[0].GetIdx()}
-    stack = [radicals[0]]
-    while stack:
-        for n in stack.pop().GetNeighbors():
-            if n.GetAtomicNum() == z and n.GetIdx() not in chain_atoms:
-                chain_atoms.add(n.GetIdx())
-                stack.append(n)
-    ends = [i for i in chain_atoms if sum(n.GetIdx() in chain_atoms for n in mol.GetAtomWithIdx(i).GetNeighbors()) <= 1]
-    if len(chain_atoms) < 2 or len(ends) != 2 or not {a.GetIdx() for a in radicals} <= chain_atoms:
-        return None
-    if any(sum(n.GetIdx() in chain_atoms for n in mol.GetAtomWithIdx(i).GetNeighbors()) > 2 for i in chain_atoms):
-        return None
-    order, previous = [ends[0]], None
-    while len(order) < len(chain_atoms):
-        order.append(next(n.GetIdx() for n in mol.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetIdx() in chain_atoms and n.GetIdx() != previous))
-        previous = order[-2]
     graph = adjacency(mol)
+    found = _chain_parent(mol, graph, radicals)
+    if found is None:
+        return None
+    order, parent = found
+    chain_atoms = set(order)
     halogens = halogen_substituents(mol)
     valence_of = {a.GetIdx(): a.GetNumRadicalElectrons() for a in radicals}
     best = None
@@ -158,7 +177,6 @@ def _substituted_chain(mol, radicals):
         if best is None or key < best[0]:
             best = (key, grouped, by_valence)
     _, grouped, by_valence = best
-    parent = "hydrazine" if z == 7 and len(order) == 2 else f"{multiplying_prefix(len(order))}{_STEMS[z]}"
     pieces = [
         f"{','.join(map(str, locants))}-{'' if len(locants) == 1 else _MULTIPLIER[len(locants)]}{_SUFFIX[v]}"
         for v, locants in by_valence.items()

@@ -240,8 +240,93 @@ def _unsat_words(ene, yne):
     return unsaturation_suffix(ene, yne)[0]
 
 
+_BRANCHED_CHAIN_ELEMENTS = {14, 15, 32, 33, 50, 51, 82, 83}
+
+
+def _branched_chain_paths(mol, graph):
+    """(element, longest paths) of a branched acyclic skeleton of one Group 14 or 15 element (P-44.3): the principal
+    chain is the longest path, the other atoms of the element are silyl-type branches."""
+    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in _BRANCHED_CHAIN_ELEMENTS}
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in atoms}
+    if len(elements) != 1 or len(atoms) < 4:
+        return None
+    adjacent = {a: [n for n in graph[a] if n in atoms] for a in atoms}
+    if any(mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
+        return None
+    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a in atoms for b in adjacent[a]):
+        return None
+    if sum(len(v) for v in adjacent.values()) // 2 != len(atoms) - 1 or not all(adjacent.values()):
+        return None
+    if max(len(v) for v in adjacent.values()) <= 2:
+        return None
+    best, paths = 0, []
+    for start in atoms:
+        stack = [(start, [start])]
+        while stack:
+            node, path = stack.pop()
+            onward = [n for n in adjacent[node] if n not in path]
+            if not onward:
+                if len(path) > best:
+                    best, paths = len(path), []
+                if len(path) == best:
+                    paths.append(path)
+            stack.extend((n, path + [n]) for n in onward)
+    return elements.pop(), paths
+
+
+def _branched_alternating_paths(mol, graph):
+    """(terminal element, inner element, longest alternating paths) of a branched a(ba)n skeleton: a divalent inner
+    atom joins two terminal atoms, which may carry several inner atoms (P-21.2.3.1, P-44.3)."""
+    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in _ALTERNATING_ORDER and not a.IsInRing()}
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in atoms}
+    if len(elements) != 2 or len(atoms) < 5:
+        return None
+    inner_z, terminal_z = sorted(elements, key=_ALTERNATING_ORDER.index)
+    if inner_z not in _DIVALENT:
+        return None
+    adjacent = {a: [n for n in graph[a] if n in atoms] for a in atoms}
+    inner = [a for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == inner_z]
+    if any(len(adjacent[a]) != 2 or mol.GetAtomWithIdx(a).GetDegree() != 2 for a in inner):
+        return None
+    if any(mol.GetAtomWithIdx(n).GetAtomicNum() != inner_z for a in atoms if a not in inner for n in adjacent[a]):
+        return None
+    if sum(len(v) for v in adjacent.values()) // 2 != len(atoms) - 1 or max(len(adjacent[a]) for a in atoms) <= 2:
+        return None
+    best, paths = 0, []
+    for start in (a for a in atoms if a not in inner):
+        stack = [(start, [start])]
+        while stack:
+            node, path = stack.pop()
+            onward = [n for n in adjacent[node] if n not in path]
+            if not onward and node not in inner:
+                if len(path) > best:
+                    best, paths = len(path), []
+                if len(path) == best:
+                    paths.append(path)
+            stack.extend((n, path + [n]) for n in onward)
+    return terminal_z, inner_z, paths
+
+
 def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
     found = _chain_atoms(mol, graph)
+    if found is None:
+        branched_alternating = _branched_alternating_paths(mol, graph)
+        if branched_alternating is not None:
+            terminal_z, inner_z, paths = branched_alternating
+            return min(
+                (
+                    _keyed_chain_name(mol, graph, halogens, aromatic_atoms, terminal_z, path, False, (terminal_z, inner_z, path))
+                    for path in paths
+                ),
+                key=lambda option: option[0],
+            )[1]
+        branched = _branched_chain_paths(mol, graph)
+        if branched is not None:
+            z, paths = branched
+            return min(
+                (_keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, path, False, None) for path in paths),
+                key=lambda option: option[0],
+            )[1]
     unsaturated = False
     if found is None:
         found = _chain_atoms(mol, graph, allow_double=True, allow_triple=True)
@@ -304,6 +389,10 @@ def _one_arrangement(substituents, capacity):
 
 
 def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating):
+    return _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating)[1]
+
+
+def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating):
     chain_set = set(chain)
     best = None
     for candidate in (chain, chain[::-1]):
@@ -351,4 +440,4 @@ def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alt
         key = (sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation, name)
         if best is None or key < best[0]:
             best = (key, name)
-    return best[1]
+    return best

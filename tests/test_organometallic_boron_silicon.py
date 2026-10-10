@@ -1178,3 +1178,16 @@ def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expe
 )
 def test_locants_of_heteroatom_chains_follow_the_arrangement_rule(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-44.3, P-21.2.3.1, P-69.1: branched skeletons of Group 14 atoms are named on their longest chain
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[Sn](C)(C)[Sn](C)([Sn](C)(C)C)[Sn](C)(C)C", "1,1,1,2,3,3,3-heptamethyl-2-(trimethylstannyl)tristannane", id="branched_tin_chain"),
+        pytest.param("C[Si](C)(C)[Si]([Si](C)(C)C)([Si](C)(C)C)[Si](C)(C)C", "1,1,1,3,3,3-hexamethyl-2,2-bis(trimethylsilyl)trisilane", id="branched_silicon_chain"),
+        pytest.param("C[Si](O[Si](C)(C)C)(O[Si](C)(C)C)O[Si](C)(C)C", "1,1,1,3,5,5,5-heptamethyl-3-[(trimethylsilyl)oxy]trisiloxane", id="branched_alternating_chain"),
+    ],
+)
+def test_branched_heteroatom_skeletons(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
