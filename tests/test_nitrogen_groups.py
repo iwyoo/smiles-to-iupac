@@ -192,6 +192,7 @@ def test_acyclic_primary_amine_stereocenter_with_ez_double_bond_coexistence():
     "smiles, expected",
     [
         pytest.param("C[N+](C)(C)[C@H](C)/C=C/C", "(2R,3E)-N,N,N-trimethylpent-3-en-2-aminium", id="ammonium_stereocenter_with_ez_double_bond_coexistence"),
+        pytest.param("C[C@H](CC(=O)OC)[N+](C)(C)C", "(2R)-4-methoxy-N,N,N-trimethyl-4-oxobutan-2-aminium", id="quaternary_aminium_stereocentre_beside_an_ester"),
         pytest.param("C=Cc1ccccc1CCN", "2-(2-ethenylphenyl)ethan-1-amine", id="phenyl_chain_amine_unsaturation"),
         pytest.param("c1ccccc1C(N)CCN", "1-phenylpropane-1,3-diamine", id="phenyl_chain_diamine"),
     ],

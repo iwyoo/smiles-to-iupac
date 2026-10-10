@@ -2147,6 +2147,9 @@ def _joined_imine_alternatives(mol, graph, groups, ring_groups):
     return alternatives
 
 
+_AMINE_STEREO_ELEMENTS = {6, 7, 8, 9, 17, 35, 53}
+
+
 def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo):
     if any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms()) and principal not in _CHALCOGEN_KETONE_OK and not (principal and _is_variant(principal)):
         raise UnsupportedStructure("a thioketone-type group outranks the parents this engine can build here")
@@ -2191,8 +2194,8 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     ):
         if attach is not None or n_names:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
-        if any(kind != "isotope" for kind, _, _ in stereo or ()):
-            raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported yet")
+        if any(kind != "isotope" for kind, _, _ in stereo or ()) and any(a.GetAtomicNum() not in _AMINE_STEREO_ELEMENTS for a in mol.GetAtoms()):
+            raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported beside other heteroatoms yet")
         return _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
 
     if principal is None:
