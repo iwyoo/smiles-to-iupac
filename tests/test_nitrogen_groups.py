@@ -598,6 +598,12 @@ def test_substituted_phenyl__hydrazine():
         ("NN1CCCCC1C", "2-methylpiperidin-1-amine"),
         ("NN1CCOCC1", "morpholin-4-amine"),
         ("NN1C=CC=C1", "1H-pyrrol-1-amine"),
+        ("CCNn1cccc1", "N-ethyl-1H-pyrrol-1-amine"),
+        ("CCCC(C)CNn1c(C)ccc1C", "2,5-dimethyl-N-(2-methylpentyl)-1H-pyrrol-1-amine"),
+        ("CCNn1ccnc1", "N-ethyl-1H-imidazol-1-amine"),
+        ("CN(C)N1CCCC1", "N,N-dimethylpyrrolidin-1-amine"),
+        ("c1ccncc1Nn1cccc1", "N-(1H-pyrrol-1-yl)pyridin-3-amine"),
+        ("CCNn1cccc1C(=O)O", "1-(ethylamino)-1H-pyrrole-2-carboxylic acid"),
     ],
 )
 def test_ring_nitrogen_amino_is_amine_not_hydrazine(smiles, expected):
