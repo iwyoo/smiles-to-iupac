@@ -579,11 +579,16 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
             out.append(Numbering(position_of, _benzene_text))
         return out
     if all(a.GetAtomicNum() == 6 for a in atoms):
+        bonded = mol
         if any(a.GetIsAromatic() for a in atoms):
-            raise UnsupportedStructure("an aromatic carbocycle other than benzene is not supported as a diyl yet")
+            bonded = Chem.Mol(mol)
+            try:
+                Chem.Kekulize(bonded)
+            except Chem.rdchem.KekulizeException as error:
+                raise UnsupportedStructure("an aromatic carbocycle has no Kekulé structure") from error
         ring_bonds = [
             (b.GetBeginAtomIdx(), b.GetEndAtomIdx(), b.GetBondTypeAsDouble())
-            for b in mol.GetBonds()
+            for b in bonded.GetBonds()
             if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set and b.GetBondTypeAsDouble() != 1.0
         ]
         if any(order != 2.0 for _, _, order in ring_bonds):
