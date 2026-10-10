@@ -84,6 +84,23 @@ def test_multiplicative_esters_of_sulfur_and_phosphorus_acids(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("CC(OS(C)(=O)=O)OS(C)(=O)=O", "ethane-1,1-diyl dimethanesulfonate", id="geminal_sulfonate_diester"),
+        pytest.param(
+            "CC#CC#CC(OS(=O)(=O)c1ccc(C)cc1)OS(=O)(=O)c1ccc(C)cc1",
+            "hexa-2,4-diyne-1,1-diyl bis(4-methylbenzene-1-sulfonate)",
+            id="acid_name_with_locants_takes_bis",
+        ),
+        pytest.param("CS(=O)(=O)OCC(O)COS(C)(=O)=O", "2-hydroxypropane-1,3-diyl dimethanesulfonate", id="hydroxy_prefix_on_diyl"),
+        pytest.param("OCC(O)COS(=O)(=O)OS(=O)(=O)O", "2,3-dihydroxypropyl hydrogen disulfate", id="hydroxyalkyl_ester_of_disulfuric_acid"),
+    ],
+)
+def test_sulfonate_diesters_and_hydroxyalkyl_disulfates(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("OC(=O)CCOS(=O)(=N)O", "3-[(hydroxysulfonimidoyl)oxy]propanoic acid", id="imidic_o_bound"),
         pytest.param("OC(=O)CCS(=O)(=N)O", "3-(hydroxysulfonimidoyl)propanoic acid", id="imidic_c_bound"),
         pytest.param("OC(=O)CCS(=N)(=N)O", "3-(hydroxysulfonodiimidoyl)propanoic acid", id="diimidic"),
