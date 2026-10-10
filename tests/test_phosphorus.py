@@ -109,17 +109,6 @@ def test_salt_of_partial_ester():
     assert smiles_to_iupac("COP(=O)(O)[O-].[K+]") == "potassium methyl hydrogen phosphate"
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("COP(=O)(O)[O-].[Ca+2]", id="salt_of_partial_ester_multivalent_cation_raises"),
-    ],
-)
-def test_salt_of_partial_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_phosphindole():
     assert smiles_to_iupac("C1C=C2C=CC=CC2=P1") == "2H-phosphindole"
 

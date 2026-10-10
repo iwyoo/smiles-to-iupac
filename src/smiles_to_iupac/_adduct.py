@@ -25,12 +25,15 @@ _CLASS_PATTERNS = (
     ("ketone", "[#6][CX3](=O)[#6]"),
     ("alcohol", "[#6][OX2H1]"),
     ("amine", "[NX3;!$(N[#6]=[O,S,N]);!$(N-[a])]"),
-    ("ether", "[#6][OX2][#6]"),
+)
+_JUNIOR_CARBON_PATTERNS = (
+    (0.1, "[#6][OX2;!R][#6]"),
+    (0.2, "[#6][SX2,SeX2,TeX2,SX3,SeX3,TeX3,SX4,SeX4,TeX4,OX2;!R][#6,O,S,Se,Te]"),
 )
 _DONOR_ATOMS = {7, 8, 15, 16, 33, 34, 51, 52}
-_HETERO_RANK = max(SUFFIX_CLASS_RANK.values()) + 1
-_HYDROCARBON_RANK = _HETERO_RANK + 1
-_INORGANIC_RANK = _HYDROCARBON_RANK + 1
+_PARENT_ATOMS = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52)
+_CARBON_RANK = max(SUFFIX_CLASS_RANK.values()) + 1
+_INORGANIC_RANK = _CARBON_RANK + 1
 _WATER_RANK = _INORGANIC_RANK + 1
 
 
@@ -64,25 +67,68 @@ def _inorganic_name(frag):
     return _NOBLE_GAS_NAMES.get(z) or _METAL_NAMES.get(z) or _MAIN_GROUP_NAMES.get(z)
 
 
+def _parent_atom_class(frag):
+    """Index in P-44.1.2 of the most senior skeletal heteroatom (classes 21-39 of Table 4.1), or None for a carbon
+    compound: heteroatoms of ethers, sulfides and nitro or nitroso groups belong to substituents."""
+    found = []
+    for atom in frag.GetAtoms():
+        z = atom.GetAtomicNum()
+        if z not in _PARENT_ATOMS:
+            continue
+        if not atom.IsInRing():
+            if z in (8, 16, 34, 52) or (z == 7 and any(n.GetAtomicNum() == 8 for n in atom.GetNeighbors())):
+                continue
+        found.append(_PARENT_ATOMS.index(z))
+    return min(found, default=None)
+
+
+def _parent_key(frag):
+    """Seniority of the parent structure within one class: a ring system before a chain (P-44.1.2.2), ring systems by
+    P-44.2.1."""
+    from ._ring_system_seniority import general_key
+
+    systems = []
+    for ring in frag.GetRingInfo().AtomRings():
+        joined = set(ring)
+        rest = []
+        for system in systems:
+            if system & joined:
+                joined |= system
+            else:
+                rest.append(system)
+        systems = rest + [joined]
+    if not systems:
+        return (1,)
+    return (0,) + min(general_key(frag, system) for system in systems)
+
+
 def _class_rank(frag):
     if _is_bare_water(frag):
-        return _WATER_RANK
+        return (_WATER_RANK,)
     if not any(a.GetAtomicNum() == 6 for a in frag.GetAtoms()):
-        return _INORGANIC_RANK
+        return (_INORGANIC_RANK,)
     ranks = [
         SUFFIX_CLASS_RANK[name]
         for name, smarts in _CLASS_PATTERNS
         if frag.HasSubstructMatch(Chem.MolFromSmarts(smarts))
     ]
-    hydrocarbon = all(a.GetAtomicNum() == 6 for a in frag.GetAtoms())
-    return min(ranks, default=_HYDROCARBON_RANK if hydrocarbon else _HETERO_RANK)
+    if ranks:
+        return (min(ranks),) + _parent_key(frag)
+    atom_class = _parent_atom_class(frag)
+    if atom_class is not None:
+        return (_CARBON_RANK - 1 + atom_class / 100,) + _parent_key(frag)
+    junior = min(
+        (offset for offset, smarts in _JUNIOR_CARBON_PATTERNS if frag.HasSubstructMatch(Chem.MolFromSmarts(smarts))),
+        default=0,
+    )
+    return (_CARBON_RANK + junior,) + _parent_key(frag)
 
 
 def _components(mol):
     frags = Chem.GetMolFrags(mol, asMols=True)
     if len(frags) < 2:
         return None
-    charged = [f for f in frags if any(a.GetFormalCharge() for a in f.GetAtoms())]
+    charged = [f for f in frags if sum(a.GetFormalCharge() for a in f.GetAtoms())]
     if charged and not (
         all(_inorganic_name(f) in ("hydron", "hydride") for f in charged)
         and any(a.GetAtomicNum() == 6 for f in frags for a in f.GetAtoms())
@@ -153,6 +199,10 @@ def has_adduct_shape(mol) -> bool:
     return _components(mol) is not None
 
 
+def _is_lewis_acid(frag):
+    return any(a.HasProp("_adduct_acceptor") for a in frag.GetAtoms())
+
+
 def name_adduct(mol, namer) -> str:
     named = []
     for smiles, (frag, count) in _components(mol):
@@ -160,7 +210,7 @@ def name_adduct(mol, namer) -> str:
         named.append((_class_rank(frag), alpha_sort_key(name), name, count, frag))
     if len(named) == 1:
         raise UnsupportedStructure("identical components form a repeated molecule, not an adduct")
-    named.sort(key=lambda item: item[:4])
+    named.sort(key=lambda item: (item[0] == (_WATER_RANK,), _is_lewis_acid(item[4])) + item[:4])
     proportions = f"({'/'.join(str(item[3]) for item in named)})"
     if len(named) == 2 and all(item[3] == 1 for item in named):
         pair = _attachment(named[0][4], named[1][4])

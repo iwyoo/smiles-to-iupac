@@ -524,17 +524,6 @@ def test_phenyl_chain_ketone_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        "CC.CCC[N+](=O)[O-]",  # _nitro.py
-    ],
-)
-def test_multi_fragment_rejected_instead_of_silently_dropped(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("OCC(Cl)COCC(Cl)CO", "3,3'-oxybis(2-chloropropan-1-ol)"),

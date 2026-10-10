@@ -1,5 +1,5 @@
 import pytest
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
@@ -309,9 +309,24 @@ def test_pnictogen_cation_is_not_a_radical_centre():
     assert smiles_to_iupac(f"[Sb+3].{acid}.{acid}.{acid}") == "antimony tris(3-carboxypropanoate)"
 
 
-def test_multi_cation_mismatched_charge_raises():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[Na+].[Cl-].[Na+].[Cl-].O", "sodium chloride—water (2/1)", id="repeated_formula_unit_of_the_salt"),
+        pytest.param("[CH3-].[HH].[Na+]", "sodium methanide—dihydrogen (1/1)", id="organic_salt_with_dihydrogen"),
+        pytest.param("C.[Al+3]", "methane—aluminium(3+) (1/1)", id="cation_with_a_neutral_molecule"),
+        pytest.param("[CH3-].[Ta]", "methanide—tantalum (1/1)", id="anion_with_a_neutral_atom"),
+        pytest.param("[Al+3].[K+].[O-]S(=O)(=O)[O-]", "aluminium(3+)—potassium(1+)—sulfate (1/1/1)", id="ions_that_do_not_balance"),
+    ],
+)
+def test_adducts_of_ions_with_other_components(smiles, expected):
+    with pytest.warns(NonPreferredNameWarning, match="P-14.8.2"):
+        assert smiles_to_iupac(smiles) == expected
+
+
+def test_radical_beside_an_ion_is_not_named_as_a_closed_shell_adduct():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Al+3].[K+].[O-]S(=O)(=O)[O-]")
+        smiles_to_iupac("[CH3].[Na+]")
 
 
 def test_oxidanium():
@@ -685,10 +700,9 @@ def test_ammonium_counter_ion_multiplied_with_bis_to_avoid_diazane_reading():
     assert smiles_to_iupac("[NH4+].[NH4+].[O-]S(=O)(=O)[O-]") == "bis(azanium) sulfate"
 
 
-@pytest.mark.parametrize("smiles", ["CN.[O-]S(=O)(=O)O"])
-def test_unaccounted_fragment_or_polyvalent_halogen_is_never_dropped(smiles):
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac(smiles)
+def test_unaccounted_fragment_is_never_dropped():
+    with pytest.warns(NonPreferredNameWarning):
+        assert smiles_to_iupac("CN.[O-]S(=O)(=O)O") == "methanamine—hydrogen sulfate (1/1)"
 
 @pytest.mark.parametrize(
     "smiles, expected",
