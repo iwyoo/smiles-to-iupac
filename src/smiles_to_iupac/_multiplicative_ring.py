@@ -54,14 +54,6 @@ _SUFFIX_WORDS = _SuffixWords({
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
     "hydrazonohydrazide": "carbohydrazonohydrazide",
-    **{
-        f"{stem}hydrazonamide": f"{stem}hydrazonamide"
-        for stem in ("sulfono", "sulfino", "selenono", "selenino", "tellurono", "tellurino")
-    },
-    **{
-        f"{stem}hydrazonohydrazide": f"{stem}hydrazonohydrazide"
-        for stem in ("sulfono", "sulfino", "selenono", "selenino", "tellurono", "tellurino")
-    },
     "hydrazide": "carbohydrazide",
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
@@ -92,7 +84,7 @@ _PRIMARY_NITROGEN = {
     "selenoamide",
     "telluroamide",
     "amine",
-    *(name for (_, oxo, terminal), name in SULFONYL_GROUP_NAMES.items() if terminal == "amide" and "NH" not in oxo),
+    *(name for (_, oxo, terminal), name in SULFONYL_GROUP_NAMES.items() if terminal == "amide" and "NH" not in oxo and "NNH2" not in oxo),
 }
 _HETERO_PARENTS = {"pyridine": "pyridine", "furan": "furan", "thiophene": "thiophene", "pyrrole": "1H-pyrrole"}
 _VALENCE_COUNTS = (2, 3, 4)
