@@ -1032,6 +1032,16 @@ def test_ring_imine_and_oxime(smiles, expected):
         pytest.param("N=C(N)c1ccccc1C(=N)N", "benzene-1,2-dicarboximidamide", id="ring_diamidine"),
         pytest.param("CC(=NC)N(C)C", "N,N,N'-trimethylethanimidamide", id="n_and_n_prime_substituents"),
         pytest.param("NC(=N)CC(=N)N", "propanediimidamide", id="chain_diamidine"),
+        pytest.param("CC(=N)CN=CC", "1-(ethylideneamino)propan-2-imine", id="second_imine_as_ylideneamino_prefix"),
+        pytest.param(
+            "CC(=N)CN=Cc1c(Cl)cccc1Cl",
+            "1-{[(2,6-dichlorophenyl)methylidene]amino}propan-2-imine",
+            id="aryl_methylideneamino_prefix",
+        ),
+        pytest.param("N=C1CCCC1CN=CC", "2-[(ethylideneamino)methyl]cyclopentan-1-imine", id="ring_imine_parent_with_ylideneamino_prefix"),
+        pytest.param("CC(=N)CN=CCCC", "N-(2-iminopropyl)butan-1-imine", id="longer_imine_chain_is_the_parent"),
+        pytest.param("CCC=NCCN=CCC", "N,N'-(ethane-1,2-diyl)di(propan-1-imine)", id="identical_imines_joined_multiplicatively"),
+        pytest.param("c1ccccc1C=NCN=Cc1ccccc1", "N,N'-methylenebis(phenylmethanimine)", id="substituted_imine_units_use_bis"),
     ],
 )
 def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expected):
