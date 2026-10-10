@@ -99,6 +99,9 @@ def test_aromatic_aminide_is_and_related(smiles, expected):
         pytest.param("C[N+](C)(C)CC(O)CC(=O)O", "3-carboxy-2-hydroxy-N,N,N-trimethylpropan-1-aminium", id="cation_outranks_acid"),
         pytest.param("C[N+](C)(C)CCC(=O)OC", "2-(methoxycarbonyl)-N,N,N-trimethylethan-1-aminium", id="cation_outranks_ester"),
         pytest.param("C[N+](C)(C)c1ccc(C(=O)O)cc1", "4-carboxy-N,N,N-trimethylanilinium", id="aryl_ammonium_with_acid"),
+        pytest.param("Nc1ccccc1[NH3+]", "2-aminoanilinium", id="neutral_amino_prefix_on_aniline"),
+        pytest.param("NC1=CC=CC=C1[NH2+]C", "2-amino-N-methylanilinium", id="neutral_amino_prefix_n_substituted"),
+        pytest.param("Nc1cccnc1[NH3+]", "3-aminopyridin-2-aminium", id="neutral_amino_prefix_on_heteroring"),
     ],
 )
 def test_ammonium_parent_with_other_groups(smiles, expected):
@@ -1529,17 +1532,6 @@ def test_salts_of_arsenic_and_cyanato_boron_acids(smiles, expected):
 )
 def test_carboxylate_salts_of_esters(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NC1=CC=CC=C1[NH2+]C", id="neutral_amino_group_is_not_counted_as_aminium"),
-    ],
-)
-def test_charge_is_never_miscounted_in_a_name(smiles):
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
