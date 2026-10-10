@@ -4613,6 +4613,8 @@ def _ring_occurrences(mol):
                 if sulfonyl is not None:
                     found.append((sulfonyl[0], r, sulfonyl[1]))
             elif z == 7 and _terminal_heteroatom(mol, i, 2):
+                if AMINIUM.get() is True and not n.HasProp("_cationic_amine"):
+                    continue
                 found.append(("amine", r, {i}))
             elif z == 7 and order == 2.0 and _ring_imine_nitrogen(mol, n, r):
                 found.append(("imine", r, {i}))
