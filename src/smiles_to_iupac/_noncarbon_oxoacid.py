@@ -129,7 +129,7 @@ _SYMBOL_ORDER = {symbol: _ORDER[z] for z, symbol in _CHALCOGEN.items()}
 
 
 def _symbol_order(text):
-    return _SYMBOL_ORDER[re.match(r"[A-Z][a-z]?", text).group()]
+    return _SYMBOL_ORDER[re.search(r"[A-Z][a-z]?", text).group()]
 
 
 def _peroxo_name(first, last):
@@ -143,9 +143,16 @@ def _peroxo_name(first, last):
 
 def _classify(mol, graph, halogens, centre, neighbor):
     """The ligand description of `neighbor` bonded to the acid centre, or None when it is not an acid ligand."""
+    found = _classify_ligand(mol, graph, halogens, centre, neighbor)
+    if found is not None and neighbor.GetIsotope():
+        found["nuclide"] = f"{neighbor.GetIsotope()}{neighbor.GetSymbol()}"
+    return found
+
+
+def _classify_ligand(mol, graph, halogens, centre, neighbor):
     order = mol.GetBondBetweenAtoms(centre.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble()
     z = neighbor.GetAtomicNum()
-    if neighbor.GetIsotope():
+    if neighbor.GetIsotope() and z not in _CHALCOGEN:
         return None
     if order == 1.0:
         for pattern, infix, term in _PSEUDOHALIDE_PATTERNS:
@@ -171,6 +178,8 @@ def _classify(mol, graph, halogens, centre, neighbor):
                 and other.GetDegree() == 1
                 and other.GetTotalNumHs() == 1
                 and not other.GetFormalCharge()
+                and not other.GetIsotope()
+                and not neighbor.GetIsotope()
                 and mol.GetBondBetweenAtoms(neighbor.GetIdx(), other.GetIdx()).GetBondTypeAsDouble() == 1.0
             ):
                 return {"role": "single", "kind": "peroxo", "infix": _peroxo_name(z, other.GetAtomicNum()), "H": True, "z": z, "z2": other.GetAtomicNum()}
@@ -248,9 +257,12 @@ def _parse(mol, centre):
     modified = any(
         (s["kind"] not in ("chalcogen", "ester")) or s["z"] != 8 for s in singles if s["kind"] != "ester" or s["z"] != 8
     ) or any(y["kind"] != "chalcogen" or y["z"] != 8 for y in ylidenes)
-    if not modified or not singles:
-        return None
     esters = [x for x in singles if x["kind"] == "ester"]
+    isotopic = any(p.get("nuclide") for p in (*ylidenes, *singles))
+    if isotopic and not esters:
+        return None
+    if not (modified or isotopic) or not singles:
+        return None
     if esters and any(x["kind"] in ("hydrazide",) for x in singles):
         return None
     if z in _CHALCOGEN_STEMS and any(p["kind"] in ("hydrazide", "hydrazone") for p in (*ylidenes, *singles)):
@@ -270,7 +282,7 @@ def _parse_prefixed(mol, centre):
     ylidenes, singles = [], []
     for neighbor in centre.GetNeighbors():
         found = _classify(mol, graph, halogens, centre, neighbor)
-        if found is None or found.get("anion") or found["kind"] not in ("chalcogen", "halide", "pseudohalide", "ester"):
+        if found is None or found.get("anion") or found.get("nuclide") or found["kind"] not in ("chalcogen", "halide", "pseudohalide", "ester"):
             return None
         if found["kind"] == "ester" and not _plain_tree(mol, graph, found["R"], neighbor.GetIdx()):
             return None
@@ -624,10 +636,11 @@ def _ester_words(mol, parts, esters, cited):
     by_name = {}
     for ester in esters:
         name, _ = name_branch(graph, ester["R"], ester["atom"], halogens, mol=mol)
-        by_name.setdefault(name, []).append(_CHALCOGEN[ester["z"]])
+        by_name.setdefault(name, []).append(ester.get("nuclide") or _CHALCOGEN[ester["z"]])
+    cited = cited or any(p.get("nuclide") for p in (*parts["ylidenes"], *parts["singles"]))
     words = []
     for name in sorted(by_name, key=alpha_sort_key):
-        letters = sorted(by_name[name], key=_symbol_order)
+        letters = sorted(by_name[name], key=lambda t: (_symbol_order(t), t))
         if cited and len(letters) == 1 and (name[0].isdigit() or name[0] in "([{"):
             word = enclose(name)
         else:
@@ -647,8 +660,23 @@ def _salt_text(parts, words, hydrogens, anion, descriptor):
 def _ester_name(mol, parts, esters, prefix, stem, infixes, descriptor):
     """Ester words, 'hydrogen' words for the acidic positions left, then the anion name (P-67.1.3.2)."""
     words = _ester_words(mol, parts, esters, _acid_locants_present(parts))
-    anion = prefix + _compose(stem, infixes, "ate" if parts["pentavalent"] else "ite")
+    if not infixes and parts["pentavalent"]:
+        stem = {"phosphor": "phosph", "sulfur": "sulf"}.get(stem, stem)
+    anion = prefix + _nuclide_descriptor(parts) + _compose(stem, infixes, "ate" if parts["pentavalent"] else "ite")
     return _salt_text(parts, words, _hydrogen_words(parts), anion, descriptor)
+
+
+def _nuclide_descriptor(parts):
+    """P-82.2.4, P-82.3: '(17O1,18O1)' before the acid name for the labelled chalcogens of the acid group, ordered by
+    symbol and mass number; the positions of an acid group are interchangeable, so no locants (P-82.6.1)."""
+    counts = {}
+    for p in (*parts["ylidenes"], *parts["singles"]):
+        if p.get("nuclide"):
+            counts[p["nuclide"]] = counts.get(p["nuclide"], 0) + 1
+    if not counts:
+        return ""
+    mass_symbol = lambda nuclide: (re.sub(r"\d", "", nuclide), int(re.sub(r"\D", "", nuclide)))
+    return "(" + ",".join(f"{n}{counts[n]}" for n in sorted(counts, key=mass_symbol)) + ")"
 
 
 def _acid_locants_present(parts):
