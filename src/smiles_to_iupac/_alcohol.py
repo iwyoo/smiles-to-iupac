@@ -268,7 +268,7 @@ def _plain_terminal_alkyl_length(mol, graph, start, coming_from):
         neighbors = [n for n in graph[current] if n != previous]
         if len(neighbors) == 0:
             return length
-        if len(neighbors) > 1:
+        if len(neighbors) > 1 or mol.GetBondBetweenAtoms(current, neighbors[0]).GetBondTypeAsDouble() != 1.0:
             return None
         previous, current = current, neighbors[0]
 
