@@ -157,6 +157,8 @@ def is_functional_carbon(mol, idx):
                 continue
             return True
         if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS:
+            if atom.IsInRing() and not b.IsInRing():
+                return False
             return any(
                 n.GetIdx() != other.GetIdx() and n.GetAtomicNum() in _MULTIPLE_TARGETS and not _non_amino_nitrogen(n)
                 for n in atom.GetNeighbors()
@@ -582,6 +584,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if atom.IsInRing() and not any(
             b.GetBondTypeAsDouble() != 1.0 and not b.IsInRing() and b.GetOtherAtom(atom).GetAtomicNum() != 6 for b in atom.GetBonds()
         ):
+            return None
+        if _chain_amidine_ylidene(mol, graph, root, coming_from):
             return None
         if is_functional_carbon(mol, root) or _carbonyl_oxygen(mol, root) is not None or (
             (EXTENDED_PREFIXES.get() or _chalcogen_formyl(mol, root)) and _thioacyl(mol, root)
@@ -1151,6 +1155,29 @@ def _carbon_nitrogen_group(mol, nitrogen, oxygen):
     atom = mol.GetAtomWithIdx(nitrogen)
     return atom.GetAtomicNum() == 7 and not atom.GetFormalCharge() and all(
         n.GetIdx() == oxygen or n.GetAtomicNum() == 6 for n in atom.GetNeighbors()
+    )
+
+
+def _chain_amidine_ylidene(mol, graph, root, coming_from):
+    """A carbon joined to `coming_from` by a double bond that carries one plain carbon group and amino groups: the
+    ylidene end of a chain, as in '1-aminoethylidene', not an amidine group of its own."""
+    atom = mol.GetAtomWithIdx(root)
+    if atom.IsInRing() or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 2.0:
+        return False
+    others = [mol.GetAtomWithIdx(n) for n in graph[root] if n != coming_from]
+    carbons = [a for a in others if a.GetAtomicNum() == 6]
+    amino = [a for a in others if a.GetAtomicNum() == 7]
+    return (
+        len(carbons) == 1
+        and len(amino) == len(others) - 1
+        and bool(amino)
+        and not is_functional_carbon(mol, carbons[0].GetIdx())
+        and all(
+            not a.GetFormalCharge() and not a.IsInRing() and mol.GetBondBetweenAtoms(root, a.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors() if n.GetIdx() != root)
+            for a in amino
+        )
+        and all(n.GetAtomicNum() == 6 for n in mol.GetAtomWithIdx(coming_from).GetNeighbors() if n.GetIdx() != root)
     )
 
 

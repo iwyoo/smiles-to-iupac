@@ -48,6 +48,15 @@ from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import format_substituent_prefixes
 
 
+def _carbonyl_carbon(mol, atom):
+    """A carbon double-bonded to a chalcogen: an acyl group on a guanidine nitrogen makes the amide the parent
+    (P-41, P-66.4.1.2.1.3)."""
+    return atom.GetAtomicNum() == 6 and any(
+        n.GetAtomicNum() in (8, 16, 34, 52) and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
+    )
+
+
 def _guanidine_core(mol):
     """(carbon_idx, imino_idx, (amino1_idx, amino2_idx)) for the guanidine
     carbon and its three nitrogens, or None if the molecule isn't shaped
@@ -90,6 +99,13 @@ def _guanidine_core(mol):
             continue
         if any(
             not is_core_substituent_root(mol, nn) for n in amino for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()
+        ):
+            continue
+        if any(
+            _carbonyl_carbon(mol, nn)
+            for n in (*amino, imino_n)
+            for nn in n.GetNeighbors()
+            if nn.GetIdx() != atom.GetIdx()
         ):
             continue
         return atom.GetIdx(), imino_n.GetIdx(), (amino[0].GetIdx(), amino[1].GetIdx())
