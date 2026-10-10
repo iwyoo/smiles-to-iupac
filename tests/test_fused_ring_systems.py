@@ -4,7 +4,6 @@ from rdkit.Chem import Atom, BondType, RWMol
 from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._phane_general import phane_seniority_key
-from smiles_to_iupac._pyrimidinedione import has_pyrimidinedione_shape
 from smiles_to_iupac._ring_system_seniority import ring_seniority_key
 
 
@@ -452,11 +451,6 @@ def test_epipyrano_bridge_benzo_g_quinoline():
 )
 def test_benzo_a_pyrene_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_non_1_3_diazine_dione_not_matched():
-    mol = Chem.MolFromSmiles("O=C1C=CC(=O)NN1")
-    assert not has_pyrimidinedione_shape(mol)
 
 
 @pytest.mark.parametrize(

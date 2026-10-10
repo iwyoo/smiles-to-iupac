@@ -492,6 +492,7 @@ def test_dihydrate_adduct():
         ("CCO.c1ccncc1", "ethanol—pyridine (1/1)"),
         ("CC(=O)O.CCN", "acetic acid—ethanamine (1/1)"),
         ("CC.CCOCC", "ethoxyethane—ethane (1/1)"),
+        ("F.O=c1cccc[nH]1", "pyridin-2(1H)-one—hydrogen fluoride (1/1)"),
     ],
 )
 def test_adduct_components_ordered_by_class_seniority(smiles, expected):
