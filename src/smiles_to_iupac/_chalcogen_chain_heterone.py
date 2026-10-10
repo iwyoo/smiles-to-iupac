@@ -1,9 +1,10 @@
-"""Heterones and nitriles of an acyclic polychalcogane chain, e.g. 1-methyl-2-phenyl-1λ6,2λ6-disulfane-1,1,2,2-tetrone
-(P-64.1.2.2, P-64.4.1, P-64.7.2) and 1-hydroxy-1,1-diiodo-1λ4-disulfane-2-carbonitrile (P-67.3.1): the chain of S, Se
-or Te atoms is the parent hydride, each doubly bonded oxygen is cited by the suffix 'one', a nitrile carbon on the chain
-by 'carbonitrile', and each chalcogen of non-standard valence by its λ label (P-14.1). The numbering gives lowest
-locants first to the λ atoms, then to the suffix, then to the prefixes, then to the alphabetically first prefix
-(P-31.1.4).
+"""Heterones, nitriles and unsaturated links of an acyclic polychalcogane chain, e.g. 1-methyl-2-phenyl-1λ6,2λ6-disulfane-
+1,1,2,2-tetrone (P-64.1.2.2, P-64.4.1, P-64.7.2), 1-hydroxy-1,1-diiodo-1λ4-disulfane-2-carbonitrile (P-67.3.1) and
+1,1-dimethyl-1λ4-disulfene (P-68.4.3.1, P-31.1.4.2.4): the chain of S, Se or Te atoms is the parent hydride, each doubly
+bonded oxygen is cited by the suffix 'one', a nitrile carbon on the chain by 'carbonitrile', a double bond between chain
+atoms by the ending 'ene', and each chalcogen of non-standard valence by its λ label (P-14.1). The numbering gives lowest
+locants first to the λ atoms, then to the suffix, then to the 'ene' endings, then to the prefixes, then to the
+alphabetically first prefix (P-31.1.4).
 """
 
 from rdkit import Chem
@@ -54,9 +55,13 @@ def _chain(mol):
             return None
         previous = order[-1]
         order.append(following[0])
-    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(order, order[1:])):
+    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() not in (1.0, 2.0) for a, b in zip(order, order[1:])):
         return None
     return order
+
+
+def _double_bonds(mol, order):
+    return [(a, b) for a, b in zip(order, order[1:]) if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 2.0]
 
 
 def _nitrile_carbons(mol, order):
@@ -81,7 +86,7 @@ def has_chalcogen_chain_heterone_shape(mol) -> bool:
     if order is None:
         return False
     atoms = [mol.GetAtomWithIdx(i) for i in order]
-    return any(_terminal_oxygens(a) for a in atoms) or any(a.GetTotalValence() != 2 for a in atoms)
+    return any(_terminal_oxygens(a) for a in atoms) or any(a.GetTotalValence() != 2 for a in atoms) or bool(_double_bonds(mol, order))
 
 
 def name_chalcogen_chain_heterone(mol) -> str:
@@ -128,6 +133,8 @@ def name_chalcogen_chain_heterone(mol) -> str:
                 raise UnsupportedStructure("an unsaturated link to the chalcogen chain is not supported yet")
             attached.append((i, name_branch(graph, n, i, halogens, aromatic, mol=mol, unsaturated=True)))
 
+    double_bonds = _double_bonds(mol, order)
+
     def numbering(sequence):
         position = {atom: k + 1 for k, atom in enumerate(sequence)}
         prefixes = sorted(
@@ -136,6 +143,7 @@ def name_chalcogen_chain_heterone(mol) -> str:
         return (
             sorted(position[i] for i in lambdas),
             sorted(position[i] for i in sequence for _ in oxo[i] + ([nitriles[i]] if i in nitriles else [])),
+            sorted(min(position[a], position[b]) for a, b in double_bonds),
             sorted(position[i] for i, _ in attached),
             [loc for _, loc in prefixes],
         ), position
@@ -150,7 +158,13 @@ def name_chalcogen_chain_heterone(mol) -> str:
     lambda_text = ",".join(f"{position[i]}λ{v}" for i, v in sorted(lambdas.items(), key=lambda item: position[item[0]]))
     suffix_locants = ",".join(str(loc) for loc in best_key[1])
     stem = _STEMS[mol.GetAtomWithIdx(order[0]).GetAtomicNum()]
-    parent = f"{numerical_term(len(order))}{stem}"
+    ene_locants = best_key[2]
+    if ene_locants:
+        multiple = len(ene_locants) > 1
+        locant_text = "" if len(order) == 2 else f"{'a' if multiple else ''}-{','.join(map(str, ene_locants))}-"
+        parent = f"{numerical_term(len(order))}{stem[:-3]}{locant_text}{multiplied_word(len(ene_locants), 'ene')}"
+    else:
+        parent = f"{numerical_term(len(order))}{stem}"
     head = f"{prefix_text}-" if prefix_text else ""
     lambda_head = f"{lambda_text}-" if lambda_text else ""
     if nitriles:
@@ -159,4 +173,7 @@ def name_chalcogen_chain_heterone(mol) -> str:
         return f"{head}{lambda_head}{parent}-{suffix_locants}-{multiplied_word(len(best_key[1]), 'carbonitrile')}"
     if not best_key[1]:
         return f"{head}{lambda_head}{parent}"
-    return f"{head}{lambda_head}{parent}-{suffix_locants}-{multiplied_word(len(best_key[1]), 'one')}"
+    suffix = multiplied_word(len(best_key[1]), "one")
+    if suffix[0] in "aeiou":
+        parent = parent[:-1]
+    return f"{head}{lambda_head}{parent}-{suffix_locants}-{suffix}"

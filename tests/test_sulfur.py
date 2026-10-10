@@ -793,6 +793,12 @@ def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, exp
             "OS(I)(I)SC#N", "1-hydroxy-1,1-diiodo-1λ4-disulfane-2-carbonitrile", id="lambda_chain_nitrile"
         ),
         pytest.param("CS(C)(C)SC", "1,1,1,2-tetramethyl-1λ4-disulfane", id="lambda_chain_without_suffix"),
+        pytest.param("S=S", "disulfene", id="chain_double_bond_standard_valence"),
+        pytest.param("CS(C)(C)(C)=S", "1,1,1,1-tetramethyl-1λ6-disulfene", id="chain_double_bond_lambda_label"),
+        pytest.param("C[Se](C)=[Se]", "1,1-dimethyl-1λ4-diselene", id="chain_double_bond_selenium"),
+        pytest.param("CSS(C)(C)=S", "2,2,3-trimethyl-2λ6-trisulf-1-ene", id="chain_double_bond_locant_before_prefixes"),
+        pytest.param("CS(=S)=S", "2-methyl-2λ6-trisulfa-1,2-diene", id="chain_cumulated_double_bonds"),
+        pytest.param("CS(C)(=O)=S", "1,1-dimethyl-1λ6-disulfen-1-one", id="chain_double_bond_beside_heterone_oxygen"),
     ],
 )
 def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
