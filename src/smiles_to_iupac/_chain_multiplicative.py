@@ -734,7 +734,10 @@ def _phosphonic_candidates(mol, graph):
     candidates = {}
     for center in [*_phosphonic_acid_phosphorus_atoms(mol), *_phosphonous_acid_atoms(mol)]:
         oxygens = {n.GetIdx() for n in center.GetNeighbors() if n.GetAtomicNum() == 8}
-        (root,) = [n.GetIdx() for n in center.GetNeighbors() if n.GetIdx() not in oxygens]
+        roots = [n.GetIdx() for n in center.GetNeighbors() if n.GetIdx() not in oxygens]
+        if len(roots) != 1:
+            continue
+        root = roots[0]
         if mol.GetAtomWithIdx(root).GetAtomicNum() != 6:
             return {}
         atoms = oxygens | {center.GetIdx()}

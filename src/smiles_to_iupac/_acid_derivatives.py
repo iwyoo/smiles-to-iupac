@@ -1192,7 +1192,7 @@ def _acyloxy_oxoacid(mol, acid):
     taken = {n.GetIdx() for n in oxo + hydroxy}
     others = [n for n in center.GetNeighbors() if n.GetIdx() not in taken]
     boron = center.GetAtomicNum() == 5
-    if len(hydroxy) not in (1, 2) or len(others) != 3 - len(hydroxy) or len(oxo) != (0 if boron else 1):
+    if len(hydroxy) not in (1, 2) or len(others) != 3 - len(hydroxy) or len(oxo) > (0 if boron else 1):
         raise UnsupportedStructure("this oxoacid anhydride is not named by a prefix on the acid parent")
     for n in others:
         if n.GetAtomicNum() == 8 and not any(m.GetIdx() != center.GetIdx() and _center(mol, m.GetIdx()) for m in n.GetNeighbors()):
@@ -1200,7 +1200,8 @@ def _acyloxy_oxoacid(mol, acid):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     entries = {1: [name_branch(graph, n.GetIdx(), center.GetIdx(), halogens, mol=mol) for n in others]}
-    parent = _OXOACID_STEMS[center.GetAtomicNum()][2 - len(hydroxy)] + "ic acid"
+    ending = "ic acid" if boron or oxo else "ous acid"
+    parent = _OXOACID_STEMS[center.GetAtomicNum()][2 - len(hydroxy)] + ending
     return format_substituent_prefixes(group_substituents(entries), omit_locants=True) + parent
 
 

@@ -619,3 +619,8 @@ def test_phosphorus_hydrogen_acids_oxide_zwitterions_and_lambda_prefix_groups(sm
 )
 def test_stereo_elements_of_a_chain_on_a_group_15_or_boron_acid_are_cited_in_the_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_isotopically_modified_phosphoric_acid_is_refused_not_misread():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[3H]OP([3H])(=O)O")

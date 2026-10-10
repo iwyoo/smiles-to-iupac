@@ -567,14 +567,14 @@ def name_isotope(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    if any(b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()):
-        raise UnsupportedStructure("a multiple bond in an isotopically modified alkane is not supported by this module")
     carbons = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6]
     if not carbons:
         raise UnsupportedStructure(
             "this module only supports a hydrocarbon parent hydride; "
             "other parent hydrides are not supported yet (P-82.2.1)"
         )
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()):
+        raise UnsupportedStructure("a multiple bond in an isotopically modified alkane is not supported by this module")
 
     if len(carbons) == 1:
         return _name_methane(mol, carbons[0])
