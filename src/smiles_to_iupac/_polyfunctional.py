@@ -1683,7 +1683,10 @@ def _name_labelled(mol, labels, finish=None):
         ISOTOPE_LABELS.reset(isotope_token)
 
 
-_SUFFIX_WORD = {"alcohol": "ol", "ketone": "one", "aldehyde": "al"}
+_SUFFIX_WORD = {
+    "alcohol": "ol", "ketone": "one", "aldehyde": "al", "peroxol": "peroxol", "thiol": "thiol", "selenol": "selenol", "tellurol": "tellurol",
+}
+_SUFFIX_ELEMENT = {"thiol": 16, "selenol": 34, "tellurol": 52}
 
 
 def _principal_owned(mol):
@@ -1720,9 +1723,11 @@ def _group_atom_labels(mol, rest):
         raise UnsupportedStructure("the modified atom of the characteristic group needs a locant that is not defined yet")
     symbol = mol.GetAtomWithIdx(next(iter(rest))).GetSymbol()
     heavy = [a for a, e in rest.items() if e["skeleton"]]
-    if len(heavy) > 1:
+    if len(heavy) > 1 and not _same_label_on_every_group_atom(mol, rest, owned, element):
         raise UnsupportedStructure("several isotopically modified atoms in one characteristic group are not supported yet")
-    if principal in _SUFFIX_WORD and element == 8:
+    if principal in _SUFFIX_WORD and element == _SUFFIX_ELEMENT.get(principal, 8):
+        if principal == "peroxol" and any(mol.GetAtomWithIdx(a).GetDegree() != 1 for a in rest):
+            raise UnsupportedStructure("the oxygen of a peroxol that is bonded to carbon has no defined descriptor")
         if len(owned_groups) != 1:
             raise UnsupportedStructure("this isotopically modified oxygen has no defined suffix descriptor")
         nuclides = []
@@ -1740,6 +1745,8 @@ def _group_atom_labels(mol, rest):
     if not (nitrogen or acid):
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []
+    if len(heavy) > 1:
+        return [(rest[heavy[0]]["skeleton"], None, len(heavy), False)], None
     for atom, entry in rest.items():
         heavy_label = entry["skeleton"]
         locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
@@ -1748,6 +1755,21 @@ def _group_atom_labels(mol, rest):
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
+
+
+def _same_label_on_every_group_atom(mol, rest, owned, element):
+    """Every atom of the element in the characteristic groups carries the same heavy nuclide and nothing else, so one
+    descriptor with a count names them all and needs no locant (P-82.6.1.3)."""
+    atoms = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == element]
+    labels = {rest[a]["skeleton"] for a in atoms if a in rest}
+    return (
+        all(a in rest for a in atoms)
+        and len(labels) == 1
+        and None not in labels
+        and "" not in labels
+        and not any(rest[a]["H"] for a in atoms)
+        and len(atoms) == len(rest)
+    )
 
 
 def _capacity(mol, atom):

@@ -162,6 +162,91 @@ def has_isotope_shape(mol) -> bool:
     return any(atom.GetIsotope() != 0 for atom in mol.GetAtoms())
 
 
+_MONONUCLEAR_HYDRIDES = {
+    5: "borane", 7: "azane", 8: "oxidane", 13: "alumane", 14: "silane", 15: "phosphane", 16: "sulfane", 31: "gallane",
+    32: "germane", 33: "arsane", 34: "selane", 49: "indigane", 50: "stannane", 51: "stibane", 52: "tellane",
+    81: "thallane", 82: "plumbane", 83: "bismuthane",
+}
+
+
+def _heavy_chain(mol):
+    """The ordered heavy atoms of an unbranched acyclic chain of one hydride-forming element, else None."""
+    heavy = [a for a in mol.GetAtoms() if a.GetAtomicNum() != 1]
+    if not heavy or len({a.GetAtomicNum() for a in heavy}) != 1 or heavy[0].GetAtomicNum() not in _MONONUCLEAR_HYDRIDES:
+        return None
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.IsInRing() for a in mol.GetAtoms()):
+        return None
+    if len(heavy) > 1 and any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
+    if len(heavy) == 1 and heavy[0].GetFormalCharge() and heavy[0].GetNumRadicalElectrons():
+        return None
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()):
+        return None
+    degrees = {a.GetIdx(): sum(1 for n in a.GetNeighbors() if n.GetAtomicNum() != 1) for a in heavy}
+    ends = [i for i, d in degrees.items() if d <= 1]
+    if any(d > 2 for d in degrees.values()) or (len(heavy) > 1 and len(ends) != 2) or (len(heavy) == 1 and not ends):
+        return None
+    order, previous = [ends[0]], None
+    while len(order) < len(heavy):
+        onward = [n.GetIdx() for n in mol.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetAtomicNum() != 1 and n.GetIdx() != previous]
+        previous = order[-1]
+        order.append(onward[0])
+    return order
+
+
+_STANDARD_VALENCE = {5: 3, 7: 3, 8: 2, 13: 3, 14: 4, 15: 3, 16: 2, 31: 3, 32: 4, 33: 3, 34: 2, 49: 3, 50: 4, 51: 3, 52: 2, 81: 3, 82: 4, 83: 3}
+
+
+def _is_radical(mol, atom):
+    return not atom.GetFormalCharge() and atom.GetTotalValence() < _STANDARD_VALENCE[atom.GetAtomicNum()]
+
+
+def _ion_or_radical_name(clean):
+    """The name of the unmodified ion or radical of a mononuclear hydride, 'azanium', 'azanide', 'azanyl', 'hydroxyl'."""
+    from .core import smiles_to_iupac
+
+    return smiles_to_iupac(Chem.MolToSmiles(clean))
+
+
+def has_isotope_hydride_shape(mol) -> bool:
+    """A parent hydride of one element from Groups 13 to 16, a single atom or an unbranched chain, whose skeletal atoms
+    or hydrogens are nuclides (P-82.2.1, P-21.2.2)."""
+    return any(a.GetIsotope() for a in mol.GetAtoms()) and _heavy_chain(mol) is not None
+
+
+def name_isotope_hydride(mol) -> str:
+    """'(2H3)azane', '(13N)azane', '(18O)oxidane', '(1,1-2H2)hydrazine': the descriptor of the nuclides, symbols in
+    alphabetical order (P-82.3.1), then the hydride name; the numbering gives the modified atoms the lowest locants
+    (P-82.5.2) and a position that every atom shares needs none (P-82.6.1.3)."""
+    from ._isotope_labels import descriptor, split_isotopes
+    from ._numerals import multiplying_prefix
+
+    order = _heavy_chain(mol)
+    clean, labels, index = split_isotopes(mol)
+    z = mol.GetAtomWithIdx(order[0]).GetAtomicNum()
+    chain = [index[i] for i in order]
+    best = None
+    for candidate in (chain, chain[::-1]):
+        positions = {atom: place for place, atom in enumerate(candidate, start=1)}
+        key = sorted(positions[a] for a in labels)
+        if best is None or key < best[0]:
+            best = (key, positions)
+    positions = best[1]
+    uniform = (
+        set(labels) == set(chain)
+        and len({repr(sorted(e["H"].items())) + str(e["skeleton"]) for e in labels.values()}) == 1
+        and all(sum(e["H"].values()) == clean.GetAtomWithIdx(a).GetTotalNumHs() for a, e in labels.items())
+    )
+    capacity = {a: clean.GetAtomWithIdx(a).GetTotalNumHs() for a in chain}
+    text = descriptor(labels, positions, len(chain) == 1 or uniform, capacity=capacity)
+    stem = _MONONUCLEAR_HYDRIDES[z]
+    centre = clean.GetAtomWithIdx(chain[0])
+    if len(chain) == 1 and (centre.GetFormalCharge() or centre.GetNumRadicalElectrons() or _is_radical(clean, centre)):
+        return text + _ion_or_radical_name(clean)
+    parent = stem if len(chain) == 1 else "hydrazine" if z == 7 and len(chain) == 2 else multiplying_prefix(len(chain)) + stem
+    return text + parent
+
+
 def _validate_other_atoms(other_atoms, mol, bonded_carbon_idx):
     for atom in other_atoms:
         if atom.GetAtomicNum() not in {1, *HALOGEN_PREFIXES}:
