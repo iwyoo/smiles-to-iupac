@@ -5227,25 +5227,7 @@ def _evaluate(
     elif principal == "aldehyde":
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "al"))
     else:
-        word = {
-            "ide": "ide",
-            "ketone": "one",
-            "thione": "thione",
-            "selone": "selone",
-            "tellone": "tellone",
-            "alcohol": "ol",
-            "thiol": "thiol",
-            "selenol": "selenol",
-            "tellurol": "tellurol",
-            "amine": "amine",
-            "imine": "imine",
-            "sulfonic": "sulfonic acid",
-            "sulfonamide": "sulfonamide",
-            **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
-            **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
-            **{name: name for name in _CHALCOGEN_HYDRAZIDINE.values()},
-            **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
-        }[principal]
+        word = CHAIN_SUFFIX_WORD[principal]
         body = name_from_substituents(
             length, ene, yne, multiplied_word(count, word), suffix_locants, force_own_locant=force,
             substituted=bool(grouped),
@@ -5277,6 +5259,27 @@ def _evaluate(
         name,
     )
     return key, name, (prefix, body, tail, reported_attach, position_of, False)
+
+
+CHAIN_SUFFIX_WORD = {
+    "ide": "ide",
+    "ketone": "one",
+    "thione": "thione",
+    "selone": "selone",
+    "tellone": "tellone",
+    "alcohol": "ol",
+    "thiol": "thiol",
+    "selenol": "selenol",
+    "tellurol": "tellurol",
+    "amine": "amine",
+    "imine": "imine",
+    "sulfonic": "sulfonic acid",
+    "sulfonamide": "sulfonamide",
+    **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
+    **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
+    **{name: name for name in _CHALCOGEN_HYDRAZIDINE.values()},
+    **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
+}
 
 
 def _stereo_free(mol):

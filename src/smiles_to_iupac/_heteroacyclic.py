@@ -22,6 +22,7 @@ from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._acid_groups import acid_group_at
 from ._common import UnsupportedStructure, nonstandard_bonding
 from ._polyfunctional import (
+    CHAIN_SUFFIX_WORD,
     _SENIORITY,
     _TERMINAL,
     _group_of,
@@ -44,6 +45,7 @@ _ORDER = [*_SENIORITY[: _SENIORITY.index("amide")], "halide", *_SENIORITY[_SENIO
 _TERMINAL_CLASSES = _TERMINAL | {"halide"}
 _HALIDE_WORD = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _SUFFIX_WORD = {
+    **{cls: word for cls, word in CHAIN_SUFFIX_WORD.items() if cls != "ide"},
     "amidine": "imidamide",
     "acid": "oic acid",
     "amide": "amide",
@@ -552,6 +554,8 @@ def _evaluate(
             halide_word = " " + ("di" if count == 2 else "") + _HALIDE_WORD[halogens_cited.pop()]
             suffix_word = multiplied_word(count, "oyl")
         else:
+            if principal not in _SUFFIX_WORD:
+                return None
             suffix_word = multiplied_word(count, _SUFFIX_WORD[principal])
         body = name_from_substituents(length, ene, yne, suffix_word, suffix_locants) + halide_word
     name = prefix + ("-" if prefix and a_text and not prefix.endswith("-") else "") + a_text + body
