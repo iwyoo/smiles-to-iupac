@@ -1561,3 +1561,21 @@ def test_ring_carbon_double_bonded_to_ring_nitrogen_is_named_as_part_of_the_ring
 )
 def test_acyl_prefix_of_a_ring_nitrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-66.1.1.4.3: each acylamino prefix of a nested amide chain is named from its own fragment, once
+def test_nested_amide_chain_names_each_fragment_once(monkeypatch):
+    from smiles_to_iupac import _hetero_prefixes, _polyfunctional
+
+    _hetero_prefixes._FRAGMENT_NAMES.clear()
+    calls = []
+    original = _polyfunctional.name_polyfunctional
+
+    def counting(mol, *args, **kwargs):
+        calls.append(1)
+        return original(mol, *args, **kwargs)
+
+    monkeypatch.setattr(_polyfunctional, "name_polyfunctional", counting)
+    name = smiles_to_iupac("NC(=O)CCNC(=O)CCNC(=O)CCNC(=O)CCNC(=O)CC")
+    assert name == "3-{[3-({3-[(3-propanamidopropanoyl)amino]propanoyl}amino)propanoyl]amino}propanamide"
+    assert len(calls) <= 8

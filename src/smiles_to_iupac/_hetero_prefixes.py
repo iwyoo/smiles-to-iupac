@@ -900,6 +900,27 @@ def _acylated_nitrogens(fragment):
     )
 
 
+_FRAGMENT_NAMES = {}
+_FRAGMENT_NAMES_LIMIT = 50000
+
+
+def _fragment_name(fragment, namer):
+    """The name of a detached fragment, computed outside the caller's naming context so that it depends on the
+    fragment alone and is reused when nested groups ask for the same fragment again."""
+    key = (namer.__name__, Chem.MolToSmiles(fragment))
+    if key not in _FRAGMENT_NAMES:
+        if len(_FRAGMENT_NAMES) >= _FRAGMENT_NAMES_LIMIT:
+            _FRAGMENT_NAMES.clear()
+        try:
+            _FRAGMENT_NAMES[key] = contextvars.Context().run(namer, fragment)
+        except (UnsupportedStructure, ValueError):
+            _FRAGMENT_NAMES[key] = None
+    name = _FRAGMENT_NAMES[key]
+    if name is None:
+        raise UnsupportedStructure("this fragment has no supported name")
+    return name
+
+
 def _chalcogen_amido(graph, root, others, mol):
     """'acetamido', 'ethanethioamido', 'methanesulfonamido' for R-CO-NH-, R-CS-NH-, R-SO2-NH- and N-substituted
     forms: the final 'e' in the complete name of the amide becomes 'o' (P-66.1.1.4.3); None for any other nitrogen."""
@@ -930,7 +951,7 @@ def _chalcogen_amido(graph, root, others, mol):
     fragment = fragment.GetMol()
     try:
         Chem.SanitizeMol(fragment)
-        name = contextvars.Context().run(name_polyfunctional, fragment)
+        name = _fragment_name(fragment, name_polyfunctional)
     except (UnsupportedStructure, ValueError):
         return None
     if not name.endswith("amide") or _acylated_nitrogens(fragment) > 1:
