@@ -942,18 +942,18 @@ def _cite_lambda(stem, bonding):
 
 
 def _chalcogen_heterones(mol, skeleton_atoms):
-    """Ring sulfur, selenium or tellurium atoms bearing doubly bonded oxygen: the λ4/λ6 atoms of heterone names (P-64.4.2)."""
+    """Ring phosphorus, sulfur, selenium or tellurium atoms bearing doubly bonded oxygen or nitrogen: the λ4/λ6 atoms of heterone and
+    imine names (P-64.4.2, P-68.4.1)."""
     ring_info = mol.GetRingInfo()
     return {
         a
         for a in skeleton_atoms
-        if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)
+        if mol.GetAtomWithIdx(a).GetAtomicNum() in (15, 16, 34, 52)
         and ring_info.NumAtomRings(a) == 1
         and not mol.GetAtomWithIdx(a).GetFormalCharge()
         and any(
             n.GetIdx() not in skeleton_atoms
-            and n.GetAtomicNum() == 8
-            and n.GetDegree() == 1
+            and (n.GetAtomicNum() == 8 and n.GetDegree() == 1 or n.GetAtomicNum() == 7 and not n.GetFormalCharge())
             and mol.GetBondBetweenAtoms(a, n.GetIdx()).GetBondTypeAsDouble() == 2.0
             for n in mol.GetAtomWithIdx(a).GetNeighbors()
         )

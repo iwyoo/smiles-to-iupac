@@ -4627,7 +4627,10 @@ def _substituted_amine_nitrogen(mol, atom):
     if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
         return False
     parents = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6 or _ring_nitrogen_parent(n)]
-    if any(_ring_nitrogen_parent(n) for n in parents) and len(parents) != atom.GetDegree():
+    parent_ids = {n.GetIdx() for n in parents}
+    if any(_ring_nitrogen_parent(n) for n in parents) and any(
+        n.GetIdx() not in parent_ids and n.GetAtomicNum() not in (8, 16, 34, 52) for n in atom.GetNeighbors()
+    ):
         return False
     return len(parents) >= 2 or (len(parents) == 1 and atom.GetDegree() >= 2)
 
@@ -4912,7 +4915,7 @@ def _ring_occurrences(mol):
                 found.append((_CHALCOGEN_KETONE_CLASS[z], r, {i}))
             elif z == 8 and _terminal_heteroatom(mol, i, 1):
                 found.append(("alcohol", r, {i}))
-            elif z == 8 and order == 1.0 and (hydroperoxy := _hydroperoxy_oxygen(mol, n, r)) is not None:
+            elif z == 8 and order == 1.0 and atom.GetAtomicNum() == 6 and (hydroperoxy := _hydroperoxy_oxygen(mol, n, r)) is not None:
                 found.append(("peroxol", r, {i, hydroperoxy}))
             elif z in (16, 34, 52) and _terminal_heteroatom(mol, i, 1):
                 found.append(({16: "thiol", 34: "selenol", 52: "tellurol"}[z], r, {i}))
