@@ -981,7 +981,7 @@ def _name_unabridged_body(smiles: str) -> str:
             if not tokens or parsed.GetRingInfo().NumRings() == 0:
                 cited = _engine_name(parsed)
                 strip = (
-                    (lambda text: _DESCRIPTOR_GROUP.sub("", text))
+                    (lambda text: _same_enclosing_marks(_DESCRIPTOR_GROUP.sub("", text)))
                     if not tokens
                     else (lambda text: re.sub(r"^\([^()]*\)-", "", text))
                 )
@@ -1047,6 +1047,11 @@ _STEREO_TOKENS = re.compile(
 
 
 _DESCRIPTOR_GROUP = re.compile(r"\((?:\d+[a-z]?[\u2032']*)?[RSEZrs](?:,(?:\d+[a-z]?[\u2032']*)?[RSEZrs])*\)-")
+def _same_enclosing_marks(text):
+    """Dropping a descriptor group from a bracketed prefix lowers its enclosing marks (P-16.5.4.1.1)."""
+    return text.translate(str.maketrans("[]{}", "()()"))
+
+
 _STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
 
 

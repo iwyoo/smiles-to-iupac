@@ -53,7 +53,24 @@ def imidoyl_prefix(mol, graph, root, coming_from):
         name = _acyl_prefix(mol, subtree, root, coming_from)
     except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
         return None
-    return (name, True) if name.endswith(("imidoyl", "hydrazonoyl")) else None
+    if not name.endswith(("imidoyl", "hydrazonoyl")):
+        return None
+    code = _double_bond_code(imino[0], root)
+    return (f"({code})-{name}" if code and not name.startswith("(") else name), True
+
+
+def _double_bond_code(nitrogen, carbon):
+    """The CIP code of the C=N bond when it is specified (P-93.4.2.1.3)."""
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    if not context:
+        return None
+    for key in ((carbon, nitrogen), (nitrogen, carbon)):
+        if key in context["bonds"]:
+            context["used"].add(("bond", key))
+            return context["bonds"][key]
+    return None
 
 
 _KETENE_PREFIX = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}

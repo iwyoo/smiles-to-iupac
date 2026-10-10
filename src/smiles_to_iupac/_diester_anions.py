@@ -58,9 +58,10 @@ def find_ester_carbons(mol):
     return matches
 
 
-def cip_labels(mol, side):
-    """[(atom or (begin, end) of a ring double bond, CIP code)] for the specified stereo elements within `side`; raises
-    if `side` also has an unspecified element or a specified one that is neither tetrahedral nor a ring C=C."""
+def cip_labels(mol, side, chain_double_bonds=False):
+    """[(atom or (begin, end) of a double bond, CIP code)] for the specified stereo elements within `side`; raises
+    if `side` also has an unspecified element or a specified one that is neither tetrahedral nor a ring C=C (nor a
+    chain double bond when `chain_double_bonds`)."""
     in_side = []
     for element in Chem.FindPotentialStereo(mol):
         if element.type == Chem.StereoType.Atom_Tetrahedral:
@@ -73,7 +74,8 @@ def cip_labels(mol, side):
     specified = [e for e in in_side if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return []
-    if any(e.type != Chem.StereoType.Atom_Tetrahedral and not _is_ring_double_bond(mol, e) for e in specified) or any(
+    allowed = _is_double_bond if chain_double_bonds else _is_ring_double_bond
+    if any(e.type != Chem.StereoType.Atom_Tetrahedral and not allowed(mol, e) for e in specified) or any(
         e.type == Chem.StereoType.Bond_Double and e.specified != Chem.StereoSpecified.Specified for e in in_side
     ):
         raise UnsupportedStructure(
@@ -95,6 +97,10 @@ def cip_labels(mol, side):
                 raise UnsupportedStructure("could not determine a CIP label for a ring double bond")
             labels.append(((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), bond.GetProp("_CIPCode")))
     return labels
+
+
+def _is_double_bond(mol, element):
+    return element.type == Chem.StereoType.Bond_Double and mol.GetBondWithIdx(element.centeredOn).GetBondType() == Chem.BondType.DOUBLE
 
 
 def _is_ring_double_bond(mol, element):
