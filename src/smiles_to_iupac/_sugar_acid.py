@@ -299,6 +299,8 @@ def _decorated_chain(mol, allow_oxo=False):
         if len(following) != 1:
             return None
         chain.append(following[0])
+    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(chain, chain[1:])):
+        return None
     decorations = []
     for carbon in chain:
         exo = [n for n in graph[carbon] if n not in piece]

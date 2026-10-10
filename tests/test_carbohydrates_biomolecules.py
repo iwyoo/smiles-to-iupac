@@ -782,3 +782,17 @@ def test_dianhydride_check_skips_fragments_that_are_not_monosaccharides(monkeypa
     mol = Chem.MolFromSmiles("O=C(NCc1ccc2c(c1)OCO2)C1CC(=O)N(c2ccc3c(c2)OCCO3)C1")
     assert sugar_dianhydride_name(mol) is None
     assert calls == []
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1=C[C@H]2CO[C@@H](C1)O2", "(1S,5R)-6,8-dioxabicyclo[3.2.1]oct-2-ene", id="ring_double_bond_in_an_anhydro_pyranose"),
+        pytest.param("OC[C@@H](O)C=CC=O", "(4S)-4,5-dihydroxypent-2-enal", id="chain_double_bond_in_a_deoxy_aldose"),
+        pytest.param("CO[C@@H]1O[C@H](CO)C=C[C@H]1O", "(2R,3R,6S)-6-(hydroxymethyl)-2-methoxy-3,6-dihydro-2H-pyran-3-ol", id="ring_double_bond_in_a_glycoside"),
+        pytest.param("O=C(CO)C=C[C@H](O)CO", "(5S)-1,5,6-trihydroxyhex-3-en-2-one", id="chain_double_bond_in_a_deoxy_ketose"),
+        pytest.param("OC(=O)C=C[C@H](O)[C@@H](O)CO", "(4S,5S)-4,5,6-trihydroxyhex-2-enoic acid", id="chain_double_bond_in_a_deoxy_aldonic_acid"),
+    ],
+)
+def test_carbon_double_bond_in_the_skeleton_is_named_by_substitutive_nomenclature(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
