@@ -622,9 +622,8 @@ def test_hydrazone_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)C(C)=NN") == "3-methylpentan-2-ylidenehydrazine"
 
 
-def test_hydrazone_specified_chain_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC[C@@H](C)C(C)=NN")
+def test_hydrazone_specified_chain_stereocenter_is_cited():
+    assert smiles_to_iupac("CC[C@@H](C)C(C)=NN") == "[(3R)-3-methylpentan-2-ylidene]hydrazine"
 
 
 @pytest.mark.parametrize(
