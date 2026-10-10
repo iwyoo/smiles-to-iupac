@@ -198,6 +198,23 @@ def test_ring_parent_cites_other_aromatic_rings_as_substituents(smiles, expected
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "OCCc1cccc(CCO)c1SSc1c(C)cccc1C",
+            "2,2'-{2-[(2,6-dimethylphenyl)disulfanyl]-1,3-phenylene}di(ethan-1-ol)",
+        ),
+        (
+            "CC(O)CCc1cccc(CCC(C)O)c1SSc1c(COC)cccc1COC",
+            "4,4'-(2-{[2,6-bis(methoxymethyl)phenyl]disulfanyl}-1,3-phenylene)di(butan-2-ol)",
+        ),
+    ],
+)
+def test_substituted_aryl_on_a_prefix_of_a_multiplied_ring_parent_is_its_own_compound_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_functional_group_on_a_heteroaromatic_ring_beside_another_ring_is_rejected_is_named():
     assert smiles_to_iupac("OC(=O)c1ccncc1Cc1ccccc1") == "3-benzylpyridine-4-carboxylic acid"
 

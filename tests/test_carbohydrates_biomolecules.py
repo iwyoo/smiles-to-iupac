@@ -585,6 +585,12 @@ def test_substituted_amino_acids(smiles, expected):
         pytest.param("OC(=O)C[C@H](N)C(=O)OC", "1-methyl L-aspartate", id="diacid_monoester_locant"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OCC", "1-ethyl 4-methyl L-aspartate", id="diacid_mixed_esters"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OC", "dimethyl L-aspartate", id="diacid_identical_esters"),
+        pytest.param("CN(C)C(CCC(=O)OCc1ccccc1)C(=O)OCC", "5-benzyl 1-ethyl N,N-dimethyl-glutamate", id="diacid_esters_alphanumerical_not_locant_order"),
+        pytest.param(
+            "CN(C)C(CCC(=O)OCc1ccccc1)C(=O)OCC[Si](C)(C)C",
+            "5-benzyl 1-[2-(trimethylsilyl)ethyl] N,N-dimethyl-glutamate",
+            id="diacid_compound_ester_group_enclosed_after_locant",
+        ),
         pytest.param("C[C@H](N)C(=O)[O-]", "L-alaninate", id="anion"),
         pytest.param("[NH3+]CC(=O)O", "glycinium", id="cation"),
         pytest.param("N[C@@H](CCC(=O)[O-])C(=O)[O-]", "L-glutamate", id="diacid_dianion"),

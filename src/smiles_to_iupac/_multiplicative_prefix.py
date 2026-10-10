@@ -112,6 +112,11 @@ def probe_name(smiles, name_function=None):
         _state["depth"] -= 1
 
 
+def _has_ring(mol, root, from_atom):
+    """A substituent holding a ring would compete with the benzene carrier for the parent of the probe name (P-44.1.2.2)."""
+    return any(mol.GetAtomWithIdx(a).IsInRing() for a in subtree(mol, root, from_atom))
+
+
 def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, groups=None):
     """(name, is_compound) of the substituent rooted at `root` (hanging off
     `from_atom`), named as a prefix in the context of a parent whose
@@ -139,6 +144,14 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
         return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol)
     if suffix_group is not None and suffix_group not in SUFFIX_CARRIERS:
         raise UnsupportedStructure(f"substituents of a {suffix_group} parent are not supported yet")
+    if suffix_group is None and _has_ring(mol, root, from_atom):
+        from ._common import adjacency
+        from ._substituents import name_branch
+
+        try:
+            return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol)
+        except UnsupportedStructure:
+            pass
     name = probe_name(_carrier_smiles(mol, root, from_atom, suffix_group), name_function)
     if suffix_group is None:
         tail = "benzene"
