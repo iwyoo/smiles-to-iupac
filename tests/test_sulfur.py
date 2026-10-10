@@ -969,6 +969,16 @@ def test_ring_chalcogen_with_oxo_or_hydroxy_in_an_unsaturated_ring(smiles, expec
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("O=S1NCCCCCCCCC1", "1λ4-thia-2-azacycloundecan-1-one", id="sultim_of_eleven_ring_members"),
+    ],
+)
+def test_sultim_above_ten_ring_members_is_named_by_skeletal_replacement(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("S1=CN=CC=C1", "1λ4,3-thiazine"),
         ("[SiH]1=CC=CC=C1", "siline"),
     ],
