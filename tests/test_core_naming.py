@@ -608,7 +608,7 @@ def test_interior_fusion_locants_order_between_their_peripheral_neighbours():
         ),
         (
             "CC(C)(C)OC(=O)CC(N)C1COCC(c2ccc(Br)cc2)N1C(=O)OC(C)(C)C",
-            "tert-butyl 3-[1-amino-2-(tert-butoxycarbonyl)ethyl]-5-(4-bromophenyl)morpholine-4-carboxylate",
+            "tert-butyl 3-(1-amino-3-tert-butoxy-3-oxopropyl)-5-(4-bromophenyl)morpholine-4-carboxylate",
         ),
         ("CCOC(=O)c1ccc(C(=O)OC)cc1", "ethyl methyl benzene-1,4-dicarboxylate"),
         ("ClC(=O)CCCC(Cl)=O", "pentanedioyl dichloride"),

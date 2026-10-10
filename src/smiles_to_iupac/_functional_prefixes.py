@@ -28,7 +28,7 @@ from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._pin import mark
 from ._retained_acids import is_compound_acyl
-from ._substituents import FORCED_BRANCH_NAMES, name_branch
+from ._substituents import FORCED_BRANCH_NAMES, _terminal_amide, name_branch
 
 _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
 
@@ -417,7 +417,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                     continue
                 name = "formyl" if not others else _acyl_prefix(mol, subtree(node), node, parent)
                 record(node, name, is_compound_acyl(name))
-            elif carbonyl:
+            elif carbonyl and not _terminal_amide(graph, mol, node, parent):
                 others = [k for k in kids if k not in carbonyl]
                 if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 for k in others):
                     record(node, *_functional_carbon(graph, node, parent, shown, aromatic_atoms, mol))
