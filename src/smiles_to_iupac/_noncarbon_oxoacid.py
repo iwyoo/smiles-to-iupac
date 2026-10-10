@@ -93,12 +93,13 @@ def _plain_tree(mol, graph, root, behind):
             tolerated.update(graph[index])
         elif index in tolerated:
             pass
+        elif atom.IsInRing() and z in (8, 16, 34, 52):
+            pass
         elif z == 8:
             if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()) and atom.GetDegree() != 1:
                 return False
         elif z == 7:
-            if atom.IsInRing():
-                return False
+            pass
         elif z != 6 and z not in _HALIDE:
             return False
         if z == 6 and _senior_carbonyl(atom):

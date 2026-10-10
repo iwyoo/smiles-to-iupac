@@ -881,6 +881,8 @@ def test_lambda_centres_are_prefixes_or_linkers_beside_senior_groups(smiles, exp
         pytest.param("NS(=O)(=O)OCC=O", "2-oxoethyl sulfamate", id="sulfamate_beside_aldehyde"),
         pytest.param("NS(=O)(=O)OCC(=O)Cl", "2-chloro-2-oxoethyl sulfamate", id="sulfamate_beside_acid_halide"),
         pytest.param("OS(=O)(=O)OCC(=O)OC", "methyl (sulfooxy)acetate", id="sulfate_yields_to_carboxylic_ester"),
+        pytest.param("c1ccncc1COS(N)(=O)=O", "(pyridin-3-yl)methyl sulfamate", id="sulfamate_of_a_ring_nitrogen_alcohol_part"),
+        pytest.param("Cc1ncsc1COS(N)(=O)=O", "(4-methyl-1,3-thiazol-5-yl)methyl sulfamate", id="sulfamate_of_a_ring_chalcogen_alcohol_part"),
     ],
 )
 def test_noncarbon_acid_esters_outrank_junior_groups_of_the_alcohol_component(smiles, expected):
