@@ -774,6 +774,8 @@ def test_thione_outranks_hydroxy_and_yields_to_ketone(smiles, expected):
         pytest.param("NNS(=O)(=O)CCS(=O)(=O)NN", "ethane-1,2-disulfonohydrazide", id="two_sulfonohydrazide_groups"),
         pytest.param("c1ccccc1S(=O)(=O)NN", "benzenesulfonohydrazide", id="sulfonohydrazide_on_a_ring"),
         pytest.param("NNS(=O)(=O)c1ccccc1C(=O)O", "2-(hydrazinesulfonyl)benzoic acid", id="senior_acid_cites_the_prefix"),
+        pytest.param("NNS(=O)(=S)C", "methanesulfonothiohydrazide", id="replaced_oxygen_in_a_sulfonohydrazide"),
+        pytest.param("C[Se](=O)(=S)NNC", "N'-methylmethaneselenonothiohydrazide", id="replaced_oxygen_on_a_selenium_centre"),
     ],
 )
 def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
@@ -790,6 +792,10 @@ def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
         pytest.param("CS(=N)(=NC)N(C)C", "N,N,N'-trimethylmethanesulfonodiimidamide", id="substituted_nitrogens_take_the_lower_locants"),
         pytest.param("c1ccccc1S(=N)(=O)N", "benzenesulfonimidamide", id="sulfonimidamide_on_a_ring"),
         pytest.param("NS(=O)(=N)CCS(=O)(=N)N", "ethane-1,2-disulfonimidamide", id="two_sulfonimidamide_groups"),
+        pytest.param("CS(=S)(=N)N", "methanesulfonimidothioamide", id="replaced_oxygen_in_a_sulfonimidamide"),
+        pytest.param("c1ccccc1S(=S)(=N)NC", "N-methylbenzenesulfonimidothioamide", id="replaced_oxygen_on_a_ring"),
+        pytest.param("CS(=O)(=N)NN", "methanesulfonimidohydrazide", id="sulfonimidohydrazide"),
+        pytest.param("CS(=[Se])(=NC)NNC", "N',N''-dimethylmethanesulfonimidoselenohydrazide", id="primes_continue_over_the_hydrazide_and_imido_nitrogens"),
     ],
 )
 def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):

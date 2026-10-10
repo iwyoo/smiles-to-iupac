@@ -1196,6 +1196,7 @@ def test_chalcogen_analogues_of_amides(smiles, expected):
         pytest.param("CS(=S)(=O)N", "methanesulfonothioamide", id="sulfonothioamide"),
         pytest.param("NS(=S)(=S)c1ccc2ccccc2c1", "naphthalene-2-sulfonodithioamide", id="sulfonodithioamide_on_a_ring"),
         pytest.param("CS(=S)N", "methanesulfinothioamide", id="sulfinothioamide"),
+        pytest.param("C[Te](=O)(=S)N", "methanetelluronothioamide", id="replaced_oxygen_on_a_tellurium_centre"),
         pytest.param("CS(=S)(=[Se])N", "methanesulfonoselenothioamide", id="infixes_in_alphanumerical_order"),
         pytest.param("CS(=S)(=O)NC", "N-methylmethanesulfonothioamide", id="n_substituted_sulfonothioamide"),
         pytest.param("OC(=O)CNS(C)=S", "[(methanesulfinothioyl)amino]acetic acid", id="sulfinothioyl_amino_prefix"),
