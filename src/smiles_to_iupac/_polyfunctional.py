@@ -1223,8 +1223,8 @@ def _prefix_ammonium(mol, nitrogen):
 
 
 def _amidinium_base(mol):
-    """The neutral amidine of the only charge in `mol`, an unsubstituted amidinium group C(NH2)=NH2(+) on carbon; the
-    cation takes the suffix 'imidamidium' (P-73.5.3.1)."""
+    """The neutral amidine of the only charge in `mol`, an amidinium group C(NR2)=NH2(+) on carbon; the cation takes
+    the suffix 'imidamidium' with the N locants of the neutral amidine (P-73.5.3.1)."""
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
     if len(charged) != 1:
         return None
@@ -1237,7 +1237,7 @@ def _amidinium_base(mol):
     if carbon.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(cation.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 2.0:
         return None
     others = [n for n in carbon.GetNeighbors() if n.GetIdx() != cation.GetIdx()]
-    amino = [n for n in others if n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2]
+    amino = [n for n in others if n.GetAtomicNum() == 7 and not n.GetIsAromatic() and not n.GetFormalCharge()]
     if len(amino) != 1 or len(others) != 2:
         return None
     neutral = Chem.RWMol(mol)
