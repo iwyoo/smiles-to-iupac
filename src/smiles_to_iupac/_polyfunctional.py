@@ -3253,6 +3253,10 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         and not _share_chain_backbone(mol, graph, amine_nitrogens)
     ):
         return _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens)
+    if len(amine_nitrogens) > 1 and not primaries and not ISOTOPE_LABELS.get() and not SUBSTITUTED_AMINE_PREFIX.get():
+        named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
+        if named is not None:
+            return named
     if len(amine_nitrogens) != 1 or (primaries and ISOTOPE_LABELS.get()):
         raise UnsupportedStructure("several amine groups with N-substitution are not handled by the chain engine")
     nitrogen = amine_nitrogens[0]
@@ -3347,6 +3351,78 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         remapped = {kept[new]: locant for new, locant in positions.items() if new < len(kept)}
         return best[3][0], best[3][1], (*best[3][2][:4], remapped, *best[3][2][5:])
     return best[3]
+
+
+def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
+    """Several N-substituted amines on one chain: the chain with an amine suffix at each of those nitrogens is the parent
+    and the other groups on the nitrogens are N-prefixes (P-62.2.2, P-62.2.4.1.2); None when the nitrogens do not hang on a single backbone."""
+    if any(
+        n.IsInRing() or n.GetFormalCharge() or n.GetTotalNumHs() > 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
+        or any(
+            x.GetAtomicNum() != 6 or is_functional_carbon(mol, x.GetIdx()) or _double_oxygens(mol, x.GetIdx())
+            for x in n.GetNeighbors()
+        )
+        for n in nitrogens
+    ):
+        return None
+    indexes = {n.GetIdx() for n in nitrogens}
+    seen, components = set(indexes), []
+    for start in range(mol.GetNumAtoms()):
+        if start in seen:
+            continue
+        component, stack = {start}, [start]
+        seen.add(start)
+        while stack:
+            for nxt in graph[stack.pop()]:
+                if nxt not in seen:
+                    seen.add(nxt)
+                    component.add(nxt)
+                    stack.append(nxt)
+        components.append(component)
+    joined = [c for c in components if sum(any(n in c for n in graph[i]) for i in indexes) > 1]
+    if len(joined) != 1:
+        return None
+    backbone = joined[0]
+    arms, carbons = {}, {}
+    for i in indexes:
+        attached = [x for x in graph[i] if x in backbone]
+        if len(attached) != 1:
+            return None
+        carbons[i] = attached[0]
+        arms[i] = [x for x in graph[i] if x not in backbone]
+    if len(set(carbons.values())) != len(carbons):
+        return None
+    keep = sorted(backbone | indexes)
+    editable = Chem.RWMol(mol)
+    for position, i in enumerate(sorted(indexes), start=1):
+        editable.GetAtomWithIdx(carbons[i]).SetAtomMapNum(position)
+        editable.GetAtomWithIdx(i).SetBoolProp("_cut_amine_n", True)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
+        editable.RemoveAtom(idx)
+    parent = editable.GetMol()
+    for a in parent.GetAtoms():
+        if a.HasProp("_cut_amine_n"):
+            a.SetIntProp("_capacity", 2)
+            a.SetNumExplicitHs(2)
+            a.SetNoImplicit(True)
+            a.SetBoolProp("_cationic_amine", True)
+    Chem.SanitizeMol(parent)
+    mapped = {a.GetAtomMapNum(): a.GetIdx() for a in parent.GetAtoms() if a.GetAtomMapNum()}
+    for a in parent.GetAtoms():
+        a.SetAtomMapNum(0)
+    n_names = []
+    for position, i in enumerate(sorted(indexes), start=1):
+        for arm in arms[i]:
+            name, compound = name_branch(graph, arm, i, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            n_names.append((name, compound, ("N", mapped[position])))
+    try:
+        result = _select(parent, None, n_names)
+    except UnsupportedStructure:
+        return None
+    if any(m not in result[2][4] for m in mapped.values()) or any(name not in result[1] for name, *_ in n_names):
+        return None
+    positions = {keep[new]: locant for new, locant in result[2][4].items() if new < len(keep)}
+    return result[0], result[1], (*result[2][:4], positions, *result[2][5:])
 
 
 def _share_chain_backbone(mol, graph, nitrogens):

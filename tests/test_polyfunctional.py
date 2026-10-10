@@ -1453,3 +1453,32 @@ def test_esters_keep_the_descriptors_of_substituents_in_the_part_they_belong_to(
 )
 def test_esters_cite_the_descriptor_of_a_double_bond_to_nitrogen_in_a_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "CNCC(c1cc(OC)c(OC)c(OC)c1)N(C)C",
+            "N1,N1,N2-trimethyl-1-(3,4,5-trimethoxyphenyl)ethane-1,2-diamine",
+            id="ethane_diamine_with_a_ring_substituent",
+        ),
+        pytest.param(
+            "CCNC(CN(C)CC(C)CC)C1CCCCC1",
+            "1-cyclohexyl-N1-ethyl-N2-methyl-N2-(2-methylbutyl)ethane-1,2-diamine",
+            id="two_groups_on_one_nitrogen",
+        ),
+        pytest.param(
+            "CN(CCCNC1CCCSC1)C1CCCCC1",
+            "N1-cyclohexyl-N1-methyl-N3-(thian-3-yl)propane-1,3-diamine",
+            id="locant_set_decides_the_direction",
+        ),
+        pytest.param(
+            "COc1cccc2c(NC(C)CCN(C)C)nccc12",
+            "N3-(5-methoxyisoquinolin-1-yl)-N1,N1-dimethylbutane-1,3-diamine",
+            id="heteroaryl_on_a_nitrogen",
+        ),
+    ],
+)
+def test_n_substituted_amines_on_one_chain_are_a_diamine_with_n_locants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
