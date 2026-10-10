@@ -215,11 +215,6 @@ def test_unsaturated_ring_amine_with_substituent():
     assert smiles_to_iupac("NC1CCCC=C1C") == "2-methylcyclohex-2-en-1-amine"
 
 
-def test_unsaturated_ring_amine_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCCC#C1")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [

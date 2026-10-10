@@ -259,17 +259,6 @@ def test_phenyl_substituent_selenoic_acid_ring_halogen():
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[SeH]C1CCCC#C1", id="triple_bond_raises"),
-    ],
-)
-def test_unsaturated_ring_selenol_cases_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("C12(CCC(CC1)CC2)[SeH]", "bicyclo[2.2.2]octane-1-selenol", id="polycyclic_selenol_on_bridgehead"),
@@ -393,11 +382,6 @@ def test_unsaturated_ring_selone_with_substituent_is_named():
     assert smiles_to_iupac("[Se]=C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-selone"
 
 
-def test_unsaturated_ring_selone_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Se]=C1CCCC#C1")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -432,11 +416,6 @@ def test_unsaturated_ring_tellone():
 
 def test_unsaturated_ring_tellone_with_substituent_is_named():
     assert smiles_to_iupac("[Te]=C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-tellone"
-
-
-def test_unsaturated_ring_tellone_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Te]=C1CCCC#C1")
 
 
 @pytest.mark.parametrize(
@@ -570,17 +549,6 @@ def test_telluroic_acid(smiles, expected):
 
 def test_phenyl_substituent_telluroic_acid_ring_halogen():
     assert smiles_to_iupac("Clc1ccc(CC(=O)[TeH])cc1") == "2-(4-chlorophenyl)ethanetelluroic Te-acid"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[TeH]C1CCCC#C1", id="triple_bond_raises"),
-    ],
-)
-def test_unsaturated_ring_tellurol_cases_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(

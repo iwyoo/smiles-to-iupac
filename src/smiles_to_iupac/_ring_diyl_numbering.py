@@ -17,6 +17,7 @@ from ._common import (
     UnsupportedStructure,
     nonstandard_bonding,
     ring_bond_locants,
+    unsaturation_suffix,
     von_baeyer_unsaturation_citations,
 )
 from ._fusion_name import FUSION_NAME_REQUIRED
@@ -591,14 +592,13 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
             for b in bonded.GetBonds()
             if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set and b.GetBondTypeAsDouble() != 1.0
         ]
-        if any(order != 2.0 for _, _, order in ring_bonds):
-            raise UnsupportedStructure("a ring triple bond is not supported as a diyl yet")
         stem = "cyclo" + alkane_name(size)
         out = []
         for walk in _walks(ring_order):
             position_of = {a: i + 1 for i, a in enumerate(walk)}
-            ene = tuple(ring_bond_locants(position_of, ring_bonds, size)[0])
-            out.append(Numbering(position_of, _carbocycle_text(stem, ene), unsat_key=ene))
+            ene, yne = (tuple(found) for found in ring_bond_locants(position_of, ring_bonds, size))
+            unsat = (tuple(sorted(ene + yne)), ene) if yne else ene
+            out.append(Numbering(position_of, _carbocycle_text(stem, ene, yne), unsat_key=unsat))
         return out
     best_pre, results = _hetero_monocycle(mol, ring_order, attached)
     out = []
@@ -625,14 +625,14 @@ def _benzene_text(locants, valence, substituted=frozenset(), suffix="yl"):
     return f"{loc}-phenylene" if valence == 2 else f"benzene-{loc}-{_yl(valence)}"
 
 
-def _carbocycle_text(stem, ene):
+def _carbocycle_text(stem, ene, yne=()):
     def text(locants, valence, substituted=frozenset(), suffix="yl"):
-        if suffix == "carboxylate" and not ene and not substituted:
+        if suffix == "carboxylate" and not ene and not yne and not substituted:
             return f"{stem}carboxylate"
-        if not ene:
+        if not ene and not yne:
             return "cyclo" + alkyl_name(_ring_size(stem)) if valence == 1 and suffix == "yl" else _tail(stem, locants, valence, suffix)
-        base = stem[:-3] + ("a" if len(ene) > 1 else "")
-        return _tail(f"{base}-{','.join(map(str, ene))}-{multiplied_word(len(ene), 'ene')}", locants, valence, suffix)
+        body, needs_a = unsaturation_suffix(ene, yne)
+        return _tail(f"{stem[:-3]}{'a' if needs_a else ''}-{body}", locants, valence, suffix)
 
     return text
 
