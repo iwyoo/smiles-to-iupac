@@ -59,8 +59,8 @@ _JUNIOR_PATTERNS = [
     f"{_NOT_CARBONYL}{_CHALCOGEN2}{_NOT_CARBONYL}",
     f"{_NOT_CARBONYL}[OX2;!R][OX2;!R]{_NOT_CARBONYL}",
     f"{_NOT_CARBONYL}[SX2,SeX2,TeX2;!R][SX2,SeX2,TeX2;!R]{_NOT_CARBONYL}",
-    f"{_NOT_CARBONYL}[SX3;!R](=O){_NOT_CARBONYL}",
-    f"{_NOT_CARBONYL}[SX4;!R](=O)(=O){_NOT_CARBONYL}",
+    f"{_NOT_CARBONYL}[SX3,SeX3,TeX3;!R](=O){_NOT_CARBONYL}",
+    f"{_NOT_CARBONYL}[SX4,SeX4,TeX4;!R](=O)(=O){_NOT_CARBONYL}",
     f"{_NOT_CARBONYL}[PX4,AsX4,SbX4;!R](=O)[OX2H1,#6]",
     "[#6][N+](=O)[O-]",
     "[#6][NX2]=O",
@@ -83,8 +83,8 @@ class Group:
 
 
 def _single_bonded_linker(atom):
-    if atom.GetAtomicNum() == 16 and atom.GetFormalCharge() == 0:
-        # sulfinyl and sulfonyl linkers: two single bonds to the units and terminal =O atoms (P-63.6)
+    if atom.GetAtomicNum() in (16, 34, 52) and atom.GetFormalCharge() == 0:
+        # sulfinyl and sulfonyl linkers and their Se and Te analogues: two single bonds to the units and terminal =O atoms (P-63.6)
         oxo = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8]
         singles = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 1.0]
         if oxo and len(singles) == 2 and len(oxo) + len(singles) == atom.GetDegree():

@@ -909,6 +909,21 @@ def _senior_bridge_links(mol, links):
     return [l for l in links if l.kind != "anhydride" or kinds[id(l)] == senior]
 
 
+def _acid_group_count(mol, atoms, centers):
+    """Acid groups of an anhydride component: its hydroxy groups on oxo-bearing atoms plus the bridged ones (P-65.7.2)."""
+    hydroxy = sum(
+        1
+        for atom in atoms
+        for n in mol.GetAtomWithIdx(atom).GetNeighbors()
+        if n.GetAtomicNum() == 8
+        and n.GetDegree() == 1
+        and n.GetTotalNumHs() == 1
+        and n.GetIdx() in atoms
+        and any(_bond(mol, atom, m.GetIdx()) == 2.0 for m in mol.GetAtomWithIdx(atom).GetNeighbors())
+    )
+    return hydroxy + len(centers)
+
+
 def name_anhydride(mol, links):
     _reject_unsupported(mol)
     links = _senior_bridge_links(mol, links)
@@ -943,6 +958,10 @@ def name_anhydride(mol, links):
     if count == 1:
         words = list(word_of.values())
         text = words[0] if words[0] == words[1] else " ".join(sorted(words, key=alpha_sort_key))
+        if word == "anhydride" and any(
+            _acid_group_count(mol, [a for a in frags[i] if a not in bridge_atoms], centers[i]) > 1 for i in components
+        ):
+            class_word = "monoanhydride"
         return f"{text} {class_word}"
     hubs = [i for i in components if degrees[i] > 2]
     if hubs:
@@ -1228,7 +1247,12 @@ def name_acid_derivative(mol):
         ):
             return name_ester(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
-            return _acyloxy_oxoacid(mol, acid)
+            try:
+                return _acyloxy_oxoacid(mol, acid)
+            except UnsupportedStructure:
+                if not all(mol.GetAtomWithIdx(c).GetAtomicNum() in (16, 34, 52) for c in acid):
+                    raise
+                return name_anhydride(mol, links)
         from ._multiplicative import name_if_multiplicative
         from ._polyfunctional import name_polyfunctional
 
