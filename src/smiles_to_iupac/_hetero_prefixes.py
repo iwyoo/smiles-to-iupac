@@ -579,6 +579,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         named = ketene_prefix(mol, graph, root, coming_from) or imidoyl_prefix(mol, graph, root, coming_from)
         if named is not None:
             return named
+        if atom.IsInRing() and not any(
+            b.GetBondTypeAsDouble() != 1.0 and not b.IsInRing() and b.GetOtherAtom(atom).GetAtomicNum() != 6 for b in atom.GetBonds()
+        ):
+            return None
         if is_functional_carbon(mol, root) or _carbonyl_oxygen(mol, root) is not None or (
             (EXTENDED_PREFIXES.get() or _chalcogen_formyl(mol, root)) and _thioacyl(mol, root)
         ):

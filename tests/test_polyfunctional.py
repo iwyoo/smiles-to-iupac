@@ -1489,3 +1489,28 @@ def test_esters_cite_the_descriptor_of_a_double_bond_to_nitrogen_in_a_substituen
 )
 def test_n_substituted_amines_on_one_chain_are_a_diamine_with_n_locants(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)c1ccccc1C1=NCCO1", "2-(4,5-dihydro-1,3-oxazol-2-yl)benzoic acid", id="oxazoline_on_a_benzoic_acid"),
+        pytest.param(
+            "c1cncc(-c2ccccc2C2=NCCO2)c1",
+            "3-[2-(4,5-dihydro-1,3-oxazol-2-yl)phenyl]pyridine",
+            id="oxazoline_on_a_ring_assembly_member",
+        ),
+        pytest.param(
+            "CN1CCN=C1c1ccccc1CC(C)(C)N",
+            "2-methyl-1-[2-(1-methyl-4,5-dihydro-1H-imidazol-2-yl)phenyl]propan-2-amine",
+            id="imidazoline_beside_an_amine",
+        ),
+        pytest.param(
+            "Cc1cccc(C2CC(=O)C(C3=NCCN3)=C(O)C2)c1",
+            "2-(4,5-dihydro-1H-imidazol-2-yl)-3-hydroxy-5-(3-methylphenyl)cyclohex-2-en-1-one",
+            id="imidazoline_on_a_cyclohexenone",
+        ),
+    ],
+)
+def test_ring_carbon_double_bonded_to_ring_nitrogen_is_named_as_part_of_the_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
