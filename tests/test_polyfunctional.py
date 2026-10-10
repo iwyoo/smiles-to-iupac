@@ -1310,3 +1310,32 @@ def test_ring_nitrogens_are_never_chain_or_acyl_group_atoms_with_ring_copies(smi
 )
 def test_carbamate_esters_are_the_parent_of_polyfunctional_molecules(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "Cc1ncoc1C(=O)Nc1cc(C#CCO)ccc1Cl",
+            "N-[2-chloro-5-(3-hydroxyprop-1-yn-1-yl)phenyl]-4-methyl-1,3-oxazole-5-carboxamide",
+            id="alkynyl_with_hydroxy_on_a_ring_substituent",
+        ),
+        pytest.param(
+            "FC(F)(F)c1ccc(C=Cn2ccc3ccccc32)cc1",
+            "1-{2-[4-(trifluoromethyl)phenyl]ethen-1-yl}-1H-indole",
+            id="ethenyl_between_two_rings",
+        ),
+        pytest.param(
+            "O=c1[nH]c2ccccc2nc1C=C(O)c1cccc(Br)c1",
+            "3-[2-(3-bromophenyl)-2-hydroxyethen-1-yl]quinoxalin-2(1H)-one",
+            id="ethenyl_with_hydroxy_and_aryl",
+        ),
+        pytest.param(
+            "Cc1c(C)c(O)c(CCC(C)(C)O)c(C=Cc2cnco2)c1O",
+            "2-(3-hydroxy-3-methylbutyl)-5,6-dimethyl-3-[2-(1,3-oxazol-5-yl)ethen-1-yl]benzene-1,4-diol",
+            id="heteroaryl_ethenyl_on_a_diol",
+        ),
+    ],
+)
+def test_unsaturated_substituents_carry_heteroatoms_and_heterocycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

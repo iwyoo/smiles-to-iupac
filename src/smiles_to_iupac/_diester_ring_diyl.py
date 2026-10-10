@@ -393,8 +393,6 @@ def _evaluate_skeleton(
                 return named[root]
             atoms = _component(graph, root, set(skeleton) | blocked)
             bonds = [b for b in unsaturated if b[0] in atoms and b[1] in atoms]
-            if bonds and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in atoms):
-                raise UnsupportedStructure("an unsaturated substituent bearing other groups is not supported yet")
             if bonds:
                 return _aromatic._branch_name(
                     graph, carbon_graph, root, atom, set(skeleton) | blocked, shown, unsaturated, mol=mol
