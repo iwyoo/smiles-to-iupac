@@ -10,9 +10,9 @@ from ._numerals import multiplying_prefix, numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
 
 
-def _carbon_entries(mol, graph, metal_idx, stems, seen):
+def _carbon_entries(mol, graph, metal_idx, stems, seen, only=None):
     entries = []
-    for n in graph[metal_idx]:
+    for n in graph[metal_idx] if only is None else [only]:
         atom = mol.GetAtomWithIdx(n)
         if atom.GetAtomicNum() in stems:
             continue
@@ -32,40 +32,73 @@ def _carbon_entries(mol, graph, metal_idx, stems, seen):
     return entries
 
 
+def _longest_paths(adjacent):
+    """Every longest path of the tree of metal atoms (P-44.3: the principal chain has the most skeletal atoms)."""
+    best, paths = 0, []
+    for start in adjacent:
+        stack = [(start, [start])]
+        while stack:
+            node, path = stack.pop()
+            onward = [n for n in adjacent[node] if n not in path]
+            if not onward:
+                if len(path) > best:
+                    best, paths = len(path), []
+                if len(path) == best:
+                    paths.append(path)
+            stack.extend((n, path + [n]) for n in onward)
+    return paths
+
+
+def _entries_on(mol, graph, metal_idx, chain, stems, seen):
+    entries = []
+    for n in graph[metal_idx]:
+        atom = mol.GetAtomWithIdx(n)
+        if n in chain:
+            continue
+        if atom.GetAtomicNum() in stems:
+            from ._metal_pair import _chain_atoms
+
+            branch = _chain_atoms(graph, n, metal_idx)
+            if branch & chain:
+                raise UnsupportedStructure("a metal skeleton that closes a ring is not supported")
+            seen.update(branch)
+            entries.append(name_branch(graph, n, metal_idx, {}, mol=mol))
+        else:
+            entries.extend(_carbon_entries(mol, graph, metal_idx, set(), seen, only=n))
+    return entries
+
+
 def name_metal_chain(mol, graph, stems, metals, parent_num, max_valence):
     ids = [m.GetIdx() for m in metals if m.GetAtomicNum() == parent_num]
     if any(m.GetAtomicNum() != parent_num for m in metals):
         return _name_multiplicative(mol, graph, stems, metals, parent_num, max_valence)
     adjacent = {i: [n for n in graph[i] if n in ids] for i in ids}
-    ends = [i for i in ids if len(adjacent[i]) <= 1]
-    if len(ends) != 2 or any(len(v) > 2 for v in adjacent.values()) or (len(ids) > 1 and not all(adjacent.values())):
-        raise UnsupportedStructure("only an unbranched acyclic metal chain is supported here")
+    if len(ids) > 1 and not all(adjacent.values()):
+        raise UnsupportedStructure("only a connected metal skeleton is supported here")
+    if sum(len(v) for v in adjacent.values()) // 2 != len(ids) - 1:
+        raise UnsupportedStructure("a metal skeleton that closes a ring is not supported")
     if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a in ids for b in adjacent[a]):
         raise UnsupportedStructure("a non-single bond within a metal chain is not supported yet (P-68.2)")
-    order = [ends[0]]
-    while len(order) < len(ids):
-        order.append(next(n for n in adjacent[order[-1]] if n not in order))
-    seen = set(ids)
-    per_atom = []
-    for i in order:
-        if mol.GetAtomWithIdx(i).GetDegree() > max_valence:
-            raise UnsupportedStructure("a metal atom exceeds its valence")
-        per_atom.append(_carbon_entries(mol, graph, i, stems, seen))
-    if len(seen) != mol.GetNumAtoms():
-        raise UnsupportedStructure("this structure contains atoms outside the supported shapes")
+    if any(mol.GetAtomWithIdx(i).GetDegree() > max_valence for i in ids):
+        raise UnsupportedStructure("a metal atom exceeds its valence")
     options = []
-    for sequence in (per_atom, per_atom[::-1]):
-        grouped: dict = {}
-        for locant, entries in enumerate(sequence, start=1):
-            for name, compound in entries:
-                grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
-        options.append(grouped)
+    for path in _longest_paths(adjacent):
+        seen = set(ids)
+        per_atom = [_entries_on(mol, graph, i, set(path), stems, seen) for i in path]
+        if len(seen) != mol.GetNumAtoms():
+            raise UnsupportedStructure("this structure contains atoms outside the supported shapes")
+        for sequence in (per_atom, per_atom[::-1]):
+            grouped: dict = {}
+            for locant, entries in enumerate(sequence, start=1):
+                for name, compound in entries:
+                    grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+            options.append((grouped, len(path)))
 
     def key(g):
         return sorted(l for e in g.values() for l in e["locants"]), [g[k]["locants"] for k in sorted(g)]
 
-    grouped = min(options, key=key)
-    return format_substituent_prefixes(grouped) + numerical_term(len(ids)) + stems[parent_num]
+    grouped, length = min(options, key=lambda option: key(option[0]))
+    return format_substituent_prefixes(grouped) + numerical_term(length) + stems[parent_num]
 
 
 def _name_multiplicative(mol, graph, stems, metals, parent_num, max_valence):

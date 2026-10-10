@@ -43,9 +43,8 @@ def test_phosphane_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_phosphane_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("P(P)(P)P")
+def test_branched_phosphane_chain():
+    assert smiles_to_iupac("P(P)(P)P") == "2-phosphanyltriphosphane"
 
 
 @pytest.mark.parametrize(

@@ -1684,7 +1684,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     ):
         return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetAtomicNum() in _OXANE_ELEMENTS and any(
-        mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 2 and not mol.GetAtomWithIdx(n).GetFormalCharge()
+        mol.GetAtomWithIdx(n).GetAtomicNum() in _CHAIN_ELEMENTS and mol.GetAtomWithIdx(n).GetDegree() == 2 and not mol.GetAtomWithIdx(n).GetFormalCharge()
         and any(m != root and mol.GetAtomWithIdx(m).GetAtomicNum() == atom.GetAtomicNum() for m in graph[n])
         for n in others
     ):
@@ -1899,13 +1899,15 @@ def _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     from ._substituents import format_substituent_prefixes, name_branch
 
     element = mol.GetAtomWithIdx(root).GetAtomicNum()
+    bridge_element = None
     walk, previous = [root], coming_from
     while True:
         bridges = [
             n
             for n in graph[walk[-1]]
             if n != previous
-            and mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+            and mol.GetAtomWithIdx(n).GetAtomicNum() in _CHAIN_ELEMENTS
+            and bridge_element in (None, mol.GetAtomWithIdx(n).GetAtomicNum())
             and any(m != walk[-1] and mol.GetAtomWithIdx(m).GetAtomicNum() == element for m in graph[n])
         ]
         if not bridges:
@@ -1915,6 +1917,7 @@ def _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         (centre,) = [m for m in graph[bridges[0]] if m != walk[-1]]
         if mol.GetAtomWithIdx(bridges[0]).GetDegree() != 2:
             raise UnsupportedStructure("this oxane substituent is not supported yet")
+        bridge_element = mol.GetAtomWithIdx(bridges[0]).GetAtomicNum()
         walk += [bridges[0], centre]
         previous = bridges[0]
     chain = set(walk)
@@ -1928,7 +1931,7 @@ def _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
     grouped = group_substituents(subs)
     count = (len(walk) + 1) // 2
-    parent = _alternating_parent(element, 8, count)
+    parent = _alternating_parent(element, bridge_element, count)
     base = parent[:-1] + "yl" if count == 2 else parent[:-1] + "-1-yl"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     return prefix + base, bool(prefix) or "-" in base
