@@ -1805,3 +1805,16 @@ def test_hydrazine_is_the_parent_beside_rings_and_groups_junior_to_it(smiles, ex
 )
 def test_aminooxy_is_a_prefix_beside_a_senior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("S=C(Nc1ccccc1)N1CCCC1", "N-phenylpyrrolidine-1-carbothioamide", id="pyrrolidine"),
+        pytest.param("S=C(NC)N1CCOCC1", "N-methylmorpholine-4-carbothioamide", id="morpholine"),
+        pytest.param("CCNC(=S)N1CCC(N)CC1", "4-amino-N-ethylpiperidine-1-carbothioamide", id="amino_on_the_ring"),
+        pytest.param("S=C(N)N1CCCC1", "pyrrolidine-1-carbothioamide", id="unsubstituted_nitrogen"),
+    ],
+)
+def test_thiourea_with_a_ring_nitrogen_is_the_carbothioamide_of_the_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

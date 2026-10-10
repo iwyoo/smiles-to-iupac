@@ -531,7 +531,15 @@ def _chalcogen_amide_group(mol, atom, chalcogen, z):
     others = [n for n in atom.GetNeighbors() if n.GetIdx() != chalcogen]
     nitrogens = [n for n in others if n.GetAtomicNum() == 7]
     rest = [n for n in others if n.GetAtomicNum() != 7]
-    if len(nitrogens) != 1 or any(mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
+    if any(mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
+        return None
+    ring_nitrogens = [n for n in nitrogens if n.IsInRing()]
+    if len(nitrogens) == 2 and len(ring_nitrogens) == 1 and not rest:
+        other = next(n for n in nitrogens if not n.IsInRing())
+        if _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, carbon):
+            return _CHALCOGEN_AMIDE[z], {chalcogen, other.GetIdx()}
+        return None
+    if len(nitrogens) != 1:
         return None
     if len(rest) > 1 or (rest and rest[0].GetAtomicNum() != 6) or (not rest and atom.GetTotalNumHs() != 1):
         return None
