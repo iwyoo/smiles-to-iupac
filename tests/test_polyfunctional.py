@@ -1579,3 +1579,24 @@ def test_nested_amide_chain_names_each_fragment_once(monkeypatch):
     name = smiles_to_iupac("NC(=O)CCNC(=O)CCNC(=O)CCNC(=O)CCNC(=O)CC")
     assert name == "3-{[3-({3-[(3-propanamidopropanoyl)amino]propanoyl}amino)propanoyl]amino}propanamide"
     assert len(calls) <= 8
+
+
+# P-15.4, P-65.3.1.1, P-66.1.1.2, P-62.3.1.1: suffixes of the principal group on a skeletal-replacement chain
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "OS(=O)(=O)CCNS(=O)(=O)CCNS(=O)(=O)CCNS(=O)(=O)C",
+            "2,2,6,6,10,10-hexaoxo-2λ6,6λ6,10λ6-trithia-3,7,11-triazatridecane-13-sulfonic acid",
+            id="sulfonic_acid_on_the_chain",
+        ),
+        pytest.param(
+            "NS(=O)(=O)CCNS(=O)(=O)CCNS(=O)(=O)CCNS(=O)(=O)C",
+            "2-[(2,2,6,6-tetraoxo-2λ6,6λ6-dithia-3,7-diazanonane-9-sulfonyl)amino]ethane-1-sulfonamide",
+            id="sulfonamide_and_sulfonyl_units",
+        ),
+        pytest.param("CCOCCOCCOCCOCCC(=N)C", "3,6,9,12-tetraoxahexadecan-15-imine", id="imine_on_the_chain"),
+    ],
+)
+def test_suffix_of_the_principal_group_on_a_skeletal_replacement_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
