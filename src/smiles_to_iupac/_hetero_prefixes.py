@@ -835,6 +835,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             far = mol.GetAtomWithIdx(others[0])
             if (
                 not far.GetFormalCharge()
+                and not far.IsInRing()
                 and not atom.GetFormalCharge()
                 and mol.GetBondBetweenAtoms(root, far.GetIdx()).GetBondTypeAsDouble() == 1.0
                 and far.GetTotalNumHs()

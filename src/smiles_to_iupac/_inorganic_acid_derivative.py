@@ -57,6 +57,11 @@ def _terminal_nitrogen_ok(mol, nitrogen, centre):
     return sum(_bond(mol, nitrogen.GetIdx(), n.GetIdx()) for n in others) + nitrogen.GetTotalNumHs() == 2
 
 
+def _is_group_atom(atom):
+    """A carbon, or a neutral ring nitrogen, in the carbon group cited as a prefix of an amide."""
+    return atom.GetAtomicNum() == 6 or (atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetFormalCharge())
+
+
 def _nitrogen_amide(mol):
     for centre in mol.GetAtoms():
         if centre.GetAtomicNum() != 7 or centre.GetFormalCharge() or centre.IsInRing() or centre.GetDegree() < 1:
@@ -76,7 +81,7 @@ def _nitrogen_amide(mol):
                     return centre, nitro, nitroso, carbons, amino
         pseudohalide = [n for n in others if _is_pseudohalide_nitrogen(n)]
         if any(
-            (n.GetAtomicNum() != 6 and n not in pseudohalide) or _bond(mol, centre.GetIdx(), n.GetIdx()) != 1.0 for n in others
+            (not _is_group_atom(n) and n not in pseudohalide) or _bond(mol, centre.GetIdx(), n.GetIdx()) != 1.0 for n in others
         ):
             continue
         covered = {centre.GetIdx()}
@@ -86,7 +91,7 @@ def _nitrogen_amide(mol):
             carbon = next(n for n in group.GetNeighbors() if n.GetAtomicNum() == 6)
             covered |= {group.GetIdx(), carbon.GetIdx(), *(x.GetIdx() for x in carbon.GetNeighbors())}
         carbons_ok = all(
-            a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()
+            a.GetIdx() in covered or _is_group_atom(a) or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()
         )
         if carbons_ok:
             return centre, nitro, nitroso, others, []

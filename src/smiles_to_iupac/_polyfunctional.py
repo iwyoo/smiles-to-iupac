@@ -4816,7 +4816,9 @@ def _acyclic_imine_nitrogen(mol, atom):
             continue
         if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
             return None
-        if n.GetAtomicNum() not in ((6,) if cationic else (6, 8)) or n.GetFormalCharge():
+        if n.GetFormalCharge() or (
+            n.GetAtomicNum() not in ((6,) if cationic else (6, 8)) and not (_ring_nitrogen_parent(n) and not cationic)
+        ):
             return None
     return nitrogen.GetIdx()
 
