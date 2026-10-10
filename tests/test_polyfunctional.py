@@ -1339,3 +1339,29 @@ def test_carbamate_esters_are_the_parent_of_polyfunctional_molecules(smiles, exp
 )
 def test_unsaturated_substituents_carry_heteroatoms_and_heterocycles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NNc1ccccn1", "2-hydrazinylpyridine", id="blue_book_example"),
+        pytest.param("NNC1=NCCN1", "2-hydrazinyl-4,5-dihydro-1H-imidazole", id="blue_book_dihydroimidazole"),
+        pytest.param(
+            "Cc1ncsc1C(Cc1cc(F)ccc1F)NN",
+            "5-[2-(2,5-difluorophenyl)-1-hydrazinylethyl]-4-methyl-1,3-thiazole",
+            id="hydrazinyl_on_a_chain_of_a_thiazole",
+        ),
+        pytest.param(
+            "CC(C)CC1(C(Cc2ccn(C)n2)NN)CCCC1",
+            "3-{2-hydrazinyl-2-[1-(2-methylpropyl)cyclopentyl]ethyl}-1-methyl-1H-pyrazole",
+            id="hydrazinyl_before_methyl_in_alphanumerical_order",
+        ),
+        pytest.param(
+            "CC(NNC)Cc1ccn(C)n1",
+            "1-methyl-3-[2-(2-methylhydrazin-1-yl)propyl]-1H-pyrazole",
+            id="substituted_hydrazinyl_cites_its_free_valence",
+        ),
+    ],
+)
+def test_hydrazine_beside_a_ring_with_nitrogen_is_a_hydrazinyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

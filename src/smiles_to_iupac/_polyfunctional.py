@@ -2375,6 +2375,27 @@ def _amine_count(name):
     return {"di": 2, "tri": 3, "tetra": 4}[match.group(1)] if match else int(name.endswith("amine"))
 
 
+def _only_plain_hydrazines(mol):
+    """Every acyclic N-N bond is a single bond between chain nitrogens that bear only hydrogen, nitrogen and carbon
+    without a double bond, so the hydrazine is a prefix beside a ring that contains nitrogen (P-44.1.2.2)."""
+    for bond in mol.GetBonds():
+        a, b = bond.GetBeginAtom(), bond.GetEndAtom()
+        if a.GetAtomicNum() != 7 or b.GetAtomicNum() != 7 or bond.IsInRing():
+            continue
+        if bond.GetBondTypeAsDouble() != 1.0 or a.IsInRing() or b.IsInRing() or _is_azide_part(a):
+            return False
+        for atom in (a, b):
+            for neighbor in atom.GetNeighbors():
+                if neighbor.GetAtomicNum() not in (6, 7):
+                    return False
+                if neighbor.GetAtomicNum() == 6 and any(
+                    x.GetBondTypeAsDouble() == 2.0 and x.GetOtherAtom(neighbor).GetAtomicNum() != 6 and not x.IsInRing()
+                    for x in neighbor.GetBonds()
+                ):
+                    return False
+    return True
+
+
 def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     """Parent without a principal group: the monocycle when there is one
     (P-44.1.2.2), else the longest chain, with every substituent a prefix."""
@@ -2403,6 +2424,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             return ((0,), name, (None, None, None, 0, {center: 1}, False))
     if centers or (
         not ring_cation
+        and not (any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms()) and _only_plain_hydrazines(mol))
         and any(
             b.GetBeginAtom().GetAtomicNum() == 7
             and b.GetEndAtom().GetAtomicNum() == 7
