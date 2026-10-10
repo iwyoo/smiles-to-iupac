@@ -1531,3 +1531,22 @@ def test_n_substituted_amines_on_one_chain_are_a_diamine_with_n_locants(smiles, 
 )
 def test_ring_carbon_double_bonded_to_ring_nitrogen_is_named_as_part_of_the_ring(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-65.1.7, P-64.1.2.1: the acyl group of a ring nitrogen keeps the ring nitrogen locant, 'piperidine-1-carbothioyl'
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)CSC(=S)N1CCCCC1", "[(piperidine-1-carbothioyl)sulfanyl]acetic acid", id="carbothioyl_on_sulfur"),
+        pytest.param("CC(=O)OCSC(=S)N1CCCCC1", "[(piperidine-1-carbothioyl)sulfanyl]methyl acetate", id="carbothioyl_in_an_ester"),
+        pytest.param("OC(=O)CSC(=O)N1CCOCC1", "[(morpholine-4-carbonyl)sulfanyl]acetic acid", id="carbonyl_on_sulfur"),
+        pytest.param("OC(=O)COC(=O)N1CCCC1", "[(pyrrolidine-1-carbonyl)oxy]acetic acid", id="carbonyl_on_oxygen"),
+        pytest.param(
+            "COc1ccc(NC(=O)COC(=O)CSC(=S)N2CCC(C)CC2)cc1",
+            "2-(4-methoxyanilino)-2-oxoethyl [(4-methylpiperidine-1-carbothioyl)sulfanyl]acetate",
+            id="substituted_ring_in_an_ester",
+        ),
+    ],
+)
+def test_acyl_prefix_of_a_ring_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
