@@ -220,11 +220,6 @@ def test_unsaturated_ring_sulfinamide_cases(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_ring_sulfinamide_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(N)C1CCCC#C1")
-
-
 def test_ring_substituent_chain_sulfinamide():
     assert smiles_to_iupac("NS(=O)CC1CCCCC1") == "cyclohexylmethanesulfinamide"
 
@@ -310,11 +305,6 @@ def test_unsaturated_ring_sulfinic_acid():
     assert smiles_to_iupac("OS(=O)C1CC=CCC1") == "cyclohex-3-ene-1-sulfinic acid"
 
 
-def test_unsaturated_ring_sulfinic_acid_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)C1CCCC#C1")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -358,11 +348,6 @@ def test_unsaturated_ring_sulfonamide():
 
 def test_unsaturated_ring_sulfonamide_with_substituent():
     assert smiles_to_iupac("O=S(=O)(N)C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-sulfonamide"
-
-
-def test_unsaturated_ring_sulfonamide_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(=O)(N)C1CCCC#C1")
 
 
 @pytest.mark.parametrize(
@@ -441,11 +426,6 @@ def test_sulfone(smiles, expected):
 )
 def test_ring_sulfone_is_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_unsaturated_ring_sulfonic_acid_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)C1CCCC#C1")
 
 
 @pytest.mark.parametrize(
@@ -636,11 +616,6 @@ def test_ring_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_ring_thiol_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CCCC#C1")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -707,11 +682,6 @@ def test_two_ring_aromatic_substituent_thiol_cases(smiles, expected):
 )
 def test_thione_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_unsaturated_ring_thione_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("S=C1CCCC#C1")
 
 
 @pytest.mark.parametrize(

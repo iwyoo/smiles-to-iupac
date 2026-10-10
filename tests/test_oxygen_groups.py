@@ -123,9 +123,19 @@ def test_two_ring_aromatic_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_ring_alcohol_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCC#C1")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=C1C#CCC1", "cyclopent-2-yn-1-one", id="ketone_beside_a_ring_triple_bond"),
+        pytest.param("O=CC1C#CC1", "cyclobut-2-yne-1-carbaldehyde", id="carbaldehyde_suffix_beside_a_ring_triple_bond"),
+        pytest.param("ClC1CCCC#CCC1O", "8-chlorocyclooct-3-yn-1-ol", id="suffix_before_triple_bond_before_prefix"),
+        pytest.param("O=C1CCCC#CCCC#CCC1", "cyclododeca-4,8-diyn-1-one", id="several_ring_triple_bonds"),
+        pytest.param("OC1CCC=CCC#CC1", "cyclonon-6-en-3-yn-1-ol", id="ene_and_yne_lowest_locants_together"),
+        pytest.param("O=C1C=CCC#C1", "cyclohex-2-en-5-yn-1-one", id="double_bond_lower_when_the_set_ties"),
+    ],
+)
+def test_ring_triple_bond_beside_a_suffix_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_amine_hetero_mix_dispatches_to_alcohol_amine():
@@ -757,11 +767,6 @@ def test_five_membered_1_2_ring_dione_carbon_substituent_names(smiles, expected)
 )
 def test_alcohol_hetero_mix_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_unsaturated_ring_ketone_triple_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCC#C1")
 
 
 @pytest.mark.parametrize(
