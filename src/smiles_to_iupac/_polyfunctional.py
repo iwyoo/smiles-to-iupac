@@ -367,7 +367,23 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
             and not is_functional_carbon(mol, n.GetIdx())
         )
         or _hydride_group_on_nitrogen(mol, n, nitrogen, len(others))
+        or _ring_nitrogen_substituent(mol, n, nitrogen)
         for n in others
+    )
+
+
+def _ring_nitrogen_substituent(mol, atom, nitrogen):
+    """A neutral three-bonded ring nitrogen joined to `nitrogen` by a single bond whose ring neighbors are plain carbons:
+    the N-substituent is a 'piperidin-1-yl'-type ring group, since the ring nitrogen cannot also be the group's own
+    nitrogen (P-62.2.1.3)."""
+    if atom.GetAtomicNum() != 7 or not atom.IsInRing() or atom.GetFormalCharge() or atom.GetDegree() != 3:
+        return False
+    if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    return all(
+        n.GetIdx() == nitrogen.GetIdx()
+        or (n.GetAtomicNum() == 6 and n.IsInRing())
+        for n in atom.GetNeighbors()
     )
 
 
@@ -716,6 +732,9 @@ def _group_of(mol, carbon):
                 _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, carbon)
             ):
                 return "amide", {oxygens[0], other.GetIdx()}
+            beta = _hydrazide_beta_nitrogen(mol, other, carbon) if other.GetAtomicNum() == 7 else None
+            if beta is not None:
+                return "hydrazide", {oxygens[0], other.GetIdx(), beta}
             return None
         if len(hetero) == 1:
             other = hetero[0]
@@ -4495,6 +4514,9 @@ def _amidine_nitrogens(mol, atom):
     carbon = atom.GetIdx()
     nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
     others = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 7]
+    ring_nitrogens = [n for n in nitrogens if n.IsInRing()]
+    if len(nitrogens) == 3 and len(ring_nitrogens) == 1 and not others and not ring_nitrogens[0].GetFormalCharge():
+        nitrogens = [n for n in nitrogens if not n.IsInRing()]
     if len(nitrogens) != 2 or len(others) > 1 or any(n.GetAtomicNum() != 6 for n in others):
         return None
     imino = [n for n in nitrogens if mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0]
@@ -4510,6 +4532,8 @@ def _amidine_nitrogens(mol, atom):
                 continue
             if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
                 return None
+            if _ring_nitrogen_substituent(mol, n, nitrogen):
+                continue
             if n.GetAtomicNum() not in allowed or n.GetFormalCharge():
                 return None
             if is_functional_carbon(mol, n.GetIdx()) and not (nitrogen is amino and _imidoyl_carbon(mol, n, nitrogen)):

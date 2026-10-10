@@ -1276,15 +1276,22 @@ def test_skeletal_replacement_parents_with_groups_on_heteroatom_bonded_carbons_a
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("CC1CCCC(C)N1NS(=O)(=O)c1ccc(NN)cc1", id="ring_nitrogen_is_not_a_hydrazine_chain_atom"),
-        pytest.param("CN(C)S(=O)(=O)c1ccc(CNC(=NC)N2CCSCC2)cc1", id="ring_nitrogen_of_a_carbamimidoyl_group"),
+        pytest.param(
+            "CC1CCCC(C)N1NS(=O)(=O)c1ccc(NN)cc1",
+            "N-(2,6-dimethylpiperidin-1-yl)-4-hydrazinylbenzene-1-sulfonamide",
+            id="ring_nitrogen_is_a_substituent_of_the_sulfonamide_nitrogen",
+        ),
+        pytest.param(
+            "CN(C)S(=O)(=O)c1ccc(CNC(=NC)N2CCSCC2)cc1",
+            "N-{[4-(dimethylsulfamoyl)phenyl]methyl}-N'-methylthiomorpholine-4-carboximidamide",
+            id="ring_nitrogen_carries_the_carboximidamide_group",
+        ),
     ],
 )
-def test_ring_nitrogens_are_never_chain_or_acyl_group_atoms_with_ring_copies(smiles):
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac(smiles)
+def test_ring_nitrogens_are_never_chain_or_acyl_group_atoms_with_ring_copies(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
