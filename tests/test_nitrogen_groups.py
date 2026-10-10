@@ -1052,6 +1052,8 @@ def test_ring_imine_and_oxime(smiles, expected):
         pytest.param("CC(=N)CN=CCCC", "N-(2-iminopropyl)butan-1-imine", id="longer_imine_chain_is_the_parent"),
         pytest.param("CCC=NCCN=CCC", "N,N'-(ethane-1,2-diyl)di(propan-1-imine)", id="identical_imines_joined_multiplicatively"),
         pytest.param("c1ccccc1C=NCN=Cc1ccccc1", "N,N'-methylenebis(phenylmethanimine)", id="substituted_imine_units_use_bis"),
+        pytest.param("CC=NN1CCCC1", "N-(pyrrolidin-1-yl)ethanimine", id="imine_nitrogen_on_a_ring_nitrogen"),
+        pytest.param("O=CC=NN1CCCC1", "[(pyrrolidin-1-yl)imino]acetaldehyde", id="ring_nitrogen_imino_prefix_under_an_aldehyde"),
     ],
 )
 def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expected):
@@ -1162,6 +1164,7 @@ def test_amidrazones(smiles, expected):
     [
         pytest.param("CNO", "N-hydroxymethanamine", id="n_hydroxy_amine"),
         pytest.param("CNCl", "methylhypochlorous amide", id="amide_of_hypochlorous_acid"),
+        pytest.param("FNN1CCCC1", "pyrrolidin-1-ylhypofluorous amide", id="halogen_amide_of_a_ring_nitrogen_group"),
         pytest.param("O=C(N(F)F)N(F)F", "tetrafluorourea", id="urea_all_positions_halogenated"),
         pytest.param("CC(=O)N(Cl)C", "N-chloro-N-methylacetamide", id="n_halogen_amide"),
         pytest.param("CCCN(N=O)C(=N)N[N+](=O)[O-]", "N'-nitro-N-nitroso-N-propylguanidine", id="guanidine_nitro_nitroso"),
@@ -1245,6 +1248,7 @@ def test_ureas_with_further_substituents_and_ureas_beneath_senior_groups(smiles,
     "smiles,expected",
     [
         pytest.param("CN(C)N=O", "dimethylnitrous amide", id="nitroso_on_amine_nitrogen"),
+        pytest.param("CN(N=O)N1CCCC1", "methyl(pyrrolidin-1-yl)nitrous amide", id="nitrous_amide_of_a_ring_nitrogen_group"),
         pytest.param("CN(C)[N+](=O)[O-]", "dimethylnitramide", id="nitro_on_amine_nitrogen"),
         pytest.param("NN[N+](=O)[O-]", "nitric hydrazide", id="nitro_on_hydrazine_nitrogen"),
         pytest.param("NNN=O", "nitrous hydrazide", id="nitroso_on_hydrazine_nitrogen"),

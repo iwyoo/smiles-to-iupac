@@ -61,13 +61,17 @@ def name_halogen_amide(mol) -> str:
         for a in mol.GetAtoms()
     ):
         raise UnsupportedStructure("only carbon groups and halogens may accompany an amide of a halogen acid")
-    if sum(a.GetAtomicNum() == 7 for a in mol.GetAtoms()) != 1 or nitrogen.IsInRing():
-        raise UnsupportedStructure("a ring nitrogen or a second nitrogen is not an amide of a halogen acid")
-    carbons = [n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 6]
-    if not carbons or any(
-        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), c.GetIdx()).GetBondTypeAsDouble() != 1.0 for c in carbons
+    if nitrogen.IsInRing() or any(
+        a.GetAtomicNum() == 7 and a.GetIdx() != nitrogen.GetIdx() and not a.IsInRing() for a in mol.GetAtoms()
     ):
-        raise UnsupportedStructure("an amide of a halogen acid needs single-bonded carbon groups on nitrogen")
+        raise UnsupportedStructure("a ring nitrogen or a second nitrogen is not an amide of a halogen acid")
+    carbons = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != halogen.GetIdx()]
+    if not carbons or any(
+        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), c.GetIdx()).GetBondTypeAsDouble() != 1.0
+        or not (c.GetAtomicNum() == 6 or (c.GetAtomicNum() == 7 and c.IsInRing()))
+        for c in carbons
+    ):
+        raise UnsupportedStructure("an amide of a halogen acid needs single-bonded carbon or ring nitrogen groups on nitrogen")
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
