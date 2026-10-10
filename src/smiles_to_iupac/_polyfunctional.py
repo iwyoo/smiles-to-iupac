@@ -3374,7 +3374,9 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         for c in neighbors
     ):
         raise UnsupportedStructure("this nitrogen is not a plain amine nitrogen")
-    carbon_neighbors = [c for c in neighbors if mol.GetAtomWithIdx(c).GetAtomicNum() == 6]
+    carbon_neighbors = [
+        c for c in neighbors if mol.GetAtomWithIdx(c).GetAtomicNum() == 6 or _ring_nitrogen_parent(mol.GetAtomWithIdx(c))
+    ]
     arms = {c: _arm_atoms(graph, c, n_idx) for c in carbon_neighbors}
     if sum(len(a) for a in arms.values()) != len(set().union(*arms.values())) or n_idx in set().union(*arms.values()):
         raise UnsupportedStructure("a nitrogen closing a ring is not an acyclic amine parent")
@@ -4470,14 +4472,27 @@ def _substituted_amine_nitrogen(mol, atom):
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
     if any(
-        n.GetAtomicNum() not in (6, 8) and not is_oxo_nitrogen(mol, n) and not _terminal_chalcogen_hydride(n)
+        n.GetAtomicNum() not in (6, 8) and not _ring_nitrogen_parent(n) and not is_oxo_nitrogen(mol, n) and not _terminal_chalcogen_hydride(n)
         for n in atom.GetNeighbors()
     ):
         return False
     if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
         return False
-    carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
-    return len(carbons) >= 2 or (len(carbons) == 1 and atom.GetDegree() >= 2)
+    parents = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6 or _ring_nitrogen_parent(n)]
+    if any(_ring_nitrogen_parent(n) for n in parents) and len(parents) != atom.GetDegree():
+        return False
+    return len(parents) >= 2 or (len(parents) == 1 and atom.GetDegree() >= 2)
+
+
+def _ring_nitrogen_parent(atom):
+    """A neutral ring nitrogen with all valences on single bonds, which bears the amine nitrogen as a substituent (P-62.2.1.3)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.IsInRing()
+        and not atom.GetFormalCharge()
+        and not atom.GetTotalNumHs()
+        and all(b.GetBondTypeAsDouble() == 1.0 or b.GetIsAromatic() for b in atom.GetBonds())
+    )
 
 
 def _cyano_on(mol, atom, nitrogen):
