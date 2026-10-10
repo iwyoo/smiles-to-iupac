@@ -65,6 +65,19 @@ def test_multiparent_name_beats_retained_benzoazole_fusion_name(smiles, expected
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=C1N(c3ccccc3)C(=O)c2ccccc12", "2-phenyl-1H-isoindole-1,3(2H)-dione"),
+        ("O=C1NC(=O)C2CCCCC12", "hexahydro-1H-isoindole-1,3(2H)-dione"),
+        ("O=C1C(=O)Cc2c1c1ccccc1cc2", "1H-cyclopenta[a]naphthalene-1,2(3H)-dione"),
+        ("O=C1C(=O)Cc2c1ccc1ccccc21", "1H-cyclopenta[a]naphthalene-2,3-dione"),
+    ],
+)
+def test_indicated_hydrogen_at_lowest_position_before_added_hydrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("Cc1ccc2c(c1)c1ccccc1c1ccccc21", "2-methyltriphenylene", id="substituted_triphenylene_is_named"),
@@ -165,7 +178,7 @@ def test_furano_bridge_benzo_g_quinoline():
         ("c1ccc2cs(=O)cc2c1", "2H-2λ4-benzothiophen-2-one"),
         ("O=S1(=O)NC2=CC=CC3=CC=CC1=C23", "1λ6-naphtho[1,8-cd][1,2]thiazole-1,1(2H)-dione"),
         ("O=S1(=O)c2ccccc2Sc2ccccc12", "5H-5λ6-thianthrene-5,5-dione"),
-        ("O=S1(=O)NC(=O)c2ccccc12", "2H-1λ6,2-benzothiazole-1,1,3-trione"),
+        ("O=S1(=O)NC(=O)c2ccccc12", "1H-1λ6,2-benzothiazole-1,1,3(2H)-trione"),
     ],
 )
 def test_fused_hetero_ring_oxide_resolves(smiles, expected):

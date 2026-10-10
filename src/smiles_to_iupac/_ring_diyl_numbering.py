@@ -194,7 +194,7 @@ def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, 
         covered = sum(a in oxo_suffix for a in ih)
         if ih_count >= groups:
             return (valid, needed, -covered, loc(ih))
-        return (valid, needed, loc(ih), -covered)
+        return (valid, loc(ih), needed, -covered)
 
     for ih in sorted(combinations(ordered, ih_count), key=candidate_key):
         free = [a for a in ordered if a not in ih and a not in oxo_suffix]
