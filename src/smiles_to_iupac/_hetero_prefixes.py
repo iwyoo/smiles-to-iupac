@@ -672,7 +672,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 rname, rcomp = name_branch(graph, onward[0], other, halogens, aromatic_atoms, mol=mol)
                 return _enclose(rname, rcomp) + "peroxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
-            if mol.GetAtomWithIdx(other).GetAtomicNum() == 8 or not _has_senior_principal_group(mol):
+            if mol.GetAtomWithIdx(other).GetAtomicNum() == 8 or (
+                not _carbon_nitrogen_group(mol, other, root) and not _has_senior_principal_group(mol)
+            ):
                 raise UnsupportedStructure("this oxygen-linked group is not supported yet")
             from ._substituents import name_branch
 
@@ -1141,6 +1143,15 @@ def substituted_hydrazinecarbonyl(graph, carbon, alpha, alpha_subs, halogens, ar
     from ._substituents import format_substituent_prefixes
 
     return format_substituent_prefixes(group_substituents(entries)) + base.replace("hydrazine", "hydrazine-1-", 1)
+
+
+def _carbon_nitrogen_group(mol, nitrogen, oxygen):
+    """An amine or oxime nitrogen bonded to the oxygen: every other neighbour is carbon, so the group is an (aminooxy)-type
+    prefix and not a nitrate, nitrite or nitro group, which are esters without a senior group (P-65.3)."""
+    atom = mol.GetAtomWithIdx(nitrogen)
+    return atom.GetAtomicNum() == 7 and not atom.GetFormalCharge() and all(
+        n.GetIdx() == oxygen or n.GetAtomicNum() == 6 for n in atom.GetNeighbors()
+    )
 
 
 def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):

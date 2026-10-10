@@ -1818,3 +1818,16 @@ def test_aminooxy_is_a_prefix_beside_a_senior_group(smiles, expected):
 )
 def test_thiourea_with_a_ring_nitrogen_is_the_carbothioamide_of_the_ring(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)ON(C)C", "1-[(dimethylamino)oxy]ethan-1-one", id="blue_book_example"),
+        pytest.param("CC(=O)ON=C(C)C", "1-{[(propan-2-ylidene)amino]oxy}ethan-1-one", id="ketoxime"),
+        pytest.param("CC(=O)ON=C1CCCCC1", "1-[(cyclohexylideneamino)oxy]ethan-1-one", id="ring_ylidene"),
+        pytest.param("O=C(ON=Cc1ccccc1)c1cccs1", "[(benzylideneamino)oxy](thiophen-2-yl)methanone", id="aldoxime_of_a_ring_acid"),
+    ],
+)
+def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
