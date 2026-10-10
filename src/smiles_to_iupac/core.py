@@ -3,7 +3,7 @@ import re
 from rdkit import Chem, rdBase
 
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
-from ._adduct import has_adduct_shape, name_adduct
+from ._adduct import has_adduct_shape, has_bare_inorganic_component, has_inorganic_component, name_adduct
 from ._acyclic import name_acyclic_alkane
 from ._acid_derivatives import name_acid_derivative, name_phosphorous_acid
 from ._acid_salts import name_acid_salt
@@ -414,6 +414,7 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
 
 
 _NO_PIN_ADDUCT = "the Blue Book assigns no PIN to Lewis adducts, whose preferred names are coordination names (P-68.1.6.2)"
+_NO_PIN_MIXED_ADDUCT = "the Blue Book assigns no PIN to adducts with inorganic components (P-14.8.2)"
 _NO_PIN_ORGANOMETALLIC ="the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
 
 _FALLBACKS_RUNNING = set()
@@ -764,6 +765,8 @@ def _name_unabridged_body(smiles: str) -> str:
             glycosyl_token = SYSTEMATIC_FUSION.set(True)
         if parsed is not None and outermost() and Chem.MolToSmiles(parsed) in _METHYLBENZENES:
             return _METHYLBENZENES[Chem.MolToSmiles(parsed)]
+        if parsed is not None and has_bare_inorganic_component(parsed):
+            return mark(name_adduct(parsed, smiles_to_iupac), _NO_PIN_MIXED_ADDUCT)
         if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
             lambda_token = CITE_SKELETAL_LAMBDA.set(False)
         if parsed is not None and has_carbon_monoxide_shape(parsed):
@@ -1419,7 +1422,8 @@ def _name_mol(mol) -> str:
     # Neutral adducts and solvates (P-14.8, see _adduct.py) must likewise be
     # routed here before every other branch below, for the same reason.
     if has_adduct_shape(mol):
-        return name_adduct(mol, smiles_to_iupac)
+        name = name_adduct(mol, smiles_to_iupac)
+        return mark(name, _NO_PIN_MIXED_ADDUCT) if has_inorganic_component(mol) else name
 
     vb_assembly_core = find_vb_ring_assembly_core(mol)
     if vb_assembly_core is not None:

@@ -1,7 +1,7 @@
 import re
 
 import pytest
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
@@ -496,6 +496,22 @@ def test_dihydrate_adduct():
 )
 def test_adduct_components_ordered_by_class_seniority(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CO.[Pd]", "methanol—palladium (1/1)", id="metal_atom"),
+        pytest.param("C.[Xe]", "methane—xenon (1/1)", id="noble_gas_atom"),
+        pytest.param("C.[HH]", "methane—dihydrogen (1/1)", id="dihydrogen"),
+        pytest.param("C.[H+]", "methane—hydron (1/1)", id="hydron"),
+        pytest.param("C.[H-]", "methane—hydride (1/1)", id="hydride"),
+        pytest.param("C.O.[Xe]", "methane—xenon—water (1/1/1)", id="water_cited_last"),
+    ],
+)
+def test_adduct_with_inorganic_components(smiles, expected):
+    with pytest.warns(NonPreferredNameWarning, match="P-14.8.2"):
+        assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

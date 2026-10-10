@@ -7,6 +7,14 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, alpha_sort_key
 from ._seniority import SUFFIX_CLASS_RANK
 
+_NOBLE_GAS_NAMES = {2: "helium", 10: "neon", 18: "argon", 36: "krypton", 54: "xenon", 86: "radon"}
+_MAIN_GROUP_NAMES = {
+    1: "hydrogen", 5: "boron", 7: "nitrogen", 8: "oxygen", 9: "fluorine", 13: "aluminium", 14: "silicon",
+    15: "phosphorus", 16: "sulfur", 17: "chlorine", 31: "gallium", 32: "germanium", 33: "arsenic", 34: "selenium",
+    35: "bromine", 49: "indium", 50: "tin", 51: "antimony", 52: "tellurium", 53: "iodine", 81: "thallium",
+    82: "lead", 83: "bismuth", 84: "polonium", 85: "astatine",
+}
+
 _CLASS_PATTERNS = (
     ("carboxylic_acid", "[CX3](=O)[OX2H1]"),
     ("sulfonic_acid", "[SX4](=O)(=O)[OX2H1]"),
@@ -23,6 +31,7 @@ _DONOR_ATOMS = {7, 8, 15, 16, 33, 34, 51, 52}
 _HETERO_RANK = max(SUFFIX_CLASS_RANK.values()) + 1
 _HYDROCARBON_RANK = _HETERO_RANK + 1
 _INORGANIC_RANK = _HYDROCARBON_RANK + 1
+_WATER_RANK = _INORGANIC_RANK + 1
 
 
 def _is_bare_water(frag):
@@ -32,7 +41,32 @@ def _is_bare_water(frag):
     return atom.GetAtomicNum() == 8 and atom.GetTotalNumHs() == 2
 
 
+def _inorganic_name(frag):
+    """Name of a bare atom, dihydrogen, hydron or hydride component (P-14.8.2, ref. 12 IR-5.5), else None."""
+    from ._coordination import _METAL_NAMES
+
+    atoms = list(frag.GetAtoms())
+    if any(a.GetIsotope() for a in atoms):
+        return None
+    charge = sum(a.GetFormalCharge() for a in atoms)
+    if all(a.GetAtomicNum() == 1 for a in atoms):
+        hydrogens = len(atoms) + sum(a.GetTotalNumHs() for a in atoms)
+        if charge == 1 and hydrogens == 1:
+            return "hydron"
+        if charge == -1 and hydrogens == 1:
+            return "hydride"
+        if charge == 0 and hydrogens == 2:
+            return "dihydrogen"
+        return None
+    if len(atoms) != 1 or charge or atoms[0].GetTotalNumHs():
+        return None
+    z = atoms[0].GetAtomicNum()
+    return _NOBLE_GAS_NAMES.get(z) or _METAL_NAMES.get(z) or _MAIN_GROUP_NAMES.get(z)
+
+
 def _class_rank(frag):
+    if _is_bare_water(frag):
+        return _WATER_RANK
     if not any(a.GetAtomicNum() == 6 for a in frag.GetAtoms()):
         return _INORGANIC_RANK
     ranks = [
@@ -46,7 +80,13 @@ def _class_rank(frag):
 
 def _components(mol):
     frags = Chem.GetMolFrags(mol, asMols=True)
-    if len(frags) < 2 or any(a.GetFormalCharge() for a in mol.GetAtoms()):
+    if len(frags) < 2:
+        return None
+    charged = [f for f in frags if any(a.GetFormalCharge() for a in f.GetAtoms())]
+    if charged and not (
+        all(_inorganic_name(f) in ("hydron", "hydride") for f in charged)
+        and any(a.GetAtomicNum() == 6 for f in frags for a in f.GetAtoms())
+    ):
         return None
     counts = {}
     for frag in frags:
@@ -92,6 +132,23 @@ def _attachment(base, acid):
     return None if located is None else (located[0], acceptor.GetSymbol(), located[1])
 
 
+def has_bare_inorganic_component(mol) -> bool:
+    from ._ocene import has_ocene_shape
+
+    index_frags = Chem.GetMolFrags(mol)
+    if len(index_frags) < 2 or not any(len(f) <= 2 for f in index_frags):
+        return False
+    try:
+        frags = Chem.GetMolFrags(mol, asMols=True)
+    except Chem.rdchem.MolSanitizeException:
+        return False
+    return any(_inorganic_name(f) for f in frags) and has_adduct_shape(mol) and not has_ocene_shape(mol)
+
+
+def has_inorganic_component(mol) -> bool:
+    return any(not any(a.GetAtomicNum() == 6 for a in f.GetAtoms()) for f in Chem.GetMolFrags(mol, asMols=True))
+
+
 def has_adduct_shape(mol) -> bool:
     return _components(mol) is not None
 
@@ -99,7 +156,7 @@ def has_adduct_shape(mol) -> bool:
 def name_adduct(mol, namer) -> str:
     named = []
     for smiles, (frag, count) in _components(mol):
-        name = "water" if _is_bare_water(frag) else namer(smiles)
+        name = "water" if _is_bare_water(frag) else _inorganic_name(frag) or namer(smiles)
         named.append((_class_rank(frag), alpha_sort_key(name), name, count, frag))
     if len(named) == 1:
         raise UnsupportedStructure("identical components form a repeated molecule, not an adduct")

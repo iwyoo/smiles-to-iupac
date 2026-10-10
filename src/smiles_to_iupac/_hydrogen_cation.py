@@ -23,7 +23,7 @@ def hydrogen_salt_name(smiles, namer):
         return None
     others = [p for p in parts if p != "[H+]"]
     mol = Chem.MolFromSmiles(".".join(others))
-    if mol is None:
+    if mol is None or not any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
         return None
     present = {a.GetSymbol() for a in mol.GetAtoms() if a.GetFormalCharge() > 0}
     stand_in = next(((smi, word) for smi, word in _STAND_INS if Chem.MolFromSmiles(smi).GetAtomWithIdx(0).GetSymbol() not in present), None)
