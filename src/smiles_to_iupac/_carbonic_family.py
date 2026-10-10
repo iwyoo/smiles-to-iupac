@@ -182,7 +182,8 @@ def _find(mol):
         triples = [n for n in neighbors if _bond(mol, atom.GetIdx(), n.GetIdx()) == 3.0 and n.GetAtomicNum() == 7 and n.GetDegree() == 1]
         doubles = [n for n in neighbors if _bond(mol, atom.GetIdx(), n.GetIdx()) == 2.0]
         if triples and len(neighbors) == 2:
-            cyano.append(atom.GetIdx())
+            if all(n.GetAtomicNum() != 7 for n in neighbors if n.GetIdx() != triples[0].GetIdx()):
+                cyano.append(atom.GetIdx())
         elif len(neighbors) == 3 and len(doubles) == 1 and sum(n.GetAtomicNum() == 6 for n in neighbors) < 2:
             centers.append(atom.GetIdx())
     lone = [
@@ -236,6 +237,20 @@ def _has_acid_ligand(mol, idx):
     )
 
 
+def _cyano_carbon(mol, atom, nitrogen):
+    """The carbon of a cyano group on `nitrogen`, cited as an N-prefix (P-66.1.6.2)."""
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetDegree() == 2
+        and not atom.GetFormalCharge()
+        and any(
+            n.GetAtomicNum() == 7 and n.GetDegree() == 1 and _bond(mol, atom.GetIdx(), n.GetIdx()) == 3.0
+            for n in atom.GetNeighbors()
+        )
+        and _bond(mol, atom.GetIdx(), nitrogen) == 1.0
+    )
+
+
 def _imine_slot(mol, center, n):
     """('X', hydrazine tail atom or None, N-substituted imine nitrogen or None) for a double-bonded neighbor."""
     i, z = n.GetIdx(), n.GetAtomicNum()
@@ -248,7 +263,7 @@ def _imine_slot(mol, center, n):
         return "NH", None, None
     if len(far) == 1 and far[0].GetAtomicNum() == 7 and far[0].GetDegree() == 1 and far[0].GetTotalNumHs() == 2 and not n.GetTotalNumHs():
         return "NNH2", far[0].GetIdx(), None
-    if far and not n.IsInRing() and all(_bond(mol, i, m.GetIdx()) == 1.0 for m in far) and not n.GetTotalNumHs():
+    if far and not n.IsInRing() and all(_bond(mol, i, m.GetIdx()) == 1.0 or _cyano_carbon(mol, m, i) for m in far) and not n.GetTotalNumHs():
         return "NH", None, i
     raise UnsupportedStructure("this imine nitrogen is not supported on a carbonic acid")
 
@@ -295,7 +310,9 @@ def name_carbonic_family(mol):
         elif pseudo is not None:
             ligands.append(("hal", PSEUDO_INFIX[pseudo]))
             owned |= _group_atoms(graph, i, center)
-        elif z == 7 and not n.IsInRing() and not n.GetFormalCharge() and amino is None and all(_bond(mol, i, m.GetIdx()) == 1.0 for m in n.GetNeighbors()):
+        elif z == 7 and not n.IsInRing() and not n.GetFormalCharge() and amino is None and all(
+            _bond(mol, i, m.GetIdx()) == 1.0 or _cyano_carbon(mol, m, i) for m in n.GetNeighbors()
+        ):
             amino = i
             owned.add(i)
         else:
