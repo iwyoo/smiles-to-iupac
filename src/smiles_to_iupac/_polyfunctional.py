@@ -2659,6 +2659,8 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
     junction (1 and 1'); heteroaromatic rings keep their fixed numbering and
     the junction takes the lowest locants, then the marked atoms (principal
     groups or a free valence), then the substituents."""
+    from ._diester_ring_diyl import _isotope_key
+
     hetero = bool(specs) and specs[0].hetero is not None
     cycles = [ring_cycle(graph, rings[0]), ring_cycle(graph, rings[1])]
 
@@ -2689,6 +2691,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                     ene,
                     tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
                     _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),
+                    _isotope_key({a: _locant_order(loc) for a, loc in locants.items()}, locants),
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, ene)

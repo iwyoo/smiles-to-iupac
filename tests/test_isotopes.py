@@ -352,6 +352,8 @@ def test_ring_with_more_or_heavier_nuclides_is_the_parent(smiles, expected):
     "smiles,expected",
     [
         ("[2H]c1ccc(cc1)-c1ccccc1", "(4-2H)-1,1'-biphenyl"),
+        ("c1ccc(cc1)-c1ccc(cc1)[2H]", "(4-2H)-1,1'-biphenyl"),
+        ("c1ccc(cc1)-c1ccccc1[2H]", "(2-2H)-1,1'-biphenyl"),
         ("[2H]c1ccc(cc1)-c1ccc([2H])cc1", "(4,4'-2H2)-1,1'-biphenyl"),
         ("OC(=O)c1ccc(cc1)-c1ccccc1[2H]", "(2'-2H)[1,1'-biphenyl]-4-carboxylic acid"),
         ("[2H]c1ccc2ccccc2c1-c1ccc2ccccc2c1", "(2-2H)-1,2'-binaphthalene"),
