@@ -748,3 +748,31 @@ def test_rings_with_ketones_are_not_cited_as_sugar_groups(smiles, expected):
 )
 def test_amino_acid_esters_with_a_carbamate_on_nitrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-102.5.6.6.4: the sugar checks must not name a molecule that is not a sugar (more than once, or by its fragments)
+def test_ring_acid_check_does_not_name_the_acid_again(monkeypatch):
+    import smiles_to_iupac.core as core
+
+    calls = []
+    original = core.smiles_to_iupac
+
+    def counting(smiles, *args, **kwargs):
+        calls.append(smiles)
+        return original(smiles, *args, **kwargs)
+
+    monkeypatch.setattr(core, "smiles_to_iupac", counting)
+    assert counting("OC(=O)C1CCCO1") == "oxolane-2-carboxylic acid"
+    assert len(calls) == 1
+
+
+def test_dianhydride_check_skips_fragments_that_are_not_monosaccharides(monkeypatch):
+    import smiles_to_iupac.core as core
+    from rdkit import Chem
+    from smiles_to_iupac._sugar_substituted import sugar_dianhydride_name
+
+    calls = []
+    monkeypatch.setattr(core, "smiles_to_iupac", lambda smiles, *a, **k: calls.append(smiles))
+    mol = Chem.MolFromSmiles("O=C(NCc1ccc2c(c1)OCO2)C1CC(=O)N(c2ccc3c(c2)OCCO3)C1")
+    assert sugar_dianhydride_name(mol) is None
+    assert calls == []
