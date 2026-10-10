@@ -298,6 +298,14 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             elif len(kids) == 1 and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in (6, 9, 17, 35, 53):
                 rname, rcompound = child_name(kids[0], node)
                 record(node, *alkoxy_prefix(rname, rcompound))
+            elif (
+                len(kids) == 1
+                and not atom.IsInRing()
+                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 7
+                and _bond_order(mol, node, kids[0]) == 1.0
+                and _bond_order(mol, node, parent) == 1.0
+            ):
+                record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol, unsaturated=True))
             else:
                 raise UnsupportedStructure("this oxygen-bearing substituent is not supported yet")
         elif z in CHALCOGEN_PREFIXES and atom.GetTotalValence() > 2 and not atom.IsInRing():
