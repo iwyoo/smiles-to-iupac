@@ -379,10 +379,24 @@ def _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, infix):
     name, compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
     if infix == "sulfonyl":
         return (_enclose(name, compound) if compound else name) + "sulfonyl", True
-    ending = re.search(r"-(\d+[a-z]?)-yl$", name)
+    name = _without_enclosing_marks(name)
+    ending = re.search(r"-(\d+[a-z]?(?:\(\d*[A-Za-z]+\))?)-yl$", name)
     if ending is None:
         raise UnsupportedStructure("this ring nitrogen acyl group is not supported yet")
     return name[: ending.start()] + "e-" + ending.group(1) + "-" + infix, True
+
+
+def _without_enclosing_marks(name):
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    if name[:1] not in pairs or name[-1:] != pairs[name[0]]:
+        return name
+    depth = 0
+    for i, char in enumerate(name):
+        depth += char in pairs
+        depth -= char in pairs.values()
+        if depth == 0 and i < len(name) - 1:
+            return name
+    return name[1:-1]
 
 
 def _amino_stem(amino):
