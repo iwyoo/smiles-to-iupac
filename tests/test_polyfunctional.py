@@ -1388,3 +1388,32 @@ def test_hydrazine_beside_a_ring_with_nitrogen_is_a_hydrazinyl_prefix(smiles, ex
 )
 def test_hydrazide_groups_beside_an_amide_class_parent_are_hydrazinecarbonyl_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "CCCOC1CCCN(C(=O)c2c[nH]c(=O)cn2)C1",
+            "5-(3-propoxypiperidine-1-carbonyl)pyrazin-2(1H)-one",
+            id="substituted_monocycle",
+        ),
+        pytest.param(
+            "C=CCC(CC(=O)N1Cc2ccccc2CC1CO)C(=O)NC(CO)c1ccccc1",
+            "2-{[3-(hydroxymethyl)-3,4-dihydroisoquinoline-2(1H)-carbonyl]methyl}-N-(2-hydroxy-1-phenylethyl)pent-4-enamide",
+            id="added_hydrogen_stays_after_the_locant",
+        ),
+        pytest.param(
+            "O=C(O)CCc1ccc(C(=O)N2CC(CO)CC23CCOCC3)cc1",
+            "3-{4-[3-(hydroxymethyl)-8-oxa-1-azaspiro[4.5]decane-1-carbonyl]phenyl}propanoic acid",
+            id="spiro_ring_nitrogen",
+        ),
+        pytest.param(
+            "Cc1nc2ccc(N)cc2n1C(=O)c1ccnc(CNS(C)(=O)=O)c1",
+            "N-{[4-(6-amino-2-methyl-1H-1,3-benzimidazole-1-carbonyl)pyridin-2-yl]methyl}methanesulfonamide",
+            id="aromatic_ring_nitrogen",
+        ),
+    ],
+)
+def test_acyl_group_of_a_ring_nitrogen_beside_a_senior_group_is_a_carbonyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
