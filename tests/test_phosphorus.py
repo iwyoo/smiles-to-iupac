@@ -436,6 +436,27 @@ def test_stereogenic_phosphorus_oxide_and_phosphinate(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("CO[P@@](=S)(C)c1ccccc1", "(R)-[O-methyl methyl(phenyl)phosphinothioate]"),
+        ("[Na+].CO[P@@](=S)([O-])Oc1ccccc1", "sodium (S)-(O-methyl O-phenyl phosphorothioate)"),
+        ("[Na+].CO[P@](=S)([O-])Oc1ccccc1", "sodium (R)-(O-methyl O-phenyl phosphorothioate)"),
+        ("[Na+].C[P@@](=S)([O-])c1ccccc1", "sodium (S)-[methyl(phenyl)phosphinothioate]"),
+        ("CO[P@@](=S)(O)Oc1ccccc1", "hydrogen (S)-(O-methyl O-phenyl phosphorothioate)"),
+        ("[Na+].COP(=S)([O-])Oc1ccccc1", "sodium O-methyl O-phenyl phosphorothioate"),
+        ("[Na+].OP(=S)(O)[O-]", "sodium dihydrogen phosphorothioate"),
+    ],
+)
+def test_phosphorothioate_salts_and_stereogenic_centre(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_stereogenic_thiophosphinic_acid_is_not_named_without_its_descriptor():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[P@@](=S)(O)c1ccccc1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("CN(C)P(=O)(N=C=S)S", "N,N-dimethylphosphoramid(isothiocyanatido)thioic S-acid"),
         ("ClP(=Nc1ccccc1)(S)c1ccccc1", "N,P-diphenylphosphonochloridimidothioic acid"),
         ("CNP(=S)(O)c1ccccc1", "N-methyl-P-phenylphosphonamidothioic O-acid"),

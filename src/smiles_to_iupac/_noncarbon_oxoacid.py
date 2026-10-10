@@ -13,11 +13,13 @@ from ._common import (
     alpha_sort_key,
     group_substituents,
     halogen_substituents,
+    specified_stereocenters,
 )
 from ._multiplicative_text import enclose
 from ._numerals import numerical_term
 from ._oxoacid_acyl import is_senior_centre
 from ._phosphate import format_ester_words
+from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import (
     cited_stereo_around,
     format_mononuclear_prefixes,
@@ -150,6 +152,8 @@ def _classify(mol, graph, halogens, centre, neighbor):
             for match in mol.GetSubstructMatches(pattern):
                 if match[0] == neighbor.GetIdx():
                     return {"role": "single", "kind": "pseudohalide", "infix": infix, "term": term, "H": False}
+    if z in _CHALCOGEN and neighbor.GetFormalCharge() == -1 and neighbor.GetDegree() == 1 and order == 1.0:
+        return {"role": "single", "kind": "chalcogen", "z": z, "H": False, "anion": True}
     if z in _CHALCOGEN and not neighbor.GetFormalCharge():
         if neighbor.GetDegree() == 1:
             if order == 2.0 and not neighbor.GetTotalNumHs():
@@ -229,6 +233,8 @@ def _parse(mol, centre):
             return None
         found["atom"] = neighbor.GetIdx()
         (ylidenes if found["role"] == "ylidene" else singles).append(found)
+    if sum(1 for p in singles if p.get("anion")) > 1:
+        return None
     k = len(organyl) + hydrogens
     nitrido = sum(1 for y in ylidenes if y["kind"] == "nitride")
     if z in _PENTAVALENT_STEMS:
@@ -264,7 +270,7 @@ def _parse_prefixed(mol, centre):
     ylidenes, singles = [], []
     for neighbor in centre.GetNeighbors():
         found = _classify(mol, graph, halogens, centre, neighbor)
-        if found is None or found["kind"] not in ("chalcogen", "halide", "pseudohalide", "ester"):
+        if found is None or found.get("anion") or found["kind"] not in ("chalcogen", "halide", "pseudohalide", "ester"):
             return None
         if found["kind"] == "ester" and not _plain_tree(mol, graph, found["R"], neighbor.GetIdx()):
             return None
@@ -285,12 +291,32 @@ def _parse_prefixed(mol, centre):
     return {"centre": centre, "z": z, "ylidenes": ylidenes, "singles": singles, "family": "prefix", "graph": graph, "halogens": halogens, "pentavalent": True}
 
 
+def _counter_cation(mol):
+    """(name, anion fragment atoms) of a salt of a single +1 monoatomic cation, else (None, all atoms) for one fragment."""
+    fragments = Chem.GetMolFrags(mol)
+    if len(fragments) == 1:
+        return None, fragments[0]
+    if len(fragments) != 2:
+        return False, ()
+    cation, anion = sorted(fragments, key=len)
+    if len(cation) != 1:
+        return False, ()
+    atom = mol.GetAtomWithIdx(cation[0])
+    name = _MONOATOMIC_CATION_NAMES.get((atom.GetSymbol(), atom.GetFormalCharge()))
+    if name is None or atom.GetFormalCharge() != 1:
+        return False, ()
+    return name, anion
+
+
 def _acid_parts(mol):
-    if len(Chem.GetMolFrags(mol)) != 1:
+    cation, anion_atoms = _counter_cation(mol)
+    if cation is False:
         return None
     parts = []
     for atom in mol.GetAtoms():
         z = atom.GetAtomicNum()
+        if atom.GetIdx() not in anion_atoms:
+            continue
         if z in _LOCANT or z in _CHALCOGEN_STEMS:
             found = _parse(mol, atom)
         elif z == 14 or z == 7 or z in _HALOGEN_ACIDS:
@@ -300,7 +326,15 @@ def _acid_parts(mol):
         if found is not None:
             parts.append(found)
     senior = [part for part in parts if is_senior_centre(mol, part["centre"])]
-    return senior[0] if len(senior) == 1 else None
+    if len(senior) != 1:
+        return None
+    part = senior[0]
+    anions = [p["atom"] for p in part["singles"] if p.get("anion")]
+    charged = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() in anion_atoms]
+    if bool(cation) != bool(anions) or (anions and charged != anions):
+        return None
+    part["cation"] = cation
+    return part
 
 
 def has_noncarbon_oxoacid_shape(mol) -> bool:
@@ -452,17 +486,27 @@ def name_noncarbon_oxoacid(mol) -> str:
     if parts is None:
         raise UnsupportedStructure("this is not a mononuclear noncarbon oxoacid modified by functional replacement")
     with cited_stereo_around(mol, parts["centre"].GetIdx()):
-        return _name_from_parts(mol, parts)
+        return _name_from_parts(mol, parts, _centre_descriptor(mol, parts["centre"].GetIdx()))
 
 
-def _name_from_parts(mol, parts) -> str:
+def _centre_descriptor(mol, centre):
+    """P-93.2.4: '(R)-' or '(S)-' of a stereogenic acid centre that is the only stereo element, '' when it is not one."""
+    if not any(e.centeredOn == centre and e.specified == Chem.StereoSpecified.Specified for e in Chem.FindPotentialStereo(mol)):
+        return ""
+    stereo = specified_stereocenters(mol)
+    if len(stereo) != 1:
+        raise UnsupportedStructure("a stereogenic acid centre beside other stereo elements is not cited by any supported name")
+    return f"({stereo[0][1]})-"
+
+
+def _name_from_parts(mol, parts, descriptor="") -> str:
     if parts.get("family") == "prefix":
         return _name_prefixed(mol, parts)
     graph, halogens, centre = parts["graph"], parts["halogens"], parts["centre"]
     parts["centre_entries"] = [name_branch(graph, c.GetIdx(), centre.GetIdx(), halogens, mol=mol) for c in parts["organyl"]]
     z = parts["z"]
     singles, ylidenes = parts["singles"], parts["ylidenes"]
-    acidic = any(s["H"] for s in singles)
+    acidic = any(s["H"] or s.get("anion") for s in singles)
     esters = [x for x in singles if x["kind"] == "ester"]
 
     class_members, class_terms = [], []
@@ -499,7 +543,12 @@ def _name_from_parts(mol, parts) -> str:
         if z == 16 and pentavalent and infixes and infixes[0][0] == "amid" and all(t in ("thio", "seleno", "telluro") for t, _ in infixes[1:]):
             stem, infixes = "sulfam", infixes[1:]
     if esters:
-        return _ester_name(mol, parts, esters, prefix, stem, infixes, acidic)
+        return _ester_name(mol, parts, esters, prefix, stem, infixes, descriptor)
+    if parts["cation"]:
+        anion = prefix + _compose(stem, infixes, "ate" if pentavalent else "ite")
+        return _salt_text(parts, [], _hydrogen_words(parts), anion, descriptor)
+    if descriptor:
+        raise UnsupportedStructure("the descriptor of a stereogenic acid centre is cited only in an ester or a salt")
     ending = "ic" if pentavalent else "ous"
     body = _compose(stem, infixes, ending)
     if class_terms:
@@ -562,7 +611,12 @@ def _name_prefixed(mol, parts):
 def _prefixed_ester_name(mol, parts, esters, prefix, base):
     words = _ester_words(mol, parts, esters, _acid_locants_present(parts))
     anion = base[:-2] + "ate" if base.endswith("ic") else base[:-3] + "ite"
-    return " ".join(words) + " " + prefix + anion
+    return " ".join(words + _hydrogen_words(parts)) + " " + prefix + anion
+
+
+def _hydrogen_words(parts):
+    hydrogens = sum(1 for s in parts["singles"] if s["H"])
+    return [(numerical_term(hydrogens) if hydrogens > 1 else "") + "hydrogen"] if hydrogens else []
 
 
 def _ester_words(mol, parts, esters, cited):
@@ -579,17 +633,22 @@ def _ester_words(mol, parts, esters, cited):
         else:
             word = format_ester_words([name] * len(letters))
         words.append((",".join(letters) + "-" if cited else "") + word)
-    hydrogens = sum(1 for s in parts["singles"] if s["H"])
-    if hydrogens:
-        words.append((numerical_term(hydrogens) if hydrogens > 1 else "") + "hydrogen")
     return words
 
 
-def _ester_name(mol, parts, esters, prefix, stem, infixes, acidic):
+def _salt_text(parts, words, hydrogens, anion, descriptor):
+    """The cation and hydrogen words stay outside the nesting marks that follow a descriptor of the acid centre (P-93.2.4)."""
+    cation = [parts["cation"]] if parts["cation"] else []
+    if descriptor:
+        return " ".join([*cation, *hydrogens, descriptor + enclose(" ".join([*words, anion]))])
+    return " ".join([*cation, *words, *hydrogens, anion])
+
+
+def _ester_name(mol, parts, esters, prefix, stem, infixes, descriptor):
     """Ester words, 'hydrogen' words for the acidic positions left, then the anion name (P-67.1.3.2)."""
     words = _ester_words(mol, parts, esters, _acid_locants_present(parts))
-    anion = _compose(stem, infixes, "ate" if parts["pentavalent"] else "ite")
-    return " ".join(words) + " " + prefix + anion
+    anion = prefix + _compose(stem, infixes, "ate" if parts["pentavalent"] else "ite")
+    return _salt_text(parts, words, _hydrogen_words(parts), anion, descriptor)
 
 
 def _acid_locants_present(parts):
