@@ -2916,7 +2916,9 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     ring_specs = [spec_of(mol, r) for r in all_rings]
     if len(all_rings) > 2 and any(sp is not None and sp.kind == "cycloalkene" for sp in ring_specs):
         return None
-    if not all(_compatible_assembly_rings(mol, (all_rings[0], r), (ring_specs[0], sp)) for r, sp in zip(all_rings, ring_specs)):
+    if not occurrences and not all(
+        _compatible_assembly_rings(mol, (all_rings[0], r), (ring_specs[0], sp)) for r, sp in zip(all_rings, ring_specs)
+    ):
         return None
     best = None
     for i, first in enumerate(all_rings):
