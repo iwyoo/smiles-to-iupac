@@ -448,6 +448,18 @@ def test_phosphorothioate_salts_and_stereogenic_centre(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CO[P@@]([17OH])([18OH])=O", "dihydrogen (S)-[O-methyl (17O1,18O1)phosphate]"),
+        ("CC[18O]P(=O)(OC)c1ccccc1", "18O-ethyl O-methyl phenyl(18O1)phosphonate"),
+        ("COS(=O)(=O)[18OH]", "O-methyl hydrogen (18O1)sulfate"),
+    ],
+)
+def test_isotopically_modified_oxoacid_esters(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_stereogenic_thiophosphinic_acid_is_not_named_without_its_descriptor():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[P@@](=S)(O)c1ccccc1")
