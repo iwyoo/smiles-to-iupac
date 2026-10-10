@@ -337,9 +337,9 @@ def test_phosphatidylcholines(smiles, expected):
         ('CCCCCCCCCCCCCCC[C@@H]([C@H](CO)N)O', '(2S,3S)-2-aminooctadecane-1,3-diol'),
         pytest.param('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO)NC(=O)CCCCCCCCCCCCCCC)O', 'N-[(2S,3R,4E)-1,3-dihydroxyoctadec-4-en-2-yl]hexadecanamide', marks=pytest.mark.slow),
         pytest.param('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)NC(=O)CCCCCCCCCCCCCCC)O', 'N-[(2S,3R,4E)-1-(β-D-galactopyranosyloxy)-3-hydroxyoctadec-4-en-2-yl]hexadecanamide', marks=pytest.mark.slow),
-        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP([O-])(=O)OCC[N+](C)(C)C)NC(=O)CCCCCCCCCCCCCCC)O', '(2S,3R,4E)-2-(hexadecanoylamino)-3-hydroxyoctadec-4-en-1-yl 2-(trimethylazaniumyl)ethyl phosphate'),
+        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP([O-])(=O)OCC[N+](C)(C)C)NC(=O)CCCCCCCCCCCCCCC)O', '(2S,3R,4E)-2-hexadecanamido-3-hydroxyoctadec-4-en-1-yl 2-(trimethylazaniumyl)ethyl phosphate'),
         ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP(O)(O)=O)N)O', '(2S,3R,4E)-2-amino-3-hydroxyoctadec-4-en-1-yl dihydrogen phosphate'),
-        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP(O)(O)=O)NC(=O)CCCCCCCCCCCCCCC)O', '(2S,3R,4E)-2-(hexadecanoylamino)-3-hydroxyoctadec-4-en-1-yl dihydrogen phosphate'),
+        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP(O)(O)=O)NC(=O)CCCCCCCCCCCCCCC)O', '(2S,3R,4E)-2-hexadecanamido-3-hydroxyoctadec-4-en-1-yl dihydrogen phosphate'),
     ],
 )
 def test_sphingolipids(smiles, expected):
@@ -392,7 +392,7 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
         pytest.param("C([C@@H]1[C@H](CC(O1)O)O)O", "2-deoxy-D-erythro-pentofuranose", id="furanose_with_unspecified_anomeric_carbon"),
         pytest.param("C[C@H]1[C@@H]([C@H]([C@H]([C@@H](O1)O)O)O)O", "α-L-rhamnopyranose", id="six_deoxy_retained_names"),
         pytest.param("C([C@@H]1[C@H]([C@@H]([C@H]([C@@H](O1)O)N)O)O)O", "2-amino-2-deoxy-β-D-glucopyranose", id="amino_deoxy_pair"),
-        pytest.param("CC(=O)N[C@@H]1[C@H]([C@@H]([C@H](O[C@H]1O)CO)O)O", "2-(acetylamino)-2-deoxy-β-D-glucopyranose", id="substituted_amino_group"),
+        pytest.param("CC(=O)N[C@@H]1[C@H]([C@@H]([C@H](O[C@H]1O)CO)O)O", "2-acetamido-2-deoxy-β-D-glucopyranose", id="substituted_amino_group"),
         pytest.param("BrC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "6-bromo-6-deoxy-β-D-glucopyranose", id="halogen_with_deoxy"),
         pytest.param("OC[C@H]1S[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "5-thio-β-D-glucopyranose", id="ring_sulfur"),
         pytest.param("OC[C@H]1[Se][C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "5-seleno-β-D-glucopyranose", id="ring_selenium"),

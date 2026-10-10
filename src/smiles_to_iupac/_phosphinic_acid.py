@@ -37,7 +37,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._phosphonic_acid import CENTER_STEMS, acid_prefixes, require_phosphorus_acid_scope, senior_acid_centre
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 
 
@@ -97,7 +97,7 @@ def name_phosphinic_acid(mol) -> str:
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
-    with acid_prefixes():
+    with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
         entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
     prefix = format_mononuclear_prefixes(entries)
     return f"{prefix}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"

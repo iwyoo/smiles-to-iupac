@@ -32,7 +32,7 @@ from rdkit import Chem
 
 from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 _BORON = 5
 
@@ -93,6 +93,7 @@ def name_borinic_acid(mol) -> str:
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
-    entries = [name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
+    with cited_stereo_around(mol, boron.GetIdx()):
+        entries = [name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
     prefix = format_mononuclear_prefixes(entries)
     return f"{prefix}borinic acid"

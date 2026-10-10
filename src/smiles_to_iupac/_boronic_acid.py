@@ -33,7 +33,7 @@ from rdkit import Chem
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._substituents import name_branch
+from ._substituents import cited_stereo_around, name_branch
 
 _BORON = 5
 
@@ -95,6 +95,7 @@ def name_boronic_acid(mol) -> str:
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
-    name, is_compound = name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol)
+    with cited_stereo_around(mol, boron.GetIdx()):
+        name, is_compound = name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol)
     prefix = enclose(name) if is_compound else name
     return f"{prefix}boronic acid"

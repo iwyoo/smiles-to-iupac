@@ -899,13 +899,15 @@ def _chalcogen_amido(graph, root, others, mol):
         amino = amino_acyl_group(mol, graph, acyl[0], root)
         if amino is not None:
             return amino[0] + "amino", True
-    if any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) or any(
-        b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
-    ):
-        return None
     keep = {root} | _side(graph, acyl[0], root)
     if rest:
         keep |= _side(graph, rest[0], root)
+    if any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in map(mol.GetAtomWithIdx, keep)) or any(
+        b.GetStereo() != Chem.BondStereo.STEREONONE
+        for b in mol.GetBonds()
+        if b.GetBeginAtomIdx() in keep and b.GetEndAtomIdx() in keep
+    ):
+        return None
     fragment = Chem.RWMol(mol)
     for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
         fragment.RemoveAtom(index)
