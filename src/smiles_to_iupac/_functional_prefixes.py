@@ -302,7 +302,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             elif (
                 len(kids) == 1
                 and not atom.IsInRing()
-                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 7
+                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in (7, 8, 16, 34, 52)
                 and _bond_order(mol, node, kids[0]) == 1.0
                 and _bond_order(mol, node, parent) == 1.0
             ):
