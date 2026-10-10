@@ -1799,6 +1799,16 @@ def test_substituted_amines_on_separate_chains_one_is_the_parent_and_the_oxidize
         ("C[N+](C)([O-])CC[N+](C)([S-])C", "2-[dimethyl(sulfanylidene)-\u03bb5-azanyl]-N,N-dimethylethan-1-amine N-oxide"),
         ("[O-][NH2+]CCc1cccc(C[NH2+][O-])c1", "2-{3-[(oxo-\u03bb5-azanyl)methyl]phenyl}ethan-1-amine N-oxide"),
         ("C[N+](C)([O-])c1ccccc1CC[N+](C)(C)[O-]", "2-{2-[dimethyl(oxo)-\u03bb5-azanyl]ethyl}-N,N-dimethylaniline N-oxide"),
+        pytest.param(
+            "[O-][N+]1(C)CCCCC1CC[N+](C)(C)[O-]",
+            "2-{2-[dimethyl(oxo)-\u03bb5-azanyl]ethyl}-1-methylpiperidine 1-oxide",
+            id="saturated_ring_nitrogen_oxide_outranks_the_chain_oxide",
+        ),
+        pytest.param(
+            "[O-][n+]1ccccc1CC[N+](C)(C)[O-]",
+            "2-{2-[dimethyl(oxo)-\u03bb5-azanyl]ethyl}pyridine 1-oxide",
+            id="aromatic_ring_nitrogen_oxide_outranks_the_chain_oxide",
+        ),
     ],
 )
 def test_further_amine_oxides_are_oxo_azanyl_prefixes_of_the_senior_amine_oxide(smiles, expected):

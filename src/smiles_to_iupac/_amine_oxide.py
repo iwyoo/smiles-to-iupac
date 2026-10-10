@@ -121,6 +121,7 @@ def _reduced_position(nitrogen_idx, oxide_idx):
 def _name_among_oxides(mol, nitrogens):
     """P-62.5: one oxide gives the class term, each further one is an '(oxo-λ5-azanyl)' prefix; the parent amine is the
     one whose carbon skeleton is senior (ring before chain, then the larger acyclic carbon set, then the senior chalcogen)."""
+    from ._polyfunctional import name_polyfunctional
     from .core import _name_mol
 
     graph = adjacency(mol)
@@ -132,7 +133,12 @@ def _name_among_oxides(mol, nitrogens):
         try:
             name = _name_mol(contracted)
         except UnsupportedStructure:
-            continue
+            if not parent.IsInRing():
+                continue
+            try:
+                name = name_polyfunctional(contracted)
+            except UnsupportedStructure:
+                continue
         ranked.append((_skeleton_rank(mol, graph, parent), name))
     if not ranked:
         raise UnsupportedStructure("no amine parent carries one of the oxidized nitrogens of this polyamine oxide")

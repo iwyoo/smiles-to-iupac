@@ -882,7 +882,12 @@ def _ring_center_base(mol):
     from ._diester_ring_diyl import _system_of
 
     charged = [
-        a for a in mol.GetAtoms() if a.GetFormalCharge() and not _is_nitro_part(a) and not _anionic_group_atom(mol, a)
+        a
+        for a in mol.GetAtoms()
+        if a.GetFormalCharge()
+        and not _is_nitro_part(a)
+        and not _anionic_group_atom(mol, a)
+        and not _is_chain_amine_oxide_part(a)
     ]
     centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
     if len(centers) != 1 or len(charged) - len(centers) > 1:
@@ -2158,7 +2163,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             raise UnsupportedStructure("isotopes and radicals are not supported by the polyfunctional chain engine")
         if atom.GetFormalCharge() and not _is_nitro_part(atom) and not _anionic_group_atom(mol, atom) and not (
             AMINIUM.get() and atom.GetAtomicNum() == 7
-        ) and not (
+        ) and not (RING_CENTER.get() and _is_chain_amine_oxide_part(atom)) and not (
             _cationic_prefix_nitrogen(atom)
             and any(_anionic_group_atom(mol, a) or a.HasProp(ANION_PROP) for a in mol.GetAtoms())
         ):
@@ -4349,6 +4354,22 @@ def _is_isocyanate_carbon(atom):
         and neighbors[1].GetAtomicNum() in (8, 16, 34, 52)
         and neighbors[1].GetDegree() == 1
         and all(b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds())
+    )
+
+
+def _is_chain_amine_oxide_part(atom):
+    """The charged atoms of an amine oxide on a non-ring nitrogen, cited as an '(oxo-λ5-azanyl)' prefix beside the
+    ring N-oxide that is the parent (P-62.5, method 2)."""
+    if atom.GetAtomicNum() == 8 and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
+        (nitrogen,) = atom.GetNeighbors()
+        return nitrogen.GetAtomicNum() == 7 and _is_chain_amine_oxide_part(nitrogen)
+    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() != 1 or atom.IsInRing() or atom.GetIsAromatic():
+        return False
+    oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetFormalCharge() == -1 and n.GetDegree() == 1]
+    return (
+        len(oxygens) == 1
+        and atom.GetDegree() + atom.GetTotalNumHs() == 4
+        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != oxygens[0].GetIdx())
     )
 
 
