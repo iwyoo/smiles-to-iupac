@@ -3,6 +3,7 @@ An acid group is a centre (C, S, Se, Te) with =X positions and a -Y-H chain; rep
 alphabetically, the last one carrying 'ic acid', with italic letters for the tautomer when several chalcogens occur.
 """
 
+import itertools
 import re
 from dataclasses import dataclass
 
@@ -193,3 +194,41 @@ def acyl_suffix(spec, chain, count):
     if chain:
         return text if count == 1 else f"bis({text})"
     return _MULTIPLIER[count] + _head(oxo_only, text) + text
+
+
+def amide_suffix(spec, terminal):
+    """'sulfonothioamide', 'sulfonimidamide', 'sulfonimidothiohydrazide', ...: the amide or hydrazide of a sulfonic- or
+    sulfinic-type acid whose =O positions carry the replacement infixes of `spec`, cited alphabetically (Table 4.4)."""
+    terms = _terms(make_spec(spec.center, spec.oxo, ("O",)))
+    pieces = []
+    for i, term in enumerate(terms):
+        text = _term_text(term, None)
+        last = i == len(terms) - 1
+        following = terminal if last else terms[i + 1][0]
+        if text.endswith("o") and following[0] in "aeiouy" and (not last or term[0] in ("imido", "hydrazono")):
+            text = text[:-1]
+        pieces.append(text)
+    body = "".join(pieces) + terminal
+    stem = _STEM[spec.kind]
+    return stem + body if body[0] in "aeiouy" else stem + "o" + body
+
+
+SULFONYL_CENTRES = {16: "S", 34: "Se", 52: "Te"}
+SULFONYL_TERMINALS = ("amide", "hydrazide")
+
+
+def _sulfonyl_group_names():
+    """Name of every amide and hydrazide of a sulfonic- or sulfinic-type acid (S, Se, Te) with one or two =X positions
+    taken by O, S, Se, Te or NH, keyed by (element, sorted =X atoms, terminal) and in seniority order (Table 4.4)."""
+    found = []
+    for z, centre in SULFONYL_CENTRES.items():
+        for slots in (2, 1):
+            for oxo in itertools.combinations_with_replacement(("O", "S", "Se", "Te", "NH"), slots):
+                spec = make_spec(centre, oxo, ("O",))
+                for terminal in SULFONYL_TERMINALS:
+                    order = (SULFONYL_TERMINALS.index(terminal), rank_key(spec))
+                    found.append((order, (z, spec.oxo, terminal), amide_suffix(spec, terminal)))
+    return {key: name for _, key, name in sorted(found, key=lambda entry: entry[0])}
+
+
+SULFONYL_GROUP_NAMES = _sulfonyl_group_names()

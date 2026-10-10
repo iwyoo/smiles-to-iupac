@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
+from ._acid_lexicon import SULFONYL_GROUP_NAMES
 from ._free_valence import valence_word
 from ._common import (
     UnsupportedStructure,
@@ -23,16 +24,6 @@ from ._multiplicative_groups import SUFFIX_RANKS
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, subtree
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes
-
-_SULFONAMIDE_THIO = [
-    f"{stem}o{infix}amide"
-    for stem, infixes in (
-        ("sulfon", ("thio", "seleno", "telluro", "dithio", "diseleno", "ditelluro", "selenothio", "tellurothio", "selenotelluro")),
-        ("sulfin", ("thio", "seleno", "telluro")),
-    )
-    for infix in infixes
-]
-
 
 class _SuffixWords(dict):
     def __missing__(self, key):
@@ -59,37 +50,18 @@ _SUFFIX_WORDS = _SuffixWords({
     "selenoamide": "carboselenoamide",
     "telluroamide": "carbotelluroamide",
     "amidine": "carboximidamide",
-    "sulfonamide": "sulfonamide",
-    **{name: name for name in ("sulfinamide", "selenonamide", "seleninamide", "telluronamide", "tellurinamide")},
-    **{name: name for name in _SULFONAMIDE_THIO},
+    **{name: name for name in SULFONYL_GROUP_NAMES.values()},
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
     "hydrazonohydrazide": "carbohydrazonohydrazide",
-    "sulfonohydrazide": "sulfonohydrazide",
-    "sulfonimidamide": "sulfonimidamide",
-    "sulfonodiimidamide": "sulfonodiimidamide",
-    "sulfinimidamide": "sulfinimidamide",
-    "selenonimidamide": "selenonimidamide",
-    "selenonodiimidamide": "selenonodiimidamide",
-    "seleninimidamide": "seleninimidamide",
-    "telluronimidamide": "telluronimidamide",
-    "telluronodiimidamide": "telluronodiimidamide",
-    "tellurinimidamide": "tellurinimidamide",
-    "sulfinohydrazide": "sulfinohydrazide",
     **{
         f"{stem}hydrazonamide": f"{stem}hydrazonamide"
         for stem in ("sulfono", "sulfino", "selenono", "selenino", "tellurono", "tellurino")
     },
-    "sulfonohydrazonohydrazide": "sulfonohydrazonohydrazide",
-    "sulfinohydrazonohydrazide": "sulfinohydrazonohydrazide",
-    "selenonohydrazonohydrazide": "selenonohydrazonohydrazide",
-    "seleninohydrazonohydrazide": "seleninohydrazonohydrazide",
-    "telluronohydrazonohydrazide": "telluronohydrazonohydrazide",
-    "tellurinohydrazonohydrazide": "tellurinohydrazonohydrazide",
-    "selenonohydrazide": "selenonohydrazide",
-    "seleninohydrazide": "seleninohydrazide",
-    "telluronohydrazide": "telluronohydrazide",
-    "tellurinohydrazide": "tellurinohydrazide",
+    **{
+        f"{stem}hydrazonohydrazide": f"{stem}hydrazonohydrazide"
+        for stem in ("sulfono", "sulfino", "selenono", "selenino", "tellurono", "tellurino")
+    },
     "hydrazide": "carbohydrazide",
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
@@ -114,7 +86,14 @@ _RETAINED_BENZENE = {
     "alcohol": "phenol",
     "amine": "aniline",
 }
-_PRIMARY_NITROGEN = {"amide", "thioamide", "selenoamide", "telluroamide", "sulfonamide", *_SULFONAMIDE_THIO, "amine"}
+_PRIMARY_NITROGEN = {
+    "amide",
+    "thioamide",
+    "selenoamide",
+    "telluroamide",
+    "amine",
+    *(name for (_, oxo, terminal), name in SULFONYL_GROUP_NAMES.items() if terminal == "amide" and "NH" not in oxo),
+}
 _HETERO_PARENTS = {"pyridine": "pyridine", "furan": "furan", "thiophene": "thiophene", "pyrrole": "1H-pyrrole"}
 _VALENCE_COUNTS = (2, 3, 4)
 
