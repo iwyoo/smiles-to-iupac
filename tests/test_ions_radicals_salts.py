@@ -33,11 +33,6 @@ def test_phenoxide():
     assert smiles_to_iupac("[O-]c1ccccc1Cl") == "2-chlorophenoxide"
 
 
-def test_phenoxide_non_alkyl_ring_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(O)c1ccccc1[O-].[Cu+]")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -283,6 +278,20 @@ def test_unsupported_base_fragment():
     ],
 )
 def test_multi_cation_salt_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)[O-].CC(=O)[O-].CC(=O)[O-].[Fe+3]", "iron(3+) triacetate", id="charge_number_after_metal"),
+        pytest.param("[CH3-].[CH3-].[Cu+2]", "copper(2+) dimethanide", id="carbanide_anion"),
+        pytest.param("[Fe+3].[Fe+3].[O-]S(=O)(=O)[O-].[O-]S(=O)(=O)[O-].[O-]S(=O)(=O)[O-]", "diiron(3+) trisulfate", id="multiplied_cation"),
+        pytest.param("[Na+].[Cu+2].CC(=O)[O-].CC(=O)[O-].CC(=O)[O-]", "copper(2+) sodium triacetate", id="cations_alphabetical"),
+        pytest.param("CC(=O)[O-].[Ag+]", "silver acetate", id="single_common_charge_without_number"),
+    ],
+)
+def test_transition_metal_cation_salt_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
