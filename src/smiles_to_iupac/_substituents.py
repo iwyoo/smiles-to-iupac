@@ -1039,7 +1039,7 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None,
     if (
         len(branch_roots) == 3
         and all(length == 1 for length in lengths.values())
-        and all(len(graph[b]) == 1 for b in branch_roots)
+        and all(len(graph[b]) == 1 and mol.GetAtomWithIdx(b).GetAtomicNum() == 6 for b in branch_roots)
         and not _carries_label(root, branch_roots)
     ):
         # P-29.6.1: the retained name 'tert-butyl' is the PIN for the
@@ -1370,7 +1370,7 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
             ene,
             yne,
             grouped,
-            tert_butyl=_is_tert_butyl(graph, root, coming_from, halogens),
+            tert_butyl=_is_tert_butyl(graph, root, coming_from, halogens, mol),
             omit_locants=omits_all_locants(mol, chain, grouped, single_kind=False, free_atoms={coming_from}),
         )
         multiple = sorted(ene + yne)
@@ -1390,12 +1390,12 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
     return chain, root_position, stereo_prefix + name, is_compound or bool(stereo_prefix)
 
 
-def _is_tert_butyl(graph, root, coming_from, halogens):
+def _is_tert_butyl(graph, root, coming_from, halogens, mol):
     # P-29.6.1: the unsubstituted (CH3)3C- group keeps its retained name.
     others = [n for n in graph[root] if n != coming_from]
     return (
         len(others) == 3
-        and all(len(graph[n]) == 1 and n not in halogens for n in others)
+        and all(len(graph[n]) == 1 and n not in halogens and mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in others)
         and not _carries_label(root, others)
     )
 

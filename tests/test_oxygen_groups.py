@@ -1243,3 +1243,16 @@ def test_diesters_of_a_ring_joined_to_identical_chains(smiles, expected):
 )
 def test_anhydrides_of_stibinous_halogen_and_boron_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-63.2.2.1.1, P-29.6.1: no multiple bond or heteroatom of a substituent group may be lost from its prefix
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C=COCCO", "2-(ethenyloxy)ethan-1-ol", id="unsaturated_alkoxy_group_on_an_alkanol"),
+        pytest.param("C#COC(C)O", "1-(ethynyloxy)ethan-1-ol", id="triple_bond_in_an_alkoxy_group"),
+        pytest.param("CC(O)(O)P=O", "(1,1-dihydroxyethyl)phosphanone", id="tert_butyl_needs_three_carbons"),
+    ],
+)
+def test_substituent_prefixes_keep_multiple_bonds_and_heteroatoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
