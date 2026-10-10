@@ -1170,6 +1170,8 @@ def _run_fallbacks(smiles, original):
             name_halogen_acid_ester,
             name_halogen_oxo,
             name_polyfunctional,
+            name_guanidine,
+            name_urea,
             name_carbamate_ester,
             _name_o_substituted_hydroxylamine,
             _name_hydride_onium,

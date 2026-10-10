@@ -558,7 +558,7 @@ def test_ring_nitrogen_acyl_prefix_keeps_the_ring_intact(smiles, expected):
     "smiles, expected",
     [
         ("CN=C(NCC)NCCC(=O)O", "3-[(N-ethyl-N'-methylcarbamimidoyl)amino]propanoic acid"),
-        ("CN=C(NC)N(C)CCC(=O)O", "3-[methyl(N,N'-dimethylcarbamimidoyl)amino]propanoic acid"),
+        ("CN=C(NC)N(C)CCC(=O)O", "3-[(N,N'-dimethylcarbamimidoyl)(methyl)amino]propanoic acid"),
     ],
 )
 def test_guanidine_prefix_cites_the_substituents_of_every_nitrogen(smiles, expected):
@@ -866,4 +866,43 @@ def test_different_alkyl_groups_on_one_polyacid_are_cited_with_the_locants_of_th
     ],
 )
 def test_enclosing_marks_follow_the_nesting_order(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "name,key",
+    [
+        ("[3-(1H-pyrazol-1-yl)propyl]", "pyrazolylpropyl"),
+        ("pyridin-1(2H)-yl", "pyridinyl"),
+        ("(N,N'-dimethylcarbamimidoyl)", "dimethylcarbamimidoyl"),
+        ("2H-pyran-3-yl", "pyranyl"),
+    ],
+)
+def test_italic_locants_are_not_counted_in_alphanumerical_order(name, key):
+    from smiles_to_iupac._common import alpha_sort_key
+
+    assert alpha_sort_key(name) == key
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "CN=C(NCCCn1cccn1)NCc1ccc(C)cc1",
+            "N''-methyl-N-[(4-methylphenyl)methyl]-N'-[3-(1H-pyrazol-1-yl)propyl]guanidine",
+            id="indicated_hydrogen_is_not_a_letter_of_the_prefix",
+        ),
+        pytest.param(
+            "CCn1cnnc1CNC(=NC)NCC1(C)CCCO1",
+            "N-[(4-ethyl-4H-1,2,4-triazol-3-yl)methyl]-N''-methyl-N'-[(2-methyloxolan-2-yl)methyl]guanidine",
+            id="heterocyclic_substituents_on_the_nitrogens",
+        ),
+        pytest.param(
+            "CNC(=O)Nc1ccc(C)cc1CC(C)N(C)C",
+            "N-{2-[2-(dimethylamino)propyl]-4-methylphenyl}-N'-methylurea",
+            id="urea_with_an_amine_substituent",
+        ),
+    ],
+)
+def test_guanidine_and_urea_beside_other_groups_keep_their_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
