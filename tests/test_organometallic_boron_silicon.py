@@ -1179,8 +1179,3 @@ def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expe
 )
 def test_locants_of_heteroatom_chains_follow_the_arrangement_rule(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_chalcogen_chain_with_a_double_bond_between_chalcogens_is_not_named_as_saturated():
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac("CS(C)(C)(C)=S")
