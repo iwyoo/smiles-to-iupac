@@ -543,6 +543,8 @@ _P72_ANIONS = [
     ("CC(C)[O-]", "propan-2-olate"),
     ("[O-]c1ccccc1[O-]", "benzene-1,2-bis(olate)"),
     ("[S-]c1ccccc1[S-]", "benzene-1,2-bis(thiolate)"),
+    ("C=C[S-]", "ethenethiolate"),
+    ("P=C[S-]", "phosphanylidenemethanethiolate"),
     ("CN(C)[O-]", "dimethylaminoxide"),
     ("CO[O-]", "methaneperoxolate"),
     ("CCS[O-]", "ethane(SO-thioperoxolate)"),
