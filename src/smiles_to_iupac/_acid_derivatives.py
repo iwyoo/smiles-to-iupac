@@ -1197,6 +1197,11 @@ def _free_anion(atom):
     )
 
 
+def _free_cation(atom):
+    """A cationic centre that is not part of a zwitterionic group such as nitro or an N-oxide."""
+    return atom.GetFormalCharge() > 0 and not any(n.GetFormalCharge() < 0 for n in atom.GetNeighbors())
+
+
 def name_acid_derivative(mol):
     """Name of an ester, anhydride or acyl halide with no free acid group, else raises."""
     if any(atom.GetAtomicNum() not in _ORGANIC_ELEMENTS for atom in mol.GetAtoms()):
@@ -1206,6 +1211,8 @@ def name_acid_derivative(mol):
         raise UnsupportedStructure("no acid derivative group")
     if not acid and any(_free_anion(a) for a in mol.GetAtoms()):
         raise UnsupportedStructure("an anionic group outranks the ester, which is then a prefix (P-41)")
+    if not acid and any(_free_cation(a) for a in mol.GetAtoms()):
+        raise UnsupportedStructure("a cationic centre outranks the ester, which is then a prefix (P-41)")
     from ._heteroacyclic import name_heteroacyclic_ester
 
     skeletal = name_heteroacyclic_ester(mol)

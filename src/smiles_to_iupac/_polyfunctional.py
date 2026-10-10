@@ -1971,7 +1971,9 @@ def _select(mol, attach=None, n_names=(), stereo=None):
         c for c, _, _ in _ring_occurrences(mol)
     }
     principal = _principal_class(classes)
-    token = EXTENDED_PREFIXES.set((_is_acid_family(principal) or principal in ("thioic", "peroxoic", "imidic")) if principal else False)
+    token = EXTENDED_PREFIXES.set(
+        bool(AMINIUM.get() or RING_CENTER.get()) or (_is_acid_family(principal) or principal in ("thioic", "peroxoic", "imidic") if principal else False)
+    )
     try:
         return _select_with_prefixes(mol, attach, n_names, stereo)
     finally:
@@ -2269,7 +2271,14 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and (
                 a.GetIdx() in principal_atoms
                 or not is_functional_carbon(mol, a.GetIdx())
-                or ((_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide", "amidine", *_AMIDRAZONE)) and _junior_end_group(mol, a.GetIdx()))
+                or (
+                    (
+                        _is_acid_family(principal)
+                        or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide", "amidine", *_AMIDRAZONE)
+                        or (AMINIUM.get() and principal in ("amine", "imine"))
+                    )
+                    and _junior_end_group(mol, a.GetIdx())
+                )
             )
         }
         try:

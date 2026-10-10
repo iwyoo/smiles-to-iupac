@@ -737,6 +737,10 @@ def _name_ester_direct(mol) -> str:
 
 
 def name_ester(mol) -> str:
+    from ._acid_derivatives import _free_cation
+
+    if any(_free_cation(a) for a in mol.GetAtoms()):
+        raise UnsupportedStructure("a cationic centre outranks the ester, which is then a prefix (P-41)")
     try:
         return _name_ester_direct(mol)
     except UnsupportedStructure as original:
