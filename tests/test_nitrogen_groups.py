@@ -1785,3 +1785,23 @@ def test_ring_amides_do_not_outrank_a_urea(smiles, expected):
 )
 def test_hydrazine_is_the_parent_beside_rings_and_groups_junior_to_it(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NOCCN1CCCC1=O", "1-[2-(aminooxy)ethyl]pyrrolidin-2-one", id="beside_a_lactam"),
+        pytest.param(
+            "NOCc1cc(Br)c(C=O)c2c1OCCO2",
+            "8-[(aminooxy)methyl]-6-bromo-2,3-dihydro-1,4-benzodioxine-5-carbaldehyde",
+            id="beside_an_aldehyde_on_a_fused_ring",
+        ),
+        pytest.param(
+            "Cc1ccc(CN(C)C2CCC(ON)CC2)cc1",
+            "4-(aminooxy)-N-methyl-N-[(4-methylphenyl)methyl]cyclohexan-1-amine",
+            id="beside_an_amine",
+        ),
+    ],
+)
+def test_aminooxy_is_a_prefix_beside_a_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
