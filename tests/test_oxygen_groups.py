@@ -1003,6 +1003,8 @@ def test_acid_derivative_prefixes(smiles, expected):
     "smiles,expected",
     [
         ("OC(=O)OO", "carbonoperoxoic acid"),
+        ("N#COO", "peroxycyanic acid"),
+        ("N#COS", "thioperoxycyanic OS-acid"),
         ("NC(=N)S", "carbamimidothioic acid"),
         ("[N-]=[N+]=NC(=O)O", "carbonazidic acid"),
         ("OC(=O)OC(=O)OC(=O)OC(=O)OC(=O)O", "3,5,7-trioxo-2,4,6,8-tetraoxanonanedioic acid"),
