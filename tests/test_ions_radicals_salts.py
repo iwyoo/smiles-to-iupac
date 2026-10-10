@@ -741,6 +741,10 @@ def test_radical_beside_characteristic_groups(smiles, expected):
         pytest.param("C[n+]1cccc2ccccc12", "1-methylquinolin-1-ium", id="quinolinium"),
         pytest.param("CC[n+]1ccc2ccccc2c1", "2-ethylisoquinolin-2-ium", id="isoquinolinium"),
         pytest.param("c1ccc2[nH+]cccc2c1", "quinolin-1-ium", id="protonated_quinoline"),
+        pytest.param("c1c[nH+]c[nH]1", "1H-imidazol-3-ium", id="indicated_hydrogen_before_the_cationic_centre"),
+        pytest.param("C1=NCC[NH2+]1", "4,5-dihydro-1H-imidazol-1-ium", id="protonated_nitrogen_carries_the_indicated_hydrogen"),
+        pytest.param("C1=[NH+]CNC1", "2,5-dihydro-1H-imidazol-3-ium", id="centre_numbered_before_the_hydro_prefixes"),
+        pytest.param("c1ccc2[nH]c[nH+]c2c1", "1H-1,3-benzimidazol-3-ium", id="fused_azolium_keeps_the_indicated_hydrogen_locant"),
         pytest.param("C[n+]1ccccc1.[Cl-]", "1-methylpyridin-1-ium chloride", id="pyridinium_salt"),
         pytest.param("[CH3+].[Cl-]", "methylium chloride", id="one_atom_cation_salt"),
         pytest.param(

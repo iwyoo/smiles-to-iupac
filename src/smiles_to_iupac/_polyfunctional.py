@@ -1152,6 +1152,23 @@ def _monocycle_locant(base, center):
     return best[1][center]
 
 
+def _numbered_monocycle(base, center):
+    """(name, {center: locant}) of a bare heteromonocycle numbered for the indicated hydrogen first, then the cationic
+    centre, then the hydro prefixes (P-31.1.4.2.4, P-73.1.1.2); None when the ring has no such numbering."""
+    from ._ring_diyl_numbering import monocycle_numberings
+
+    graph = {a.GetIdx(): [n.GetIdx() for n in a.GetNeighbors()] for a in base.GetAtoms()}
+    try:
+        numberings = monocycle_numberings(base, ring_cycle(graph, list(graph)), {}, 0)
+    except (UnsupportedStructure, ValueError, KeyError, RuntimeError):
+        return None
+    if not numberings:
+        return None
+    best = min(numberings, key=lambda n: (n.pre_key, n.position_of[center], n.unsat_key))
+    name = best.text((), 0, suffix="")
+    return (name, {center: best.position_of[center]}) if name.endswith("e") else None
+
+
 def _bare_ring_name(base, center):
     """(name, {center: locant}) of an unsubstituted single-heteroatom ring system."""
     from ._fusion_name import Context, fused_ring_system_name, fusion_name, system_numbering_options
@@ -1159,6 +1176,9 @@ def _bare_ring_name(base, center):
     from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 
     if base.GetRingInfo().NumRings() == 1:
+        numbered = _numbered_monocycle(base, center)
+        if numbered is not None:
+            return numbered
         if has_hetero_monocyclic_name(base):
             return name_hetero_monocyclic(base), {center: _monocycle_locant(base, center)}
         from .core import smiles_to_iupac
@@ -1173,8 +1193,20 @@ def _bare_ring_name(base, center):
         raise UnsupportedStructure("this ring system has no supported parent name")
     ctx = Context(base)
     fused, root = fusion_name(base)
-    options = system_numbering_options(ctx, fused, root)
+    options = _with_indicated_hydrogen(base, name, system_numbering_options(ctx, fused, root))
     return name, {center: min((n[center] for n in options), key=_locant_key)}
+
+
+def _with_indicated_hydrogen(base, name, options):
+    """The numberings of a fused ring system that put its NH atoms at the indicated hydrogen locants of `name`; the
+    indicated hydrogen is lower than the cationic centre in the order of lowest locants (P-31.1.4.2.4)."""
+    prefix = re.match(r"(?:\d+[a-z]?(?:,\d+[a-z]?)*H-)+", name)
+    cited = set(re.findall(r"\d+[a-z]?", prefix.group(0))) if prefix else set()
+    nh_atoms = [a.GetIdx() for a in base.GetAtoms() if a.GetAtomicNum() == 7 and a.GetTotalNumHs() and a.IsInRing()]
+    if not cited or not nh_atoms:
+        return options
+    kept = [n for n in options if all(str(n[a]) in cited for a in nh_atoms)]
+    return kept or options
 
 
 def _aminium_base(mol, ignore=frozenset()):
