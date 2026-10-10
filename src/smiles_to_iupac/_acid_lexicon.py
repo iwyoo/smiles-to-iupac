@@ -219,11 +219,11 @@ SULFONYL_TERMINALS = ("amide", "hydrazide")
 
 def _sulfonyl_group_names():
     """Name of every amide and hydrazide of a sulfonic- or sulfinic-type acid (S, Se, Te) with one or two =X positions
-    taken by O, S, Se, Te or NH, keyed by (element, sorted =X atoms, terminal) and in seniority order (Table 4.4)."""
+    taken by O, S, Se, Te, NH or NNH2, keyed by (element, sorted =X atoms, terminal) and in seniority order (Table 4.4)."""
     found = []
     for z, centre in SULFONYL_CENTRES.items():
         for slots in (2, 1):
-            for oxo in itertools.combinations_with_replacement(("O", "S", "Se", "Te", "NH"), slots):
+            for oxo in itertools.combinations_with_replacement(("O", "S", "Se", "Te", "NH", "NNH2"), slots):
                 spec = make_spec(centre, oxo, ("O",))
                 for terminal in SULFONYL_TERMINALS:
                     order = (SULFONYL_TERMINALS.index(terminal), rank_key(spec))

@@ -1147,6 +1147,11 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         pytest.param("NN=C(N)C(=N)NN", "2-hydrazinyl-2-iminoethanehydrazonamide", id="imidohydrazide_at_a_chain_end_is_prefixes"),
         pytest.param("NC(=N)CC(=N)NN", "3-hydrazinyl-3-iminopropanimidamide", id="imidohydrazide_beside_an_amidine"),
         pytest.param("NN=S(N)c1ccccc1", "benzenesulfinohydrazonamide", id="sulfinic_amidrazone"),
+        pytest.param("CS(=S)(=NN)N", "methanesulfonohydrazonothioamide", id="replaced_oxygen_in_a_sulfonohydrazonamide"),
+        pytest.param("CS(=O)(=NNC)N", "N'-methylmethanesulfonohydrazonamide", id="sulfur_centred_hydrazone_terminal_is_primed"),
+        pytest.param("CS(=O)(=NNC)NNC", "N',N''-dimethylmethanesulfonohydrazonohydrazide", id="sulfur_centred_hydrazonohydrazide_locants"),
+        pytest.param("CS(=NN)(=NN)N", "methanesulfonodihydrazonamide", id="two_hydrazono_positions_on_sulfur"),
+        pytest.param("OC(=O)CCS(=O)(=NN)N", "3-(S-aminosulfonohydrazonoyl)propanoic acid", id="sulfur_centred_hydrazonamide_as_a_prefix"),
     ],
 )
 def test_amidrazones(smiles, expected):
@@ -1410,6 +1415,7 @@ def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
         ("C(C)N=C(N(C1=CC=CC=C1)C1=CC=CC=C1)NC(N)=N", "N'1-ethyl-N1,N1-diphenylimidodicarbonimidic diamide"),
         ("N=C(NC(N)=N)NC(NC(NC(N)=N)=N)=N", "3,5,7-triimino-2,4,6,8-tetraazanonane-1,9-diimidamide"),
         ("NN=C(C)NCCC(=O)O", "3-(ethanehydrazonamido)propanoic acid"),
+        ("NN=S(c1ccccc1)Nc1ccc(C(=O)O)cc1", "4-(benzenesulfinohydrazonamido)benzoic acid"),
         ("NN=CNc1ccc(C(=O)O)cc1", "4-(methanehydrazonamido)benzoic acid"),
         ("NNC=Nc1ccc(C(=O)O)cc1", "4-[(hydrazinylmethylidene)amino]benzoic acid"),
         ("N=CNNCCC(=O)O", "3-(methanimidohydrazido)propanoic acid"),

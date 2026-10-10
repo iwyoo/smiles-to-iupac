@@ -561,8 +561,9 @@ def _chalcogen_formyl(mol, idx):
 
 
 def _imidoyl_centre(mol, idx):
-    """A carbon with a terminal =NH, or a sulfonyl-type S, Se or Te with two terminal =O or =NH of which at least one is
-    =NH: the acyl group of an imidamide (P-66.4.1.3.5)."""
+    """A carbon with a terminal =NH or a hydrazono group, or a sulfonyl-type S, Se or Te with one or two terminal =O, =S, =Se,
+    =Te, =NH or =N-NH2 of which at least one is nitrogen-bearing: the acyl group of an imidamide or hydrazonamide
+    (P-66.4.1.3.5, P-66.4.2.3.5)."""
     atom = mol.GetAtomWithIdx(idx)
     terminal = [
         n
@@ -580,8 +581,11 @@ def _imidoyl_centre(mol, idx):
             and any(m.GetAtomicNum() == 7 and m.GetDegree() == 1 and m.GetTotalNumHs() == 2 for m in n.GetNeighbors())
         ]
         return (imines == 1 and len(terminal) == 1 and not hydrazones) or (not terminal and len(hydrazones) == 1)
-    oxygens = sum(n.GetAtomicNum() == 8 for n in terminal)
-    return atom.GetAtomicNum() in (16, 34, 52) and imines >= 1 and imines + oxygens == 2
+    if atom.GetAtomicNum() not in (16, 34, 52):
+        return False
+    hydrazones = sum(_terminal_double_atom(mol, idx, n.GetIdx()) and n.GetDegree() == 2 for n in atom.GetNeighbors())
+    chalcogens = sum(n.GetAtomicNum() in (8, 16, 34, 52) for n in terminal)
+    return imines + hydrazones >= 1 and 1 <= imines + hydrazones + chalcogens <= 2
 
 
 PEROXY_PREFIXES = contextvars.ContextVar("peroxy_prefixes", default=False)
@@ -1489,11 +1493,15 @@ def _terminal_hydroxy(mol, idx, center):
 
 
 def _terminal_double_atom(mol, center, idx):
-    """A terminal =O, =S, =Se, =Te or =NH on `center` (an oxo, thioxo or imido position of a sulfonic-type acyl group)."""
+    """A terminal =O, =S, =Se, =Te, =NH or =N-NH2 on `center` (an oxo, thioxo, imido or hydrazono position of a
+    sulfonic-type acyl group)."""
     atom = mol.GetAtomWithIdx(idx)
-    if atom.GetDegree() != 1 or atom.GetFormalCharge() or mol.GetBondBetweenAtoms(center, idx).GetBondTypeAsDouble() != 2.0:
+    if atom.GetFormalCharge() or mol.GetBondBetweenAtoms(center, idx).GetBondTypeAsDouble() != 2.0:
         return False
-    return atom.GetAtomicNum() in (8, 16, 34, 52) or (atom.GetAtomicNum() == 7 and atom.GetTotalNumHs() == 1)
+    if atom.GetDegree() == 2:
+        end = next((m for m in atom.GetNeighbors() if m.GetIdx() != center), None)
+        return atom.GetAtomicNum() == 7 and end is not None and end.GetAtomicNum() == 7 and end.GetDegree() == 1 and end.GetTotalNumHs() == 2
+    return atom.GetDegree() == 1 and (atom.GetAtomicNum() in (8, 16, 34, 52) or (atom.GetAtomicNum() == 7 and atom.GetTotalNumHs() == 1))
 
 
 def _stereo_cited(name, atom):
@@ -1520,7 +1528,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     center = _E_SYMBOL[atom.GetAtomicNum()]
     others = [n for n in graph[root] if n != coming_from]
     oxo = [
-        (n, "NH" if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 else mol.GetAtomWithIdx(n).GetSymbol())
+        (n, ("NNH2" if mol.GetAtomWithIdx(n).GetDegree() == 2 else "NH") if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 else mol.GetAtomWithIdx(n).GetSymbol())
         for n in others
         if _terminal_double_atom(mol, root, n)
     ]
@@ -1592,7 +1600,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return chain
         mark(None, POLYACID_SUBSTITUENT_REASON)
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
-    located = "S-" if zx == 7 and "NH" in symbols and center == "S" else ""
+    located = "S-" if zx == 7 and ("NH" in symbols or "NNH2" in symbols) and center == "S" else ""
     return located + (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True
 
 
