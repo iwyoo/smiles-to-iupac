@@ -39,6 +39,12 @@ def _insert_before_ending(anion, text):
 
 
 def _anion_name(acid_name):
+    if not acid_name.endswith(" acid") and " " not in acid_name:
+        from ._amino_acid_derivative import _anion_stem
+
+        stem = _anion_stem(acid_name)
+        if stem is not None:
+            return stem
     if not acid_name.endswith(" acid") or " " in acid_name[: -len(" acid")].strip():
         raise UnsupportedStructure("the acid part of this ester is not named as a plain acid")
     stem = acid_name[: -len(" acid")]
@@ -122,6 +128,44 @@ def _ester_locants(mol, acid, removed, matches, named_by_arm):
     return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in found.items()}
 
 
+def _arms_in_parent(mol, matches):
+    """The ester groups whose acid carbon is a suffix of the parent acid; the others are cited as prefixes of a
+    monoester (P-65.6.3.3.2.2.2). None when the parent cannot be determined."""
+    from ._polyfunctional import _select
+
+    graph = adjacency(mol)
+    removed = set()
+    for _, _, ester_oxygen, alkyl_carbon in matches:
+        removed |= _branch_atoms(graph, alkyl_carbon, ester_oxygen)
+    if any(acyl in removed for acyl, _, _, _ in matches):
+        return None
+    editable = Chem.RWMol(mol)
+    for _, _, ester_oxygen, _ in matches:
+        oxygen = editable.GetAtomWithIdx(ester_oxygen)
+        oxygen.SetNumExplicitHs(1)
+        oxygen.SetNoImplicit(True)
+    kept = [i for i in range(mol.GetNumAtoms()) if i not in removed]
+    for idx in sorted(removed, reverse=True):
+        editable.RemoveAtom(idx)
+    acid = editable.GetMol()
+    try:
+        Chem.SanitizeMol(acid)
+        for atom in acid.GetAtoms():
+            atom.SetAtomMapNum(atom.GetIdx() + 1)
+        _, _, parts = _select(acid)
+    except (UnsupportedStructure, ValueError):
+        return None
+    if not (parts[1] or "").endswith(("oic", "carboxylic")):
+        return None
+    new_index = {old: new for new, old in enumerate(kept)}
+    position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1 for i in parts[4]}
+    carbons = [new_index[acyl] for acyl, _, _, _ in matches]
+    if any(c in position for c in carbons):
+        return [arm for arm, c in enumerate(carbons) if c in position]
+    attached = [[n.GetIdx() for n in acid.GetAtomWithIdx(c).GetNeighbors() if n.GetAtomicNum() == 6] for c in carbons]
+    return [arm for arm, nbrs in enumerate(attached) if any(n in position for n in nbrs)]
+
+
 def _name_ester_parts(mol, labels) -> str:
     from ._substituents import ISOTOPE_LABELS
     from .core import smiles_to_iupac
@@ -129,6 +173,10 @@ def _name_ester_parts(mol, labels) -> str:
     matches = mol.GetSubstructMatches(_ESTER)
     if not matches:
         raise UnsupportedStructure("an acyclic ester group is required for part-wise ester naming")
+    if len(matches) > 1 and not labels:
+        in_parent = _arms_in_parent(mol, matches)
+        if in_parent:
+            matches = tuple(matches[arm] for arm in in_parent)
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     arms = []
