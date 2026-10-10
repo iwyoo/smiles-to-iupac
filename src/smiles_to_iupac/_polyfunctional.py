@@ -3113,6 +3113,7 @@ _FUSED_SUFFIX = _FusedSuffix({
     "alcohol": "ol",
     "peroxol": "peroxol",
     "ketone": "one",
+    "imine": "imine",
     "thione": "thione",
     "selone": "selone",
     "tellone": "tellone",
