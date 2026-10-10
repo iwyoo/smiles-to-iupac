@@ -14,7 +14,7 @@ _SUFFIX = {1: "yl", 2: "ylidene", 3: "ylidyne"}
 _GROUP_14 = {14, 32, 50, 82}
 _HYDRIDE_NAMES = {"ammonia": "azane", "water": "oxidane", "hydrogen sulfide": "sulfane", "hydrogen selenide": "selane", "hydrogen telluride": "tellane"}
 _RETAINED = {("oxidane", 1): "hydroxyl", ("dioxidane", 1): "hydroperoxyl"}
-_MULTIPLIER = {2: "di", 3: "tri"}
+_MULTIPLIER = {2: "di", 3: "tri", 4: "tetra"}
 
 
 def _hydride_name(smiles):
@@ -107,6 +107,67 @@ def _chain(mol, radicals):
     return f"{base}-{joined}-{_MULTIPLIER[number]}{suffix}"
 
 
+def _substituted_chain(mol, radicals):
+    """Radical centres of one kind on an unbranched chain of one heteroatom that carries other groups: the chain is the
+    parent (P-44.1.2.2), its radical locants come first and every other group is a prefix (P-71.2.3)."""
+    from ._common import adjacency, group_substituents, halogen_substituents, substituent_locant_set_and_citation
+    from ._hydride_chain import _STEMS
+    from ._numerals import multiplying_prefix
+    from ._substituents import format_substituent_prefixes, name_branch
+
+    z = radicals[0].GetAtomicNum()
+    if z not in _STEMS or any(a.GetAtomicNum() != z or a.GetNumRadicalElectrons() not in _SUFFIX for a in radicals):
+        return None
+    if any(a.GetFormalCharge() or a.GetIsotope() or a.IsInRing() for a in mol.GetAtoms()) or any(
+        b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()
+    ):
+        return None
+    chain_atoms = {radicals[0].GetIdx()}
+    stack = [radicals[0]]
+    while stack:
+        for n in stack.pop().GetNeighbors():
+            if n.GetAtomicNum() == z and n.GetIdx() not in chain_atoms:
+                chain_atoms.add(n.GetIdx())
+                stack.append(n)
+    ends = [i for i in chain_atoms if sum(n.GetIdx() in chain_atoms for n in mol.GetAtomWithIdx(i).GetNeighbors()) <= 1]
+    if len(chain_atoms) < 2 or len(ends) != 2 or not {a.GetIdx() for a in radicals} <= chain_atoms:
+        return None
+    if any(sum(n.GetIdx() in chain_atoms for n in mol.GetAtomWithIdx(i).GetNeighbors()) > 2 for i in chain_atoms):
+        return None
+    order, previous = [ends[0]], None
+    while len(order) < len(chain_atoms):
+        order.append(next(n.GetIdx() for n in mol.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetIdx() in chain_atoms and n.GetIdx() != previous))
+        previous = order[-2]
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    valence_of = {a.GetIdx(): a.GetNumRadicalElectrons() for a in radicals}
+    best = None
+    for candidate in (order, order[::-1]):
+        substituents = {}
+        for position, atom in enumerate(candidate, start=1):
+            for n in graph[atom]:
+                if n in chain_atoms:
+                    continue
+                if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0:
+                    return None
+                substituents.setdefault(position, []).append(name_branch(graph, n, atom, halogens, frozenset(), mol=mol, unsaturated=True))
+        grouped = group_substituents(substituents)
+        locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        by_valence = {v: [i + 1 for i, atom in enumerate(candidate) if valence_of.get(atom) == v] for v in _SUFFIX}
+        key = (sorted(sum(by_valence.values(), [])), by_valence[1], by_valence[2], by_valence[3], locant_set, citation)
+        if best is None or key < best[0]:
+            best = (key, grouped, by_valence)
+    _, grouped, by_valence = best
+    parent = "hydrazine" if z == 7 and len(order) == 2 else f"{multiplying_prefix(len(order))}{_STEMS[z]}"
+    pieces = [
+        f"{','.join(map(str, locants))}-{'' if len(locants) == 1 else _MULTIPLIER[len(locants)]}{_SUFFIX[v]}"
+        for v, locants in by_valence.items()
+        if locants
+    ]
+    stem = parent if len(by_valence[min(v for v, l in by_valence.items() if l)]) > 1 else parent[:-1]
+    return f"{format_substituent_prefixes(grouped, omit_locants=False)}{stem}-{'-'.join(pieces)}"
+
+
 def _isodiazene(mol):
     """R2N-N: (an N-N compound with a divalent terminal nitrogen) is the parent radical hydrazinylidene (P-68.3.1.3.7)."""
     from ._cited_group import cited_group
@@ -167,9 +228,13 @@ def hetero_radical_name(mol):
     if all(a.GetAtomicNum() == 6 for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) > 1:
         return None
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
-    if not radicals or sum(a.GetNumRadicalElectrons() for a in radicals) > 3:
+    if not radicals:
         return None
-    if len(radicals) == 1 and (mol.GetNumAtoms() == 1 or radicals[0].GetAtomicNum() != 6):
+    if len(radicals) > 1:
+        return _chain(mol, radicals) or _substituted_chain(mol, radicals)
+    if sum(a.GetNumRadicalElectrons() for a in radicals) > 3:
+        return None
+    if mol.GetNumAtoms() == 1 or radicals[0].GetAtomicNum() != 6:
         found = _mononuclear(mol, radicals[0])
         if found is not None:
             return found

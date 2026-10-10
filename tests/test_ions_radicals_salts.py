@@ -1316,6 +1316,14 @@ def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
         pytest.param("N[O]", "aminoxyl", id="aminoxyl"),
         pytest.param("ClCN(CCl)[O]", "bis(chloromethyl)aminoxyl", id="substituted_aminoxyl"),
         pytest.param("CS(=O)(=O)[O]", "(methanesulfonyl)oxyl", id="oxyl_on_a_sulfonyl_group"),
+        pytest.param("CCC[B]C#N", "cyano(propyl)boranyl", id="radical_outranks_nitrile"),
+        pytest.param("O[Si]C(O)O", "(dihydroxymethyl)(hydroxy)silylidene", id="heteroatom_groups_on_divalent_centre"),
+        pytest.param("C[SiH2][SiH]", "2-methyldisilanylidene", id="divalent_centre_on_a_substituted_chain"),
+        pytest.param("C1CC[SiH]CC1", "silinan-1-yl", id="ring_heteroatom_centre"),
+        pytest.param("C[Si](C)(C)O[O]", "(trimethylsilyl)peroxyl", id="peroxyl_on_a_heteroatom_group"),
+        pytest.param("C[Sn](C)[Sn](C)C", "1,1,2,2-tetramethyldistannane-1,2-diyl", id="two_centres_on_a_substituted_chain"),
+        pytest.param("C[Si](C)[Si]C", "1,1,2-trimethyldisilan-1-yl-2-ylidene", id="mixed_centres_on_a_substituted_chain"),
+        pytest.param("[SiH2]C[SiH2]", "[(ylosilyl)methyl]silyl", id="centres_on_separate_parents"),
     ],
 )
 def test_radicals_on_heteroatom_parents(smiles, expected):

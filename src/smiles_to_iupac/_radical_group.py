@@ -29,8 +29,27 @@ def _polyradical_centres(mol):
     return None
 
 
+def _share_a_heteroatom_chain(mol, radicals):
+    """Two radical centres of one element joined through atoms of that element alone lie in one parent hydride (P-71.7a)."""
+    for atom in radicals:
+        z = atom.GetAtomicNum()
+        if z == 6:
+            continue
+        seen, stack = {atom.GetIdx()}, [atom]
+        while stack:
+            for n in stack.pop().GetNeighbors():
+                if n.GetAtomicNum() == z and n.GetIdx() not in seen:
+                    seen.add(n.GetIdx())
+                    stack.append(n)
+        if any(o.GetIdx() in seen and o.GetIdx() != atom.GetIdx() for o in radicals if o.GetAtomicNum() == z):
+            return True
+    return False
+
+
 def _multi_centres(mol):
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    if _share_a_heteroatom_chain(mol, radicals):
+        return None
     if (
         len(radicals) > 1
         and not any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms())
@@ -38,6 +57,7 @@ def _multi_centres(mol):
             (a.GetAtomicNum() == 6 and a.GetNumRadicalElectrons() <= 3)
             or (a.GetAtomicNum() in (8, 16) and a.GetNumRadicalElectrons() == 1 and a.GetDegree() == 1 and a.GetTotalNumHs() == 0)
             or (a.GetAtomicNum() == 7 and a.GetNumRadicalElectrons() == 1 and a.GetDegree() <= 2 and not a.GetIsAromatic())
+            or (a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and a.GetAtomicNum() not in _CHALCOGENS and a.GetNumRadicalElectrons() == 1)
             for a in radicals
         )
     ):
@@ -54,7 +74,9 @@ def _centre(mol):
     centre = radicals[0]
     if (centre.GetIsotope() and centre.GetAtomicNum() != 6) or centre.GetFormalCharge():
         return None
-    if centre.GetNumRadicalElectrons() > 1 and centre.GetAtomicNum() not in (6, 7):
+    if centre.GetNumRadicalElectrons() > 1 and centre.GetAtomicNum() not in (6, 7) and (
+        centre.GetAtomicNum() not in MONONUCLEAR_HYDRIDES or centre.GetAtomicNum() in _CHALCOGENS
+    ):
         return None
     if centre.GetAtomicNum() == 6:
         return centre
@@ -65,9 +87,7 @@ def _centre(mol):
     if (
         centre.GetAtomicNum() in MONONUCLEAR_HYDRIDES
         and centre.GetAtomicNum() not in _CHALCOGENS
-        and centre.GetNumRadicalElectrons() == 1
-        and centre.GetDegree() > 1
-        and not centre.IsInRing()
+        and centre.GetDegree() >= 1
         and not centre.GetIsAromatic()
     ):
         return centre
@@ -120,7 +140,9 @@ def _name_radical_group(mol) -> str:
         mol, labels, _ = split
     centre = _centre(mol)
     if centre is not None and sum(1 for a in mol.GetAtoms() if a.GetNumRadicalElectrons()) > 1:
-        found = polyradical_name(mol)
+        from ._radical_hetero import hetero_radical_name
+
+        found = hetero_radical_name(mol) or polyradical_name(mol)
         if found is not None:
             return found
         if _polyradical_centres(mol):
@@ -142,6 +164,8 @@ def _name_radical_group(mol) -> str:
         raise UnsupportedStructure("isotopic modification of this radical is not supported yet")
     if centre.GetAtomicNum() == 7 and not centre.IsInRing():
         return _name_aminyl(mol, centre)
+    if centre.GetAtomicNum() != 6 and centre.GetNumRadicalElectrons() > 1:
+        return _name_multivalent_centre(mol, centre)
     if centre.GetAtomicNum() == 8 and centre.GetNeighbors()[0].GetAtomicNum() == 8:
         return _name_peroxyl(mol, centre)
     hydride, hydrogen = _hydride(mol, centre)
@@ -166,6 +190,23 @@ def _name_radical_group(mol) -> str:
             raise UnsupportedStructure("the oxygen radical has no 'oxy' prefix to turn into 'oxyl' (P-71.3.4)")
         return _aminoxyl(name) + "l"
     return name
+
+
+def _name_multivalent_centre(mol, centre):
+    """P-71.2.2.2: 'ylidene' or 'ylidyne' replaces the 'yl' of the monovalent radical whose extra radical electrons
+    are filled with hydrogens, so the parent hydride and the locants are those of the 'yl' name."""
+    capped = Chem.RWMol(mol)
+    target = capped.GetAtomWithIdx(centre.GetIdx())
+    extra = centre.GetNumRadicalElectrons() - 1
+    target.SetNumRadicalElectrons(1)
+    target.SetNoImplicit(True)
+    target.SetNumExplicitHs(centre.GetTotalNumHs() + extra)
+    monovalent = capped.GetMol()
+    Chem.SanitizeMol(monovalent)
+    name = _name_radical_group(monovalent)
+    if not name.endswith("yl"):
+        raise UnsupportedStructure("the monovalent radical name does not end in 'yl'")
+    return name[:-2] + {1: "ylidene", 2: "ylidyne"}[extra]
 
 
 def _imidoyl_carbon(mol, carbon):
@@ -252,7 +293,7 @@ def _name_peroxyl(mol, centre):
     hydride, hydrogen = _hydride(mol, centre)
     peroxide = centre.GetNeighbors()[0]
     carbons = [n for n in peroxide.GetNeighbors() if n.GetIdx() != centre.GetIdx()]
-    if len(carbons) != 1 or carbons[0].GetAtomicNum() != 6:
+    if len(carbons) != 1 or (carbons[0].GetAtomicNum() != 6 and carbons[0].GetAtomicNum() not in MONONUCLEAR_HYDRIDES):
         raise UnsupportedStructure("this oxygen radical is not a peroxyl radical")
     graph = adjacency(hydride)
     aromatic = frozenset(a.GetIdx() for a in hydride.GetAtoms() if a.GetIsAromatic())
