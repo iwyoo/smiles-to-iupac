@@ -826,7 +826,6 @@ def test_phenyl_isocyanide_chain():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("CO[N+](=O)[O-].C", id="multiple_fragments_raises"),
         pytest.param("[O-][N+](=O)OCCCO[N+](=O)[O-]", id="two_nitrate_groups_raises"),
     ],
 )

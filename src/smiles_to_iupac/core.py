@@ -30,6 +30,7 @@ from ._ring_diyl_numbering import SYSTEMATIC_FUSION
 from ._spiro_stereo import cite_spiro_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
 from ._hydrogen_cation import hydrogen_salt_name
+from ._ion_adduct import has_ion_adduct_shape, name_ion_adduct
 from ._silicic_cyanate import silicic_cyanate_name
 from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
@@ -412,6 +413,7 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
 
 _NO_PIN_ADDUCT = "the Blue Book assigns no PIN to Lewis adducts, whose preferred names are coordination names (P-68.1.6.2)"
 _NO_PIN_MIXED_ADDUCT = "the Blue Book assigns no PIN to adducts with inorganic components (P-14.8.2)"
+_NO_PIN_ION_ADDUCT = "the Blue Book assigns no PIN to an adduct of ions with other components or of ions that do not balance (P-14.8.2)"
 _NO_PIN_ORGANOMETALLIC ="the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
 
 _FALLBACKS_RUNNING = set()
@@ -1161,6 +1163,11 @@ def _run_fallbacks(smiles, original):
         raise original
     _FALLBACKS_RUNNING.add(key)
     try:
+        if has_ion_adduct_shape(mol):
+            try:
+                return mark(name_ion_adduct(mol, smiles_to_iupac), _NO_PIN_ION_ADDUCT)
+            except UnsupportedStructure:
+                pass
         for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
             try:
                 name = skeletal(mol)

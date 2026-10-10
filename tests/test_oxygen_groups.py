@@ -491,8 +491,18 @@ def test_dihydrate_adduct():
     [
         ("CCO.c1ccncc1", "ethanol—pyridine (1/1)"),
         ("CC(=O)O.CCN", "acetic acid—ethanamine (1/1)"),
-        ("CC.CCOCC", "ethoxyethane—ethane (1/1)"),
+        ("CC.CCOCC", "ethane—ethoxyethane (1/1)"),
         ("F.O=c1cccc[nH]1", "pyridin-2(1H)-one—hydrogen fluoride (1/1)"),
+        pytest.param(
+            "c1cc2ccc3ccc4ccc5ccc6ccc1c1c2c3c4c5c61.[O-][N+](=O)c1cc([N+]([O-])=O)cc([N+]([O-])=O)c1",
+            "coronene—1,3,5-trinitrobenzene (1/1)",
+            id="nitro_groups_leave_a_carbon_compound_ranked_by_its_ring_system",
+        ),
+        pytest.param(
+            "OC(=O)c1cc2ccccc2[nH]1.OC(=O)c1cc(cc(c1)[N+]([O-])=O)[N+]([O-])=O",
+            "1H-indole-2-carboxylic acid—3,5-dinitrobenzoic acid (1/1)",
+            id="heterocycle_before_carbocycle_within_one_class",
+        ),
     ],
 )
 def test_adduct_components_ordered_by_class_seniority(smiles, expected):

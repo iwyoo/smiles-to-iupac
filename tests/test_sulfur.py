@@ -129,11 +129,6 @@ def test_modified_sulfonic_acid_groups_as_prefixes_beside_a_senior_acid(smiles, 
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_salt_of_partial_ester_multivalent_cation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COS(=O)(=O)[O-].[Ca+2]")
-
-
 def test_methylsulfanylpropane():
     assert smiles_to_iupac("CSCCC") == "1-(methylsulfanyl)propane"
 
@@ -343,11 +338,6 @@ def test_sulfinic_acid_chains_with_ring_substituents(smiles, expected):
 )
 def test_sulfate_ester_unaffected_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_salt_of_partial_ester_multivalent_cation_raises__sulfite():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COS(=O)[O-].[Ca+2]")
 
 
 @pytest.mark.parametrize(

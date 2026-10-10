@@ -144,16 +144,9 @@ def test_coordination_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        "C[Ti](Cl)(Cl)Cl.[Na+]",
-        "C[Hg]c1ccc(S(=O)(=O)O)cc1",
-    ],
-)
-def test_coordination_out_of_scope_raises(smiles):
+def test_coordination_out_of_scope_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("C[Hg]c1ccc(S(=O)(=O)O)cc1")
 
 
 @pytest.mark.parametrize(
