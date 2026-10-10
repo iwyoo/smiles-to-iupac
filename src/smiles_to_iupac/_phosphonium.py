@@ -69,7 +69,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, specified_stereocenters
-from ._onium_prefixes import onium_name
+from ._onium_prefixes import only_nitro_charges_besides, onium_name
 from ._phosphane import name_simple_phosphane
 
 
@@ -85,7 +85,7 @@ def has_phosphonium_shape(mol) -> bool:
     if len(charged_phosphorus) != 1:
         return False
     phosphorus = charged_phosphorus[0]
-    if phosphorus.GetIsotope() != 0:
+    if phosphorus.GetIsotope() != 0 or not only_nitro_charges_besides(mol, phosphorus):
         return False
     degree = phosphorus.GetDegree()
     if degree > 4 or phosphorus.GetTotalNumHs() + degree != 4:
