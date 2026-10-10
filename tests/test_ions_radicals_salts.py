@@ -1548,6 +1548,7 @@ def test_charge_is_never_miscounted_in_a_name(smiles):
         pytest.param("NC(=[NH2+])c1ccccc1", "benzenecarboximidamidium", id="aryl_amidinium"),
         pytest.param("CC(N)=[NH2+].[Cl-]", "ethanimidamidium chloride", id="chain_amidinium_salt"),
         pytest.param("CNCc1cncc(C(N)=[NH2+])c1", "5-[(methylamino)methyl]pyridine-3-carboximidamidium", id="amidinium_with_a_neutral_amine"),
+        pytest.param("CN(C)C(=[NH2+])c1ccccc1", "N,N-dimethylbenzenecarboximidamidium", id="n_substituted_amidinium"),
     ],
 )
 def test_amidinium_cations_take_the_imidamidium_suffix(smiles, expected):
