@@ -491,6 +491,22 @@ def test_secondary_amine_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Cc1cc(C2CCC2)cccc1=O", "4-cyclobutyl-2-methylcyclohepta-2,4,6-trien-1-one", id="seven_ring_with_a_cycloalkyl_substituent"),
+        pytest.param("O=c1cccccc1C1CCOC1", "2-(oxolan-3-yl)cyclohepta-2,4,6-trien-1-one", id="seven_ring_with_a_heterocyclic_substituent"),
+        pytest.param(
+            "CNc1c(Nc2ccc(CC(C)C)cc2)c(=O)c1=O",
+            "3-(methylamino)-4-{[4-(2-methylpropyl)phenyl]amino}cyclobut-3-ene-1,2-dione",
+            id="four_ring_dione_with_an_aryl_substituent",
+        ),
+    ],
+)
+def test_non_benzene_mancude_carbocycle_with_a_second_ring_is_a_cycloalkene_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_phenyl_chain_ketone_ester():
     assert smiles_to_iupac("c1ccccc1CC(=O)CC(=O)OC") == "methyl 3-oxo-4-phenylbutanoate"
     assert smiles_to_iupac("c1ccccc1CCC(=O)C(=O)OC") == "methyl 2-oxo-4-phenylbutanoate"
