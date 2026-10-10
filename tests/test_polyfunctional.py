@@ -1365,3 +1365,26 @@ def test_unsaturated_substituents_carry_heteroatoms_and_heterocycles(smiles, exp
 )
 def test_hydrazine_beside_a_ring_with_nitrogen_is_a_hydrazinyl_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)NNC(=O)c1ccccc1C(=O)O", "2-(2-acetylhydrazine-1-carbonyl)benzoic acid", id="acyl_on_the_far_nitrogen"),
+        pytest.param("CN(N)C(=O)c1ccccc1C(=O)O", "2-(1-methylhydrazine-1-carbonyl)benzoic acid", id="substituent_on_the_near_nitrogen"),
+        pytest.param("CN(C)NC(=O)c1ccccc1C(=O)O", "2-(2,2-dimethylhydrazine-1-carbonyl)benzoic acid", id="two_substituents_on_the_far_nitrogen"),
+        pytest.param("CNNC(=S)c1ccccc1C(=O)O", "2-(2-methylhydrazine-1-carbothioyl)benzoic acid", id="thio_analogue"),
+        pytest.param(
+            "COc1ccc(C(=O)NNC(=O)Cc2ccc(F)cc2)cc1S(=O)(=O)Nc1ccc(C)cc1",
+            "5-{2-[(4-fluorophenyl)acetyl]hydrazine-1-carbonyl}-2-methoxy-N-(4-methylphenyl)benzene-1-sulfonamide",
+            id="sulfonamide_outranks_a_diacylhydrazine",
+        ),
+        pytest.param(
+            "Cc1ccc(NS(=O)(=O)c2c[nH]c(C(=O)NN)c2)cc1F",
+            "N-(3-fluoro-4-methylphenyl)-5-(hydrazinecarbonyl)-1H-pyrrole-3-sulfonamide",
+            id="sulfonamide_outranks_a_hydrazide",
+        ),
+    ],
+)
+def test_hydrazide_groups_beside_an_amide_class_parent_are_hydrazinecarbonyl_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
