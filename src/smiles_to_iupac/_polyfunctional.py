@@ -244,6 +244,7 @@ def _chalcogen_ketone(mol, atom):
 
 
 _CHALCOGEN_RANK = {8: 0, 16: 1, 34: 2, 52: 3}
+_RING_HETERO_NEIGHBORS = {7, 8, 16, 34, 52}
 
 
 def _urea_carbon(mol, idx):
@@ -311,16 +312,21 @@ def _imide_parent(mol, carbon, partner):
     return mine > theirs or (mine == theirs and carbon < partner)
 
 
-def _organyloxy(mol, oxygen, nitrogen):
-    """An -O-R group on nitrogen whose R is a plain carbon group, cited as an alkoxy or aryloxy prefix (P-63.2.2.1.1)."""
-    if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
-        return False
-    (carbon,) = [n for n in oxygen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+def _organyloxy(mol, chalcogen, nitrogen):
+    """A chain of chalcogen atoms (-O-, -S-, -Se-, -Te-) on nitrogen that ends in a plain carbon group: an alkoxy,
+    sulfanyl or disulfanyl-type prefix (P-63.2.2.1.1, P-63.4.2.2)."""
+    previous, atom = nitrogen, chalcogen
+    while atom.GetAtomicNum() in _CHALCOGEN_RANK:
+        if atom.GetDegree() != 2 or atom.GetFormalCharge() or atom.IsInRing():
+            return False
+        if mol.GetBondBetweenAtoms(previous.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            return False
+        previous, atom = atom, next(n for n in atom.GetNeighbors() if n.GetIdx() != previous.GetIdx())
     return (
-        carbon.GetAtomicNum() == 6
-        and mol.GetBondBetweenAtoms(oxygen.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() == 1.0
-        and not _double_oxygens(mol, carbon.GetIdx())
-        and not is_functional_carbon(mol, carbon.GetIdx())
+        atom.GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(previous.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not _double_oxygens(mol, atom.GetIdx())
+        and not is_functional_carbon(mol, atom.GetIdx())
     )
 
 
@@ -418,7 +424,8 @@ def _ring_nitrogen_acyl(mol, nitrogen, carbonyl):
             if not bond.IsInRing():
                 return False
         elif bond.GetBondTypeAsDouble() != 1.0 or not (
-            n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx())
+            (n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx()))
+            or (n.GetAtomicNum() in _RING_HETERO_NEIGHBORS and n.IsInRing() and not n.GetFormalCharge())
         ):
             return False
     return True

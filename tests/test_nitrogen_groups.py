@@ -1198,6 +1198,8 @@ def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smi
         pytest.param("CC(=O)N(C)OC", "N-methoxy-N-methylacetamide", id="alkoxy_and_alkyl_on_one_amide_nitrogen"),
         pytest.param("O=C(NOC)CCC(=O)NOC", "N1,N4-dimethoxybutanediamide", id="n_alkoxy_groups_of_a_diamide"),
         pytest.param("CC(=O)NOC(C)C", "N-[(propan-2-yl)oxy]acetamide", id="compound_organyloxy_prefix_is_enclosed"),
+        pytest.param("CC(=O)N(C)SC", "N-methyl-N-(methylsulfanyl)acetamide", id="sulfanyl_and_alkyl_on_one_amide_nitrogen"),
+        pytest.param("O=C(c1ccccc1)NSSc1ccccn1", "N-[(pyridin-2-yl)disulfanyl]benzamide", id="chalcogen_chain_on_amide_nitrogen"),
         pytest.param("CS(=O)(=O)NOC", "N-methoxymethanesulfonamide", id="n_alkoxy_sulfonamide"),
     ],
 )
