@@ -607,7 +607,7 @@ def test_phosphorus_hydrogen_acids_oxide_zwitterions_and_lambda_prefix_groups(sm
         ("CC(=O)N[C@@H](CCP(=O)(O)O)Cc1ccccc1", "[(3R)-3-acetamido-4-phenylbutyl]phosphonic acid"),
         (
             "CCCC/C=C\\CCC(=O)N[C@@H](CCP(=O)(O)O)Cc1ccccc1",
-            "((3R)-3-{[(4Z)-non-4-enoyl]amino}-4-phenylbutyl)phosphonic acid",
+            "[(3R)-3-{[(4Z)-non-4-enoyl]amino}-4-phenylbutyl]phosphonic acid",
         ),
         ("C[C@H](Cl)CCP(=O)(C)O", "[(3S)-3-chlorobutyl](methyl)phosphinic acid"),
         ("C[C@H](Cl)CCP(O)O", "[(3S)-3-chlorobutyl]phosphonous acid"),

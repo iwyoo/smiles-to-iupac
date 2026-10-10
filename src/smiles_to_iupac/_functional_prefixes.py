@@ -127,8 +127,31 @@ def _acyl_prefix(mol, subtree, root, parent):
     finally:
         SYSTEMATIC_ACID_PROBE.reset(token)
     name = acyl_name(probe)
+    _cite_stereo_of_acyl(mol, sub, sorted(subtree))
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
     return "oxalo" if name == "oxalyl" else name
+
+
+def _cite_stereo_of_acyl(mol, sub, kept):
+    """The descriptors the acid name of an acyl group carries are those of the whole molecule when each carbon centre
+    keeps its CIP label in the cut-out acid; they are then cited with the acyl prefix."""
+    from rdkit.Chem import rdCIPLabeler
+
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    if context is None:
+        return
+    in_acyl = {index: new for new, index in enumerate(kept)}
+    atoms = {a: code for a, code in context["atoms"].items() if a in in_acyl and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
+    if not atoms:
+        return
+    rdCIPLabeler.AssignCIPLabels(sub)
+    for atom, code in atoms.items():
+        cut = sub.GetAtomWithIdx(in_acyl[atom])
+        if not cut.HasProp("_CIPCode") or cut.GetProp("_CIPCode") != code:
+            raise UnsupportedStructure("a stereocentre of the acyl group changes its descriptor once the acid is cut out")
+        context["used"].add(("atom", atom))
 
 
 def _multiplied_amino(children, tail):
