@@ -552,6 +552,21 @@ def test_hydrazide_with_carbamoyl_or_carbamothioyl_on_the_terminal_nitrogen(smil
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)N(C)C#N", "N-cyano-N-methylacetamide", id="cyano_on_amide_nitrogen"),
+        pytest.param("N#CN(N)C(=O)CO", "N-cyano-2-hydroxyacetohydrazide", id="cyano_on_hydrazide_nitrogen"),
+        pytest.param("COC(=O)NC#N", "methyl cyanocarbamate", id="cyano_on_carbamate_nitrogen"),
+        pytest.param("CSC(=Nc1ccc(F)cc1)NC#N", "methyl N-cyano-N'-(4-fluorophenyl)carbamimidothioate", id="cyano_on_amino_nitrogen_of_carbamimidothioate"),
+        pytest.param("N#CN=C(N)SC", "methyl N'-cyanocarbamimidothioate", id="cyano_on_imino_nitrogen_of_carbamimidothioate"),
+        pytest.param("N#CNC(=N)N", "N-cyanoguanidine", id="cyanoguanidine_unchanged"),
+    ],
+)
+def test_cyano_on_nitrogen_is_a_prefix_of_the_senior_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_diacyl_hydrazide_formyl():
     # Mononuclear retained name on both sides.
     assert smiles_to_iupac("O=CNNC=O") == "N'-formylformohydrazide"

@@ -385,6 +385,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         or n in oxy
         or n in acyl
         or _carbamimidoyl_on(mol, n, nitrogen)
+        or _cyano_on(mol, n, nitrogen)
         or n.GetAtomicNum() in HALOGEN_PREFIXES
         or (
             n.GetAtomicNum() == 6
@@ -734,6 +735,8 @@ def _group_of(mol, carbon):
             and others[0].GetDegree() >= 3
             and mol.HasSubstructMatch(_CARBOXYLIC_OR_SULFONIC)
         ):
+            return None
+        if len(others) == 1 and others[0].GetAtomicNum() == 7 and not others[0].GetFormalCharge() and not others[0].IsInRing():
             return None
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
             raise UnsupportedStructure("a cyanide not bonded to carbon is not a nitrile")
@@ -4476,6 +4479,20 @@ def _substituted_amine_nitrogen(mol, atom):
     return len(carbons) >= 2 or (len(carbons) == 1 and atom.GetDegree() >= 2)
 
 
+def _cyano_on(mol, atom, nitrogen):
+    """Whether `atom` is the carbon of a cyano group on `nitrogen`: cited as an N-prefix on a senior parent (P-66.1.6.2)."""
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetDegree() == 2
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and any(
+            n.GetAtomicNum() == 7 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 3.0
+            for n in atom.GetNeighbors()
+        )
+    )
+
+
 def _carbamoyl_on(mol, atom, nitrogen):
     """Whether `atom` is the carbon of a carbamoyl or carbamothioyl group -C(=X)-NR2 (X = O, S, Se, Te) joined to `nitrogen`,
     cited as a prefix on the hydrazide nitrogen since the hydrazide outranks the carbonic acid derivative (P-41, P-65.2.1.5)."""
@@ -4515,7 +4532,7 @@ def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
         for n in nitrogen.GetNeighbors():
             if n.GetIdx() in (partner.GetIdx(), carbonyl):
                 continue
-            if nitrogen is beta and _carbamoyl_on(mol, n, nitrogen):
+            if (nitrogen is beta and _carbamoyl_on(mol, n, nitrogen)) or _cyano_on(mol, n, nitrogen):
                 continue
             if n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
                 return None
