@@ -187,6 +187,37 @@ def _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
     return (format_mononuclear_prefixes(entries) if entries else "") + _ONIUM_PREFIX_STEMS[z][0] + "yl", bool(entries)
 
 
+def _oxidized_nitrogen_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
+    """'[dimethyl(oxo)-λ5-azanyl]' for the nitrogen of an amine or imine oxide (or its chalcogen analogue) cited as a
+    prefix (P-62.5, method 2), else None."""
+    atom = mol.GetAtomWithIdx(root)
+    if not (
+        atom.GetAtomicNum() == 7
+        and atom.GetFormalCharge() == 1
+        and atom.GetTotalValence() == 4
+        and order == 1.0
+        and not atom.IsInRing()
+    ):
+        return None
+    ligands = [
+        n
+        for n in others
+        if mol.GetAtomWithIdx(n).GetAtomicNum() in _NITRILE_OXIDE_YLIDENE
+        and mol.GetAtomWithIdx(n).GetFormalCharge() == -1
+        and mol.GetAtomWithIdx(n).GetDegree() == 1
+    ]
+    carbons = [n for n in others if n not in ligands]
+    if len(ligands) != 1 or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in carbons):
+        return None
+    if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() > 2.0 for n in others):
+        return None
+    from ._substituents import format_mononuclear_prefixes
+
+    entries = _group_names(graph, mol, carbons, root, halogens, aromatic_atoms)
+    entries.append((_NITRILE_OXIDE_YLIDENE[mol.GetAtomWithIdx(ligands[0]).GetAtomicNum()], False))
+    return format_mononuclear_prefixes(entries) + "-λ5-azanyl", True
+
+
 _YLIDYNIUM_STEMS = {7: "azaniumylidyne", 8: "oxidaniumylidyne", 16: "sulfaniumylidyne"}
 
 
@@ -734,6 +765,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _enclose(rname, rcomp) + word, True
     if z == 7 and atom.GetFormalCharge() == 1 and nitrogen_pseudohalide_prefix(mol, root, others, order) == "isocyano":
         return "isocyano", False
+    oxidized = _oxidized_nitrogen_prefix(graph, root, order, others, halogens, aromatic_atoms, mol)
+    if oxidized is not None:
+        return oxidized
     if (
         z == 7
         and (
