@@ -2460,7 +2460,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         and not mol.GetAtomWithIdx(n).GetFormalCharge()
         and not mol.GetAtomWithIdx(n).IsInRing()
         and all(
-            mol.GetAtomWithIdx(m).GetAtomicNum() in (6, *MONONUCLEAR_HYDRIDES) or _terminal_heteroatom(mol, m, 1)
+            mol.GetAtomWithIdx(m).GetAtomicNum() in (6, 8, 16, 34, 52, *MONONUCLEAR_HYDRIDES) or _terminal_heteroatom(mol, m, 1)
             for m in graph[n]
             if m != index
         )
@@ -2514,6 +2514,53 @@ def _amine_count(name):
     """The number of amine suffixes of a hydride name: boranamine 1, boranediamine 2 (P-44.1.1)."""
     match = re.search(r"(di|tri|tetra)amine$", name)
     return {"di": 2, "tri": 3, "tetra": 4}[match.group(1)] if match else int(name.endswith("amine"))
+
+
+_HYDROXYLAMINE_PREFIX = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
+_CHALCOGEN_SYMBOL_LOCANT = {8: "O", 16: "S", 34: "Se", 52: "Te"}
+
+
+def _hydroxylamine_parent(mol, graph, halogens, aromatic_atoms):
+    """P-68.3.1.1.1.2-3: a nitrogen bonded to chalcogens and hydrogen only is the centre of hydroxylamine, a functional
+    parent with full substitution: 'N-methoxy-O-methylhydroxylamine', the other chalcogen groups N prefixes."""
+    from ._substituents import format_substituent_prefixes
+
+    nitrogens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7]
+    if len(nitrogens) != 1 or mol.GetRingInfo().NumRings():
+        return None
+    nitrogen = nitrogens[0]
+    n_idx = nitrogen.GetIdx()
+    neighbors = [n.GetIdx() for n in nitrogen.GetNeighbors()]
+    if (
+        nitrogen.GetFormalCharge()
+        or len(neighbors) < 2
+        or any(mol.GetAtomWithIdx(n).GetAtomicNum() not in _HYDROXYLAMINE_PREFIX for n in neighbors)
+        or any(mol.GetBondBetweenAtoms(n_idx, n).GetBondTypeAsDouble() != 1.0 for n in neighbors)
+        or any(mol.GetAtomWithIdx(n).GetFormalCharge() for n in neighbors)
+    ):
+        return None
+    senior = min((mol.GetAtomWithIdx(n).GetAtomicNum() for n in neighbors), key=list(_HYDROXYLAMINE_PREFIX).index)
+    candidates = []
+    for centre in (n for n in neighbors if mol.GetAtomWithIdx(n).GetAtomicNum() == senior):
+        entries = []
+        for n in neighbors:
+            if n != centre:
+                name, compound = name_branch(graph, n, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                entries.append(("N", name, compound))
+        for r in graph[centre]:
+            if r != n_idx:
+                name, compound = name_branch(graph, r, centre, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                entries.append((_CHALCOGEN_SYMBOL_LOCANT[senior], name, compound))
+        entries.sort(key=lambda e: alpha_sort_key(e[1]))
+        grouped = {}
+        for locant, name, compound in entries:
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+        parent = f"{_HYDROXYLAMINE_PREFIX[senior]}hydroxylamine"
+        if senior != 8 and grouped:
+            parent = f"({parent})"
+        text = format_substituent_prefixes(grouped) + parent
+        candidates.append(([e[0] for e in entries], text))
+    return min(candidates)[1]
 
 
 def _hydrazine_parent(mol, aromatic_atoms):
@@ -2571,6 +2618,10 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if chain_name is not None:
         return ((0,), chain_name, (None, None, None, 0, {}, False))
     ring_cation = RING_CENTER.get()
+    if not ring_cation:
+        hydroxylamine = _hydroxylamine_parent(mol, graph, halogens, aromatic_atoms)
+        if hydroxylamine is not None:
+            return ((0,), hydroxylamine, (None, None, None, 0, {}, False))
     centers = [] if ring_cation else [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
     if centers:
         named = [

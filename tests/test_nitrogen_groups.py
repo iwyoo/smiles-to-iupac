@@ -1920,6 +1920,10 @@ def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, e
         pytest.param("CCNP", "N-ethylphosphinous amide", id="phosphinous_amide_without_organyl_groups"),
         pytest.param("COOOS", "methyl(sulfanyl)trioxidane", id="mixed_chalcogen_chain_under_the_senior_run"),
         pytest.param("COSSS", "methoxytrisulfane", id="senior_single_chalcogen_as_an_ether_prefix"),
+        pytest.param("CONOC", "N-methoxy-O-methylhydroxylamine", id="hydroxylamine_as_the_functional_parent"),
+        pytest.param("CONSC", "O-methyl-N-(methylsulfanyl)hydroxylamine", id="sulfanyl_group_on_the_hydroxylamine_nitrogen"),
+        pytest.param("CSNSC", "S-methyl-N-(methylsulfanyl)(thiohydroxylamine)", id="thiohydroxylamine_when_no_oxygen"),
+        pytest.param("CON[SiH3]", "N-methoxysilanamine", id="alkoxy_group_on_the_silanamine_nitrogen"),
     ],
 )
 def test_bonds_between_different_heteroatoms(smiles, expected):
