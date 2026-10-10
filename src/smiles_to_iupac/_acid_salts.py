@@ -4,6 +4,8 @@ The anions are named as a whole by the substitutive engine, so partially
 neutralised acids come out by the preferred method of P-65.6.2.3.1: the
 anionic group is the suffix and the free acid groups are 'carboxy' prefixes."""
 
+import re
+
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, alpha_sort_key
@@ -18,7 +20,14 @@ _EXTRA_CATIONS = {
     ("Cd", 2): "cadmium",
     ("Ga", 3): "gallium",
     ("In", 3): "indium",
+    ("Ag", 1): "silver",
+    ("Sc", 3): "scandium",
+    ("Y", 3): "yttrium",
+    ("La", 3): "lanthanum",
 }
+_P_BLOCK_METALS = {"Tl": "thallium", "Sn": "tin", "Pb": "lead", "Ga": "gallium", "In": "indium", "Bi": "bismuth", "Sb": "antimony", "Ge": "germanium"}
+_FIXED_CHARGE_NAMES = {name for name in _EXTRA_CATIONS.values()}
+_CHARGED_NAME = re.compile(r"[a-z]+\(\d+[+]\)")
 
 
 def _is_nucleotide_anion(frag):
@@ -40,7 +49,19 @@ def _cation(frag):
         name = _EXTRA_CATIONS.get((atom.GetSymbol(), atom.GetFormalCharge()))
         if name is not None:
             return name, atom.GetFormalCharge()
+        return _charged_metal_cation(atom)
     return None
+
+
+def _charged_metal_cation(atom):
+    """Element name followed by the charge number for a monoatomic metal ion whose charge is not the only common one."""
+    from ._coordination import _METAL_NAMES
+
+    charge = atom.GetFormalCharge()
+    if charge < 1 or atom.GetIsotope():
+        return None
+    name = _METAL_NAMES.get(atom.GetAtomicNum()) or _P_BLOCK_METALS.get(atom.GetSymbol())
+    return (f"{name}({charge}+)", charge) if name else None
 
 
 def _anion_name(frag):
@@ -72,7 +93,7 @@ def _counted(entries):
     for name, count, simple in sorted(entries, key=lambda e: alpha_sort_key(e[0])):
         if count == 1:
             parts.append(name)
-        elif simple and name.isalpha() and name not in _MONONUCLEAR_ONIUM:
+        elif simple and (name.isalpha() or _CHARGED_NAME.fullmatch(name)) and name not in _MONONUCLEAR_ONIUM:
             parts.append(multiplying_prefix(count) + name)
         else:
             parts.append(multiplying_prefix(count, compound=True) + enclose(name))
@@ -83,6 +104,10 @@ def name_acid_salt(mol):
     frags = Chem.GetMolFrags(mol, asMols=True)
     if len(frags) < 2:
         raise UnsupportedStructure("not a salt")
+    from ._ocene import has_ocene_shape
+
+    if has_ocene_shape(mol):
+        raise UnsupportedStructure("a metallocene is named by P-69.2.7, not as a salt")
     cations, anions = {}, {}
     for frag in frags:
         net = sum(a.GetFormalCharge() for a in frag.GetAtoms())
