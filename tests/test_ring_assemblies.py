@@ -275,3 +275,27 @@ def test_senior_ring_assembly(senior, junior):
 )
 def test_ring_assembly_beside_other_ring_systems(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "NC(=O)c1cccc(CN2CCCCC2)c1-c1ccccc1",
+            "6-[(piperidin-1-yl)methyl][1,1'-biphenyl]-2-carboxamide",
+            id="piperidine_substituent_beside_a_biphenyl_amide",
+        ),
+        pytest.param(
+            "CN1CCCCC1CCc1ccccc1-c1ccc(F)cc1O",
+            "4-fluoro-2'-[2-(1-methylpiperidin-2-yl)ethyl][1,1'-biphenyl]-2-ol",
+            id="piperidine_substituent_beside_a_biphenyl_ol",
+        ),
+        pytest.param(
+            "CCCCCC1CCC(c2cc(C=O)ccc2-c2ccccc2)CC1",
+            "2-(4-pentylcyclohexyl)[1,1'-biphenyl]-4-carbaldehyde",
+            id="cyclohexyl_substituent_beside_a_biphenyl_aldehyde",
+        ),
+    ],
+)
+def test_assembly_with_a_principal_group_keeps_other_rings_as_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
