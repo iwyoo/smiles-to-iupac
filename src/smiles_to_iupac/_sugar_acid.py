@@ -617,6 +617,8 @@ def sugar_ring_acid_name(mol):
             if n != carboxy:
                 substituents.append(cited_group(mol, graph, n, hetero))
                 removal |= subtree(graph, n, hetero)
+    if derivative == "acid" and not ketose:
+        return None
     editable = Chem.RWMol(mol)
     if ketose:
         removal |= {oxo, hetero}

@@ -614,9 +614,13 @@ def sugar_substituent_group(mol, graph, root, coming_from):
     return f"{name[:-1]}{marker}", True
 
 
-def _unit_position(unit, atom):
+def _unit_skeleton(unit):
     graph = adjacency(unit)
-    skeleton = _ring_skeleton(unit, graph) or _chain_skeleton(unit, graph)
+    return _ring_skeleton(unit, graph) or _chain_skeleton(unit, graph)
+
+
+def _unit_position(unit, atom):
+    skeleton = _unit_skeleton(unit)
     return None if skeleton is None or atom not in skeleton.carbons else skeleton.position(atom)
 
 
@@ -660,6 +664,8 @@ def sugar_dianhydride_name(mol):
         if len(frags) != 2:
             continue
         units = Chem.GetMolFrags(opened, asMols=True)
+        if any(_unit_skeleton(u) is None for u in units):
+            continue
         try:
             names = [smiles_to_iupac(Chem.MolToSmiles(u)) for u in units]
         except (UnsupportedStructure, ValueError, RuntimeError):
