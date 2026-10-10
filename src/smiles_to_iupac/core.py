@@ -286,7 +286,7 @@ from ._thiocyanate import has_thiocyanate_shape, name_thiocyanate
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
 from ._azine import has_azine_shape, name_azine
-from ._hydrazine import has_hydrazine_aminooxy_shape, has_hydrazine_shape, name_hydrazine
+from ._hydrazine import has_hydrazine_aminooxy_shape, has_hydrazine_shape, name_hydrazine, name_hydrazine_with_heteroatom_groups
 from ._hydrazine_multiplicative import has_hydrazine_multiplicative_shape, name_hydrazine_multiplicative
 from ._hydrazone import has_hydrazone_shape, name_hydrazone
 from ._diazo import has_diazo_shape, name_diazo
@@ -1181,6 +1181,7 @@ def _run_fallbacks(smiles, original):
             name_halogen_amide,
             name_halogen_acid_ester,
             name_halogen_oxo,
+            name_hydrazine_with_heteroatom_groups,
             name_polyfunctional,
             name_guanidine,
             name_urea,

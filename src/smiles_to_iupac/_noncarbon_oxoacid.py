@@ -249,7 +249,7 @@ def _parse(mol, centre):
         return None
     if z in _CHALCOGEN_STEMS and any(p["kind"] in ("hydrazide", "hydrazone") for p in (*ylidenes, *singles)):
         return None
-    if z in _PENTAVALENT_STEMS and not organyl and not ylidenes and not any(p["kind"] in ("chalcogen", "peroxo", "ester") for p in singles):
+    if z in _PENTAVALENT_STEMS and not organyl and not ylidenes and not any(p["kind"] in ("chalcogen", "peroxo", "ester", "amide") for p in singles):
         return None
     return {"centre": centre, "z": z, "ylidenes": ylidenes, "singles": singles, "organyl": organyl, "k": k, "pentavalent": valence_v, "graph": graph, "halogens": halogens}
 

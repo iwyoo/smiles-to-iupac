@@ -1907,3 +1907,20 @@ def test_thiourea_with_a_ring_nitrogen_is_the_carbothioamide_of_the_ring(smiles,
 )
 def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-21.2.2, P-21.2.3.1, P-44.1.2, P-62.2, P-63.4.2, P-68.3.1: bonds between different heteroatoms
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CCN(C)NO", "1-ethyl-2-hydroxy-1-methylhydrazine", id="hydrazine_with_a_hydroxy_prefix"),
+        pytest.param("CCNONC", "N-[(methylamino)oxy]ethanamine", id="amine_with_an_amino_oxy_prefix"),
+        pytest.param("CN(C)SSS", "N-methyl-N-trisulfanylmethanamine", id="sulfur_chain_on_an_amine_nitrogen"),
+        pytest.param("CNOS", "N-(sulfanyloxy)methanamine", id="chalcogen_pair_on_nitrogen_is_no_peroxol"),
+        pytest.param("CCNP", "N-ethylphosphinous amide", id="phosphinous_amide_without_organyl_groups"),
+        pytest.param("COOOS", "methyl(sulfanyl)trioxidane", id="mixed_chalcogen_chain_under_the_senior_run"),
+        pytest.param("COSSS", "methoxytrisulfane", id="senior_single_chalcogen_as_an_ether_prefix"),
+    ],
+)
+def test_bonds_between_different_heteroatoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
