@@ -139,9 +139,19 @@ def _scan(mol):
                 if all(mol.GetAtomWithIdx(a).GetAtomicNum() in (1, 6, 8, *_HALOGENS) for a in acyl):
                     skeleton.update(acyl)
     for atom in mol.GetAtoms():
-        if atom.GetIdx() not in skeleton and atom.GetAtomicNum() not in (6, *_HALOGENS) and not _bridge_atom(atom, center_set):
+        if (
+            atom.GetIdx() not in skeleton
+            and atom.GetAtomicNum() not in (6, *_HALOGENS)
+            and not _bridge_atom(atom, center_set)
+            and not _hydroxy_on_carbon(atom)
+        ):
             return None
     return ordered
+
+
+def _hydroxy_on_carbon(atom):
+    """A hydroxy group of an organyl part, cited as a prefix of that part."""
+    return atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1 and atom.GetNeighbors()[0].GetAtomicNum() == 6
 
 
 def _bridge_atom(atom, center_set):

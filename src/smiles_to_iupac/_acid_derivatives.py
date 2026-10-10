@@ -469,6 +469,16 @@ def _diyl_name(mol, atoms, attachments):
     from .core import smiles_to_iupac
 
     editable = Chem.RWMol(mol)
+    hydroxy = [
+        i for i in atoms if mol.GetAtomWithIdx(i).GetAtomicNum() == 8 and mol.GetAtomWithIdx(i).GetDegree() == 1 and mol.GetAtomWithIdx(i).GetTotalNumHs() == 1
+    ]
+    if hydroxy and any(mol.GetAtomWithIdx(i).GetAtomicNum() == 53 for i in atoms):
+        return None
+    for idx in hydroxy:
+        placeholder = editable.GetAtomWithIdx(idx)
+        placeholder.SetAtomicNum(53)
+        placeholder.SetNumExplicitHs(0)
+        placeholder.SetNoImplicit(True)
     for idx in attachments:
         oxygen = editable.AddAtom(Chem.Atom(8))
         editable.AddBond(idx, oxygen, Chem.BondType.SINGLE)
@@ -476,7 +486,7 @@ def _diyl_name(mol, atoms, attachments):
         editable.RemoveAtom(idx)
     polyol = editable.GetMol()
     Chem.SanitizeMol(polyol)
-    name = smiles_to_iupac(Chem.MolToSmiles(polyol))
+    name = smiles_to_iupac(Chem.MolToSmiles(polyol)).replace("iodo", "hydroxy")
     match = _DIYL.match(name)
     if match:
         return f"{match.group('prefix')}{match.group('locants')}-phenylene" if match.group("count") == "di" else None
@@ -513,7 +523,12 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     if len({_piece_key(mol, frags[c]) for c in centers}) != 1:
         return None
     pendants = [l for ls in acid_pieces.values() for l in ls if owner[l.far] != hub]
-    if not pendants or any(len(r_pieces[owner[l.far]]) != 1 for l in pendants):
+    if any(len(r_pieces[owner[l.far]]) != 1 for l in pendants):
+        return None
+    if not pendants and (
+        any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 for l in hub_links)
+        or any(_free_acid_hydroxyl(mol, a) for c in centers for a in frags[c])
+    ):
         return None
     first = acid_pieces[centers[0]]
     acid = _acid_name(mol, frags[centers[0]], [l.chain[-1] for l in first])
@@ -524,6 +539,17 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     multiplier = multiplying_prefix(len(centers), compound=not anion.isalpha())
     anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
     return " ".join(part for part in (_pendant_text(mol, graph, pendants), diyl, anion_text) if part)
+
+
+def _free_acid_hydroxyl(mol, idx):
+    """A hydroxy group on an acid centre, cited as 'hydrogen' in the anion word."""
+    atom = mol.GetAtomWithIdx(idx)
+    return (
+        atom.GetAtomicNum() in _SYMBOL
+        and atom.GetDegree() == 1
+        and atom.GetTotalNumHs() == 1
+        and _center(mol, atom.GetNeighbors()[0].GetIdx()) is not None
+    )
 
 
 def _bridged_multiplicative_ester(mol, graph, frags, owner, acid_pieces, r_pieces, hubs):
