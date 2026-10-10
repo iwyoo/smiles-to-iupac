@@ -30,13 +30,16 @@ def nesting_text(text):
 
 def enclose(text):
     depth = deepest = 0
-    for ch in nesting_text(text):
+    core = nesting_text(text)
+    for ch in core:
         if ch in _OPENERS:
             depth += 1
             deepest = max(deepest, depth)
         elif ch in ")]}":
             depth -= 1
     level = deepest % 3
+    if core.startswith(_MARKS[level][0]):
+        level = (level + 1) % 3
     left, right = _MARKS[level]
     return f"{left}{text}{right}"
 

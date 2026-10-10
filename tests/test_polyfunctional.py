@@ -1589,3 +1589,22 @@ def test_nested_amide_chain_names_each_fragment_once(monkeypatch):
 )
 def test_suffix_of_the_principal_group_on_a_skeletal_replacement_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param(
+            "CCOC(=O)C(C)NC(C)C(=O)N1CCCCC1C(O)=O",
+            "1-{2-[(1-ethoxy-1-oxopropan-2-yl)amino]propanoyl}piperidine-2-carboxylic acid",
+            id="ester_on_an_acyl_part_is_an_alkoxy_oxo_prefix_of_the_free_acid",
+        ),
+        pytest.param(
+            "CCOC(=O)[C@H](CCc1ccccc1)N[C@@H](C)C(=O)N1Cc2ccccc2C[C@H]1C(=O)O",
+            "(3S)-2-[(2S)-2-{[(2S)-1-ethoxy-1-oxo-4-phenylbutan-2-yl]amino}propanoyl]-1,2,3,4-tetrahydroisoquinoline-3-carboxylic acid",
+            id="stereocentres_of_an_acyl_prefix_with_the_next_enclosing_mark_after_a_descriptor",
+        ),
+    ],
+)
+def test_ester_on_a_substituent_beside_a_free_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

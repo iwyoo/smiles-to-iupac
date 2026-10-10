@@ -166,6 +166,25 @@ def _arms_in_parent(mol, matches):
     return [arm for arm, nbrs in enumerate(attached) if any(n in position for n in nbrs)]
 
 
+def _require_ester_with_its_free_acid(mol, matches):
+    """A free carboxylic acid outranks the ester (P-41), so the monoester 'ethyl hydrogen ...ate' of one acid parent names
+    an ester only when its carbonyl carbon is joined to a free acid carbon through carbon atoms alone; an ester on another
+    part of the molecule is an alkoxy-oxo prefix of the acid (P-65.6.3.2.3)."""
+    free = {m[0] for m in mol.GetSubstructMatches(_FREE_ACID)}
+    if not free:
+        return
+    carbons = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6}
+    for acyl_carbon, *_ in matches:
+        reached, stack = {acyl_carbon}, [acyl_carbon]
+        while stack:
+            for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+                if n.GetIdx() in carbons and n.GetIdx() not in reached:
+                    reached.add(n.GetIdx())
+                    stack.append(n.GetIdx())
+        if not reached & free:
+            raise UnsupportedStructure("an ester that is not on the carbon skeleton of the free acid is an alkoxy-oxo prefix")
+
+
 def _name_ester_parts(mol, labels) -> str:
     from ._substituents import ISOTOPE_LABELS
     from .core import smiles_to_iupac
@@ -177,6 +196,7 @@ def _name_ester_parts(mol, labels) -> str:
         in_parent = _arms_in_parent(mol, matches)
         if in_parent:
             matches = tuple(matches[arm] for arm in in_parent)
+    _require_ester_with_its_free_acid(mol, matches)
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     arms = []
