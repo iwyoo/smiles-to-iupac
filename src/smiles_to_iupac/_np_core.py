@@ -25,6 +25,7 @@ UNIMPLIED = {name: {"5"} for name in _STEROIDS}
 UNIMPLIED.update({"spirostan": {"5", "22", "25"}, "spirosolane": {"5", "22", "25"}, "furostan": {"5", "22"}})
 
 
+@lru_cache(maxsize=None)
 def loc_key(loc):
     primes = 0
     while loc and loc[-1] in _PRIMES:

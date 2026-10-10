@@ -6,20 +6,36 @@ starts from connected pieces that no operation can have changed, chosen through 
 The caller deepens the cost (P-101.3.7.1); the embedding that follows verifies each proposal.
 """
 
+from functools import lru_cache
+
 from rdkit import Chem
 
 from ._np_core import loc_key
 from ._np_skel import Skel, _site_alive, apply_homo, apply_nor, apply_seco, homo_sites, is_branch_site, nor_variants
 
 _MAX_REMOVED_PER_CONNECTOR = 1
+_PERIODIC = Chem.GetPeriodicTable()
 
 
-def _decompose(adj):
+class _Connectors(list):
+    """The connectors of a parent; with `elements` (label -> element), a group may differ from its match in `spare` atoms."""
+
+    name = None
+    elements = None
+    spare = 0
+
+    @property
+    def exact(self):
+        return self.elements is not None and self.spare == 0
+
+
+def _decompose(adj, name=None):
     """(junctions, edges): edges are (kind, u, v, atoms) with kind 'link' between junctions or 'term' toward a free end."""
     junction = {a for a, n in adj.items() if len(n) >= 3}
     if not junction:
         return None
-    edges, seen = [], set()
+    edges, seen = _Connectors(), set()
+    edges.name = name
     for u in sorted(junction, key=loc_key):
         for n in sorted(adj[u], key=loc_key):
             path, previous, current = [], u, n
@@ -37,28 +53,61 @@ def _decompose(adj):
     return junction, edges
 
 
-def _chains(view, start, length, used, end=None):
-    """Simple paths of `length` unused molecule atoms leaving `start`; with `end`, the last atom must touch it."""
-    if length == 0:
+def _clash_chains(view, start, labels, used, limit, end=None):
+    """(path, clashes): simple paths of unused atoms from `start`, one per label, differing from the labels in at most `limit`."""
+    if not labels:
         if end is None or end in view.adj[start]:
-            yield ()
+            yield (), 0
         return
-    stack = [(start, ())]
+    stack = [(start, (), 0)]
     while stack:
-        atom, path = stack.pop()
+        atom, path, clashes = stack.pop()
         for n in view.adj[atom]:
             if n in used or n in path or n == start:
+                continue
+            total = clashes + (view.elem[n] != labels[len(path)])
+            if total > limit:
+                continue
+            nxt = path + (n,)
+            if len(nxt) == len(labels):
+                if end is None or end in view.adj[n]:
+                    yield nxt, total
+            else:
+                stack.append((n, nxt, total))
+
+
+def _cut_clashes(view, halves, used, elem, limit):
+    """Fewest replacements that place both halves of a cleaved connector from their junctions, None above `limit`."""
+    total = 0
+    for start, labels in halves:
+        least = min((c for _, c in _clash_chains(view, start, [elem[a] for a in labels], used, limit)), default=None)
+        if least is None:
+            return None
+        total += least
+    return total if total <= limit else None
+
+
+def _foreign_chains(view, start, length, used, allowed, limit, end=None):
+    """(path, foreign): simple paths of `length` unused atoms from `start` with at most `limit` atoms outside `allowed`."""
+    if length == 0:
+        if end is None or end in view.adj[start]:
+            yield (), 0
+        return
+    stack = [(start, (), 0)]
+    while stack:
+        atom, path, foreign = stack.pop()
+        for n in view.adj[atom]:
+            if n in used or n in path or n == start:
+                continue
+            total = foreign + (view.elem[n] not in allowed)
+            if total > limit:
                 continue
             nxt = path + (n,)
             if len(nxt) == length:
                 if end is None or end in view.adj[n]:
-                    yield nxt
+                    yield nxt, total
             else:
-                stack.append((n, nxt))
-
-
-def _reaches(view, start, length, used):
-    return length == 0 or next(_chains(view, start, length, used), None) is not None
+                stack.append((n, nxt, total))
 
 
 def _reach(view, bonds):
@@ -101,7 +150,7 @@ def _least_change(table, adj, a, b, length, limit, floor=0):
     return best
 
 
-def _domains(junction, around, adj, view, table, budget, cuttable):
+def _domains(junction, around, adj, view, table, budget, cuttable, fits=None):
     """Arc-consistent candidate molecule atoms of every junction; None when one is empty."""
     lost = {
         a: max(
@@ -122,7 +171,7 @@ def _domains(junction, around, adj, view, table, budget, cuttable):
             spans[(atom, length)] = ends
         return spans[(atom, length)]
 
-    domains = {u: {m for m in view.adj if len(view.adj[m]) >= needed[u]} for u in junction}
+    domains = {u: {m for m in view.adj if len(view.adj[m]) >= needed[u] and (fits is None or fits(u, m))} for u in junction}
     changed = True
     while changed:
         changed = False
@@ -152,7 +201,12 @@ class Exhausted(Exception):
     """The search effort allowed for one molecule is spent."""
 
 _MIN_ATOMS_PER_OPERATION = 5
-_MAX_COST = 4
+MAX_MODIFICATIONS = 4
+MIN_RINGS_AFTER_SECO = 2
+
+
+def ring_count(adj):
+    return sum(len(n) for n in adj.values()) // 2 - len(adj) + 1
 
 
 def _on_cycle(adj, edge):
@@ -214,13 +268,34 @@ def _partition(edges, count):
     return _runs(edges, _order(edges), count)
 
 
-def _group_query(edges, group):
+@lru_cache(maxsize=None)
+def _query_atom(element):
+    return Chem.AtomFromSmarts("*" if element is None else f"[#{_PERIODIC.GetAtomicNumber(element)}]")
+
+
+_QUERIES = {}
+_MAX_CACHED_QUERIES = 20000
+
+
+def _group_query(edges, group, exact=False):
+    labelled = exact or edges.exact
+    if edges.name is None:
+        return _build_group_query(edges, group, labelled)
+    key = (edges.name, frozenset(group), labelled)
+    if key not in _QUERIES:
+        if len(_QUERIES) >= _MAX_CACHED_QUERIES:
+            _QUERIES.clear()
+        _QUERIES[key] = _build_group_query(edges, group, labelled)
+    return _QUERIES[key]
+
+
+def _build_group_query(edges, group, labelled):
     chains = [([u] + list(path) + ([v] if kind == "link" else [])) for kind, u, v, path in (edges[i] for i in group)]
     atoms = sorted({a for chain in chains for a in chain}, key=loc_key)
     index = {a: k for k, a in enumerate(atoms)}
     query = Chem.RWMol()
-    for _ in atoms:
-        query.AddAtom(Chem.AtomFromSmarts("*"))
+    for a in atoms:
+        query.AddAtom(_query_atom(edges.elements[a] if labelled else None))
     for bond in {frozenset((a, b)) for chain in chains for a, b in zip(chain, chain[1:])}:
         a, b = tuple(bond)
         query.AddBond(index[a], index[b], Chem.BondType.SINGLE)
@@ -237,7 +312,7 @@ def _shape_bound(adj, view):
         molecule = view.degrees = sorted((len(n) for n in view.adj.values()), reverse=True)
     parent = sorted((len(n) for n in adj.values() if len(n) >= 3), reverse=True)
     short = sum(max(0, d - (molecule[i] if i < len(molecule) else 0)) for i, d in enumerate(parent))
-    rings = sum(len(n) for n in adj.values()) // 2 - len(adj) + 1
+    rings = ring_count(adj)
     if rings - 1 > view.cyclomatic:
         return _IMPOSSIBLE
     return max(0, short - (rings > 0))
@@ -247,7 +322,7 @@ def lower_bound(parent, view, limit):
     """Fewest operations that can still leave one of the pigeonhole groups intact (limit + 1 when none can)."""
     cache = view.__dict__.setdefault("lower", {})
     if parent.name not in cache:
-        plan = _decompose(parent.adj)
+        plan = _decompose(parent.adj, parent.name)
         cache[parent.name] = 0 if plan is None else limit + 1
         if plan is not None:
             edges = plan[1]
@@ -263,12 +338,38 @@ def lower_bound(parent, view, limit):
 
 _MAX_CANDIDATE_TESTS = 400
 _SEEDS_BEFORE_NARROWING = 2000
+_MAX_REPLACEMENT_MATCHES = 2000
+_REFINE_MAX_SPARE = 1
+
+
+def _clashes_within(labels, match, elements, limit):
+    clashes = 0
+    for label, atom in zip(labels, match):
+        if elements[atom] != label:
+            clashes += 1
+            if clashes > limit:
+                return False
+    return True
+
+
+def _fits(edges, view, group):
+    """The connectors of `group` can stay unchanged in the molecule, with at most `edges.spare` atoms replaced."""
+    atoms, index, query = _group_query(edges, group)
+    if not view.flat.HasSubstructMatch(query):
+        return False
+    if edges.exact or edges.elements is None or edges.spare >= len(atoms) or edges.spare > _REFINE_MAX_SPARE:
+        return True
+    if view.flat.HasSubstructMatch(_group_query(edges, group, True)[2]):
+        return True
+    labels = [edges.elements[a] for a in atoms]
+    matches = view.flat.GetSubstructMatches(query, uniquify=False, maxMatches=_MAX_REPLACEMENT_MATCHES)
+    return len(matches) == _MAX_REPLACEMENT_MATCHES or any(_clashes_within(labels, m, view.elem, edges.spare) for m in matches)
 
 
 def _unmatched(edges, view, group, memo):
     key = frozenset(group)
     if key not in memo:
-        memo[key] = not view.flat.HasSubstructMatch(_group_query(edges, sorted(key))[2])
+        memo[key] = not _fits(edges, view, sorted(key))
     return memo[key]
 
 
@@ -361,24 +462,30 @@ def _minimal_changes(edges, view, limit, key):
     with a piece that does not fit yields a new obstruction that rules out every candidate sharing that piece. Pieces
     are tested one by one, so the test is necessary but does not require them to avoid each other."""
     store = view.__dict__.setdefault("obstruction_store", {})
+    if key is not None:
+        key = (key, edges.spare if edges.elements is not None else None)
     if key is None or key not in store:
         memo = {}
-        record = (memo, _obstructions(edges, view, memo))
+        record = (memo, _obstructions(edges, view, memo), {})
         if key is not None:
             store[key] = record
     else:
         record = store[key]
-    memo, family = record
+    memo, family, verdicts = record
     everything, tests = set(range(len(edges))), 0
     while True:
         valid = []
         for chosen in _hitting_sets(family, limit):
             if any(known <= chosen for known in valid):
                 continue
-            tests += 1
-            if tests > _MAX_CANDIDATE_TESTS:
-                return None
-            failed = next((p for p in _components(edges, sorted(everything - chosen)) if _unmatched(edges, view, p, memo)), None)
+            if chosen not in verdicts:
+                tests += 1
+                if tests > _MAX_CANDIDATE_TESTS:
+                    return None
+                verdicts[chosen] = next(
+                    (p for p in _components(edges, sorted(everything - chosen)) if _unmatched(edges, view, p, memo)), None
+                )
+            failed = verdicts[chosen]
             if failed is None:
                 valid.append(chosen)
             else:
@@ -399,7 +506,7 @@ def _placements(edges, view, piece, cache):
     return cache[key]
 
 
-def _piece_seeds(edges, junction, view, piece, domains, cache, frozen):
+def _piece_seeds(edges, junction, view, piece, domains, cache, frozen, clash, spare):
     """Placements of the connectors of one connected piece left unchanged; the others stay open unless `frozen`."""
     index, matches, query = _placements(edges, view, piece, cache)
     if len(matches) >= _SEEDS_BEFORE_NARROWING:
@@ -408,20 +515,23 @@ def _piece_seeds(edges, junction, view, piece, domains, cache, frozen):
     limits = [(position, domains[u]) for u, position in placed_at] if domains else []
     unchanged = {i: 0 for i in piece}
     opened = [i for i in range(len(edges)) if i not in unchanged]
-    seeds, seen = [], set()
+    fewest = {}
     for match in matches:
         if any(match[position] not in allowed for position, allowed in limits):
             continue
         mark = (tuple(match[position] for _, position in placed_at), frozenset(match))
-        if mark not in seen:
-            seen.add(mark)
-            seeds.append(({u: match[position] for u, position in placed_at}, mark[1], unchanged, opened, frozen))
-    return seeds
+        clashes = sum(clash(a, match[position]) for a, position in index.items())
+        if clashes < fewest.get(mark, spare + 1):
+            fewest[mark] = clashes
+    return [
+        (dict(zip((u for u, _ in placed_at), images)), atoms, unchanged, opened, frozen, clashes)
+        for (images, atoms), clashes in fewest.items()
+    ]
 
 
-def _pigeonhole_seeds(edges, junction, view, budget):
+def _pigeonhole_seeds(edges, junction, view, budget, clash, spare):
     """Placements of one intact group out of budget + 1 equal slices of the parent, for when no obstruction guides the search."""
-    everything = ({}, frozenset(), {}, list(range(len(edges))), None)
+    everything = ({}, frozenset(), {}, list(range(len(edges))), None, 0)
     groups = _partition(edges, budget + 1)
     if any(not group for group in groups):
         return [everything]
@@ -430,19 +540,22 @@ def _pigeonhole_seeds(edges, junction, view, budget):
         atoms, index, query = _group_query(edges, group)
         for match in view.flat.GetSubstructMatches(query, uniquify=False, maxMatches=_MAX_SEED_MATCHES):
             image = {a: match[index[a]] for a in atoms}
-            seeds.append(
-                (
-                    {u: image[u] for u in junction if u in image},
-                    frozenset(image.values()),
-                    {i: 0 for i in group},
-                    [i for i in range(len(edges)) if i not in group],
-                    None,
+            clashes = sum(clash(a, m) for a, m in image.items())
+            if clashes <= spare:
+                seeds.append(
+                    (
+                        {u: image[u] for u in junction if u in image},
+                        frozenset(image.values()),
+                        {i: 0 for i in group},
+                        [i for i in range(len(edges)) if i not in group],
+                        None,
+                        clashes,
+                    )
                 )
-            )
     return seeds
 
 
-def _seeds(edges, junction, view, budget, key=None, domains=None):
+def _seeds(edges, junction, view, budget, key, domains, clash, spare):
     """Starting states of the search, from connected pieces of the parent that cannot have changed.
 
     A solution changes a set of connectors that holds a minimal one M, and at most r = budget - |M| more. Pieces of the
@@ -450,7 +563,7 @@ def _seeds(edges, junction, view, budget, key=None, domains=None):
     and it is matched exactly. With r = 0 the solution changes exactly M, so every other connector is frozen."""
     minimal = _minimal_changes(edges, view, budget, key)
     if minimal is None:
-        return _pigeonhole_seeds(edges, junction, view, budget)
+        return _pigeonhole_seeds(edges, junction, view, budget, clash, spare)
     everything = frozenset(range(len(edges)))
     seeds, chosen, cache = [], set(), {}
     for changed in minimal:
@@ -463,29 +576,37 @@ def _seeds(edges, junction, view, budget, key=None, domains=None):
                 break
             candidates = _components(edges, sorted(remainder - touching))
             if not candidates:
-                return [({}, frozenset(), {}, sorted(everything), None)]
+                return [({}, frozenset(), {}, sorted(everything), None, 0)]
             pieces.append(frozenset(min(candidates, key=lambda piece: len(_placements(edges, view, piece, cache)[1]))))
         for piece in pieces:
             if (piece, frozen) not in chosen:
                 chosen.add((piece, frozen))
-                seeds.extend(_piece_seeds(edges, junction, view, piece, domains, cache, frozen))
+                seeds.extend(_piece_seeds(edges, junction, view, piece, domains, cache, frozen, clash, spare))
     return seeds
 
 
 
-def _search(adj, view, budget, cuts=True, key=None):
-    """(edges, deltas): the atom-count change of every connector, for each way of costing exactly `budget`."""
-    plan = _decompose(adj)
+def _search(adj, view, budget, cuts, key, elem, spare):
+    """(edges, deltas): the atom-count change of every connector, for each way of costing exactly `budget`.
+
+    With `elem` (the parent's elements), a placement that puts an atom on another element is a replacement, which the
+    caller has `spare` modifications left for; connectors that stay unchanged are placed on matching elements."""
+    plan = _decompose(adj, key)
     if plan is None:
         return None
     junction, edges = plan
+    edges.elements, edges.spare = elem, spare
     found = set()
     links = [(i, u, v, len(atoms)) for i, (kind, u, v, atoms) in enumerate(edges) if kind == "link"]
     table = _reach(view, max([len(atoms) for _, _, _, atoms in edges] + [1]) + budget + 2)
     around = {a: [(i, u, v, n) for i, u, v, n in links if a in (u, v)] for a in junction}
     ring_edge = {i: _on_cycle(adj, edges[i]) for i in range(len(edges)) if edges[i][0] == "link"}
     cuttable = {i for i, ring in ring_edge.items() if ring} if cuts and budget >= 1 else set()
-    domains = _domains(junction, around, adj, view, table, budget, cuttable)
+
+    def clash(a, m):
+        return 0 if elem[a] == view.elem[m] else 1
+
+    domains = _domains(junction, around, adj, view, table, budget, cuttable, None if spare else lambda a, m: not clash(a, m))
     if domains is None:
         return edges, found
     low = {i: 2 if edges[i][1] == edges[i][2] else 0 for i in range(len(edges))}
@@ -493,7 +614,7 @@ def _search(adj, view, budget, cuts=True, key=None):
 
     fixed = [None]
 
-    def edge_options(i, phi, taken, room, cut_done):
+    def edge_options(i, phi, taken, room, cut_done, mis):
         kind, u, v, atoms = edges[i]
         options = []
         frozen = fixed[0] is not None and i in fixed[0]
@@ -501,20 +622,30 @@ def _search(adj, view, budget, cuts=True, key=None):
             new = len(atoms) + change
             if new < low[i]:
                 continue
-            if kind == "term":
-                if _reaches(view, phi[u], new, taken):
-                    options.append((change, abs(change), ()))
+            end = None if kind == "term" else phi[v]
+            if change == 0:
+                found = _clash_chains(view, phi[u], [elem[a] for a in atoms], taken, spare - mis, end)
             else:
-                options.extend((change, abs(change), path) for path in _chains(view, phi[u], new, taken, phi[v]))
+                allowed = {elem[a] for a in atoms} | {"C"}
+                found = _foreign_chains(view, phi[u], new, taken, allowed, spare - mis, end)
+            if kind == "term":
+                least = min((c for _, c in found), default=None)
+                if least is not None:
+                    options.append((change, abs(change), (), least))
+            else:
+                options.extend((change, abs(change), path, c) for path, c in found)
         if cuts and kind == "link" and ring_edge[i] and room >= 1 and not cut_done and not frozen:
             for j in range(len(atoms) + 1):
-                if _reaches(view, phi[u], j, taken) and _reaches(view, phi[v], len(atoms) - j, taken):
-                    options.append((("cut", j), 1, ()))
+                clashes = _cut_clashes(view, ((phi[u], atoms[:j]), (phi[v], atoms[j:][::-1])), taken, elem, spare - mis)
+                if clashes is not None:
+                    options.append((("cut", j), 1, (), clashes))
         return options
 
-    def junction_options(u, phi, taken, room):
+    def junction_options(u, phi, taken, room, mis):
         options = []
         for m in domains[u] - taken:
+            if mis + clash(u, m) > spare:
+                continue
             extra = 0
             for i, a, b, n in around[u]:
                 w = b if a == u else a
@@ -527,17 +658,17 @@ def _search(adj, view, budget, cuts=True, key=None):
                         break
                     extra += least
             if extra <= room:
-                options.append(m)
+                options.append((m, clash(u, m)))
         return options
 
     spent = [0]
 
-    def solve(phi, taken, cost, deltas, open_edges):
+    def solve(phi, taken, cost, deltas, open_edges, mis):
         view.work -= 1
         spent[0] += 1
         if view.work < 0 or spent[0] > WORK_PER_PARENT:
             raise Exhausted()
-        key = (tuple(sorted(deltas.items())), taken, frozenset(phi.items()), id(fixed[0]))
+        key = (tuple(sorted(deltas.items())), taken, frozenset(phi.items()), id(fixed[0]), mis)
         if key in visited:
             return
         visited.add(key)
@@ -559,15 +690,15 @@ def _search(adj, view, budget, cuts=True, key=None):
                 return
             chosen = None
             for i in ready:
-                options = edge_options(i, phi, taken, room - sum(lower.values()) + (lower.get(i) or 0), cut_done)
+                options = edge_options(i, phi, taken, room - sum(lower.values()) + (lower.get(i) or 0), cut_done, mis)
                 if not options:
                     return
                 if chosen is None or len(options) < len(chosen[1]):
                     chosen = (i, options)
             i, options = chosen
             rest = [j for j in open_edges if j != i]
-            for delta, price, path in options:
-                solve(phi, taken | frozenset(path), cost + price, {**deltas, i: delta}, rest)
+            for delta, price, path, clashes in options:
+                solve(phi, taken | frozenset(path), cost + price, {**deltas, i: delta}, rest, mis + clashes)
             return
         pending = [u for u in junction if u not in phi]
         if not pending:
@@ -576,19 +707,19 @@ def _search(adj, view, budget, cuts=True, key=None):
             return
         chosen = None
         for u in pending:
-            options = junction_options(u, phi, taken, room)
+            options = junction_options(u, phi, taken, room, mis)
             if not options:
                 return
             if chosen is None or len(options) < len(chosen[1]):
                 chosen = (u, options)
         u, options = chosen
-        for m in options:
-            solve({**phi, u: m}, taken | {m}, cost, deltas, open_edges)
+        for m, clashes in options:
+            solve({**phi, u: m}, taken | {m}, cost, deltas, open_edges, mis + clashes)
 
-    for phi, taken, deltas, rest, frozen in _seeds(edges, junction, view, budget, key, domains):
+    for phi, taken, deltas, rest, frozen, mis in _seeds(edges, junction, view, budget, key, domains, clash, spare):
         if all(m in domains[u] for u, m in phi.items()):
             fixed[0] = frozen
-            solve(phi, taken, 0, deltas, rest)
+            solve(phi, taken, 0, deltas, rest, mis)
     return edges, found
 
 
@@ -640,7 +771,7 @@ def read_operations(parent, view, cost, terminal_only=False):
     """Skeletons with exactly `cost` nor/homo/seco operations that may explain the molecule; None without a junction."""
     if len(parent.adj) - cost > len(view.adj) or len(parent.adj) < _MIN_ATOMS_PER_OPERATION * (cost + 1):
         return []
-    if cost < lower_bound(parent, view, _MAX_COST) or view.work < 0:
+    if cost < lower_bound(parent, view, MAX_MODIFICATIONS) or view.work < 0:
         return []
     sites = [site for site in homo_sites(parent) if not is_branch_site(parent, site)]
     nors = nor_variants(parent)
@@ -649,7 +780,8 @@ def read_operations(parent, view, cost, terminal_only=False):
         nors = [a for a in nors if len(parent.adj[a]) == 1]
     skel = Skel.of(parent)
     try:
-        outcome = _search(skel.adj, view, cost, not terminal_only, parent.name)
+        cuts = not terminal_only and ring_count(skel.adj) - 1 >= MIN_RINGS_AFTER_SECO
+        outcome = _search(skel.adj, view, cost, cuts, parent.name, parent.elem, MAX_MODIFICATIONS - cost)
     except Exhausted:
         return []
     if outcome is None:

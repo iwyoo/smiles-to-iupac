@@ -9,11 +9,12 @@ from ._common import UnsupportedStructure
 from ._pin import mark
 from ._np_build import _homo_position, build
 from ._np_core import PARENTS, get_parent, loc_key
-from ._np_diff import WORK_LIMIT, lower_bound, read_operations
+from ._np_diff import MAX_MODIFICATIONS, MIN_RINGS_AFTER_SECO, WORK_LIMIT, lower_bound, read_operations
 from ._np_match import View, embeddings, skeleton_has_stereo
 from ._np_name import _SENIORITY, classify
+from ._np_region import regions
 from ._np_rings import components
-from ._np_skel import Skel, variants
+from ._np_skel import Skel, apo_ops, de_ops, des_ops, variants
 from ._np_text import stem_info
 
 PREFERRED_OPERATIONS = 2
@@ -106,7 +107,35 @@ def _plausible(name, view, cost):
     missing = sum(max(0, n - view.rings_by_size.get(size, 0)) for size, n in rings.items())
     if missing > 2 * cost + 2:
         return False
-    return _replacements_needed(name, view) + cost <= _MAX_MODIFICATIONS
+    return _replacements_needed(name, view) + cost <= MAX_MODIFICATIONS and _fits_region(name, view, cost)
+
+
+@lru_cache(maxsize=None)
+def _replaceable(name):
+    """Skeletal replacement ('a' prefixes) is named on polycyclic parents and on 'ane' parents with two rings."""
+    facts = _parent_facts(name)
+    return facts[4] >= 3 or (facts[0] >= 2 and stem_info(name)[1] == "ane")
+
+
+@lru_cache(maxsize=None)
+def _most_removed(name, cost):
+    """Most skeletal atoms `cost` operations take from the parent: a des acts alone, an apo once, a nor or de at a time."""
+    parent = get_parent(name)
+    apo = max([0] + [len(atoms) for _, atoms in apo_ops(parent)])
+    des = max([0] + [len(atoms) for _, atoms in des_ops(parent)])
+    single = max([1] + [len(atoms) for _, atoms, _ in de_ops(parent)])
+    return max(des if cost == 1 else 0, max(apo, single) + (cost - 1) * single)
+
+
+def _fits_region(name, view, cost):
+    """A connected part of the molecule can hold the parent after `cost` operations and the replacements left (P-101.3.7.1)."""
+    cyc, _, elements = _parent_facts(name)[:3]
+    spare = MAX_MODIFICATIONS - cost if _replaceable(name) else 0
+    atoms = len(get_parent(name).adj) - (_most_removed(name, cost) if cost else 0)
+    return any(
+        region.size >= atoms and region.cyclomatic >= cyc - cost and (region.stereo or cost < 2)
+        for region in regions(view, set(elements), spare)
+    )
 
 
 def _replacements_needed(name, view):
@@ -126,13 +155,12 @@ def _rank(cand, view):
     return locs, everything, branches
 
 
-_MAX_MODIFICATIONS = 4
 _MIN_PARENT_ATOMS_FOR_MODIFICATION = 14
 
 
 def _admissible(cand, view):
     modifications = len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced)
-    if modifications > _MAX_MODIFICATIONS:
+    if modifications > MAX_MODIFICATIONS:
         return False
     if modifications and len(cand.parent.adj) < _MIN_PARENT_ATOMS_FOR_MODIFICATION:
         return False
@@ -140,7 +168,7 @@ def _admissible(cand, view):
     cyc, fused = facts[0], facts[4]
     if cand.cyclo and fused < _MIN_RINGS_FOR_OPERATIONS:
         return False
-    if cand.replaced and not (fused >= 3 or (cyc >= 2 and stem_info(cand.parent.name)[1] == "ane")):
+    if cand.replaced and not _replaceable(cand.parent.name):
         return False
     open_chain = cand.parent.name.endswith(("carotene", "neolignane"))
     if cand.parent.name.endswith("neolignane") and (cand.skel.ops or cand.replaced) and view.cyclomatic <= cyc:
@@ -228,9 +256,9 @@ def _candidates(skel, view):
     if size > len(view.adj) or cyclomatic > view.cyclomatic:
         return []
     secos = sum(1 for op in skel.ops if op[0] == "seco")
-    if secos > 1 or (secos and cyclomatic < 2):
+    if secos > 1 or (secos and cyclomatic < MIN_RINGS_AFTER_SECO):
         return []
-    budget = _MAX_MODIFICATIONS - len(skel.ops)
+    budget = MAX_MODIFICATIONS - len(skel.ops)
     missing = sum(max(0, n - view.rings_by_size.get(length, 0)) for length, n in rings.items())
     if missing > 2 * budget + _RING_SLACK:
         return []
@@ -242,7 +270,7 @@ def _candidates(skel, view):
 def _expected_cost(name, view):
     """Operations the parent needs at least: intact-group bound, replacements, and rings the molecule has beyond the parent."""
     extra_rings = max(0, view.cyclomatic - _parent_facts(name)[0])
-    return lower_bound(get_parent(name), view, _MAX_MODIFICATIONS) + _replacements_needed(name, view) + extra_rings
+    return lower_bound(get_parent(name), view, MAX_MODIFICATIONS) + _replacements_needed(name, view) + extra_rings
 
 
 def _promising(view, cost, exact):
@@ -254,17 +282,10 @@ def _promising(view, cost, exact):
     return names
 
 
-def _name_once(mol):
-    heavy = mol.GetNumAtoms()
-    if heavy < _MIN_HEAVY_ATOMS or heavy > _MAX_HEAVY_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
-        return None
-    if any(a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
-        return None
+def _view(mol):
     view = View(mol)
     view.cyclomatic = _cyclomatic(view.adj)
     view.fused = _fused_rings(mol)
-    if view.cyclomatic > _MAX_RINGS:
-        return None
     view.rings_by_size = Counter(len(r) for r in mol.GetRingInfo().AtomRings())
     view.elements = Counter(view.elem.values())
     view.has_stereo = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) or any(
@@ -272,9 +293,21 @@ def _name_once(mol):
     )
     view.aromatic_atoms = len({i for bond in view.aromatic_bonds for i in bond})
     view.work = WORK_LIMIT
+    return view
+
+
+def _name_once(mol):
+    heavy = mol.GetNumAtoms()
+    if heavy < _MIN_HEAVY_ATOMS or heavy > _MAX_HEAVY_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    if any(a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
+    view = _view(mol)
+    if view.cyclomatic > _MAX_RINGS:
+        return None
     best = None
     exact = set()
-    for cost in range(_MAX_MODIFICATIONS + 1) if view.has_stereo else (0, 1):
+    for cost in range(MAX_MODIFICATIONS + 1) if view.has_stereo else (0, 1):
         if best is not None and (best.cost < cost or (best.cost == cost and not best.key[1])):
             break
         found = []
