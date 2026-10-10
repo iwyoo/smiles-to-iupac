@@ -4418,9 +4418,10 @@ def chalcogen_acid_variant(mol):
             for n in carbon.GetNeighbors()
             if n.GetIdx() != atom.GetIdx()
             and n.GetDegree() == 1
+            and n.GetAtomicNum() in (8, 16, 34, 52)
             and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
         ]
-        if len(others) != 1 or others[0].GetAtomicNum() == 7:
+        if len(others) != 1:
             continue
         pair = sorted((atom.GetAtomicNum(), others[0].GetAtomicNum()))
         if pair == [8, 8]:
