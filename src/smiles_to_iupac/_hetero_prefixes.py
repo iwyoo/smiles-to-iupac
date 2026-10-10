@@ -429,6 +429,11 @@ _CHAIN_WORDS = {8: "oxy", 16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 _CHAIN_HYDRO = {8: "hydroxy", 16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 
 
+def _on_carbon(graph, mol, first, second):
+    """Whether the chalcogen pair hangs on a carbon, the only host of a peroxol or its chalcogen analogue (P-63.4.2)."""
+    return any(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in graph[first] if n != second)
+
+
 def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
     """-Z1-Z2...-H or -Z1-Z2...-R substituent groups of a run of chalcogen atoms (P-63.4.2): 'hydroperoxy',
     '(methylperoxy)', 'disulfanyl', '(methyltrisulfanyl)', '(sulfanyloxy)', '(hydroxysulfanyl)'."""
@@ -458,7 +463,9 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
         ):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
         organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
-    elif not any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL):
+    elif len(run) == 2 and _on_carbon(graph, mol, first, second) and not any(
+        mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL
+    ):
         raise UnsupportedStructure("a peroxol or its chalcogen analogue outranks an amine as the principal group")
     runs = [[atom.GetAtomicNum(), 0] for atom in atoms[:1]]
     for atom in atoms[1:]:

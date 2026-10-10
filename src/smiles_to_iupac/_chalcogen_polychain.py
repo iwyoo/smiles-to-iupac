@@ -5,6 +5,7 @@ chain with a characteristic group of higher seniority is a prefix of that group'
 from rdkit import Chem
 
 from ._common import adjacency, halogen_substituents
+from ._hetero_prefixes import is_functional_carbon
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -54,12 +55,17 @@ def name_polychalcogen_hydride(mol):
         b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
     ):
         return None
-    chalcogens = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _STEMS]
-    if len(chalcogens) < 3 or len({a.GetAtomicNum() for a in chalcogens}) != 1 or any(a.IsInRing() for a in chalcogens):
-        return None
     graph = adjacency(mol)
-    order = _run(mol, graph, chalcogens[0].GetIdx())
-    if order is None or len(order) != len(chalcogens):
+    order = None
+    for element in _STEMS:
+        members = [a for a in mol.GetAtoms() if a.GetAtomicNum() == element]
+        if any(a.IsInRing() for a in members):
+            return None
+        found = _run(mol, graph, members[0].GetIdx()) if len(members) >= 3 else None
+        if found is not None and len(found) == len(members):
+            order = found
+            break
+    if order is None:
         return None
     run = set(order)
     for atom in order:
@@ -74,18 +80,22 @@ def name_polychalcogen_hydride(mol):
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     entries, covered = [], set(run)
+    element = mol.GetAtomWithIdx(order[0]).GetAtomicNum()
+    others = set(_STEMS) - {element}
     for end in (order[0], order[-1]):
         for root in (n for n in graph[end] if n not in run):
-            if mol.GetAtomWithIdx(root).GetAtomicNum() != 6:
+            if mol.GetAtomWithIdx(root).GetAtomicNum() not in {6, *others}:
                 return None
             arm = _arm_atoms(graph, root, end)
-            if end in arm or covered & arm or any(mol.GetAtomWithIdx(i).GetAtomicNum() not in _CARBON_AND_HALOGEN for i in arm):
+            if end in arm or covered & arm or any(
+                mol.GetAtomWithIdx(i).GetAtomicNum() not in _CARBON_AND_HALOGEN | others for i in arm
+            ):
                 return None
             if any(
                 b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(mol.GetAtomWithIdx(i)).GetAtomicNum() == 8
                 for i in arm
                 for b in mol.GetAtomWithIdx(i).GetBonds()
-            ):
+            ) or any(mol.GetAtomWithIdx(i).GetAtomicNum() == 6 and is_functional_carbon(mol, i) for i in arm):
                 return None
             covered |= arm
             entries.append(name_branch(graph, root, end, halogens, aromatic, mol=mol, unsaturated=True))

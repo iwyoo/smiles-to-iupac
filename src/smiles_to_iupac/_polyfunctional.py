@@ -3616,7 +3616,7 @@ def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, rin
             continue
         neighbors = [n.GetIdx() for n in nitrogen.GetNeighbors()]
         carbons = [c for c in neighbors if mol.GetAtomWithIdx(c).GetAtomicNum() == 6]
-        if len(carbons) != len(neighbors) or any(is_functional_carbon(mol, c) or _double_oxygens(mol, c) for c in carbons):
+        if not carbons or any(is_functional_carbon(mol, c) or _double_oxygens(mol, c) for c in carbons):
             continue
         for c in carbons:
             arm = _arm_atoms(graph, c, n_idx)
@@ -4538,7 +4538,7 @@ def _substituted_amine_nitrogen(mol, atom):
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
     if any(
-        n.GetAtomicNum() not in (6, 8) and not _ring_nitrogen_parent(n) and not is_oxo_nitrogen(mol, n) and not _terminal_chalcogen_hydride(n)
+        n.GetAtomicNum() not in (6, 8, 16, 34, 52) and not _ring_nitrogen_parent(n) and not is_oxo_nitrogen(mol, n) and not _terminal_chalcogen_hydride(n)
         for n in atom.GetNeighbors()
     ):
         return False
