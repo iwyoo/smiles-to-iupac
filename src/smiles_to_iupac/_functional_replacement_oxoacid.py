@@ -8,7 +8,7 @@ from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._numerals import numerical_term
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 _STEMS = {
     15: ("phosphin", "phosphon", "phosphor"),
@@ -107,7 +107,8 @@ def name_functional_replacement_oxoacid(mol) -> str:
     center, oxo, hydroxy, carbon, pentavalent, replacers = parts
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    entries = [name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, mol=mol) for c in carbon]
+    with cited_stereo_around(mol, center.GetIdx()):
+        entries = [name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, mol=mol) for c in carbon]
 
     chalcogens = [*oxo, *hydroxy]
     replaced = sorted((a.GetAtomicNum() for a in chalcogens if a.GetAtomicNum() != 8), key=lambda z: _INFIX[z])

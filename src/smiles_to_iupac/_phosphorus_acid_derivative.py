@@ -10,7 +10,13 @@ from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_su
 from ._carbonic_family import pseudohalide_at
 from ._oxoacid_acyl import is_senior_centre
 from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
-from ._substituents import alpha_sort_key, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import (
+    alpha_sort_key,
+    cited_stereo_around,
+    format_mononuclear_prefixes,
+    format_substituent_prefixes,
+    name_branch,
+)
 
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _MULTIPLIER = {1: "", 2: "di", 3: "tri"}
@@ -92,6 +98,11 @@ def name_phosphorus_acid_derivative(mol) -> str:
     found = _find(mol)
     if found is None:
         raise UnsupportedStructure("no Group 15 acid halide or amide shape")
+    with cited_stereo_around(mol, found[0].GetIdx()):
+        return _name_derivative(mol, found)
+
+
+def _name_derivative(mol, found) -> str:
     center, chalcogen, carbons, rest, kind = found
     if len(Chem.GetMolFrags(mol)) > 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("multi-fragment or isotopically modified structures are not supported yet")

@@ -19,6 +19,7 @@ from ._numerals import numerical_term
 from ._oxoacid_acyl import is_senior_centre
 from ._phosphate import format_ester_words
 from ._substituents import (
+    cited_stereo_around,
     format_mononuclear_prefixes,
     format_substituent_prefixes,
     name_branch,
@@ -449,6 +450,11 @@ def name_noncarbon_oxoacid(mol) -> str:
     parts = _acid_parts(mol)
     if parts is None:
         raise UnsupportedStructure("this is not a mononuclear noncarbon oxoacid modified by functional replacement")
+    with cited_stereo_around(mol, parts["centre"].GetIdx()):
+        return _name_from_parts(mol, parts)
+
+
+def _name_from_parts(mol, parts) -> str:
     if parts.get("family") == "prefix":
         return _name_prefixed(mol, parts)
     graph, halogens, centre = parts["graph"], parts["halogens"], parts["centre"]

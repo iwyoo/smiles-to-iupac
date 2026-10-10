@@ -578,3 +578,23 @@ def test_chains_of_acid_centres_as_skeletal_prefixes_and_replacement_parents(smi
 )
 def test_phosphorus_hydrogen_acids_oxide_zwitterions_and_lambda_prefix_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(=O)N[C@@H](CCP(=O)(O)O)Cc1ccccc1", "[(3R)-3-acetamido-4-phenylbutyl]phosphonic acid"),
+        (
+            "CCCC/C=C\\CCC(=O)N[C@@H](CCP(=O)(O)O)Cc1ccccc1",
+            "((3R)-3-{[(4Z)-non-4-enoyl]amino}-4-phenylbutyl)phosphonic acid",
+        ),
+        ("C[C@H](Cl)CCP(=O)(C)O", "[(3S)-3-chlorobutyl](methyl)phosphinic acid"),
+        ("C[C@H](Cl)CCP(O)O", "[(3S)-3-chlorobutyl]phosphonous acid"),
+        ("C[C@H](Cl)CCC[B](O)O", "[(4S)-4-chloropentyl]boronic acid"),
+        ("C/C=C\\CB(O)C", "[(2Z)-but-2-en-1-yl](methyl)borinic acid"),
+        ("C[C@H](Cl)CCP(=O)(O)N", "[(3S)-3-chlorobutyl]phosphonamidic acid"),
+        ("C[C@H](Cl)CCP(=O)(Cl)Cl", "[(3S)-3-chlorobutyl]phosphonic dichloride"),
+    ],
+)
+def test_stereo_elements_of_a_chain_on_a_group_15_or_boron_acid_are_cited_in_the_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

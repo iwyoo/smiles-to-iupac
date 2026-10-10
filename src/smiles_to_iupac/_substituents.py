@@ -14,6 +14,7 @@ from ._multiplicative_text import enclose, nesting_text
 from ._free_valence import SUFFIX_OF_ORDER
 from ._common import (
     UnsupportedStructure,
+    adjacency,
     alpha_sort_key,
     citation_order_key,
     substituent_locant_set_and_citation,
@@ -1192,6 +1193,14 @@ def cited_branch_stereo(mol, graph, blocked, roots):
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element inside a substituent is not cited by any supported name")
+
+
+@contextlib.contextmanager
+def cited_stereo_around(mol, centre):
+    """`cited_branch_stereo` for everything bonded to the acid centre `centre` of a parent that is not a ring system."""
+    graph = adjacency(mol)
+    with cited_branch_stereo(mol, graph, {centre}, graph[centre]):
+        yield
 
 
 def _branch_stereo_entries(positions, ring=False, record=False):

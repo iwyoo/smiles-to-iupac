@@ -846,9 +846,9 @@ def test_stereo_of_acyl_groups_and_proline_substituents_is_cited(smiles, expecte
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_a_stereocentre_outside_the_cited_descriptors_is_not_dropped():
+def test_a_stereocentre_left_uncited_by_the_substituent_is_not_dropped():
     with pytest.raises(NotImplementedError):
-        smiles_to_iupac("CCCCC/C=C\\CCC(=O)N[C@@H](CCP(=O)(O)O)Cc1ccccc1")
+        smiles_to_iupac("C[C@H](Cl)CCP(=O)(O)N[C@H](C)Br")
 
 
 def test_different_alkyl_groups_on_one_polyacid_are_cited_with_the_locants_of_their_esters():
