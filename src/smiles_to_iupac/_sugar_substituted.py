@@ -47,6 +47,15 @@ class _Skeleton:
         return self.carbons.index(atom) + 1
 
 
+def _saturated(mol, carbons):
+    """Whether no bond between two skeleton carbons is a double or triple bond: a carbohydrate name with deoxy and
+    anhydro prefixes expresses no carbon-carbon multiple bond (P-102.5.3.3)."""
+    ids = set(carbons)
+    return all(
+        b.GetBondTypeAsDouble() == 1.0 for b in mol.GetBonds() if b.GetBeginAtomIdx() in ids and b.GetEndAtomIdx() in ids
+    )
+
+
 def _walk_ring(ring_set, graph, start, away):
     path, previous, current = [], away, start
     while True:
@@ -121,6 +130,8 @@ def _ring_skeleton(mol, graph):
                 return None
             carbons = chain + tail + sixth
     closing = carbons.index(other) + 1
+    if not _saturated(mol, carbons):
+        return None
     return _Skeleton(carbons, ketose, hetero, closing, size)
 
 
@@ -160,13 +171,15 @@ def _open_chain_skeleton(mol, graph):
 
     if len(around) == 1 and mol.GetAtomWithIdx(carbonyl).GetTotalNumHs() == 1:
         rest = walk(around[0], carbonyl)
-        return None if rest is None else _Skeleton([carbonyl] + rest, False)
+        return None if rest is None or not _saturated(mol, [carbonyl] + rest) else _Skeleton([carbonyl] + rest, False)
     if len(around) == 2:
         walks = [walk(a, carbonyl) for a in around]
         if None in walks:
             return None
         short, long_ = sorted(walks, key=len)
-        return _Skeleton(short + [carbonyl] + long_, True) if len(short) == 1 else None
+        if len(short) != 1 or not _saturated(mol, short + [carbonyl] + long_):
+            return None
+        return _Skeleton(short + [carbonyl] + long_, True)
     return None
 
 
