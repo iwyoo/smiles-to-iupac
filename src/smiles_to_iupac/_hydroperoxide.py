@@ -352,6 +352,22 @@ def _name_acyclic_hydroperoxide(
     return best_name
 
 
+def _oxygen_analogue_name(mol, replaced):
+    """Name of the hydroperoxide with every chalcogen of the group replaced by oxygen: the carbon skeleton, its
+    unsaturation and its numbering do not depend on which chalcogens the suffix names (P-63.4.2.1)."""
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(mol)
+    for atom in replaced:
+        editable.GetAtomWithIdx(atom.GetIdx()).SetAtomicNum(8)
+    analogue = editable.GetMol()
+    Chem.SanitizeMol(analogue)
+    name = smiles_to_iupac(Chem.MolToSmiles(analogue))
+    if not name.endswith("peroxol"):
+        raise UnsupportedStructure("the oxygen analogue of this chalcogen peroxol is not named with the suffix 'peroxol'")
+    return name
+
+
 def name_hydroperoxide(mol) -> str:
     replaced = _chalcogen_peroxol_atoms(mol)
     if replaced is not None:
@@ -359,7 +375,7 @@ def name_hydroperoxide(mol) -> str:
         if ring_info.NumRings() == 1 and mol.GetNumAtoms() == 8 and is_plain_benzene_ring(mol, set(ring_info.AtomRings()[0])):
             return _chalcogen_word(*replaced, "benzeneperoxol")
         if mol.GetRingInfo().NumRings() or non_single_bonds(mol):
-            raise UnsupportedStructure("a chalcogen analogue of a hydroperoxide on a ring or an unsaturated chain is not supported yet")
+            return _chalcogen_word(*replaced, _oxygen_analogue_name(mol, replaced))
         site, exclude = _validate_and_collect(mol)
         return _chalcogen_word(*replaced, _name_acyclic_hydroperoxide(mol, site, exclude))
     ring_info = mol.GetRingInfo()
