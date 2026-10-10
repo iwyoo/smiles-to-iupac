@@ -567,6 +567,17 @@ def test_cyano_on_nitrogen_is_a_prefix_of_the_senior_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)NNCCNN", "N'-(2-hydrazinylethyl)acetohydrazide", id="hydrazine_at_the_chain_end"),
+        pytest.param("CCC(=O)N(CNN)N", "N-(hydrazinylmethyl)propanehydrazide", id="hydrazine_on_the_carbon_bonded_to_the_hydrazide_nitrogen"),
+    ],
+)
+def test_hydrazide_nitrogen_substituent_keeps_its_own_hydrazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_diacyl_hydrazide_formyl():
     # Mononuclear retained name on both sides.
     assert smiles_to_iupac("O=CNNC=O") == "N'-formylformohydrazide"
