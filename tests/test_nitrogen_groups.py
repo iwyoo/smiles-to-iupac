@@ -540,6 +540,18 @@ def test_symmetric_diacyl_hydrazide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)NNC(=O)NC", "N'-(methylcarbamoyl)acetohydrazide", id="carbamoyl_on_terminal_hydrazide_nitrogen"),
+        pytest.param("c1ccccc1C(=O)NNC(=S)Nc1ccccc1", "N'-(phenylcarbamothioyl)benzohydrazide", id="carbamothioyl_keeps_the_carboxylic_hydrazide_parent"),
+        pytest.param("CC(=S)NNC(N)=O", "N'-carbamoylethanethiohydrazide", id="thiohydrazide_with_carbamoyl"),
+    ],
+)
+def test_hydrazide_with_carbamoyl_or_carbamothioyl_on_the_terminal_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_diacyl_hydrazide_formyl():
     # Mononuclear retained name on both sides.
     assert smiles_to_iupac("O=CNNC=O") == "N'-formylformohydrazide"

@@ -4476,6 +4476,29 @@ def _substituted_amine_nitrogen(mol, atom):
     return len(carbons) >= 2 or (len(carbons) == 1 and atom.GetDegree() >= 2)
 
 
+def _carbamoyl_on(mol, atom, nitrogen):
+    """Whether `atom` is the carbon of a carbamoyl or carbamothioyl group -C(=X)-NR2 (X = O, S, Se, Te) joined to `nitrogen`,
+    cited as a prefix on the hydrazide nitrogen since the hydrazide outranks the carbonic acid derivative (P-41, P-65.2.1.5)."""
+    if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3 or atom.GetFormalCharge() or atom.IsInRing():
+        return False
+    if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    ends = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    chalcogens = [n for n in ends if n.GetAtomicNum() in _CHALCOGEN_RANK]
+    amino = [n for n in ends if n.GetAtomicNum() == 7]
+    return (
+        len(chalcogens) == 1
+        and len(amino) == 1
+        and chalcogens[0].GetDegree() == 1
+        and not chalcogens[0].GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), chalcogens[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+        and not amino[0].GetFormalCharge()
+        and not amino[0].IsInRing()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), amino[0].GetIdx()).GetBondTypeAsDouble() == 1.0
+        and _plain_nitrogen_substituents(mol, amino[0], atom.GetIdx())
+    )
+
+
 def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
     """The terminal nitrogen N' of an acyl-NR-NR'R'' group (P-66.3), whose substituents are carbon groups or a
     ylidene (a hydrazone), else None."""
@@ -4491,6 +4514,8 @@ def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
         orders = []
         for n in nitrogen.GetNeighbors():
             if n.GetIdx() in (partner.GetIdx(), carbonyl):
+                continue
+            if nitrogen is beta and _carbamoyl_on(mol, n, nitrogen):
                 continue
             if n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
                 return None
