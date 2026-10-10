@@ -2395,6 +2395,23 @@ def _amine_count(name):
     return {"di": 2, "tri": 3, "tetra": 4}[match.group(1)] if match else int(name.endswith("amine"))
 
 
+def _hydrazine_parent(mol, aromatic_atoms):
+    """The hydrazine as the parent of a molecule without a principal group and without a ring that contains nitrogen
+    (P-44.1.2, P-68.3.1.2.1): one plain acyclic N-N bond whose nitrogens carry only carbon groups."""
+    from ._hydrazine import hydrazine_with_substituents
+
+    if any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms()) or not _only_plain_hydrazines(mol):
+        return None
+    pairs = [
+        (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
+        for b in mol.GetBonds()
+        if b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing()
+    ]
+    if len(pairs) != 1:
+        return None
+    return hydrazine_with_substituents(mol, *pairs[0], aromatic_atoms, unsaturated=True)
+
+
 def _only_plain_hydrazines(mol):
     """Every acyclic N-N bond is a single bond between chain nitrogens that bear only hydrogen, nitrogen and carbon
     without a double bond, so the hydrazine is a prefix beside a ring that contains nitrogen (P-44.1.2.2)."""
@@ -2454,6 +2471,9 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             for b in mol.GetBonds()
         )
     ):
+        hydrazine = None if centers else _hydrazine_parent(mol, aromatic_atoms)
+        if hydrazine is not None:
+            return ((0,), hydrazine, (None, None, None, 0, {}, False))
         raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
