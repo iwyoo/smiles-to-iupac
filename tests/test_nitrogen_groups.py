@@ -1742,3 +1742,28 @@ def test_guanidines_take_junior_groups_as_prefixes(smiles, expected):
 )
 def test_ring_amides_do_not_outrank_a_urea(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "NNC(Cc1csc2ccccc12)CC1CCCO1",
+            "[1-(1-benzothiophen-3-yl)-3-(oxolan-2-yl)propan-2-yl]hydrazine",
+            id="rings_with_sulfur_and_oxygen_are_junior_to_hydrazine",
+        ),
+        pytest.param(
+            "NNC(c1ccc(F)c(F)c1)C1CCOCC1",
+            "[(3,4-difluorophenyl)(oxan-4-yl)methyl]hydrazine",
+            id="two_ring_substituents_on_one_carbon",
+        ),
+        pytest.param("C=C(C)c1ccc(NN)cc1", "[4-(prop-1-en-2-yl)phenyl]hydrazine", id="unsaturated_substituent"),
+        pytest.param(
+            "CCS(=O)(=O)CCNN(C)C",
+            "2-[2-(ethanesulfonyl)ethyl]-1,1-dimethylhydrazine",
+            id="sulfonyl_in_a_substituent",
+        ),
+    ],
+)
+def test_hydrazine_is_the_parent_beside_rings_and_groups_junior_to_it(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

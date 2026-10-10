@@ -177,12 +177,12 @@ def has_hydrazine_aminooxy_shape(mol) -> bool:
     return bool(aminooxy) and oxygens <= aminooxy and _hydrazine_nitrogens(mol) is not None
 
 
-def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms, mol=None):
+def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms, mol=None, unsaturated=False):
     names = []
     for root in graph[n_idx]:
         if root == other_n_idx:
             continue
-        names.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms, mol=mol))
+        names.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms, mol=mol, **({"unsaturated": True} if unsaturated else {})))
     return names
 
 
@@ -231,10 +231,16 @@ def name_hydrazine(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    return hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms)
+
+
+def hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated=False):
+    """The name of the hydrazine whose nitrogens are `n1_idx` and `n2_idx`, with whatever hangs on them cited as prefixes
+    (P-68.3.1.2.1); every substituent must be nameable by the substituent namer."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens, aromatic_atoms, mol=mol)
-    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens, aromatic_atoms, mol=mol)
+    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
 
     total = len(names_n1) + len(names_n2)
     if total == 0:
