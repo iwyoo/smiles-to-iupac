@@ -172,7 +172,7 @@ def _is_oxoacid_derivative(mol) -> bool:
 
 
 def has_hydride_carbo_suffix_shape(mol) -> bool:
-    return _match(mol) is not None and not _is_oxoacid_derivative(mol)
+    return not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()) and _match(mol) is not None and not _is_oxoacid_derivative(mol)
 
 
 def name_hydride_carbo_suffix(mol) -> str:

@@ -1362,7 +1362,7 @@ def _name_mol(mol) -> str:
 
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
     # single-metal hydride dispatches below, which reject a second metal.
-    if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol):
+    if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol) and not has_radical_shape(mol):
         return name_metal_pair(mol)
     if has_inorganic_acid_derivative_shape(mol):
         try:
