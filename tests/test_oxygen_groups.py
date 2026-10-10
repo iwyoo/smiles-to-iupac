@@ -958,6 +958,7 @@ def test_ester_class_names(smiles, expected):
         ("CC(=O)OP(=O)(OC(C)=O)P(=O)(OC(C)=O)OC(C)=O", "tetraacetic hypodiphosphoric tetraanhydride"),
         ("CC(=O)OS(=O)S(=O)OC(=O)CC", "acetic dithionous propanoic dianhydride"),
         ("CC(=O)OS(=O)(=O)OC(C)=O", "diacetic sulfuric dianhydride"),
+        ("CC(=O)OS(=O)(=O)O", "acetic sulfuric monoanhydride"),
         ("CC(=O)OP(=O)(OC(C)=O)CP(=O)(OC(C)=O)OC(C)=O", "tetraacetic methylenebis(phosphonic) tetraanhydride"),
         ("CC(=O)OB(OC(C)=O)OC(C)=O", "triacetic boric trianhydride"),
         ("CC(=O)OP(=O)(OC(=O)CC)OC(=O)CC", "acetic dipropanoic phosphoric trianhydride"),

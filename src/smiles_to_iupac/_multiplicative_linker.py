@@ -14,6 +14,7 @@ from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
+_OXO_LINKER_WORDS = {16: ("sulfinyl", "sulfonyl"), 34: ("seleninyl", "selenonyl"), 52: ("tellurinyl", "telluronyl")}
 _TERMINAL_DOUBLE_WORDS = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
 _OXOACID_LINKER = {15: ("phosphoryl", "phosphonoyl"), 33: ("arsoryl", "arsonoyl"), 51: ("stiboryl", "stibonoyl")}
 _SUBSTITUTABLE_WORDS = {
@@ -181,10 +182,8 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
     oxo = [r for _, r in pend if mol.GetAtomWithIdx(r).GetAtomicNum() == 8 and mol.GetAtomWithIdx(r).GetDegree() == 1]
     if len(oxo) != len(pend):
         raise UnsupportedStructure("a substituted chalcogen linker is not supported")
-    if z == 16 and len(oxo) == 1:
-        return Part("sulfinyl", False, False)
-    if z == 16 and len(oxo) == 2:
-        return Part("sulfonyl", False, False)
+    if z in _OXO_LINKER_WORDS and len(oxo) in (1, 2):
+        return Part(_OXO_LINKER_WORDS[z][len(oxo) - 1], False, False)
     if oxo or z not in _SINGLE_ATOM_WORDS:
         raise UnsupportedStructure("this heteroatom linker is not supported")
     return Part(_SINGLE_ATOM_WORDS[z], False, False)

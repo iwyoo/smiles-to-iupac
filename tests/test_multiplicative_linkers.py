@@ -86,6 +86,7 @@ def test_amine_units_joined_through_nitrogen_to_a_heteroatom_linker(smiles, expe
     "smiles, expected",
     [
         ("O=C(O)CNC(=O)C(=O)NCC(=O)O", "2,2'-[oxalylbis(azanediyl)]diacetic acid"),
+        ("OC(=O)CNC(=O)NCC(O)=O", "2,2'-[carbonylbis(azanediyl)]diacetic acid"),
         ("O=C(O)CNC(=O)CCC(=O)NCC(=O)O", "2,2'-[(1,4-dioxobutane-1,4-diyl)bis(azanediyl)]diacetic acid"),
         ("OC(=O)c1ccccc1C(=O)CCC(=S)c1ccccc1C(=O)O", "2,2'-(1-oxo-4-sulfanylidenebutane-1,4-diyl)dibenzoic acid"),
         ("O=C(N)C(=O)NCC(=O)O", "(oxamoylamino)acetic acid"),
@@ -223,6 +224,7 @@ def test_functional_group_on_a_heteroaromatic_ring_beside_another_ring_is_reject
     "smiles,expected",
     [
         ("c1ccccc1S(=O)(=O)c1ccccc1", "1,1'-sulfonyldibenzene"),
+        ("c1ccccc1[Se](=O)(=O)c1ccccc1", "1,1'-selenonyldibenzene"),
         ("c1ccccc1C#Cc1ccccc1", "1,1'-(ethyne-1,2-diyl)dibenzene"),
         ("c1ccc2ccccc2c1Cc1cccc2ccccc12", "1,1'-methylenedinaphthalene"),
         ("BrC1=CC(=CC=C1)CC1=CC(=CC=C1)Cl", "1-bromo-3-[(3-chlorophenyl)methyl]benzene"),

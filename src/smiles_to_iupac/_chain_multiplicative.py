@@ -89,6 +89,8 @@ def _diacyl_carbon(mol, carbon, linker):
             return False
         if first and len(oxo) != 1:
             return False
+        if first and others[0].GetAtomicNum() in (7, 8):
+            return True
         if not first and oxo:
             return len(oxo) == 1 and others[0].GetAtomicNum() in (7, 8)
         if others[0].GetAtomicNum() != 6:
