@@ -2473,22 +2473,30 @@ def _hydrazine_parent(mol, aromatic_atoms):
 
 def _only_plain_hydrazines(mol):
     """Every acyclic N-N bond is a single bond between chain nitrogens that bear only hydrogen, nitrogen and carbon
-    without a double bond, so the hydrazine is a prefix beside a ring that contains nitrogen (P-44.1.2.2)."""
+    without a double bond, so the hydrazine is a prefix beside a ring that contains nitrogen (P-44.1.2.2); one C=N on
+    a hydrazine nitrogen is its ylidene substituent (P-68.3.1.2.2), two make an azine."""
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtom(), bond.GetEndAtom()
         if a.GetAtomicNum() != 7 or b.GetAtomicNum() != 7 or bond.IsInRing():
             continue
         if bond.GetBondTypeAsDouble() != 1.0 or a.IsInRing() or b.IsInRing() or _is_azide_part(a):
             return False
+        ylidene_nitrogens = 0
         for atom in (a, b):
             for neighbor in atom.GetNeighbors():
                 if neighbor.GetAtomicNum() not in (6, 7):
                     return False
-                if neighbor.GetAtomicNum() == 6 and any(
-                    x.GetBondTypeAsDouble() == 2.0 and x.GetOtherAtom(neighbor).GetAtomicNum() != 6 and not x.IsInRing()
-                    for x in neighbor.GetBonds()
-                ):
-                    return False
+                if neighbor.GetAtomicNum() != 6:
+                    continue
+                for x in neighbor.GetBonds():
+                    other = x.GetOtherAtom(neighbor)
+                    if x.GetBondTypeAsDouble() != 2.0 or other.GetAtomicNum() == 6 or x.IsInRing():
+                        continue
+                    if other.GetIdx() != atom.GetIdx():
+                        return False
+                    ylidene_nitrogens += 1
+        if ylidene_nitrogens > 1:
+            return False
     return True
 
 

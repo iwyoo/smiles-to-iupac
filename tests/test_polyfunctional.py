@@ -1385,6 +1385,17 @@ def test_unsaturated_substituents_carry_heteroatoms_and_heterocycles(smiles, exp
             "1-methyl-3-[2-(2-methylhydrazin-1-yl)propyl]-1H-pyrazole",
             id="substituted_hydrazinyl_cites_its_free_valence",
         ),
+        pytest.param("CC=NNc1ccccn1", "2-(ethylidenehydrazinyl)pyridine", id="ylidene_on_the_far_nitrogen_omits_locants"),
+        pytest.param(
+            "CCCOc1ccc(C=NNc2nc(-c3ccccc3)cs2)cc1OCC",
+            "2-{[(3-ethoxy-4-propoxyphenyl)methylidene]hydrazinyl}-4-phenyl-1,3-thiazole",
+            id="compound_ylidene_is_enclosed",
+        ),
+        pytest.param(
+            "CC=NN(C)c1ccccn1",
+            "2-(2-ethylidene-1-methylhydrazin-1-yl)pyridine",
+            id="ylidene_with_a_substituent_on_the_first_nitrogen_cites_locants",
+        ),
     ],
 )
 def test_hydrazine_beside_a_ring_with_nitrogen_is_a_hydrazinyl_prefix(smiles, expected):
