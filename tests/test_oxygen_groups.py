@@ -947,6 +947,8 @@ def test_ester_class_names(smiles, expected):
         ("CCCC(=O)C#N", "butanoyl cyanide"),
         ("O=C(N=C=S)C(=O)N=C=S", "oxalyl diisothiocyanate"),
         ("CC(=O)OP(=O)(O)O", "(acetyloxy)phosphonic acid"),
+        ("O=COP(O)O", "(formyloxy)phosphonous acid"),
+        ("CC(=O)OP(C)O", "(acetyloxy)(methyl)phosphinous acid"),
         ("CCC(=O)OB(O)O", "(propanoyloxy)boronic acid"),
         ("CC(=O)OP(=O)(OC)OC", "acetic (dimethyl hydrogen phosphate) anhydride"),
         ("CC(=O)O[As](C)(C)=O", "acetic dimethylarsinic anhydride"),
