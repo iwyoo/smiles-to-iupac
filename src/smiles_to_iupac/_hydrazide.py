@@ -586,11 +586,12 @@ def _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alky
             # identical `_collect_n_alkyl`, found via real-data testing).
             # The only legitimate neighbor of a chain atom outside `atoms`
             # is the hydrazide nitrogen itself, at `root`.
+            root_nitrogens = sum(1 for n in mol.GetAtomWithIdx(root).GetNeighbors() if n.GetAtomicNum() == 7)
             for atom_idx in atoms:
                 for neighbor in mol.GetAtomWithIdx(atom_idx).GetNeighbors():
                     if neighbor.GetAtomicNum() == 1 or neighbor.GetIdx() in atoms:
                         continue
-                    if neighbor.GetAtomicNum() == 7:
+                    if neighbor.GetAtomicNum() == 7 and atom_idx == root and root_nitrogens == 1:
                         continue
                     raise UnsupportedStructure(
                         "a substituted N-substituent (e.g. bearing a "
