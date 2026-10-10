@@ -24,6 +24,20 @@ def test_tetrasulfide_chain_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C=CSS", "ethenedithioperoxol", id="unsaturated_chain"),
+        pytest.param("SSC1=CCC=CC1", "cyclohexa-1,4-diene-1-dithioperoxol", id="unsaturated_ring"),
+        pytest.param("SSC1CCCCC1", "cyclohexanedithioperoxol", id="saturated_ring"),
+        pytest.param("[SeH][Se]C1CCCCC1", "cyclohexanediselenoperoxol", id="selenium_analogue_on_a_ring"),
+        pytest.param("OSC1CCCCC1", "cyclohexane-SO-thioperoxol", id="mixed_oxygen_sulfur_on_a_ring"),
+    ],
+)
+def test_chalcogen_peroxols_on_rings_and_unsaturated_chains(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("CC[C@H](C)SSCC", "(2S)-2-(ethyldisulfanyl)butane"),
