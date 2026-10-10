@@ -14,6 +14,7 @@ from ._hetero_prefixes import (
     ANIONIC_PREFIXES,
     CHALCOGEN_PREFIXES,
     _functional_carbon,
+    IMINE_PARENT,
     _has_senior_principal_group,
     _imidoyl_centre,
     _thioacyl,
@@ -349,7 +350,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 and len(kids) <= 1
                 and not atom.GetFormalCharge()
                 and all(_bond_order(mol, node, k) == 1.0 for k in kids)
-                and _has_senior_principal_group(mol)
+                and (_has_senior_principal_group(mol) or IMINE_PARENT.get())
             ):
                 if not kids:
                     record(node, "imino", False)

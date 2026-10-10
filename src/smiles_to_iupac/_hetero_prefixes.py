@@ -25,6 +25,7 @@ _MULTIPLE_TARGETS = {7, 8, 16, 34, 52}
 # Acid-derived and chalcogen-chain prefixes are only valid under a principal acid group; elsewhere the
 # groups they describe outrank the parent and the engine must decline rather than cite them as prefixes.
 EXTENDED_PREFIXES = contextvars.ContextVar("extended_prefixes", default=False)
+IMINE_PARENT = contextvars.ContextVar("imine_parent", default=False)
 CHALCOGEN_PREFIXES = {16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 
 
@@ -803,7 +804,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 entries = _group_names(graph, mol, tail, far.GetIdx(), halogens, aromatic_atoms)
                 prefix = f"({entries[0][0]})" if len(entries) == 1 and entries[0][1] else format_mononuclear_prefixes(entries)
                 return prefix + "hydrazinylidene", True
-        if order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1 and _has_senior_principal_group(mol):
+        if order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1 and (
+            _has_senior_principal_group(mol) or IMINE_PARENT.get()
+        ):
             if not others:
                 return "imino", False
             if mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 1.0:

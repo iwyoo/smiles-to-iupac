@@ -37,6 +37,7 @@ from ._functional_prefixes import is_nitro_nitrogen
 from ._hetero_prefixes import (
     CATION_PARENT,
     EXTENDED_PREFIXES,
+    IMINE_PARENT,
     LAMBDA_CENTRE_STEMS,
     MONONUCLEAR_HYDRIDES,
     is_functional_carbon,
@@ -2013,13 +2014,16 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
     classes = set(groups) | {c for c, _, _ in ring_groups}
     principal = _principal_class(classes)
     token = IDE_EXTRA.set(ide_extra)
+    imine_token = IMINE_PARENT.set(principal == "imine")
     try:
         results = [
             _select_with_principal(mol, graph, halogens, aromatic_atoms, kept, kept_rings, principal, attach, n_names, stereo)
-            for kept, kept_rings in _diamidide_alternatives(mol, groups, ring_groups)
+            for amidine_kept, amidine_rings in _diamidide_alternatives(mol, groups, ring_groups)
+            for kept, kept_rings in _joined_imine_alternatives(mol, graph, amidine_kept, amidine_rings)
         ]
         best = min(results, key=lambda result: result[0])
     finally:
+        IMINE_PARENT.reset(imine_token)
         IDE_EXTRA.reset(token)
     if len(ide_extra) > 1 and not ring_groups:
         anions = _carbanion_parent(mol, graph, halogens, aromatic_atoms, ide_extra, groups, attach, n_names, stereo)
@@ -2077,6 +2081,39 @@ def _diamidide_alternatives(mol, groups, ring_groups):
             for g in ring_groups
             if not (g[0] == "amidine" and next((a for a in g[2] if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), g[1]) == dropped)
         ]
+        alternatives.append((kept_groups, kept_rings))
+    return alternatives
+
+
+def _joined_imine_alternatives(mol, graph, groups, ring_groups):
+    """The (group table, ring group list) pairs in which two imine groups joined through the nitrogen of one of them
+    keep one group: the other C=N is cited as a (ylideneamino) prefix on the nitrogen it substitutes (P-62.3.1.2)."""
+    members = {c: next(iter(owned)) for c, owned in groups.get("imine", {}).items()}
+    for cls, ring_atom, owned in ring_groups:
+        if cls == "imine":
+            members[ring_atom] = next(iter(owned))
+    joined = [
+        (x, y)
+        for x, y in itertools.combinations(sorted(members), 2)
+        if any(
+            members[b] in _arm_atoms(graph, n, members[a])
+            for a, b in ((x, y), (y, x))
+            for n in graph[members[a]]
+            if n != a
+        )
+    ]
+    if not joined:
+        return [(groups, ring_groups)]
+    if len(joined) > 1:
+        raise UnsupportedStructure("several imine groups joined through nitrogen atoms are not supported yet")
+    ranks = list(Chem.CanonicalRankAtoms(mol, breakTies=False))
+    if ranks[joined[0][0]] == ranks[joined[0][1]]:
+        raise UnsupportedStructure("imine groups joined through nitrogen need a multiplicative name (P-15.3)")
+    alternatives = []
+    for dropped in joined[0]:
+        kept_groups = dict(groups)
+        kept_groups["imine"] = {c: o for c, o in groups.get("imine", {}).items() if c != dropped}
+        kept_rings = [g for g in ring_groups if not (g[0] == "imine" and g[1] == dropped)]
         alternatives.append((kept_groups, kept_rings))
     return alternatives
 

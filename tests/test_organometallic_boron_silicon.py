@@ -950,9 +950,8 @@ def test_ylylidene_linkers(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_imine_linker_without_senior_unit_group_is_not_multiplicative():
-    with pytest.raises(Exception):
-        smiles_to_iupac("c1ccccc1C=NCCN=Cc1ccccc1")
+def test_imine_linker_without_senior_unit_group_is_named_on_the_imine_nitrogens():
+    assert smiles_to_iupac("c1ccccc1C=NCCN=Cc1ccccc1") == "N,N'-(ethane-1,2-diyl)bis(phenylmethanimine)"
 
 
 @pytest.mark.parametrize(
