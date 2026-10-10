@@ -713,6 +713,23 @@ def test_imine_with_a_senior_alcohol_is_an_imino_prefix():
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ON=C1CCc2ccccc21", "N-hydroxy-2,3-dihydro-1H-inden-1-imine", id="oxime_on_a_fused_ring"),
+        pytest.param(
+            "ON=C1CC(c2cc(Cl)cc(Cl)c2)c2ccccc21",
+            "3-(3,5-dichlorophenyl)-N-hydroxy-2,3-dihydro-1H-inden-1-imine",
+            id="n_prefix_between_ring_prefixes",
+        ),
+        pytest.param("N=C1CCCN1CCOC", "1-(2-methoxyethyl)pyrrolidin-2-imine", id="heterocyclic_imine_with_an_ether_on_the_ring_nitrogen"),
+        pytest.param("COc1ccc(N2CCCC2=N)c(C)n1", "1-(6-methoxy-2-methylpyridin-3-yl)pyrrolidin-2-imine", id="heterocyclic_imine_with_a_heteroaryl_on_the_ring_nitrogen"),
+    ],
+)
+def test_imines_on_fused_and_heterocyclic_rings_with_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles",
     [
         pytest.param("CC=NOO", id="two_oxygens_on_oxime_nitrogen_raises"),
