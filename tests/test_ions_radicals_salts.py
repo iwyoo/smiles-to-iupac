@@ -1395,6 +1395,27 @@ def test_onium_centres_that_carry_characteristic_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-62.5, P-73.1.1.2, P-73.1.2.1, P-73.5, P-74.1.3: ionic centres on heteroatoms of carbon skeletons
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[O-][NH+]1CCCO1", "1,2-oxazolidine 2-oxide", id="n_oxide_of_a_secondary_ring_nitrogen"),
+        pytest.param("C[N+](C)=C=N", "(iminomethylidene)di(methyl)azanium", id="imino_group_on_an_ylidene"),
+        pytest.param("C#[N+]C=C=C", "methylidyne(propa-1,2-dien-1-yl)azanium", id="formonitrile_is_not_substituted"),
+        pytest.param("CC#[N+]C", "N-methylacetonitrilium", id="n_substituted_nitrilium"),
+        pytest.param("N#CCC#[NH+]", "(2-cyanoethylidyne)azanium", id="one_cationic_group_of_two_nitriles"),
+        pytest.param("C=[P+](O)OC", "hydroxy(methoxy)(methylidene)phosphanium", id="phosphanium_with_ylidene_and_heteroatom_groups"),
+        pytest.param("CCSC#[O+]", "[(ethylsulfanyl)methylidyne]oxidanium", id="oxidanium_with_ylidyne"),
+        pytest.param("C[N+](C)=CC=[N+](C)C", "N1,N1,N2,N2-tetramethylethane-1,2-bis(iminium)", id="two_iminium_centres"),
+        pytest.param("C[N+](C)=CC=N", "(2-iminoethylidene)di(methyl)azanium", id="one_iminium_centre_of_two_imines"),
+        pytest.param("C[S+](C)CC[O-]", "2-(dimethylsulfaniumyl)ethan-1-olate", id="sulfonium_beside_an_anionic_group"),
+        pytest.param("C[P+](C)(C)CC[O-]", "2-(trimethylphosphaniumyl)ethan-1-olate", id="phosphonium_beside_an_anionic_group"),
+    ],
+)
+def test_ionic_centres_on_skeletal_heteroatoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

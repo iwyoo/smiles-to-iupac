@@ -900,7 +900,7 @@ def name_polyfunctional(mol) -> str:
         return name[:-1] + "ium"
     iminium = None if anionic_parent else _iminium_base(mol)
     if iminium is not None:
-        return _name_aminium(iminium, parent="imine")
+        return _name_aminium(iminium, parent="imine", cationic=sum(1 for a in mol.GetAtoms() if a.GetFormalCharge()))
     for kind in ("amide", "nitrile"):
         acylated = _group_cation_base(mol, kind)
         if acylated is not None:
@@ -956,7 +956,7 @@ def _ring_center_base(mol):
     atom = neutral.GetAtomWithIdx(index)
     atom.SetFormalCharge(0)
     atom.SetNoImplicit(True)
-    hydrogens = 0 if oxides else max(center.GetTotalNumHs() - 1, 0)
+    hydrogens = center.GetTotalNumHs() if oxides else max(center.GetTotalNumHs() - 1, 0)
     atom.SetNumExplicitHs(hydrogens)
     if oxides:
         oxide = oxides[0].GetIdx()
@@ -1253,9 +1253,12 @@ def _aminium_base(mol, ignore=frozenset()):
 
 
 def _cationic_prefix_nitrogen(atom):
-    """An acyclic N+ that an anionic parent cites as an 'azaniumyl' or 'azaniumylidene' prefix (P-74.1.3)."""
+    """An acyclic onium centre that an anionic parent cites as an 'azaniumyl', 'sulfaniumyl' or similar prefix
+    (P-74.1.3)."""
+    from ._hetero_prefixes import _ONIUM_PREFIX_STEMS
+
     return (
-        atom.GetAtomicNum() == 7
+        (atom.GetAtomicNum() == 7 or atom.GetAtomicNum() in _ONIUM_PREFIX_STEMS)
         and atom.GetFormalCharge() == 1
         and not atom.IsInRing()
         and not atom.GetIsAromatic()
@@ -1267,23 +1270,25 @@ def _iminium_base(mol):
     """The mol with its iminium nitrogen neutralised when it still carries a hydrogen, else the cation itself, for the
     single =N(+)< centre of an acyclic C=N group whose other substituents are carbon (P-73.1.2.1); else None."""
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
-    if len(charged) != 1 or charged[0].GetFormalCharge() != 1 or charged[0].GetAtomicNum() != 7:
+    if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 for a in charged):
         return None
-    nitrogen = charged[0]
-    if nitrogen.GetIsAromatic() or nitrogen.IsInRing() or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 3:
-        return None
-    doubles = [b for b in nitrogen.GetBonds() if b.GetBondTypeAsDouble() == 2.0]
-    if len(doubles) != 1 or doubles[0].GetOtherAtom(nitrogen).GetAtomicNum() != 6:
-        return None
-    if any(n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors()):
-        return None
-    if nitrogen.GetTotalNumHs() == 0:
+    for nitrogen in charged:
+        if nitrogen.GetIsAromatic() or nitrogen.IsInRing() or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 3:
+            return None
+        doubles = [b for b in nitrogen.GetBonds() if b.GetBondTypeAsDouble() == 2.0]
+        if len(doubles) != 1 or doubles[0].GetOtherAtom(nitrogen).GetAtomicNum() != 6:
+            return None
+        if any(n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors()):
+            return None
+    if not any(n.GetTotalNumHs() for n in charged):
         return mol
     neutral = Chem.RWMol(mol)
-    atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
-    atom.SetFormalCharge(0)
-    atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
-    atom.SetNoImplicit(True)
+    for nitrogen in charged:
+        if nitrogen.GetTotalNumHs():
+            atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
+            atom.SetFormalCharge(0)
+            atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
+            atom.SetNoImplicit(True)
     Chem.SanitizeMol(neutral)
     return neutral.GetMol()
 
@@ -1372,6 +1377,9 @@ def _group_cation_base(mol, kind, ignore=frozenset()):
             atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
+    groups = Chem.MolFromSmarts("[CX2]#[NX1]" if kind == "nitrile" else "[CX3](=O)[NX3]")
+    if len(base.GetSubstructMatches(groups)) > len(charged):
+        return None
     return base
 
 
@@ -1422,13 +1430,13 @@ def _name_ring_group_cation(base, centre, kind):
     return _cationic_group_suffix(name, kind)
 
 
-def _name_aminium(base, labels=None, parent="amine"):
+def _name_aminium(base, labels=None, parent="amine", cationic=None):
     token = AMINIUM.set(True if parent == "amine" else parent)
     try:
         name = _name_labelled(base, labels or {})
     finally:
         AMINIUM.reset(token)
-    return _cationic_group_suffix(name, parent, sum(a.HasProp("_cationic_amine") for a in base.GetAtoms()))
+    return _cationic_group_suffix(name, parent, cationic or sum(a.HasProp("_cationic_amine") for a in base.GetAtoms()))
 
 
 _MULTIPLIED = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
@@ -1446,6 +1454,14 @@ def _cationic_group_suffix(name, parent, cationic=None):
         return name[:match.start()] + word
     if not name.endswith(("amine", "aniline", "imine") if parent == "imine" else ("amine", "aniline")):
         raise UnsupportedStructure("the cation is not named as an amine or imine parent")
+    imines = re.search(r"(di|tri|tetra)imine$", name) if parent == "imine" else None
+    if imines is not None:
+        if cationic and _MULTIPLIED[imines.group(1)] != cationic:
+            raise UnsupportedStructure("a neutral imine group beside a cationic one is not cited as a prefix of this parent")
+        word = {"di": "bis", "tri": "tris", "tetra": "tetrakis"}[imines.group(1)]
+        return f"{name[:imines.start()]}{word}(iminium)"
+    if parent == "imine" and cationic and cationic > 1:
+        raise UnsupportedStructure("several iminium centres need a multiplied imine parent")
     multiple = re.search(r"(di|tri|tetra|penta|hexa)(amine|aniline)$", name)
     if multiple is not None:
         if cationic and _MULTIPLIED[multiple.group(1)] > cationic:
@@ -4278,7 +4294,12 @@ def _is_nitro_part(atom):
             return True
     if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1:
         oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
-        return len(oxygens) in (2, 3) and sum(o.GetFormalCharge() for o in oxygens) == -1 and atom.GetDegree() == 3
+        return (
+            len(oxygens) in (2, 3)
+            and sum(o.GetFormalCharge() for o in oxygens) == -1
+            and atom.GetDegree() == 3
+            and not atom.GetTotalNumHs()
+        )
     if atom.GetAtomicNum() == 8 and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
         (n,) = atom.GetNeighbors()
         return n.GetAtomicNum() == 7 and _is_nitro_part(n)

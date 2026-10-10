@@ -5,6 +5,7 @@ chloranylium. The cationic atom has one bond fewer than its standard bonding num
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _STEM = {
@@ -92,7 +93,11 @@ def _oxylium(mol, graph, center, halogens, aromatic):
     return alkoxy[: -len("oxy")] + "oxylium"
 
 
-_ONIUM_STEM = {7: "azanium", 8: "oxidanium", 16: "sulfanium", 34: "selanium", 52: "telluranium", 17: "chloranium", 35: "bromanium", 53: "iodanium"}
+_ONIUM_STEM = {
+    7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium", 33: "arsanium", 34: "selanium", 51: "stibanium",
+    52: "telluranium", 17: "chloranium", 35: "bromanium", 53: "iodanium", 83: "bismuthanium",
+}
+_ONIUM_NEIGHBOURS = (6, 7, 8, 9, 16, 17, 34, 35, 52, 53)
 
 
 def _onium_center(mol):
@@ -105,7 +110,13 @@ def _onium_center(mol):
     bonds = sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs()
     if bonds != _STEM[atom.GetAtomicNum()][1] + 1 or not atom.GetDegree():
         return None
-    if any(n.GetAtomicNum() != 6 for n in atom.GetNeighbors()) or any(b.GetBondTypeAsDouble() > 2.0 for b in atom.GetBonds()):
+    triple_allowed = atom.GetAtomicNum() in (7, 8)
+    if any(b.GetBondTypeAsDouble() > (3.0 if triple_allowed else 2.0) for b in atom.GetBonds()):
+        return None
+    if atom.GetAtomicNum() in (7, 8, 16):
+        if any(n.GetAtomicNum() != 6 for n in atom.GetNeighbors()):
+            return None
+    elif any(n.GetAtomicNum() not in _ONIUM_NEIGHBOURS or n.GetAtomicNum() == atom.GetAtomicNum() for n in atom.GetNeighbors()):
         return None
     if atom.GetAtomicNum() == 7 and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds()):
         return None
@@ -127,11 +138,51 @@ def name_hydride_onium(mol) -> str:
     if center is None:
         raise UnsupportedStructure("not an onium cation of a mononuclear hydride")
     graph = adjacency(mol)
+    if center.GetAtomicNum() == 7 and any(b.GetBondTypeAsDouble() == 3.0 for b in center.GetBonds()):
+        nitrilium = _substituted_nitrilium(mol, graph, center)
+        if nitrilium is not None:
+            return nitrilium
     entries = []
-    for n in graph[center.GetIdx()]:
-        name, compound = _group(mol, graph, n, center.GetIdx())
-        entries.append((name, compound))
+    token = EXTENDED_PREFIXES.set(True)
+    try:
+        for n in graph[center.GetIdx()]:
+            name, compound = _group(mol, graph, n, center.GetIdx())
+            entries.append((name, compound))
+    finally:
+        EXTENDED_PREFIXES.reset(token)
     return format_mononuclear_prefixes(entries) + _ONIUM_STEM[center.GetAtomicNum()]
+
+
+def _substituted_nitrilium(mol, graph, center):
+    """P-73.1.2.1: a nitrile whose nitrogen carries a substituent takes the cationic suffix 'nitrilium' with the N prefix
+    ('N-methylacetonitrilium'); formonitrile admits no substitution (P-66.5.1.2.1), so it stays an azanium."""
+    from ._cited_group import subtree
+    from ._dipolar import _group
+    from ._hetero_prefixes import _enclose
+    from .core import smiles_to_iupac
+
+    triple = next(b for b in center.GetBonds() if b.GetBondTypeAsDouble() == 3.0)
+    carbon = triple.GetOtherAtom(center).GetIdx()
+    others = [n for n in graph[center.GetIdx()] if n != carbon]
+    if len(others) != 1:
+        return None
+    (substituent,) = others
+    if graph[carbon] == [center.GetIdx()]:
+        return None
+    editable = Chem.RWMol(mol)
+    editable.GetAtomWithIdx(center.GetIdx()).SetFormalCharge(0)
+    for index in sorted(subtree(graph, substituent, center.GetIdx()), reverse=True):
+        editable.RemoveAtom(index)
+    nitrile = editable.GetMol()
+    try:
+        Chem.SanitizeMol(nitrile)
+        name = smiles_to_iupac(Chem.MolToSmiles(nitrile))
+    except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
+        return None
+    if not name.endswith("nitrile") or len(nitrile.GetSubstructMatches(Chem.MolFromSmarts("C#N"))) > 1:
+        return None
+    group, compound = _group(mol, graph, substituent, center.GetIdx())
+    return f"N-{_enclose(group, compound)}{name[:-1]}ium"
 
 
 _POLY_STEM = {8: "oxylium", 16: "sulfanylium", 34: "selanylium", 52: "tellanylium"}

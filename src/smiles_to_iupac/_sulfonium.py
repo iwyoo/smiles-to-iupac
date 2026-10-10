@@ -57,7 +57,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, specified_stereocenters
-from ._onium_prefixes import onium_name
+from ._onium_prefixes import only_nitro_charges_besides, onium_name
 
 
 def has_sulfonium_shape(mol) -> bool:
@@ -71,7 +71,7 @@ def has_sulfonium_shape(mol) -> bool:
     if len(charged_sulfurs) != 1:
         return False
     sulfur = charged_sulfurs[0]
-    if sulfur.GetIsotope() != 0:
+    if sulfur.GetIsotope() != 0 or not only_nitro_charges_besides(mol, sulfur):
         return False
     degree = sulfur.GetDegree()
     if degree > 3 or sulfur.GetTotalNumHs() + degree != 3:

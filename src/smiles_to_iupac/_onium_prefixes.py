@@ -11,6 +11,14 @@ def _nitro_part(mol, atom):
     return atom.GetAtomicNum() == 8 and any(is_nitro_nitrogen(mol, n.GetIdx()) for n in atom.GetNeighbors())
 
 
+def only_nitro_charges_besides(mol, center):
+    """No charged atom other than `center` and the charge-separated nitro groups: an anionic group elsewhere makes the
+    molecule a zwitterion named on the anion."""
+    return all(
+        atom.GetIdx() == center.GetIdx() or not atom.GetFormalCharge() or _nitro_part(mol, atom) for atom in mol.GetAtoms()
+    )
+
+
 def onium_name(mol, center, stem):
     """`stem` ('sulfanium', ...) preceded by the prefixes of every group bonded to `center`."""
     for atom in mol.GetAtoms():

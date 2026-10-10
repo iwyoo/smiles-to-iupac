@@ -145,9 +145,12 @@ def _is_group_anion(atom):
 
 
 def _is_ammonium_prefix(atom):
-    """An acyclic ammonium nitrogen that an alcoholate or thiolate parent cites as an 'azaniumyl' prefix (P-74.1.3)."""
+    """An acyclic onium centre that an alcoholate or thiolate parent cites as an 'azaniumyl', 'sulfaniumyl' or similar
+    prefix (P-74.1.3)."""
+    from ._hetero_prefixes import _ONIUM_PREFIX_STEMS
+
     return (
-        atom.GetAtomicNum() == 7
+        (atom.GetAtomicNum() == 7 or atom.GetAtomicNum() in _ONIUM_PREFIX_STEMS)
         and atom.GetFormalCharge() == 1
         and not atom.IsInRing()
         and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
@@ -276,7 +279,11 @@ def _name_substitutive(mol):
     if has_center_anion_shape(mol) and (not _has_group_or_carbon(mol) or _ring_mixed_centers(mol)):
         return name_center_anion(mol)
     neutral = marked_neutral(mol)
-    ring_cations = [a for a in neutral.GetAtoms() if a.GetFormalCharge() > 0 and a.GetAtomicNum() != 7 and not _is_nitro_nitrogen(a)]
+    ring_cations = [
+        a
+        for a in neutral.GetAtoms()
+        if a.GetFormalCharge() > 0 and a.GetAtomicNum() != 7 and not _is_nitro_nitrogen(a) and not _is_ammonium_prefix(a)
+    ]
     if ring_cations:
         from ._polycation import _name_ring_polycation
 
