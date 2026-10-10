@@ -808,7 +808,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if imidohydrazido is not None:
                 return imidohydrazido
         if order == 1.0 and not atom.GetFormalCharge() and any(
-            mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not is_oxo_nitrogen(mol, mol.GetAtomWithIdx(n)) for n in others
+            mol.GetAtomWithIdx(n).GetAtomicNum() == 7
+            and not mol.GetAtomWithIdx(n).IsInRing()
+            and not is_oxo_nitrogen(mol, mol.GetAtomWithIdx(n))
+            for n in others
         ):
             far = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7]
             if not (len(others) == 1 and mol.GetAtomWithIdx(far[0]).GetDegree() == 1):

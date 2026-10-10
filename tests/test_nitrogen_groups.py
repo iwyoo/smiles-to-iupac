@@ -1365,6 +1365,24 @@ def test_hydrazide_variants(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("CN=C(NC)N1CCCCC1", "N,N'-dimethylpiperidine-1-carboximidamide", id="amidine_group_on_a_ring_nitrogen"),
+        pytest.param("O=C(NNC)N1CCCCC1", "N'-methylpiperidine-1-carbohydrazide", id="hydrazide_group_on_a_ring_nitrogen"),
+        pytest.param("C1CCCCN1NC(C)=O", "N-(piperidin-1-yl)acetamide", id="amide_nitrogen_on_a_ring_nitrogen"),
+        pytest.param("C1CCCCN1NS(=O)(=O)C", "N-(piperidin-1-yl)methanesulfonamide", id="sulfonamide_nitrogen_on_a_ring_nitrogen"),
+        pytest.param("CC(=N)NN1CCCCC1", "N-(piperidin-1-yl)ethanimidamide", id="amidine_nitrogen_on_a_ring_nitrogen"),
+        pytest.param("N=C(N)NN1CCCCC1", "N-(piperidin-1-yl)guanidine", id="guanidine_nitrogen_on_a_ring_nitrogen"),
+        pytest.param(
+            "OC(=O)CC(=O)NN1CCCCC1", "3-oxo-3-[(piperidin-1-yl)amino]propanoic acid", id="amido_prefix_with_a_ring_nitrogen_beside_an_acid"
+        ),
+    ],
+)
+def test_group_nitrogen_bonded_to_a_ring_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("NC1=CC=C(C=C1)S(=O)(=O)NC=1SC(=CN1)C(=O)O", "2-(4-aminobenzene-1-sulfonamido)-1,3-thiazole-5-carboxylic acid"),
         ("OC(=O)c1cnc(NS(=O)(=O)C)s1", "2-(methanesulfonamido)-1,3-thiazole-5-carboxylic acid"),
         ("OC(=O)c1cnc(NC(C)=O)s1", "2-acetamido-1,3-thiazole-5-carboxylic acid"),

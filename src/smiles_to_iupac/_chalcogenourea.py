@@ -39,8 +39,10 @@ def is_oxo_nitrogen(mol, atom):
 
 
 def is_core_substituent_root(mol, atom):
-    """A carbon, a halogen or a nitro/nitroso nitrogen: the atoms a urea or guanidine nitrogen may carry."""
-    return atom.GetAtomicNum() in (6, *HALOGEN_PREFIXES) or is_oxo_nitrogen(mol, atom)
+    """A carbon, a halogen, a nitro/nitroso nitrogen or a ring nitrogen: the atoms a urea or guanidine nitrogen may carry."""
+    return atom.GetAtomicNum() in (6, *HALOGEN_PREFIXES) or is_oxo_nitrogen(mol, atom) or (
+        atom.GetAtomicNum() == 7 and atom.IsInRing()
+    )
 
 
 _UREA_SUBSTITUENT_ELEMENTS = {6, 7, 8, 16, 34, 52, *HALOGEN_PREFIXES}
