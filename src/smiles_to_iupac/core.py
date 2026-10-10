@@ -219,9 +219,6 @@ from ._hydride_carbo_suffix import has_hydride_carbo_suffix_shape, name_hydride_
 from ._lambda_ring import has_lambda_ring_shape, name_lambda_ring
 from ._ring_lambda_heterone import has_ring_lambda_heterone_shape, name_ring_lambda_heterone
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
-from ._pyridinone import has_pyridinone_shape, name_pyridinone
-from ._pyrimidinedione import has_pyrimidinedione_shape, name_pyrimidinedione
-from ._pyrimidinone import has_pyrimidinone_shape, name_pyrimidinone
 from ._steroid_parent_hydrides import (
     has_steroid_aromatic_a_ring_name,
     has_steroid_parent_hydride_name,
@@ -1395,20 +1392,6 @@ def _name_mol(mol) -> str:
         # RDKit perceives it, so it must be routed here before any ring-shape
         # or aromatic dispatch below ever gets a chance to reject it outright.
         (has_hetero_ring_oxide_shape, name_hetero_ring_oxide),
-        # The pyridinone tautomer (P-31.1.4.3.4's indicated-hydrogen oxo form)
-        # keeps its ring-carbon aromatic despite the exocyclic oxo, so it must
-        # be routed here before `_ketone.py`'s own generic aryl-ketone
-        # rejection below ever gets a chance to claim it.
-        (has_pyridinone_shape, name_pyridinone),
-        # The pyrimidinone tautomer (a second ring nitrogen alongside the
-        # pyridinone shape above) is checked right after it, for the same
-        # aromatic-aryl-ketone dispatch-ordering reason.
-        (has_pyrimidinone_shape, name_pyrimidinone),
-        # The uracil/thymine diketo tautomer (both ring nitrogens carrying
-        # their own indicated hydrogen, P-58.2.2's parenthesized multi-locant
-        # convention) is checked right after the single-oxo pyrimidinone case
-        # above, for the same aromatic-aryl-ketone dispatch-ordering reason.
-        (has_pyrimidinedione_shape, name_pyrimidinedione),
         # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
         # prefix-on-a-carboxylate-parent citation order) must be routed here
         # before `has_salt_shape` below: it's a single connected fragment that
