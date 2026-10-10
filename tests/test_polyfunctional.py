@@ -1417,3 +1417,39 @@ def test_hydrazide_groups_beside_an_amide_class_parent_are_hydrazinecarbonyl_pre
 )
 def test_acyl_group_of_a_ring_nitrogen_beside_a_senior_group_is_a_carbonyl_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("COC(=O)c1ccccc1/C=C/C", "methyl 2-[(1E)-prop-1-en-1-yl]benzoate", id="chain_double_bond_on_the_acid_ring"),
+        pytest.param("COC(=O)c1ccccc1C[C@H](C)Cl", "methyl 2-[(2S)-2-chloropropyl]benzoate", id="stereocentre_on_the_acid_ring"),
+        pytest.param("COC(=O)c1ccc2ccccc2c1/C=C/C", "methyl 1-[(1E)-prop-1-en-1-yl]naphthalene-2-carboxylate", id="fused_acid_ring"),
+        pytest.param("OC(=O)c1ccccc1/C=C/C", "2-[(1E)-prop-1-en-1-yl]benzoic acid", id="free_acid_ring"),
+        pytest.param("CC(=O)Oc1ccc(cc1)/C=C\\CC", "4-[(1Z)-but-1-en-1-yl]phenyl acetate", id="chain_double_bond_on_an_aryl_alcohol_part"),
+        pytest.param("CC(=O)OCc1ccccc1/C=C/C", "{2-[(1E)-prop-1-en-1-yl]phenyl}methyl acetate", id="aryl_in_a_substituted_alkyl_alcohol_part"),
+        pytest.param("CC(=O)Oc1cccnc1/C=C\\C", "2-[(1Z)-prop-1-en-1-yl]pyridin-3-yl acetate", id="heteroaryl_alcohol_part"),
+        pytest.param("CC(=O)OC1CCCCC1/C=C/C", "2-[(1E)-prop-1-en-1-yl]cyclohexyl acetate", id="cycloalkyl_alcohol_part"),
+    ],
+)
+def test_esters_keep_the_descriptors_of_substituents_in_the_part_they_belong_to(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("COC(=O)c1ccccc1/C=N/O", "methyl 2-[(E)-N-hydroxymethanimidoyl]benzoate", id="imidoyl_on_the_acid_ring"),
+        pytest.param("COC(=O)c1ccccc1/C(C)=N/O", "methyl 2-[(1E)-N-hydroxyethanimidoyl]benzoate", id="ethanimidoyl_on_the_acid_ring"),
+        pytest.param("COC(=O)c1ccccc1N/N=C/c1ccccc1", "methyl 2-{[(E)-benzylidene]hydrazinyl}benzoate", id="hydrazone_on_the_acid_ring"),
+        pytest.param("COC(=O)c1ccccc1/N=N\\c1ccccc1", "methyl 2-[(Z)-phenyldiazenyl]benzoate", id="diazenyl_on_the_acid_ring"),
+        pytest.param("OC(=O)c1ccccc1N/N=C/c1ccccc1", "2-{[(E)-benzylidene]hydrazinyl}benzoic acid", id="hydrazone_on_a_free_acid_ring"),
+        pytest.param("CC(=O)Oc1ccccc1/C=N/O", "2-[(E)-N-hydroxymethanimidoyl]phenyl acetate", id="imidoyl_on_the_alcohol_ring"),
+        pytest.param("CC(=O)Oc1ccccc1/N=C/C", "2-{[(1E)-ethylidene]amino}phenyl acetate", id="ylideneamino_on_the_alcohol_ring"),
+        pytest.param("CC(=O)Oc1ccccc1CC/C=N/O", "2-[(3E)-3-(hydroxyimino)propyl]phenyl acetate", id="oxime_on_a_chain_of_the_alcohol_ring"),
+        pytest.param("CC(=O)Oc1ccccc1/N=N/c1ccccc1", "2-[(E)-phenyldiazenyl]phenyl acetate", id="diazenyl_on_the_alcohol_ring"),
+        pytest.param("COC(=O)CC/N=N/CC", "methyl 3-[(E)-ethyldiazenyl]propanoate", id="diazenyl_on_the_acid_chain"),
+    ],
+)
+def test_esters_cite_the_descriptor_of_a_double_bond_to_nitrogen_in_a_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

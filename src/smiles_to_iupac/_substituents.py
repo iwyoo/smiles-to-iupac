@@ -601,6 +601,60 @@ def _plain_chain_positions(graph, root, coming_from, atoms, mol=None):
 
 
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
+    token = BRANCH_STEREO_MOL.set(mol)
+    try:
+        named = _name_branch_isotopes(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
+    finally:
+        BRANCH_STEREO_MOL.reset(token)
+    context = BRANCH_STEREO.get()
+    if not context or mol is None or not context["bonds"]:
+        return named
+    return cite_heteroatom_double_bonds(named, graph, root, coming_from, mol, context)
+
+
+_LEADING_DESCRIPTOR = re.compile(r"^[\[{(]*\([^()]*\)-")
+
+
+def _chain_ylidene_carbon(mol, idx):
+    """A chain carbon doubly bonded to a nitrogen: the name of its chain cites the descriptor (P-93.5.1.4.2.1)."""
+    from ._hetero_prefixes import is_functional_carbon
+
+    atom = mol.GetAtomWithIdx(idx)
+    return atom.GetAtomicNum() == 6 and not atom.IsInRing() and not is_functional_carbon(mol, idx)
+
+
+def cite_heteroatom_double_bonds(named, graph, root, coming_from, mol, context):
+    """P-93.4.2.1.3: the E/Z descriptor of a C=N or N=N bond is cited in front of the smallest group that holds both of
+    its atoms, unlocanted because no skeletal locant is present in the name of that group."""
+    name, compound = named
+    if _LEADING_DESCRIPTOR.match(name):
+        return named
+    pieces = []
+    for child in graph[root]:
+        if child != coming_from:
+            seen, stack = {child}, [child]
+            while stack:
+                for n in graph[stack.pop()]:
+                    if n not in seen and n != root:
+                        seen.add(n)
+                        stack.append(n)
+            pieces.append(seen)
+    inside = {root}.union(*pieces)
+    codes = []
+    for (a, b), code in sorted(context["bonds"].items()):
+        if a not in inside or b not in inside or any(a in p and b in p for p in pieces):
+            continue
+        bond = mol.GetBondBetweenAtoms(a, b)
+        if bond.IsInRing() or 7 not in (mol.GetAtomWithIdx(a).GetAtomicNum(), mol.GetAtomWithIdx(b).GetAtomicNum()):
+            continue
+        if any(_chain_ylidene_carbon(mol, i) for i in (a, b)):
+            continue
+        codes.append(code)
+        context["used"].add(("bond", (a, b)))
+    return (f"({','.join(codes)})-{name}", True) if codes else named
+
+
+def _name_branch_isotopes(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     forced = FORCED_BRANCH_NAMES.get()
     if forced and mol is not None and mol.GetNumAtoms() == forced[0] and root in forced[1]:
         return forced[1][root]
@@ -1106,6 +1160,7 @@ def _ring_multiple_bond_locants(mol, direction):
 
 
 BRANCH_STEREO = contextvars.ContextVar("branch_stereo", default=None)
+BRANCH_STEREO_MOL = contextvars.ContextVar("branch_stereo_mol", default=None)
 
 
 @contextlib.contextmanager
@@ -1159,7 +1214,20 @@ def _branch_stereo_entries(positions, ring=False, record=False):
                 entries.append((min(positions[a], positions[b]), code))
                 if record:
                     context["used"].add(("bond", (a, b)))
+            elif (a in positions) != (b in positions) and _ylidene_to_heteroatom(a, b, positions):
+                # P-93.5.1.4.2.1: the double bond to an ylidene group takes the locant of the parent atom
+                entries.append((positions[a] if a in positions else positions[b], code))
+                if record:
+                    context["used"].add(("bond", (a, b)))
     return sorted(entries)
+
+
+def _ylidene_to_heteroatom(a, b, positions):
+    mol = BRANCH_STEREO_MOL.get()
+    if mol is None:
+        return False
+    outside = mol.GetAtomWithIdx(b if a in positions else a)
+    return outside.GetAtomicNum() == 7 and not mol.GetBondBetweenAtoms(a, b).IsInRing()
 
 
 def _branch_stereo_rank(entries):

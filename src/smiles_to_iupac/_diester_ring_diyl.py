@@ -27,7 +27,7 @@ from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_ani
 from ._functional_prefixes import functional_names, nitro_atoms
 from ._locant_omission import omits_all_locants
 from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import cite_heteroatom_double_bonds, format_substituent_prefixes, name_branch
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3, "Z": 0, "E": 1}
 PARENT_START = contextvars.ContextVar("parent_start", default=0)
@@ -366,7 +366,7 @@ def _evaluate_skeleton(
         if key in cache:
             return cache[key]
         side = _component(graph, next(iter(skeleton)), blocked)
-        for atom, code in cip_labels(mol, side):
+        for atom, code in cip_labels(mol, side, chain_double_bonds=True):
             if not _within(atom, skeleton):
                 stereo_context["bonds" if isinstance(atom, tuple) else "atoms"][atom] = code
         if any(a in side for m in matches_on for a in (m[0].GetIdx(), m[1].GetIdx())):
@@ -390,7 +390,8 @@ def _evaluate_skeleton(
 
         def branch(root, atom):
             if root in named:
-                return named[root]
+                context = stereo_context
+                return cite_heteroatom_double_bonds(named[root], graph, root, atom, mol, context) if context else named[root]
             atoms = _component(graph, root, set(skeleton) | blocked)
             bonds = [b for b in unsaturated if b[0] in atoms and b[1] in atoms]
             if bonds:
@@ -411,7 +412,7 @@ def _evaluate_skeleton(
         skeleton = pool if kind == "ring" else set(position_of)
         side, branch = analyze(skeleton)
         if stereo_all is None:
-            stereo_all = cip_labels(mol, side)
+            stereo_all = cip_labels(mol, side, chain_double_bonds=True)
         substituents = {}
         for atom in position_of:
             roots = [n for n in graph[atom] if n not in skeleton and n not in blocked]
