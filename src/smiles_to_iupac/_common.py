@@ -1192,7 +1192,7 @@ def group_substituents(substituents):
 def alpha_sort_key(name: str) -> str:
     """P-14.5.2: alphanumerical ordering ignores locants and italicized
     prefixes like 'tert-' -- only the rest of the name counts (so
-    'tert-butyl' sorts under 'b', not 't')."""
+    'tert-butyl' sorts under 'b', not 't'). Capital letters are italic locants (N, H, O, S) and not counted either."""
     stripped = name
     previous = None
     while stripped != previous:
@@ -1204,7 +1204,7 @@ def alpha_sort_key(name: str) -> str:
         if stripped[:1] in ("(", "[", "{") and not (_LEADING_STEREO_RE.match(stripped) or _LEADING_ISOTOPE_RE.match(stripped)):
             stripped = stripped[1:]
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
-    return re.sub(r"[^a-z]", "", stripped.lower())
+    return re.sub(r"[^a-z]", "", re.sub(r"[A-Z]", "", stripped).lower())
 
 
 def citation_order_key(name: str):
