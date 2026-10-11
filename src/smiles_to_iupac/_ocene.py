@@ -63,6 +63,13 @@ def _cp_rings(mol, graph):
     return rings
 
 
+def _balanced_cyclopentadienides(mol, rings):
+    """Two cyclopentadienyl rings (anions or radicals) and a metal ion that makes the whole neutral are the ocene
+    (P-69.2.7); any other charge or a neutral cyclopentadiene is an ionic or adduct name (P-14.8.2)."""
+    ring_valence = lambda ring: sum(mol.GetAtomWithIdx(a).GetNumRadicalElectrons() - mol.GetAtomWithIdx(a).GetFormalCharge() for a in ring)
+    return sum(a.GetFormalCharge() for a in mol.GetAtoms()) == 0 and all(ring_valence(ring) == 1 for ring in rings)
+
+
 def find_ocene(mol):
     metals = [a for a in mol.GetAtoms() if a.GetSymbol() in OCENES]
     if len(metals) != 1:
@@ -73,7 +80,7 @@ def find_ocene(mol):
     bonded = [r for r in rings if all(metal.GetIdx() in graph[a] for a in r)]
     if len(bonded) == 2 and metal.GetDegree() == 10:
         chosen = bonded
-    elif metal.GetDegree() == 0 and len(rings) == 2:
+    elif metal.GetDegree() == 0 and len(rings) == 2 and _balanced_cyclopentadienides(mol, rings):
         chosen = rings
     else:
         return None

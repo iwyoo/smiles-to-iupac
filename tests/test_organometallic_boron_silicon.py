@@ -1238,3 +1238,15 @@ def test_hydride_atom_against_a_ring_by_the_seniority_of_atoms(smiles, expected)
 )
 def test_substituent_on_a_ring_heteroatom_of_group_13_to_15(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-69.2.7, P-14.8.2: an ocene name needs the neutral compound of a 2+ metal ion and two cyclopentadienide anions
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[Fe+3].c1cc[cH-]c1.c1cc[cH-]c1", "bis(η5-cyclopenta-2,4-dien-1-yl)iron(1+)", id="metal_charge_that_leaves_a_cation"),
+        pytest.param("[Ni+2].C1=CC=CC1.C1=CC=CC1", "cyclopenta-1,3-diene—nickel(2+) (2/1)", id="neutral_cyclopentadiene_ligands"),
+    ],
+)
+def test_unbalanced_cyclopentadienide_metal_structure_is_no_ocene(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
