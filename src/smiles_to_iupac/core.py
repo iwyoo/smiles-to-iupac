@@ -50,7 +50,7 @@ from ._diacylhydrazine import diacylhydrazine_name
 from ._chain_amide import chain_amide_name, chain_ketone_name
 from ._ring_nitrogen_hydrazide import name_ring_nitrogen_hydrazide
 from ._alternating_cage import has_alternating_cage_shape, name_alternating_cage
-from ._dipolar import has_dipolar_shape, name_dipolar
+from ._dipolar import azoxy_prefix_name, has_dipolar_shape, name_dipolar
 from ._chalcogen_aldehyde import name_chalcogen_aldehyde
 from ._condensed_guanidine import name_condensed_guanidine
 from ._ring_heteroatom_nitrile import name_ring_heteroatom_nitrile
@@ -770,6 +770,8 @@ def _name_unabridged_body(smiles: str) -> str:
             return _METHYLBENZENES[Chem.MolToSmiles(parsed)]
         if parsed is not None and has_bare_inorganic_component(parsed):
             return mark(name_adduct(parsed, smiles_to_iupac), _NO_PIN_MIXED_ADDUCT)
+        if parsed is not None and (azoxy_prefix := azoxy_prefix_name(parsed)) is not None:
+            return azoxy_prefix
         if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
             lambda_token = CITE_SKELETAL_LAMBDA.set(False)
         if parsed is not None and has_carbon_monoxide_shape(parsed):

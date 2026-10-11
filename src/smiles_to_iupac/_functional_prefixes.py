@@ -13,6 +13,7 @@ from ._hetero_prefixes import (
     POLYACID_SUBSTITUENT_REASON,
     ANIONIC_PREFIXES,
     CHALCOGEN_PREFIXES,
+    azoxy_atoms,
     _functional_carbon,
     IMINE_PARENT,
     _has_senior_principal_group,
@@ -269,9 +270,24 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             pseudohalides[node] = prefix
             skip |= subtree(node) - {node}
 
+    azoxy_groups = {}
+    for node in order:
+        if node in skip or node not in parent_of or _bond_order(mol, node, parent_of[node]) != 1.0:
+            continue
+        atom = mol.GetAtomWithIdx(node)
+        if atom.GetAtomicNum() == 7 and (
+            azoxy_atoms(mol, atom) is not None
+            or any(azoxy_atoms(mol, mol.GetAtomWithIdx(n)) for n in graph[node] if n != parent_of[node])
+        ):
+            azoxy_groups[node] = name_branch(graph, node, parent_of[node], shown, aromatic_atoms, mol=mol)
+            skip |= subtree(node) - {node}
+
     phosphoryl_nodes = set()
     for node in reversed(order):
         if node in skip:
+            continue
+        if node in azoxy_groups:
+            record(node, *azoxy_groups[node])
             continue
         if node in pseudohalides:
             record(node, pseudohalides[node], False)

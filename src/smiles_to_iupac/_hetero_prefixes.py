@@ -818,6 +818,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
         return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumylidene", bool(entries)
     if z == 7:
+        azoxy = _azoxy_group(graph, root, halogens, aromatic_atoms, mol, order, others)
+        if azoxy is not None:
+            return azoxy
         oxygens = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
         if len(oxygens) == len(others) and others:
             if len(oxygens) == 2 and is_nitro_nitrogen(mol, root):
@@ -1829,6 +1832,54 @@ def _chain_paths(graph, chain_atoms, root):
         if sum(m in chain_atoms for m in graph[start]) <= 1:
             extend([start])
     return paths
+
+
+def azoxy_atoms(mol, oxide_nitrogen):
+    """(oxygen, partner nitrogen) of the azoxy group R-N(-O-)=N+... whose oxide nitrogen is `oxide_nitrogen`, else None."""
+    if oxide_nitrogen.GetAtomicNum() != 7 or oxide_nitrogen.GetFormalCharge() != 1 or oxide_nitrogen.GetDegree() != 3:
+        return None
+    oxygens = [n for n in oxide_nitrogen.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetFormalCharge() == -1 and n.GetDegree() == 1]
+    partners = [
+        n
+        for n in oxide_nitrogen.GetNeighbors()
+        if n.GetAtomicNum() == 7
+        and not n.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(oxide_nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    return (oxygens[0], partners[0]) if len(oxygens) == 1 and len(partners) == 1 else None
+
+
+def _azoxy_group(graph, root, halogens, aromatic_atoms, mol, order, others):
+    """R-N=N(O)-R' cited as a substituent group: the lambda5-diazenyl prefix with an oxo group, the far organyl group
+    being a prefix of its nitrogen (P-68.3.1.3.3.2)."""
+    from ._substituents import format_substituent_prefixes
+
+    atom = mol.GetAtomWithIdx(root)
+    if order != 1.0:
+        return None
+    if atom.GetFormalCharge() == 1:
+        found = azoxy_atoms(mol, atom)
+        if found is None:
+            return None
+        oxide, partner, locants = atom, found[1], (1, 2)
+        far_roots = [n for n in graph[partner.GetIdx()] if n != root]
+        far = partner.GetIdx()
+    elif not atom.GetFormalCharge() and len(others) == 1 and mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 2.0:
+        oxide = mol.GetAtomWithIdx(others[0])
+        found = azoxy_atoms(mol, oxide)
+        if found is None or found[1].GetIdx() != root:
+            return None
+        locants = (2, 2)
+        far_roots = [n for n in graph[oxide.GetIdx()] if n not in (root, found[0].GetIdx())]
+        far = oxide.GetIdx()
+    else:
+        return None
+    if len(far_roots) > 1:
+        return None
+    grouped = {"oxo": {"locants": [locants[0]], "compound": False}}
+    for name, compound in _group_names(graph, mol, far_roots, far, halogens, aromatic_atoms):
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locants[1])
+    return f"{format_substituent_prefixes(grouped)}-{locants[0]}λ5-diazenyl", True
 
 
 DIAZENYL_PREFIX = contextvars.ContextVar("diazenyl_prefix", default=False)

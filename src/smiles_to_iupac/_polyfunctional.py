@@ -40,6 +40,7 @@ from ._hetero_prefixes import (
     IMINE_PARENT,
     LAMBDA_CENTRE_STEMS,
     MONONUCLEAR_HYDRIDES,
+    azoxy_atoms,
     is_functional_carbon,
     is_halogen_oxo_part,
 )
@@ -1218,9 +1219,19 @@ def _with_indicated_hydrogen(base, name, options):
     return kept or options
 
 
+def _azoxy_charged_atoms(mol):
+    atoms = set()
+    for atom in mol.GetAtoms():
+        found = azoxy_atoms(mol, atom)
+        if found is not None:
+            atoms |= {atom.GetIdx(), found[0].GetIdx()}
+    return atoms
+
+
 def _aminium_base(mol, ignore=frozenset()):
     """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
-    (a cation outranks every acid, P-41), else None."""
+    (a cation outranks every acid, P-41), else None; the charges of an azoxy group are not ammonium charges."""
+    ignore = {*ignore, *_azoxy_charged_atoms(mol)}
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
     if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 for a in charged):
         return None
@@ -4466,8 +4477,10 @@ def _is_chain_amine_oxide_part(atom):
 
 
 def _is_nitro_part(atom):
-    """The charged atoms of a nitro, azido or isocyano group: N+ bonded to two oxygens (one O-)."""
+    """The charged atoms of a nitro, azido, isocyano or azoxy group: N+ bonded to two oxygens (one O-)."""
     if _is_azide_part(atom) or is_halogen_oxo_part(atom.GetOwningMol(), atom):
+        return True
+    if atom.GetAtomicNum() == 7 and azoxy_atoms(atom.GetOwningMol(), atom) is not None:
         return True
     if atom.GetAtomicNum() in (6, 7) and atom.GetFormalCharge() in (-1, 1):
         mol = atom.GetOwningMol()
