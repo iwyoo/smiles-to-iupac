@@ -277,12 +277,23 @@ def acid_anions(mol, matches):
             raise UnsupportedStructure("an acyl group connected to another ester group is not supported yet")
         if not _specified_stereo_in(mol, component):
             try:
-                results.append(_fast_anion(mol, graph, carbon_graph, halogens, match, component))
+                results.append(_hydrogen_cited(mol, acyl, _fast_anion(mol, graph, carbon_graph, halogens, match, component)))
                 continue
             except UnsupportedStructure:
                 pass
-        results.append(_general_anion(mol, graph, match, component))
+        results.append(_hydrogen_cited(mol, acyl, _general_anion(mol, graph, match, component)))
     return results
+
+
+def _hydrogen_cited(mol, acyl, anion):
+    """P-65.6.2.3.2: a carbonic acid residue that keeps its hydroxy group is cited as 'hydrogen carbonate'."""
+    free = any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1
+        and mol.GetBondBetweenAtoms(acyl.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        for n in acyl.GetNeighbors()
+    )
+    name, substituted = anion
+    return ("hydrogen " + name, True) if free else (name, substituted)
 
 
 def _enclose(name):
