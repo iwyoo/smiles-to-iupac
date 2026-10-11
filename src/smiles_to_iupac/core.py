@@ -434,7 +434,7 @@ _METHYLBENZENES = {"Cc1ccccc1": "toluene", "Cc1ccccc1C": "1,2-xylene", "Cc1cccc(
 _ADAMANTANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
 
 
-_CUBANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)pentacyclo\[4\.2\.0\.0\^2,5\.0\^3,8\.0\^4,7\]octan(?=e|-)")
+_CUBANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)pentacyclo\[4\.2\.0\.0\^2,5\.0\^3,8\.0\^4,7\]octan(?=[a-z-])")
 
 
 _INDACENE_PREFIX = re.compile(r"([a-z\]\)])(as-indacen|(?<!a)s-indacen)")

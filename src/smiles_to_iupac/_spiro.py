@@ -30,6 +30,7 @@ Fused, bridged, and polyspiro ring systems are out of scope for this module
 and raise UnsupportedStructure.
 """
 
+from ._locant_omission import omits_all_locants
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -72,7 +73,7 @@ def _walk_ring_from_spiro(graph, ring_set, spiro, start):
         previous, current = current, next_atom
 
 
-def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix=""):
+def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix="", omits=None):
     """`heteroatom_locant`: shared with `_spiro_heteroatom.py`'s skeletal
     replacement-heteroatom case. `suffix_locant`: the analogous rank for a
     characteristic-group suffix (e.g. a monospiro alcohol's -OH,
@@ -81,7 +82,7 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
     never coexist here."""
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    prefix = format_substituent_prefixes(grouped, omit_all=bool(omits and omits(grouped))) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"
     name = prefix + nondetachable_prefix + parent
@@ -140,7 +141,7 @@ def name_monospiro(mol, spiro_atom) -> str:
     best_order = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol)
-        key = _candidate_key(parent, substituents)
+        key = _candidate_key(parent, substituents, omits=lambda grouped, order=full_order: omits_all_locants(mol, order, grouped))
         if best_key is None or key < best_key:
             best_key, best_name, best_order = key, key[-1], full_order
 

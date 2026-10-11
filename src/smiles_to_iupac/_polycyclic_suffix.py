@@ -19,6 +19,7 @@ Lives in its own module rather than `_common.py` because `_bicyclic.py`/
 them back from there would be circular.
 """
 
+from ._locant_omission import omits_group_locants
 from ._bicyclic import (
     _candidate_key as _bicyclic_candidate_key,
     bicyclic_parent_name,
@@ -51,7 +52,7 @@ def von_baeyer_core_atoms(bicyclic_core, polycyclic_core):
     return set(branch_atoms) | {atom for _, _, path in bridges for atom in path}
 
 
-def _suffixed_parent(base_parent, locant, suffix_word, elide_e):
+def _suffixed_parent(base_parent, locant, suffix_word, elide_e, omit_locant=False):
     """P-16.3.3: the parent stem's final 'e' is elided before a
     vowel-initial suffix ('heptane' + '-2-ol' -> 'heptan-2-ol') but kept
     before a consonant-initial one ('heptane' + '-2-thiol' ->
@@ -60,6 +61,8 @@ def _suffixed_parent(base_parent, locant, suffix_word, elide_e):
     defaults to True (`-ol`/`-amine`/`-one`, every suffix piloted so far)
     so existing callers are unaffected."""
     stem = base_parent[:-1] if elide_e else base_parent
+    if omit_locant:
+        return stem + suffix_word
     return stem + f"-{locant}-{suffix_word}"
 
 
@@ -72,7 +75,7 @@ def _validate_bond_orders(bonds):
         )
 
 
-def _suffixed_parent_and_key(base_parent, locant, suffix_word, elide_e, bonds, full_order):
+def _suffixed_parent_and_key(base_parent, locant, suffix_word, elide_e, bonds, full_order, omit_locant=False):
     """Builds the suffixed parent name and its `_candidate_key` tie-break
     slot, composing ring unsaturation (P-31.1.4.1/.2) with the suffix
     locant when `bonds` is given (#1081, M6 step 1) -- mirrors
@@ -86,7 +89,7 @@ def _suffixed_parent_and_key(base_parent, locant, suffix_word, elide_e, bonds, f
     name ending in '...ane' (`bicyclic_parent_name`'s or `iter_polycyclic_
     candidates`'s own output)."""
     if not bonds:
-        return _suffixed_parent(base_parent, locant, suffix_word, elide_e), locant
+        return _suffixed_parent(base_parent, locant, suffix_word, elide_e, omit_locant), locant
 
     position = {atom: i + 1 for i, atom in enumerate(full_order)}
     ene_citations, yne_citations, compound_count, primary_locants, full_locants = (
@@ -164,7 +167,9 @@ def name_von_baeyer_suffix(
         for full_order in iter_bicyclic_numberings(bicyclic_core):
             locant = full_order.index(suffix_carbon) + 1
             substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-            parent, suffix_key = _suffixed_parent_and_key(base_parent, locant, suffix_word, elide_e, bonds, full_order)
+            parent, suffix_key = _suffixed_parent_and_key(
+                base_parent, locant, suffix_word, elide_e, bonds, full_order, omits_group_locants(mol, full_order, 1)
+            )
             key = _bicyclic_candidate_key(parent, substituents, suffix_locant=suffix_key)
             if best_key is None or key < best_key:
                 best_key, best_order = key, full_order
@@ -173,7 +178,9 @@ def name_von_baeyer_suffix(
     for full_order, parent, outer_key in iter_polycyclic_candidates(polycyclic_core, ring_count):
         locant = full_order.index(suffix_carbon) + 1
         substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-        suffixed_parent, suffix_key = _suffixed_parent_and_key(parent, locant, suffix_word, elide_e, bonds, full_order)
+        suffixed_parent, suffix_key = _suffixed_parent_and_key(
+            parent, locant, suffix_word, elide_e, bonds, full_order, omits_group_locants(mol, full_order, 1)
+        )
         key = outer_key + _polycyclic_candidate_key(suffixed_parent, substituents, suffix_locant=suffix_key)
         if best_key is None or key < best_key:
             best_key, best_order = key, full_order
@@ -218,7 +225,7 @@ def name_monospiro_suffix(
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
         locant = full_order.index(suffix_carbon) + 1
         substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-        suffixed_parent = _suffixed_parent(parent, locant, suffix_word, elide_e)
+        suffixed_parent = _suffixed_parent(parent, locant, suffix_word, elide_e, omits_group_locants(mol, full_order, 1))
         key = _spiro_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
         if best_key is None or key < best_key:
             best_key, best_order = key, full_order
