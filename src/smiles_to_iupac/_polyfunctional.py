@@ -5,6 +5,7 @@ other group, ring or branch is cited as a substituent prefix through
 group on a ring is not handled here.
 """
 
+import contextlib
 import contextvars
 import itertools
 from types import MappingProxyType
@@ -3741,7 +3742,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             n_names = [(name, compound, ("N", mapped)) for name, compound in n_names]
         unlabelled = ISOTOPE_LABELS.set(None)
         try:
-            result = _select(parent, None, n_names)
+            with _renumbered_branch_stereo(sorted(set(arms[c]) | {n_idx})):
+                result = _select(parent, None, n_names)
         finally:
             ISOTOPE_LABELS.reset(unlabelled)
         if primaries and (mapped not in result[2][4] or any(name not in result[1] for name, *_ in n_names)):
@@ -3787,11 +3789,12 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             sub_context = {"labels": parent_labels, "consumed": set(), "mol": parent}
             sub_token = ISOTOPE_LABELS.set(sub_context)
             try:
-                selected = _select(parent, None, n_names)
-                name = _with_labels(
-                    parent, parent_labels, sub_context["consumed"], selected[1], selected[2],
-                    lambda: _select(parent, None, n_names)[1:],
-                )
+                with _renumbered_branch_stereo(keep):
+                    selected = _select(parent, None, n_names)
+                    name = _with_labels(
+                        parent, parent_labels, sub_context["consumed"], selected[1], selected[2],
+                        lambda: _select(parent, None, n_names)[1:],
+                    )
             finally:
                 ISOTOPE_LABELS.reset(sub_token)
             context["consumed"].update(a for a in context["labels"] if a in new_index)
@@ -3867,7 +3870,8 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
             name, compound = name_branch(graph, arm, i, halogens, aromatic_atoms, mol=mol, unsaturated=True)
             n_names.append((name, compound, ("N", mapped[position])))
     try:
-        result = _select(parent, None, n_names)
+        with _renumbered_branch_stereo(keep):
+            result = _select(parent, None, n_names)
     except UnsupportedStructure:
         return None
     if any(m not in result[2][4] for m in mapped.values()) or any(name not in result[1] for name, *_ in n_names):
@@ -3917,7 +3921,8 @@ def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, rin
             parent, mapped = _amine_parent_molecule(mol, arm, c, n_idx)
             token = SUBSTITUTED_AMINE_PREFIX.set(True)
             try:
-                result = _select(parent, None, n_names)
+                with _renumbered_branch_stereo(sorted(arm | {n_idx})):
+                    result = _select(parent, None, n_names)
             except UnsupportedStructure:
                 continue
             finally:
@@ -3989,12 +3994,40 @@ def _boranyl_amines(mol, graph, halogens, aromatic_atoms):
     for a in parent.GetAtoms():
         a.SetAtomMapNum(0)
     tagged = [(name, compound, ("N", mapped[number])) for name, compound, number in n_names]
-    result = _select(parent, None, tagged)
+    with _renumbered_branch_stereo(kept):
+        result = _select(parent, None, tagged)
     positions = result[2][4]
     if isinstance(positions, dict) and positions:
         positions = {kept[new]: locant for new, locant in positions.items() if new < len(kept)}
         return result[0], result[1], (*result[2][:4], positions, *result[2][5:])
     return result
+
+
+@contextlib.contextmanager
+def _renumbered_branch_stereo(kept):
+    """The stereo elements cited inside substituents, renumbered for the molecule made of the sorted atoms `kept`
+    (as `_amine_parent_molecule` renumbers them); what is cited there counts as cited in the whole molecule."""
+    from ._substituents import BRANCH_STEREO
+
+    outer = BRANCH_STEREO.get()
+    if not outer:
+        yield
+        return
+    new_of = {old: new for new, old in enumerate(kept)}
+    old_of = {new: old for old, new in new_of.items()}
+    inner = {
+        **outer,
+        "atoms": {new_of[a]: code for a, code in outer["atoms"].items() if a in new_of},
+        "bonds": {(new_of[a], new_of[b]): code for (a, b), code in outer["bonds"].items() if a in new_of and b in new_of},
+        "used": set(),
+    }
+    token = BRANCH_STEREO.set(inner)
+    try:
+        yield
+    finally:
+        BRANCH_STEREO.reset(token)
+        for kind, where in inner["used"]:
+            outer["used"].add((kind, old_of[where] if kind == "atom" else tuple(old_of[w] for w in where)))
 
 
 def _amine_parent_molecule(mol, atoms, carbon, n_idx):
