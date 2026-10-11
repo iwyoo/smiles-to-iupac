@@ -4,7 +4,7 @@ may carry single-bonded carbon substituents ('dimethyl-λ4-sulfane')."""
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, multiplied_word
 from ._hetero_prefixes import AMINE_PATTERN
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
@@ -164,10 +164,10 @@ def name_nonstandard_hydride(mol) -> str:
     prefixes = f"{format_mononuclear_prefixes(entries)}-" if entries else ""
     suffix = ""
     if hydroxyls:
-        suffix = {1: "ol", 2: "diol", 3: "triol"}[len(hydroxyls)]
+        suffix = multiplied_word(len(hydroxyls), "ol")
         stem = stem[:-1] if len(hydroxyls) == 1 else stem
     elif amines:
-        suffix = {1: "amine", 2: "diamine", 3: "triamine"}[len(amines)]
+        suffix = multiplied_word(len(amines), "amine")
         stem = stem[:-1] if len(amines) == 1 else stem
     return f"{_polyhedral_prefix(mol, center)}{prefixes}λ{center.GetTotalValence()}-{stem}{suffix}"
 
