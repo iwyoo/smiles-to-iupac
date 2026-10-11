@@ -30,8 +30,8 @@ def fullerene_component(mol, comp, spiro_atoms):
         homo = {x for x, _ in reading.found.edit.homo_atoms}
         if not bare <= ring_atoms | homo:
             return None
-        hydro, indicated, _ = reading.render(reading.found.numbering, reading.found.edit)
-        if hydro or indicated:
+        hydro, indicated, _, substituents = reading.render(reading.found.numbering, reading.found.edit)
+        if hydro or indicated or substituents:
             return None
         text = reading.text()
         locants = reading.locants()

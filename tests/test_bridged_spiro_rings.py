@@ -1272,6 +1272,10 @@ _CYCLOPROPANE, _OXIRENE, _DIOXOLE = "C1[Xe:1][Xe:2]1", "O1[Xe:1][Xe:2]1", "C1O[X
             "2H,3′H-cyclopropa[7,8]-1-nor(C60-Ih)[5,6]fullerene",
             id="indicated_hydrogen_of_the_cage_and_of_the_ring",
         ),
+        # P-27.6.1, P-31.1.4.2.4: substituents of a fused ring carry its primed locants; a substituted sp3 position still cites its hydrogen
+        pytest.param({"attached": [((1, 9), "C1(C)[Xe:1][Xe:2]1")]}, "3′-methyl-3′H-cyclopropa[1,9](C60-Ih)[5,6]fullerene", id="substituent_on_a_hydrocarbon_ring"),
+        pytest.param({"attached": [((1, 9), "CC1(C)O[Xe:1][Xe:2]O1")]}, "2′,2′-dimethyl-2′H-[1,3]dioxolo[4′,5′:1,9](C60-Ih)[5,6]fullerene", id="two_substituents_on_one_position"),
+        pytest.param({"attached": [((1, 9), "ClC1=CS[Xe:2][Xe:1]1")]}, "4′-chlorothieno[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="lowest_locant_among_the_numberings_of_the_ring"),
     ],
 )
 def test_fullerenes_with_fused_rings(operations, expected):
@@ -1347,8 +1351,3 @@ def test_spiro_atom_of_a_fused_ring_with_other_saturated_positions_is_not_named(
 def test_bridge_with_a_substituent_is_not_named():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, attached=[((1, 7), "[Xe:1]C(Cl)C[Xe:2]")]))
-
-
-def test_fused_ring_with_a_substituent_is_not_named():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, attached=[((1, 9), "C1(C)[Xe:1][Xe:2]1")]))
