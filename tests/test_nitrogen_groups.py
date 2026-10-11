@@ -169,6 +169,8 @@ def test_nitrogen_multiplicative_amines(smiles, expected):
         ("Brc1cc(Cl)ccc1Nc1ccc(Br)cc1Br", "2-bromo-4-chloro-N-(2,4-dibromophenyl)aniline"),
         ("Brc1ccc(N(C)c2ccc(Cl)cc2Br)c(Br)c1", "2-bromo-4-chloro-N-(2,4-dibromophenyl)-N-methylaniline"),
         ("Brc1ccc(Cl)cc1Nc1ccc(Br)cc1Br", "2,4-dibromo-N-(2-bromo-5-chlorophenyl)aniline"),
+        ("CCN(CC)C1=NCCN1", "N,N-diethyl-4,5-dihydro-1H-imidazol-2-amine"),
+        ("ONC1=NCCCO1", "N-hydroxy-5,6-dihydro-4H-1,3-oxazin-2-amine"),
     ],
 )
 def test_n_substituted_aniline_and_multi_ring_chain_amine(smiles, expected):

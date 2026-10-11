@@ -3824,7 +3824,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         mol.GetBondBetweenAtoms(n_idx, c).GetBondTypeAsDouble() != 1.0
         or (
             mol.GetAtomWithIdx(c).GetAtomicNum() == 6
-            and (_double_oxygens(mol, c) or is_functional_carbon(mol, c))
+            and (_double_oxygens(mol, c) or (is_functional_carbon(mol, c) and not mol.GetAtomWithIdx(c).IsInRing()))
         )
         for c in neighbors
     ):
