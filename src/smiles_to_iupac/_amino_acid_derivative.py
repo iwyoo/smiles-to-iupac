@@ -10,12 +10,14 @@ from ._amino_acid_retained import has_retained_amino_acid_shape, name_retained_a
 from ._amino_acid import SYSTEMATIC_ACID_PROBE, _match, has_amino_acid_shape as _has_plain, name_amino_acid as _name_plain
 from ._histidine import has_histidine_shape, name_histidine
 from ._cited_group import cited_group, subtree
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key
+from ._common import HALIDE_WORDS, UnsupportedStructure, adjacency, alpha_sort_key
 from ._multiplicative_text import enclose
+from ._peptide import acyl_word
 
 _TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
 _ESTER = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2;!R]([#6])")
+_ACYL_HALIDE = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[F,Cl,Br,I]")
 
 
 def _anion_stem(plain):
@@ -101,7 +103,30 @@ def _ester_words(groups, locants, anion):
     return f"{' '.join(parts)} {anion}"
 
 
+def _acyl_halide_name(mol):
+    """'glycyl chloride', 'L-alanyl bromide': the acyl group of the amino acid named with its halide as a separate word
+    (P-65.5.1, P-103.2.5); the acid is the molecule with the halogen turned into a hydroxy group."""
+    matches = mol.GetSubstructMatches(_ACYL_HALIDE)
+    if len(matches) != 1 or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    halogen = matches[0][2]
+    editable = Chem.RWMol(mol)
+    editable.GetAtomWithIdx(halogen).SetAtomicNum(8)
+    acid = editable.GetMol()
+    try:
+        Chem.SanitizeMol(acid)
+        if not _has_plain(acid) or _match(acid)[0] in _DIACID_SIDE_LOCANT:
+            return None
+        word = acyl_word(_name_plain(acid), xi=False)
+    except UnsupportedStructure:
+        return None
+    return f"{word} {HALIDE_WORDS[mol.GetAtomWithIdx(halogen).GetAtomicNum()]}" if word else None
+
+
 def _derivative_name(mol):
+    halide = _acyl_halide_name(mol)
+    if halide is not None:
+        return halide
     neutral = _neutralize(mol)
     if neutral is None:
         return None
