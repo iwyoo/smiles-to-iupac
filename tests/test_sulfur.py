@@ -906,6 +906,18 @@ def test_lambda_centres_are_prefixes_or_linkers_beside_senior_groups(smiles, exp
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("CP(O)(O)(O)O", "methyl-λ5-phosphanetetrol", id="hydroxy_groups_beyond_three"),
+        pytest.param("O[Te](O)(O)(O)(O)O", "λ6-tellanehexol", id="final_a_of_the_prefix_elided_before_ol"),
+        pytest.param("NS(N)(N)(N)N", "λ6-sulfanepentamine", id="amino_groups_beyond_three"),
+    ],
+)
+def test_lambda_hydrides_with_many_principal_groups_multiply_the_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("OS(=O)(=O)OCCO", "2-hydroxyethyl hydrogen sulfate", id="sulfate_beside_alcohol"),
         pytest.param("COS(=O)(=O)OCCO", "2-hydroxyethyl methyl sulfate", id="mixed_sulfate_beside_alcohol"),
         pytest.param("OS(=O)OCC(=O)C", "2-oxopropyl hydrogen sulfite", id="sulfite_beside_ketone"),
