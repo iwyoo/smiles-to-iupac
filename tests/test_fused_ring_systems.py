@@ -553,6 +553,30 @@ def test_fusion_names_of_a_parent_component_with_attached_rings(smiles, expected
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param(
+            "C1=Cc2cc3cc4ccccc4cc3c3c2=C1C=3",
+            "cyclobuta[1,7]indeno[5,6-b]naphthalene",
+            id="peri_fused_second_order_ring_takes_the_lower_locants_not_the_lower_letters",
+        ),
+        pytest.param(
+            "C1=Cc2cc3cc4cc5cccnc5cc4cc3c3c2=C1C=3",
+            "10-azacyclobuta[1,7]indeno[5,6-b]anthracene",
+            id="heteroparent_whose_senior_first_order_component_cannot_be_completed_takes_skeletal_replacement",
+        ),
+        pytest.param(
+            "c1ccc2cc3c(cc2c1)-c1ncccc1C3",
+            "5H-benzo[5,6]indeno[1,2-b]pyridine",
+            id="first_order_component_that_can_be_completed_keeps_the_heteroparent",
+        ),
+    ],
+)
+def test_nested_fusion_locants_and_the_senior_first_order_component(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("OC(=O)CC1C=CC=Cc2ccccc12", "(5H-benzo[7]annulen-5-yl)acetic acid"),
         ("OC(=O)CC1C=Cc2ccccc2-c2ccccc12", "(5H-dibenzo[a,c][7]annulen-5-yl)acetic acid"),
         ("OC(=O)CC1C=CC2=C1C=CC1=C2C=Cc2ccccc21", "(17H-cyclopenta[a]phenanthren-17-yl)acetic acid"),

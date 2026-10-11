@@ -145,6 +145,22 @@ def _signature(part):
 _BENZOAZOLES = {"indole", "isoindole", "indazole"}
 
 
+def _first_order_outranked(ctx, parts):
+    """P-25.3.4.2.2 (a), P-25.5.2: the first-order attached component is the senior ring system that can be fused at its
+    place, so a location of the parent whose senior alternative cannot be completed gives no fusion name."""
+    anchored = {id(p) for p in parts if p.role != "attached"}
+    held = set().union(*[p.rings for p in parts if id(p) in anchored])
+    for part in parts:
+        if part.role != "attached" or part.parent is None or id(part.parent) not in anchored:
+            continue
+        for subset in ctx.subsets:
+            if part.rings < subset and not subset & held and any(
+                q.comp.senior_key < part.comp.senior_key for q in ctx.parts_for(subset)
+            ):
+                return True
+    return False
+
+
 def _valid_decomposition(ctx, parts, retained_sets):
     """P-25.3.5: retained components are never broken up by weaker ones, and an isolated benzene ring fused to a
     heteromonocycle of five or more members belongs to a benzoheterocycle unit, unless that would break up a multiplicative
@@ -156,6 +172,8 @@ def _valid_decomposition(ctx, parts, retained_sets):
         owners = {id(part_of[r]): part_of[r] for r in ring_set}
         if len(owners) > 1 and all(weak(p) or p.rings <= ring_set for p in owners.values()):
             return False
+    if _first_order_outranked(ctx, parts):
+        return False
     elements = lambda r: {sk.GetAtomWithIdx(a).GetSymbol() for a in fs.rings[r]}
     isolated = lambda r: len(fs.rings[r]) == 6 and elements(r) == {"C"} and weak(part_of[r])
     benzene = {r for r in range(ctx.n) if isolated(r)}
@@ -332,6 +350,15 @@ def _locant_cited(child, path, child_numbering):
     return locants
 
 
+def _nested_locants(path, numbering, symmetric):
+    """Locants of the lower-order component on which a higher-order one is fused; a hydrocarbon monocycle has no
+    direction of its own, so they are cited in the lower order (P-25.3.1.3, P-25.3.4.2.4 (e))."""
+    cited = _locant_cited(None, path, numbering)
+    if symmetric:
+        cited = min(cited, cited[::-1], key=lambda ls: [_locant_key(l) for l in ls])
+    return cited
+
+
 def _prime_letters(letters, count):
     return "".join(c + chr(39) * count for c in letters) if count else letters
 
@@ -381,10 +408,7 @@ def _render_group(ctx, members, parent_primes, is_root):
             else:
                 descriptors.append((",".join(_prime(l, own_primes) for l in cited) + "-" + letters, "complete"))
         else:
-            parent_loc = [src_numbering[a] for a in path]
-            if len(path) > 2:
-                parent_loc = [l for l in parent_loc if l.isdigit()]
-            plocs = ",".join(_prime(l, parent_primes) for l in parent_loc)
+            plocs = ",".join(_prime(l, parent_primes) for l in _nested_locants(path, src_numbering, omit_own))
             if omit_own:
                 descriptors.append((plocs, "abbrev"))
             else:
@@ -411,6 +435,9 @@ def _render_group(ctx, members, parent_primes, is_root):
     else:
         text = subtext + prefix_core + f"[{joined}]"
     rank = tuple((m[3][0], m[3][1], m[3][2]) for m in best_per_member)
+    where = tuple(tuple(m[2]) for m in best_per_member)
+    if not is_root:
+        where = tuple(tuple(_locant_key(l) for l in _nested_locants(m[1], m[6], omit_own)) for m in best_per_member)
     citation = re.sub(r"\[[^\]]*\]|[()]", "", subtext + prefix_core).lower()
     return [
         {
@@ -418,7 +445,7 @@ def _render_group(ctx, members, parent_primes, is_root):
             "name": citation,
             "hetero": first.comp.hetero_text,
             "order_key": rank[0],
-            "rank": (tuple(tuple(m[2]) for m in best_per_member), tuple(m[4] for m in best_per_member), rank),
+            "rank": (where, tuple(m[4] for m in best_per_member), rank),
         }
     ]
 
@@ -779,10 +806,13 @@ def _fusion_name_keyed(mol):
             if part.comp.kind in ("mono", "hydro", "hetero"):
                 roots.append(part)
     roots.sort(key=lambda p: p.comp.senior_key)
+    has_hetero = any(a.GetSymbol() != "C" for a in mol.GetAtoms())
     index = 0
     while index < len(roots):
         group = [r for r in roots[index:] if r.comp.senior_key == roots[index].comp.senior_key]
         index += len(group)
+        if has_hetero and all(e == "C" for e in group[0].comp.elements):
+            continue
         extended = [d for d in _extended_decompositions(ctx, group) if _valid_decomposition(ctx, d, retained_sets)]
         scored_ext = []
         for parts in extended:
