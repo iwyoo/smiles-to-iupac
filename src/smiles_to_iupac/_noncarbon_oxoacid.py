@@ -112,13 +112,20 @@ def _plain_tree(mol, graph, root, behind):
 
 
 def _carbon_substituents(mol, graph, halogens, atom, skip):
-    """[(name, compound)] of the carbon groups on `atom` outside `skip`, or None when another atom is bonded."""
+    """[(name, compound)] of the carbon groups and the hydroxy or alkoxy groups on `atom` outside `skip`, or None when
+    another atom is bonded."""
     found = []
     for n in graph[atom.GetIdx()]:
         if n in skip:
             continue
         neighbor = mol.GetAtomWithIdx(n)
-        if neighbor.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(atom.GetIdx(), n).GetBondTypeAsDouble() != 1.0:
+        if mol.GetBondBetweenAtoms(atom.GetIdx(), n).GetBondTypeAsDouble() != 1.0:
+            return None
+        if neighbor.GetAtomicNum() == 8 and neighbor.GetDegree() == 1 and neighbor.GetTotalNumHs() == 1 and not neighbor.GetIsotope():
+            found.append(("hydroxy", False))
+            continue
+        carbon = neighbor.GetAtomicNum() == 6
+        if not carbon and not (neighbor.GetAtomicNum() == 8 and neighbor.GetDegree() == 2 and not neighbor.IsInRing()):
             return None
         if not _plain_tree(mol, graph, n, atom.GetIdx()):
             return None
@@ -552,7 +559,8 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
             amide = [g for g in groups if g["kind"] == "amide"]
             prefix = _substituent_prefix(dict(parts, centre_entries=[]), amide) if n_substituted and amide else ""
             return prefix + acyl
-    prefix = _substituent_prefix(parts, groups if n_substituted else [])
+    imido = any(g["kind"] == "imide" for g in groups)
+    prefix = _substituent_prefix(parts, groups if n_substituted or imido else [])
     only_amide_modifies = acidic and z in _PENTAVALENT_STEMS and all(p["kind"] == "amide" or (p["kind"] == "chalcogen" and p["z"] == 8) for p in (*ylidenes, *singles))
     if n_substituted and not parts["centre_entries"] and (len(groups) > 1 or only_amide_modifies):
         prefix = _complete_substitution_prefix(groups) or prefix

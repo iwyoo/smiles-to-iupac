@@ -481,6 +481,8 @@ def test_stereogenic_thiophosphinic_acid_is_not_named_without_its_descriptor():
         ("ClP(=Nc1ccccc1)(S)c1ccccc1", "N,P-diphenylphosphonochloridimidothioic acid"),
         ("CNP(=S)(O)c1ccccc1", "N-methyl-P-phenylphosphonamidothioic O-acid"),
         ("CN=P(O)(c1ccccc1)c1ccccc1", "N-methyl-P,P-diphenylphosphinimidic acid"),
+        ("COP(C)(C)=N", "methyl P,P-dimethylphosphinimidate"),
+        ("COP(C)(C)=NO", "methyl N-hydroxy-P,P-dimethylphosphinimidate"),
         ("NNP(=N)(O)O", "phosphorohydrazidimidic acid"),
         ("OP(=O)(O)OS", "phosphoro(thioperoxoic) OS-acid"),
         ("CCP(=[Se])(O)O", "ethylphosphonoselenoic O,O-acid"),
