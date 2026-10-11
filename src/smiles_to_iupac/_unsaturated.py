@@ -227,7 +227,10 @@ def name_acyclic_unsaturated(mol) -> str:
 
     stereo = specified_double_bond_stereo(mol)
     if stereo is not None:
-        ene_bond_count = sum(1 for _, _, order in bonds if order == _ENE_ORDER)
+        ene_ends = [atom for a, b, order in bonds if order == _ENE_ORDER for atom in (a, b)]
+        ene_bond_count = sum(
+            1 for a, b, order in bonds if order == _ENE_ORDER and ene_ends.count(a) == 1 and ene_ends.count(b) == 1
+        )
         if len(stereo) != ene_bond_count:
             raise UnsupportedStructure(
                 "a non-stereogenic or unspecified double bond alongside one "
