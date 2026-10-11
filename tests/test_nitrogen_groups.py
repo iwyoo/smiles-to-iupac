@@ -181,6 +181,7 @@ def test_n_substituted_aniline_and_multi_ring_chain_amine(smiles, expected):
     "smiles, expected",
     [
         pytest.param("NC=CC", "prop-1-en-1-amine", id="enamine"),
+        pytest.param("CC(N)=CC(C)=NC", "4-(methylimino)pent-2-en-2-amine", id="enamine_outranks_an_imine_cited_as_a_prefix"),
         pytest.param("C/C=C\\N(/C=C\\C)C(C)(C)C", "2-methyl-N,N-bis[(1Z)-prop-1-en-1-yl]propan-2-amine", id="stereodefined_substituents_outside_the_parent_arm"),
         pytest.param("C=C(C)N(/C=C/N)CC(C)C", "(1E)-N1-(2-methylpropyl)-N1-(prop-1-en-2-yl)eth-1-ene-1,2-diamine", id="stereodefined_bond_inside_the_parent_arm"),
         pytest.param("NC1(CCCCC1)[C@@H](C)CC", "1-[(2S)-butan-2-yl]cyclohexan-1-amine", id="cyclic_amine_branch_stereocenter"),
