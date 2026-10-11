@@ -463,6 +463,9 @@ def test_smiles_to_iupac_unsaturated(smiles, expected):
     "smiles,expected",
     [
         ("C/C=C/C", "(2E)-but-2-ene"),
+        pytest.param("C/C=C/CC#C", "(4E)-hex-4-en-1-yne", id="enyne_numbered_from_the_triple_bond"),
+        pytest.param("CC#C/C=C\\CC", "(4Z)-hept-4-en-2-yne", id="enyne_double_bond_next_to_the_triple_bond"),
+        pytest.param("C#C/C=C/C=C\\C", "(3E,5Z)-hepta-3,5-dien-1-yne", id="dienyne_cites_every_double_bond"),
     ],
 )
 def test_smiles_to_iupac_ez_double_bond(smiles, expected):
@@ -472,7 +475,6 @@ def test_smiles_to_iupac_ez_double_bond(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("C/C=C/CC#C", id="specified_double_bond_with_triple_bond_raises"),
         pytest.param("C/C=C/C=CC", id="partially_specified_diene_raises"),
     ],
 )

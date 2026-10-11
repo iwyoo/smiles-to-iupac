@@ -77,11 +77,11 @@ Unsaturation in a ring is out of scope and raises `UnsupportedStructure`.
   stereocenter to many: two or more C=C double bonds, *all*
   specified, are cited together in one parenthesized group, ascending
   locant order, e.g. "(2E,4E)-hexa-2,4-diene", "(2Z,4E)-hexa-2,4-diene"
-  (both confirmed via PubChem PUG REST). A specified double bond alongside a
-  triple bond, a partially-specified set of double bonds (some with a
-  slash marker, some left as a plain double bond), or a tetrahedral
-  stereocenter is out of scope and raises `UnsupportedStructure`
-  explicitly.
+  (both confirmed via PubChem PUG REST). A triple bond does not change the
+  citation: only the double bonds carry descriptors ('(3E)-hept-3-en-1-yne').
+  A partially-specified set of double bonds (some with a slash marker, some
+  left as a plain double bond) or a tetrahedral stereocenter is out of scope
+  and raises `UnsupportedStructure` explicitly.
 """
 
 from ._common import (
@@ -227,11 +227,6 @@ def name_acyclic_unsaturated(mol) -> str:
 
     stereo = specified_double_bond_stereo(mol)
     if stereo is not None:
-        if any(order == _YNE_ORDER for _, _, order in bonds):
-            raise UnsupportedStructure(
-                "a specified double-bond E/Z stereo element combined with a "
-                "triple bond is not supported yet (see P-93)"
-            )
         ene_bond_count = sum(1 for _, _, order in bonds if order == _ENE_ORDER)
         if len(stereo) != ene_bond_count:
             raise UnsupportedStructure(
