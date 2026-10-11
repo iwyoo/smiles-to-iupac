@@ -191,12 +191,15 @@ def _bridged_parent_key(mol, atoms, parent):
     fused = frozenset(atoms) - parent.bridge_atoms
     locant = {a: _locant_key(str(loc)) for a, loc in parent.position_of.items()}
     parts = parent.parts
+    dependent_atoms = frozenset().union(*(p.atoms for p in parts if not p.independent))
     attachments = [
         sorted(
             locant[n.GetIdx()]
             for a in part.atoms
             for n in mol.GetAtomWithIdx(a).GetNeighbors()
-            if n.GetIdx() not in part.atoms and n.GetIdx() in locant
+            if n.GetIdx() not in part.atoms
+            and n.GetIdx() in locant
+            and not (part.independent and n.GetIdx() in dependent_atoms)
         )
         for part in parts
     ]

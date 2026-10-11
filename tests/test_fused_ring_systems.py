@@ -875,6 +875,11 @@ def test_senior_ring_by_the_general_and_fused_criteria(senior, junior):
             id="fewer_atoms_in_dependent_bridges",
         ),
         pytest.param(
+            "C1CCC2NC3CCC4CC(C1)CCC1CCC5CC2C(CCC3C4)CC5C1",
+            "C1CC2CCC3CCC4CC5C(CCC6CC(CC2)CCC6NC5C1)CC4C3",
+            id="fewer_atoms_in_dependent_bridges_with_equal_attachment_locants",
+        ),
+        pytest.param(
             "C1=CC2C=C3CC4=C(C=C13)C1Cc3ccccc3NC4CCCC(C2)C1",
             "C1=CC2C=C3C=C4C5Cc6ccccc6NC(CCCC(C2)C5)C4C=C13",
             id="lower_locants_of_independent_bridges",
