@@ -82,9 +82,33 @@ def omits_all_locants(mol, parent, grouped, suffix_atoms=(), single_kind=True, f
         return True
     if not single_kind:
         return False
+    slots, ranks = _hydrogen_slots(mol, parent, suffix_atoms)
+    if len(slots) == 1:
+        return mol.GetAtomWithIdx(slots[0]).GetAtomicNum() == 6
+    return len(branches) == 1 and len({ranks[p] for p in slots}) == 1
+
+
+def omits_group_locants(mol, parent, count):
+    """True when the `count` identical principal groups, the only groups on `parent`, need no locant: a sole group on a
+    parent with one kind of substitutable hydrogen (P-14.3.4.3) or groups on every substitutable position (P-14.3.4.5)."""
+    if mol is None or CITE_SUBSTITUENT_LOCANTS.get():
+        return False
+    parent = set(parent)
+    branches = _branches(mol, parent, frozenset())
+    if len(branches) != count or any(mol.GetBondBetweenAtoms(*b).GetBondTypeAsDouble() != 1.0 for b in branches):
+        return False
+    if any(b.GetBondTypeAsDouble() > 1.0 and not b.GetIsAromatic() for b in mol.GetBonds() if {b.GetBeginAtomIdx(), b.GetEndAtomIdx()} <= parent):
+        return False
+    if count > 1:
+        return not any(mol.GetAtomWithIdx(p).GetTotalNumHs() for p in parent)
+    slots, ranks = _hydrogen_slots(mol, parent, frozenset())
+    return len({ranks[p] for p in slots}) == 1 and (len(slots) > 1 or mol.GetAtomWithIdx(slots[0]).GetAtomicNum() == 6)
+
+
+def _hydrogen_slots(mol, parent, suffix_atoms):
     resolved = _hydride_ranks(mol, parent, suffix_atoms)
     if resolved is None:
-        return False
+        return [], {}
     ranks, fragment, order = resolved
     slots = [
         p
@@ -93,6 +117,4 @@ def omits_all_locants(mol, parent, grouped, suffix_atoms=(), single_kind=True, f
         and fragment.GetAtomWithIdx(i).GetTotalNumHs()
         and _is_substitutable(mol, mol.GetAtomWithIdx(p), suffix_atoms)
     ]
-    if len(slots) == 1:
-        return mol.GetAtomWithIdx(slots[0]).GetAtomicNum() == 6
-    return len(branches) == 1 and len({ranks[p] for p in slots}) == 1
+    return slots, ranks

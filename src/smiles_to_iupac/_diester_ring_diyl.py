@@ -336,6 +336,11 @@ def evaluate_skeleton(
         ANION_SUFFIX.reset(anion_token)
 
 
+def _cites_positions(parent):
+    """Whether the parent name has locants beyond those of its skeletal heteroatoms (hydro prefixes, indicated hydrogen)."""
+    return "hydro" in parent or any(ch.isdigit() for ch in re.sub(r"^\d+(?:,\d+)*-(?=[a-z])", "", parent))
+
+
 def _evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
     key_centers=(), n_names=(),
@@ -475,7 +480,7 @@ def _evaluate_skeleton(
         and not valence
         and not suffix
         and not n_names
-        and not any(ch.isdigit() for ch in parent)
+        and not _cites_positions(parent)
         and omits_all_locants(mol, pool, grouped)
     )
     prefixes = format_substituent_prefixes(grouped, omit_all=single_kind)

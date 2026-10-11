@@ -1034,7 +1034,7 @@ def test_non_single_bond_in_a_metal_chain_raises(smiles):
     [
         ("O1[SiH2]O[SiH2]O[SiH2]1", "1,3,5,2,4,6-trioxatrisilinane"),
         ("C1N=PN=PN1", "1,6-dihydro-1,3,5,2,4-triazadiphosphinine"),
-        ("[CH3][Bi]1[O][Bi]([CH3])[O]1", "2,4-dimethyl-1,3,2,4-dioxadibismetane"),
+        ("[CH3][Bi]1[O][Bi]([CH3])[O]1", "dimethyl-1,3,2,4-dioxadibismetane"),
     ],
 )
 def test_alternating_heteroatom_ring_cites_every_heteroatom_locant(smiles, expected):

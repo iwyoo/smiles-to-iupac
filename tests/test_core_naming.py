@@ -272,7 +272,7 @@ def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("Cc1cnccn1", "2-methylpyrazine"),  # CID 7976
+        ("Cc1cnccn1", "methylpyrazine"),  # CID 7976
         ("Cc1c(C)coc1", "3,4-dimethylfuran"),  # CID 34338
     ],
 )
@@ -651,6 +651,14 @@ def test_halogen_oxo_prefixes(smiles, expected):
         pytest.param("FN=C(C(C(F)(F)F)(F)F)N(F)F", "octafluoropropanimidamide", id="fully_substituted_imidamide"),
         pytest.param("FN(F)C(=O)C(F)(F)F", "pentafluoroacetamide", id="fully_substituted_amide"),
         pytest.param("CNC=O", "N-methylformamide", id="single_nitrogen_position_keeps_locant"),
+        pytest.param("Clc1cnccn1", "chloropyrazine", id="sole_prefix_on_symmetric_heteroarene"),
+        pytest.param("Clc1ncncn1", "chloro-1,3,5-triazine", id="sole_prefix_beside_heteroatom_locants"),
+        pytest.param("Clc1c(Cl)nc(Cl)c(Cl)n1", "tetrachloropyrazine", id="fully_substituted_heteroarene"),
+        pytest.param("Clc1ncccn1", "2-chloropyrimidine", id="asymmetric_heteroarene_keeps_locant"),
+        pytest.param("OC(=O)c1cnccn1", "pyrazinecarboxylic acid", id="sole_suffix_on_symmetric_heteroarene"),
+        pytest.param("OC(=O)c1nc(C(=O)O)c(C(=O)O)nc1C(=O)O", "pyrazinetetracarboxylic acid", id="every_heteroarene_position_carries_the_suffix"),
+        pytest.param("OC(=O)c1cc2ccc3ccc4ccc5ccc6ccc1c1c6c5c4c3c21", "coronenecarboxylic acid", id="sole_suffix_on_symmetric_fused_system"),
+        pytest.param("OC(=O)c1ncc(Cl)nc1", "5-chloropyrazine-2-carboxylic acid", id="suffix_and_prefix_keep_locants"),
         pytest.param("ClC1=C(C=CC=C1)C(C(F)(F)F)(F)F", "1-chloro-2-(pentafluoroethyl)benzene", id="fully_substituted_substituent_group"),
         pytest.param("C1(=C(C(=C(C(=C1O)O)O)O)O)O", "benzenehexol", id="every_ring_position_carries_the_suffix"),
         pytest.param("OC1C(O)C(O)C(O)C(O)C1O", "cyclohexane-1,2,3,4,5,6-hexol", id="partly_modified_ring_keeps_suffix_locants"),

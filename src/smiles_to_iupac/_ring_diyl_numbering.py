@@ -109,6 +109,7 @@ def _locant(text):
 
 
 SUFFIX_ATOMS = ContextVar("SUFFIX_ATOMS", default=frozenset())
+OMIT_SUFFIX_LOCANT = ContextVar("omit_suffix_locant", default=False)
 
 
 class Numbering:
@@ -140,7 +141,7 @@ def _yl(valence):
     return valence_word(valence)
 
 
-def _tail(stem, locants, valence, suffix="yl"):
+def _tail(stem, locants, valence, suffix="yl", omit_locant=None):
     if suffix == "carboxylate":
         return f"{stem}-{_locs(locants)}-carboxylate"
     if suffix == "":
@@ -148,6 +149,8 @@ def _tail(stem, locants, valence, suffix="yl"):
     if suffix != "yl":
         word = multiplied_word(valence, suffix)
         base = stem[:-1] if stem.endswith("e") and word[0] in "aeiouy" else stem
+        if OMIT_SUFFIX_LOCANT.get() if omit_locant is None else omit_locant:
+            return base + word
         return f"{base}-{_locs(locants)}-{word}"
     if valence == 1:
         base = stem[:-1] if stem.endswith("e") else stem
@@ -784,7 +787,7 @@ def _vb_text(parent, ene_citations, hetero_prefix="", yne_citations=()):
         if ene_citations or yne_citations:
             body, needs_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
             stem = parent[:-3] + ("a" if needs_a else "") + "-" + body
-        return _tail(hetero_prefix + stem, locants, valence, suffix)
+        return _tail(hetero_prefix + stem, locants, valence, suffix, omit_locant=False)
 
     return text
 

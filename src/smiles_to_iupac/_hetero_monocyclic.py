@@ -263,6 +263,7 @@ from ._common import (
     ring_cycle,
     substituent_locant_set_and_citation,
 )
+from ._locant_omission import omits_all_locants
 from ._substituents import format_substituent_prefixes, name_branch
 
 _SUBSTITUENT_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
@@ -614,7 +615,7 @@ def _candidate_key(grouped):
 
 
 def _match_hetero_monocyclic_substituents(mol):
-    """(parent_name, grouped, graph) for a mancude ring carrying one or more
+    """(parent_name, grouped, ring atoms) for a mancude ring carrying one or more
     substituents that matches one of `_ROLE_SEQUENCES`'s 20 parents; None if
     the molecule doesn't fit that shape at all (a second ring anywhere, a
     ring atom bearing more than one exocyclic branch, a ring size/
@@ -709,7 +710,7 @@ def _match_hetero_monocyclic_substituents(mol):
             if best_key is None or key < best_key:
                 best_key, best_grouped = key, grouped
         if best_grouped is not None:
-            return parent_name, best_grouped, graph
+            return parent_name, best_grouped, ring_set
     return None
 
 
@@ -722,8 +723,8 @@ def name_hetero_monocyclic_substituent(mol) -> str:
         raise UnsupportedStructure(
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
         )
-    parent_name, grouped, _graph = _match_hetero_monocyclic_substituents(mol)
-    prefix = format_substituent_prefixes(grouped)
+    parent_name, grouped, ring_set = _match_hetero_monocyclic_substituents(mol)
+    prefix = format_substituent_prefixes(grouped, omit_all=omits_all_locants(mol, ring_set, grouped))
     separator = "-" if parent_name[0].isdigit() else ""
     return f"{prefix}{separator}{parent_name}"
 
