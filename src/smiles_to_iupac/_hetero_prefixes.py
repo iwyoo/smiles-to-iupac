@@ -77,6 +77,7 @@ def require_plain_chalcogen_kids(mol, z, kids):
 
 
 CATION_PARENT = contextvars.ContextVar("cation_parent", default=False)
+RADICAL_PARENT = contextvars.ContextVar("radical_parent", default=False)
 
 
 def _has_senior_principal_group(mol):
@@ -89,6 +90,11 @@ def _has_senior_principal_group(mol):
         or mol.HasSubstructMatch(AMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
     )
+
+
+def _hetero_connection_is_prefix(mol):
+    """A radical parent outranks every group (P-41), so a hetero-hetero connection on it is always a prefix."""
+    return RADICAL_PARENT.get() or _has_senior_principal_group(mol)
 
 
 def _dichalcogenide_only(mol):
@@ -762,7 +768,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 return _enclose(rname, rcomp) + "peroxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
             if mol.GetAtomWithIdx(other).GetAtomicNum() == 8 or (
-                not _carbon_nitrogen_group(mol, other, root) and not _has_senior_principal_group(mol)
+                not _carbon_nitrogen_group(mol, other, root) and not _hetero_connection_is_prefix(mol)
             ):
                 raise UnsupportedStructure("this oxygen-linked group is not supported yet")
             from ._substituents import name_branch
@@ -800,7 +806,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         from ._substituents import name_branch
 
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 6:
-            if mol.GetAtomWithIdx(others[0]).GetAtomicNum() == z or not _has_senior_principal_group(mol):
+            if mol.GetAtomWithIdx(others[0]).GetAtomicNum() == z or not _hetero_connection_is_prefix(mol):
                 raise UnsupportedStructure("a chalcogen chain (disulfanyl, ...) is not supported yet")
             rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
             return _enclose(rname, rcomp) + word, True
@@ -949,7 +955,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if amido is not None:
             return amido
         if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) + tuple(MONONUCLEAR_HYDRIDES) for n in others) and not (
-            _has_senior_principal_group(mol)
+            _hetero_connection_is_prefix(mol)
         ):
             raise UnsupportedStructure("this nitrogen-linked group is not supported yet")
         if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in others):
@@ -1884,11 +1890,14 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     bonding = atom.GetTotalValence()
     if bonding > valence and ((bonding - valence) % 2 or bonding > valence + 4):
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
-    if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others) and not any(
-        mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON
+    if (
+        atom.GetAtomicNum() == 5
+        and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others)
+        and not RADICAL_PARENT.get()
+        and not any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON)
     ):
         raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
-    if atom.GetAtomicNum() == 5:
+    if atom.GetAtomicNum() == 5 and mol.GetAtomWithIdx(coming_from).GetAtomicNum() != 1:
         borono = _borono_prefix(mol, root, others)
         if borono is not None:
             return borono, borono != "borono"
