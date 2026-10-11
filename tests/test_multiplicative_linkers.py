@@ -690,6 +690,30 @@ def test_locants_of_an_arylene_after_a_linking_group_follow_a_hyphen(smiles, exp
     "smiles, expected",
     [
         pytest.param(
+            "OC(=O)CCc1ccc(/C=C/O/C=C/c2ccc(CCC(O)=O)cc2)cc1",
+            "3,3'-{oxybis[(1E)-ethene-2,1-diyl-4,1-phenylene]}dipropanoic acid",
+            id="descriptor_of_the_linker_is_cited_once_before_its_component",
+        ),
+        pytest.param(
+            "C[C@H](C(=O)O)c1ccc(OCCOc2ccc([C@@H](C)C(=O)O)cc2)cc1",
+            "(2R,2'S)-2,2'-[ethane-1,2-diylbis(oxy-4,1-phenylene)]dipropanoic acid",
+            id="units_cut_at_a_stereocentre",
+        ),
+        pytest.param(
+            "OC(=O)CCc1ccc(/C=C/O/C=C\\c2ccc(CCC(O)=O)cc2)cc1",
+            "3-{4-[(1E)-2-({(1Z)-2-[4-(2-carboxyethyl)phenyl]ethen-1-yl}oxy)ethen-1-yl]phenyl}propanoic acid",
+            id="different_descriptors_in_the_linker_forbid_a_multiplicative_name",
+        ),
+    ],
+)
+def test_stereodescriptors_in_a_multiplicative_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param(
             "OC(=O)c1ccc(cc1)S(=N)(=N)c1ccc(cc1)C(O)=O",
             "4,4'-sulfonodiimidoyldibenzoic acid",
             id="sulfonyl_centre_with_replaced_positions",

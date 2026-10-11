@@ -4231,12 +4231,15 @@ def _identical_group_units(mol, graph, group_atoms):
             if other in atoms or not atoms & group_atoms or not atoms - group_atoms:
                 continue
             canonical, _ = _unit_molecule(mol, atoms, root)
-            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical) + _arm_descriptors(mol, atoms), root))
-    ranks = _double_bond_ranks(mol)
+            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical), root))
+    plain = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=False)
+    chiral = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=True)
     for i, (bi, ai, si, ri) in enumerate(sides):
         for bj, aj, sj, rj in sides[:i]:
-            if bi != bj and si == sj and not ai & aj and (ranks is None or ranks[ri] == ranks[rj]):
+            if bi != bj and si == sj and not ai & aj:
                 if _unsymmetric_chalcogen_linker(mol, graph, ai, aj):
+                    continue
+                if plain[ri] == plain[rj] and chiral[ri] != chiral[rj]:
                     continue
                 # a multiplied parent must express every principal group (P-15.6.1.5)
                 units = ai | aj | set().union(*(ak for bk, ak, sk, _ in sides if sk == si and not ak & (ai | aj)))
@@ -4452,7 +4455,7 @@ def _multiplicative_name(mol, stereo=None):
             continue
         unit, attach = units[0]
         try:
-            _, _, parts = _select(_achiral_copy(unit), attach)
+            _, _, parts = _select(unit, attach)
         except UnsupportedStructure:
             continue
         stereo_text = ""
@@ -4729,7 +4732,7 @@ def _unit_molecule(mol, atoms, attach, refill=False):
     root = editable.GetAtomWithIdx(attach)
     root.SetAtomMapNum(1)
     cut = sum(1 for n in root.GetNeighbors() if n.GetIdx() not in atoms)
-    if (root.GetIsAromatic() or refill or (root.GetNoImplicit() and root.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED)) and cut:
+    if (root.GetIsAromatic() or root.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED or refill) and cut:
         root.SetNumExplicitHs(root.GetNumExplicitHs() + cut)
     for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
         editable.RemoveAtom(idx)

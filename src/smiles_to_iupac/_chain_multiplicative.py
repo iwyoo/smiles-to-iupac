@@ -369,24 +369,11 @@ def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=N
     return Part(name, False, True)
 
 
-def _linker_stereo_cited(mol, graph, center_edges, linker_stereo, used):
-    """Whether the double bonds of the linker are cited once, the branches of the centre carrying the same descriptors
-    (P-93.4.1.3)."""
-    per_branch = []
-    for x, y, _ in center_edges:
-        branch = _arm(graph, y, x)
-        per_branch.append(
-            [
-                (kind, idx, code)
-                for kind, idx, code in linker_stereo
-                if {mol.GetBondWithIdx(idx).GetBeginAtomIdx(), mol.GetBondWithIdx(idx).GetEndAtomIdx()} <= branch
-            ]
-        )
-    if len(per_branch) < 2 or any(len(found) > 1 for found in per_branch):
-        return False
-    if len({tuple(code for _, _, code in found) for found in per_branch}) != 1:
-        return False
-    return all((kind, idx) in used for kind, idx, _ in per_branch[0]) and sum(map(len, per_branch)) == len(linker_stereo)
+def _context_element(mol, element):
+    kind, where, code = element
+    if kind == "bond":
+        return kind, mol.GetBondBetweenAtoms(*where).GetIdx(), code
+    return element
 
 
 def _make_context(mol, graph, stereo=()):
@@ -486,16 +473,20 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             break
     if center is None:
         return None
-    arm_stereo, linker_stereo = [], []
-    for kind, where, code in stereo or ():
-        touched = {where} if isinstance(where, int) else set(where)
+    unit_stereo, branch_stereo = [], [[] for _ in edges[center]]
+    branch_atoms = [_arm_atoms(graph, y, x) for x, y, _ in edges[center]]
+    for element in stereo:
+        touched = {element[1]} if isinstance(element[1], int) else set(element[1])
         if touched <= arm_atoms:
-            arm_stereo.append((kind, where, code))
-        elif kind == "bond":
-            linker_stereo.append((kind, mol.GetBondBetweenAtoms(*where).GetIdx(), code))
-        else:
+            unit_stereo.append(element)
+            continue
+        holders = [i for i, atoms_ in enumerate(branch_atoms) if touched <= atoms_]
+        if len(holders) != 1:
             return None
-    ctx = _make_context(mol, graph, linker_stereo)
+        branch_stereo[holders[0]].append(element)
+    if len({tuple(sorted(code for _, _, code in found)) for found in branch_stereo}) != 1:
+        return None
+    ctx = _make_context(mol, graph, [_context_element(mol, e) for e in branch_stereo[0]])
     kind, atoms = components[center]
     # P-15.6.1.5, P-51.5: a ring bearing a side chain with a further principal group is a substituent of the chain
     # parent that carries them, not a multiplicative centre
@@ -580,13 +571,15 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         return None
     linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
+    if len(ctx.used) != len(branch_stereo[0]):
+        return None
     unit, attach = units[0]
     try:
-        _, _, parts = _select(_achiral_copy(unit), attach)
+        _, _, parts = _select(unit, attach)
     except UnsupportedStructure:
         return None
-    if arm_stereo:
-        parts, stereo_text = _stereo_arms(mol, arm_stereo, parts_atoms, units)
+    if unit_stereo:
+        parts, stereo_text = _stereo_arms(mol, unit_stereo, parts_atoms, units)
     prefix, body, tail, locant = parts[:4]
     lead = ",".join(str(locant) + "'" * i for i in range(count)) + "-" if locant is not None else ""
     text = prefix + body
