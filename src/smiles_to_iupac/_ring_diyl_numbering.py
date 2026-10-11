@@ -1019,6 +1019,8 @@ def _fused_mancude(mol, skeleton_atoms):
             )
         }
         accommodated = oxo_suffix | {a for a in suffix_atoms & saturated if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}
+        if oxo_suffix:
+            accommodated |= (oxo_all - suffix_atoms) & saturated
         if ANION_SUFFIX.get():
             centers = ANION_SUFFIX.get() & saturated
             accommodated = set() if saturated <= ANION_SUFFIX.get() else set(accommodated) | centers
