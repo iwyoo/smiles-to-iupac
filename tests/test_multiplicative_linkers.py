@@ -286,6 +286,20 @@ def test_units_that_are_ring_pseudoketones_and_chalcogen_carbonyl_linkers(smiles
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("S=C1CCC(CC2CCC(=S)CC2)CC1", "4,4'-methylenedi(cyclohexane-1-thione)", id="carbocyclic_thione_units"),
+        pytest.param("S=C1CCCN1CN1CCCC1=S", "1,1'-methylenedi(pyrrolidine-2-thione)", id="thiolactam_units"),
+        pytest.param("S=C(N1C=CC=CC1=S)N1C=CC=CC1=S", "1,1'-carbonothioyldi(pyridine-2(1H)-thione)", id="carbonothioyl_between_thiolactam_units"),
+        pytest.param("S=C1CC(=O)CC(CC2CC(=O)CC(=S)C2)C1", "3,3'-methylenebis(5-sulfanylidenecyclohexan-1-one)", id="thione_below_ketone_is_a_prefix"),
+        pytest.param("S=C1CCC(CC2CCC(=O)CC2)CC1", "4-[(4-sulfanylidenecyclohexyl)methyl]cyclohexan-1-one", id="ketone_unit_outranks_thione_unit"),
+    ],
+)
+def test_units_whose_principal_group_is_a_ring_thione_selone_or_tellone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("OC(=O)c1ccc(N(c2ccc(C(=O)O)cc2)c2ccc(C(=O)O)cc2)cc1", "4,4',4''-nitrilotribenzoic acid"),
     ],
 )

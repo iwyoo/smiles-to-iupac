@@ -22,6 +22,9 @@ SUFFIX_RANKS = {
     "nitrile": 25,
     "aldehyde": 26,
     "ketone": 27,
+    "thione": 27.1,
+    "selone": 27.2,
+    "tellone": 27.3,
     "alcohol": 28,
     "thiol": 28,
     "hydroperoxide": 29,
@@ -30,6 +33,8 @@ SUFFIX_RANKS = {
 }
 
 JUNIOR_RANK = 80
+
+KETONE_LIKE = {"ketone", "thione", "selone", "tellone"}
 
 _ALLOWED_ELEMENTS = {1, 5, 6, 7, 8, 9, 13, 14, 15, 16, 17, 31, 32, 33, 34, 35, 49, 50, 51, 52, 53, 81, 82, 83}
 
@@ -54,6 +59,12 @@ _CLASS_PATTERNS = [
     ("ketone", "[#6][CX3](=O)[#6]", 1),
     ("ketone", "[#6X3;R;$([#6]@[#7,#8,#16,#34,#52])]=O", 0),
     ("ketone", "[CX3;!R;$(C-[#7;R])]=O", 0),
+    ("thione", "[#6][CX3](=[SX1])[#6]", 1),
+    ("thione", "[#6X3;R;$([#6]@[#7,#8,#16,#34,#52])]=[SX1]", 0),
+    ("selone", "[#6][CX3](=[SeX1])[#6]", 1),
+    ("selone", "[#6X3;R;$([#6]@[#7,#8,#16,#34,#52])]=[SeX1]", 0),
+    ("tellone", "[#6][CX3](=[TeX1])[#6]", 1),
+    ("tellone", "[#6X3;R;$([#6]@[#7,#8,#16,#34,#52])]=[TeX1]", 0),
     ("alcohol", f"[OX2H1;!R]{_NOT_CARBONYL}", 0),
     ("thiol", f"[SX2H1;!R]{_NOT_CARBONYL}", 0),
     ("hydroperoxide", "[OX2H1][OX2;!R][#6]", 0),
@@ -180,19 +191,19 @@ def classify(mol):
                 return None
             anchor_atom = match[anchor]
             ring_neighbors = [n.GetIdx() for n in mol.GetAtomWithIdx(anchor_atom).GetNeighbors() if n.GetIdx() in ring_atoms]
-            if anchor_atom in ring_atoms and name == "ketone":
+            if anchor_atom in ring_atoms and name in KETONE_LIKE:
                 ring_atom = anchor_atom
             elif len(ring_neighbors) == 1:
                 ring_atom = ring_neighbors[0]
             else:
                 ring_atom = None
             group_atoms = frozenset(match)
-            if name == "ketone" and len(match) == 4:
+            if name in KETONE_LIKE and len(match) == 4:
                 group_atoms = frozenset({match[1], match[2]})
             groups.append(Group(name, SUFFIX_RANKS[name], anchor_atom, group_atoms, ring_atom))
             covered.update(group_atoms)
     junior = _JUNIOR_QUERIES + [_THIOKETONE_QUERY] if any(g.rank < SUFFIX_RANKS["ketone"] for g in groups) else _JUNIOR_QUERIES
-    if any(g.rank <= SUFFIX_RANKS["ketone"] for g in groups):
+    if any(g.rank <= SUFFIX_RANKS["tellone"] for g in groups):
         junior = junior + [_HIDDEN_THIOAMIDE_QUERY]
     for query in junior:
         for match in mol.GetSubstructMatches(query):

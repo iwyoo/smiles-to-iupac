@@ -20,7 +20,7 @@ from ._common import (
     ring_cycle,
     unsaturation_suffix,
 )
-from ._multiplicative_groups import SUFFIX_RANKS
+from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, subtree
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes
@@ -244,8 +244,8 @@ def _ring_roots(mol, spec, skip=frozenset()):
 def _group_at(mol, groups, ring_atom, root):
     atoms = subtree(mol, root, ring_atom)
     for g in groups:
-        if g.name == "ketone" and g.ring_atom == g.anchor:
-            anchor_root = next(a for a in g.atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 8)
+        if g.name in KETONE_LIKE and g.ring_atom == g.anchor:
+            anchor_root = next(a for a in g.atoms if a != g.anchor)
             attached = g.anchor
         else:
             anchor_root, attached = g.anchor, g.ring_atom
@@ -436,7 +436,7 @@ def ring_pseudoketone_oxygens(mol, ring_atoms):
         found.update(
             n.GetIdx()
             for n in atom.GetNeighbors()
-            if n.GetAtomicNum() == 8
+            if n.GetAtomicNum() in (8, 16, 34, 52)
             and n.GetDegree() == 1
             and mol.GetBondBetweenAtoms(a, n.GetIdx()).GetBondTypeAsDouble() == 2.0
         )
