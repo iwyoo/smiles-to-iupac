@@ -225,7 +225,8 @@ def _joined_by_chalcogens(mol, graph, best, runs):
 
 def _unsaturated_parent(z, size, ene, yne, grouped):
     """'disilyne', 'triazene', 'triaz-1-ene', 'pentaaza-1,3-diene' (P-14.3.4.2(d), P-31.1.4): the 'ane' of the chain hydride
-    becomes 'ene' or 'yne'; the locants are omitted for a dinuclear chain and for an unsubstituted monounsaturated one."""
+    becomes 'ene' or 'yne'; the unsaturation locants are omitted for a dinuclear chain and for an unsubstituted
+    monounsaturated one."""
     root = multiplying_prefix(size) + _STEMS[z][:-3]
     unsubstituted = not grouped
     if size == 2 or (size == 3 and len(ene) + len(yne) == 1 and unsubstituted):
@@ -363,6 +364,7 @@ def _one_arrangement(substituents, capacity):
         return False
     names = sorted(counts)
     seen = set()
+    symmetric = list(capacity) == list(capacity)[::-1]
 
     def compositions(total, room):
         if len(room) == 1:
@@ -376,7 +378,7 @@ def _one_arrangement(substituents, capacity):
     def place(index, room, chosen):
         if index == len(names):
             layout = tuple(tuple(sorted(c)) for c in chosen)
-            seen.add(min(layout, layout[::-1]))
+            seen.add(min(layout, layout[::-1]) if symmetric else layout)
             return len(seen) > 1
         for split in compositions(counts[names[index]], room):
             added = [chosen[i] + (names[index],) * split[i] for i in range(positions)]
@@ -424,6 +426,8 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
             omit = not lam and ((len(chain) == 3 and cited == 1) or _one_arrangement(substituents, capacity))
         elif unsaturated:
             parent, omit = _unsaturated_parent(z, len(chain), ene, yne, grouped)
+            if len(chain) == 2:
+                omit = not lam and _one_arrangement(substituents, capacity)
         else:
             parent = _STEMS[z] if len(chain) == 1 else f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
             if z == 7 and len(chain) == 2:
