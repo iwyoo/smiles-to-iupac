@@ -2033,3 +2033,15 @@ def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, e
 )
 def test_bonds_between_different_heteroatoms(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-44.1.2.2, P-31.1.4.2.4: an N=N bond closed in a ring is part of the ring parent, never a diazene
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC1CCN=N1", "3-methyl-4,5-dihydro-3H-pyrazole", id="five_membered_ring_azo"),
+        pytest.param("C1CCCN=N1", "3,4,5,6-tetrahydropyridazine", id="six_membered_ring_azo"),
+    ],
+)
+def test_ring_azo_bond_is_not_a_diazene(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

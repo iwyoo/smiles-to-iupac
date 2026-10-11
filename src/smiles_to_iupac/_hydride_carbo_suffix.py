@@ -126,7 +126,7 @@ def _parent(mol, graph):
     if siloxane is not None:
         return "chain", siloxane, f"{multiplying_prefix((len(siloxane) + 1) // 2)}siloxane"
     centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES]
-    if len(centers) == 1 and not centers[0].GetFormalCharge():
+    if len(centers) == 1 and not centers[0].GetFormalCharge() and not centers[0].IsInRing():
         return "mononuclear", [centers[0].GetIdx()], MONONUCLEAR_HYDRIDES[centers[0].GetAtomicNum()][0]
     return None
 

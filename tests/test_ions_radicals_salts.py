@@ -1698,3 +1698,15 @@ def test_a_phenolate_ester_never_loses_its_charge():
 )
 def test_diazonium_prefix_on_an_anionic_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-73.1.1.2, P-73.6: the cationic ring nitrogen takes the lowest locant when another ring atom is substituted
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1C[NH2+]CCN1CC", "4-ethylpiperazin-1-ium", id="protonated_ring_with_a_substituent_ahead_of_the_marker"),
+        pytest.param("[CH2-][NH+]1CCN(CC)CC1", "(4-ethylpiperazin-1-iumyl)methanide", id="ylide_on_a_ring_nitrogen_of_a_diazine"),
+    ],
+)
+def test_cationic_ring_nitrogen_of_a_substituted_diazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

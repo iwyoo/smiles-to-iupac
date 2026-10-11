@@ -1225,3 +1225,16 @@ def test_prefixes_of_a_group15_parent_hydride(smiles, expected):
 )
 def test_hydride_atom_against_a_ring_by_the_seniority_of_atoms(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-63.1.3, P-65.1.2.2: a ring heteroatom is never the centre of an acyclic parent; hydroxy and cyano on it are suffixes
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OB1CCOCC1", "1,4-oxaborinan-4-ol", id="hydroxy_on_a_ring_boron"),
+        pytest.param("N#CB1CCCC1", "borolane-1-carbonitrile", id="cyano_on_a_ring_boron"),
+        pytest.param("N#C[SiH]1CCCC1", "silolane-1-carbonitrile", id="cyano_on_a_ring_silicon"),
+    ],
+)
+def test_substituent_on_a_ring_heteroatom_of_group_13_to_15(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

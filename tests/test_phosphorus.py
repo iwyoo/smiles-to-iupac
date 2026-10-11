@@ -658,3 +658,13 @@ def test_isotopically_modified_phosphoric_acid_is_refused_not_misread():
 )
 def test_carboxylic_acyl_halide_against_a_phosphorus_acid_derivative(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("COP1OCCO1", "2-methoxy-1,3,2-dioxaphospholane", id="phosphite_phosphorus_closing_a_ring"),
+    ],
+)
+def test_ring_phosphorus_is_not_the_centre_of_a_phosphite(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
