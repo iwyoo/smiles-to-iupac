@@ -385,6 +385,8 @@ def test_ring_with_lower_locants_for_the_nuclides_is_the_parent(smiles, expected
         ("c1ccc(cc1)-c1ccccc1[2H]", "(2-2H)-1,1'-biphenyl"),
         ("[2H]c1ccc(cc1)-c1ccc([2H])cc1", "(4,4'-2H2)-1,1'-biphenyl"),
         ("OC(=O)c1ccc(cc1)-c1ccccc1[2H]", "(2'-2H)[1,1'-biphenyl]-4-carboxylic acid"),
+        ("OC(=O)Cc1cccc(-c2ccc([2H])cc2)c1", "[(4'-2H)[1,1'-biphenyl]-3-yl]acetic acid"),
+        ("OC(=O)Cc1ccccc1-c1c(Cl)cccc1[2H]", "[2'-chloro(6'-2H)[1,1'-biphenyl]-2-yl]acetic acid"),
         ("[2H]c1ccc2ccccc2c1-c1ccc2ccccc2c1", "(2-2H)-1,2'-binaphthalene"),
         ("C(c1ccc2ccccc2c1)c1ccc2cc([2H])ccc2c1", "2-[(naphthalen-2-yl)methyl](6-2H)naphthalene"),
         ("[2H]c1cc2ccccc2cc1Cc1cccc2cccc([2H])c12", "2-{[(8-2H)naphthalen-1-yl]methyl}(3-2H)naphthalene"),

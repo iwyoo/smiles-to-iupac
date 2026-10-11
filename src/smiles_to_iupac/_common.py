@@ -1765,7 +1765,7 @@ def assembly_join(prefix, core):
     """Prefixes directly precede an enclosing bracket of an assembly name and are hyphenated from a locant (P-16.5)."""
     if not prefix:
         return core
-    return prefix + core if core[0] == "[" else f"{prefix}-{core}"
+    return prefix + core if core[0] in "[(" else f"{prefix}-{core}"
 
 
 def alphanumerical_name_key(name):
