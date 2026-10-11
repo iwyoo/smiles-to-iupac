@@ -2440,7 +2440,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         and len(chain_best[2][4]) == 1
         and not (_is_variant(principal) and attach is None)
         and not chain_best[1].endswith("formic acid")
-        and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and attach is None)
+        and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide") and attach is None)
     ):
         raise UnsupportedStructure("one-carbon acid, amide, nitrile and aldehyde parents use retained names")
     return _finish(chain_best)

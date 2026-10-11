@@ -7,8 +7,8 @@ from rdkit import Chem
 from ._common import UnsupportedStructure
 
 _INFIX = {16: "thio", 34: "seleno", 52: "telluro"}
-_HYDRAZIDE = Chem.MolFromSmarts("[CX3;$([CX3]-[#6]),$([CX3;H1]),$([CX3]-[NX3;R])](=[S,Se,Te;X1])-[NX3]-[NX3]")
-_OXYGEN_HYDRAZIDE = Chem.MolFromSmarts("[CX3;$([CX3]-[#6]),$([CX3;H1]),$([CX3]-[NX3;R])](=[O;X1])-[NX3]-[NX3]")
+_HYDRAZIDE = Chem.MolFromSmarts("[CX3;$([CX3]-[#6]),$([CX3;H1]),$([CX3]-[NX3;R])](=[S,Se,Te;X1])-[NX3]-[NX3,$([NX2]=[#6])]")
+_OXYGEN_HYDRAZIDE = Chem.MolFromSmarts("[CX3;$([CX3]-[#6]),$([CX3;H1]),$([CX3]-[NX3;R])](=[O;X1])-[NX3]-[NX3,$([NX2]=[#6])]")
 _RETAINED = (("acetohydrazide", "ethane{}hydrazide"), ("benzohydrazide", "benzenecarbo{}hydrazide"), ("formohydrazide", "methane{}hydrazide"))
 
 

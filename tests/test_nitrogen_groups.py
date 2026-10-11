@@ -492,21 +492,13 @@ def test_hydrazide_names(smiles, expected):
         pytest.param("CC(=O)NN", "acetohydrazide", id="acetohydrazide"),
         pytest.param("ClC(C(=O)N(N(C)C)C)C", "2-chloro-N,N',N'-trimethylpropanehydrazide", id="n_locants_ordered_with_other_prefixes"),
         pytest.param("CC[C@@H](C)C(=O)N(C)N", "(2R)-N,2-dimethylbutanehydrazide", id="n_substituted_stereocenter_hydrazide"),
+        pytest.param("CN(C)NC=O", "N',N'-dimethylformohydrazide", id="n_substituted_formohydrazide"),
+        pytest.param("O=CNN=CCC", "N'-propylideneformohydrazide", id="ylidene_on_the_terminal_nitrogen_of_formohydrazide"),
+        pytest.param("CC(C)=NN(C)C(=S)CC", "N-methyl-N'-(propan-2-ylidene)propanethiohydrazide", id="ylidene_on_a_thiohydrazide"),
     ],
 )
 def test_formohydrazide_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("O=CN(C)N", id="n_substituted_formohydrazide_raises"),
-    ],
-)
-def test_n_substituted_formohydrazide_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 def test_phenyl_chain_hydrazide_retained_name():
