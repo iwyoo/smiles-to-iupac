@@ -47,6 +47,7 @@ _SENIOR_TO_SELENOL = [
     )
 ]
 AMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
+_ENAMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX3;!a]=[#6]")
 _SENIOR_SULFONYL = [
     Chem.MolFromSmarts(smarts)
     for smarts in (
@@ -88,6 +89,7 @@ def _has_senior_principal_group(mol):
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_SULFONYL)
         or mol.HasSubstructMatch(AMINE_PATTERN)
+        or mol.HasSubstructMatch(_ENAMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
     )
 
