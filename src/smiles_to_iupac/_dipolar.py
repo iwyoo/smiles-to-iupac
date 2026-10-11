@@ -213,6 +213,71 @@ def _azoxy_name(mol, graph):
     return f"1-{left}-2-{right}diazene {oxide_locant}-oxide"
 
 
+def azoxy_prefix_name(mol):
+    """An azoxy group beside a senior anion or cation, which keeps the parent: the group is a lambda5-diazenyl prefix on
+    the side that holds the ionic group (P-68.3.1.3.3.2, P-41)."""
+    from .core import smiles_to_iupac
+
+    graph = adjacency(mol)
+    unit = _azoxy(mol, graph)
+    if unit is None or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    oxide_nitrogen, partner, oxygen = unit
+    own = {oxide_nitrogen.GetIdx(), partner.GetIdx(), oxygen.GetIdx()}
+    nitro = {i for match in mol.GetSubstructMatches(Chem.MolFromSmarts("[N+](=O)[O-]")) for i in match}
+    ionic = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in own | nitro]
+    if not ionic or any(b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()):
+        return None
+    roots = {
+        n.GetIdx(): [x.GetIdx() for x in n.GetNeighbors() if x.GetIdx() not in own]
+        for n in (oxide_nitrogen, partner)
+    }
+    if len(roots[oxide_nitrogen.GetIdx()]) != 1 or len(roots[partner.GetIdx()]) > 1:
+        return None
+    (oxide_root,) = roots[oxide_nitrogen.GetIdx()]
+    partner_root = roots[partner.GetIdx()][0] if roots[partner.GetIdx()] else None
+    oxide_side = _side(graph, oxide_root, oxide_nitrogen.GetIdx())
+    partner_side = _side(graph, partner_root, partner.GetIdx()) if partner_root is not None else set()
+    if oxide_side & partner_side:
+        return None
+    on_oxide_side = [i in oxide_side for i in ionic]
+    if all(on_oxide_side):
+        tail_side, parent_root, through_partner = partner_side, oxide_root, False
+    elif not any(on_oxide_side) and all(i in partner_side for i in ionic):
+        tail_side, parent_root, through_partner = oxide_side, partner_root, True
+    else:
+        return None
+    try:
+        group, _ = name_branch(graph, (partner if through_partner else oxide_nitrogen).GetIdx(), parent_root, {}, frozenset(), mol=mol)
+    except (UnsupportedStructure, ValueError, KeyError):
+        return None
+    removed = sorted(own | tail_side, reverse=True)
+    for elements in ((6,), (6, 6), (8, 6)):
+        editable = Chem.RWMol(mol)
+        stand_in_atoms = [editable.AddAtom(Chem.Atom(z)) for z in elements]
+        editable.AddBond(parent_root, stand_in_atoms[0], Chem.BondType.SINGLE)
+        for first, second in zip(stand_in_atoms, stand_in_atoms[1:]):
+            editable.AddBond(first, second, Chem.BondType.SINGLE)
+        for index in removed:
+            editable.RemoveAtom(index)
+        stand_in = editable.GetMol()
+        try:
+            Chem.SanitizeMol(stand_in)
+        except Exception:
+            continue
+        smiles, position = _smiles_with_order(stand_in)
+        token = FORCED_BRANCH_NAMES.set((stand_in.GetNumAtoms(), {position[stand_in_atoms[0] - len(removed)]: (group, True)}))
+        try:
+            name = smiles_to_iupac(smiles)
+        except UnsupportedStructure:
+            continue
+        finally:
+            FORCED_BRANCH_NAMES.reset(token)
+        if group in name:
+            return name
+    return None
+
+
 def _sulfur_oxide(mol, graph):
     sulfurs = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 16 and a.GetFormalCharge() == 1]
     if len(sulfurs) != 1 or mol.GetNumAtoms() < 4:
