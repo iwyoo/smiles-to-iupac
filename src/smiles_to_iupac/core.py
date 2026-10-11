@@ -9,6 +9,7 @@ from ._acid_derivatives import has_isotope_acyl_halide_shape, name_acid_derivati
 from ._acid_salts import name_acid_salt
 from ._hetero_carboxylic import name_hetero_parent_acid
 from ._polycarbonic import name_polycarbonic
+from ._carbonic_ester_anion import name_carbonic_ester_anion
 from ._carbonic_family import name_carbonic_family
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
@@ -1264,6 +1265,7 @@ def _run_fallbacks(smiles, original):
             _name_hydride_onium,
             _name_chain_onium,
             name_anion,
+            name_carbonic_ester_anion,
             name_ester_by_parts,
             name_chalcogen_chain_heterone,
         ):
