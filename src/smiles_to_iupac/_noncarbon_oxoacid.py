@@ -27,6 +27,7 @@ from ._substituents import (
     name_branch,
 )
 
+_CARBOXYLIC_ACYL_HALIDE = Chem.MolFromSmarts("[CX3](=[O,S,Se,Te])[F,Cl,Br,I]")
 _CHALCOGEN = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CHALCOGEN_PREFIX = {16: "thio", 34: "seleno", 52: "telluro"}
 _ORDER = {8: 0, 16: 1, 34: 2, 52: 3}
@@ -341,6 +342,9 @@ def _acid_parts(mol):
     if len(senior) != 1:
         return None
     part = senior[0]
+    junior_to_acyl_halide = not any(s["H"] or s.get("anion") or s["kind"] == "ester" for s in part["singles"])
+    if junior_to_acyl_halide and mol.HasSubstructMatch(_CARBOXYLIC_ACYL_HALIDE):
+        return None
     anions = [p["atom"] for p in part["singles"] if p.get("anion")]
     charged = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() in anion_atoms]
     if bool(cation) != bool(anions) or (anions and charged != anions):

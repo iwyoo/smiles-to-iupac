@@ -624,3 +624,15 @@ def test_stereo_elements_of_a_chain_on_a_group_15_or_boron_acid_are_cited_in_the
 def test_isotopically_modified_phosphoric_acid_is_refused_not_misread():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[3H]OP([3H])(=O)O")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ClC(=O)CP(Cl)(Cl)=O", "phosphorodichloridoylacetyl chloride", id="acyl_halide_outranks_phosphorus_acid_halide"),
+        pytest.param("ClC(=O)CP(=O)(N)N", "phosphorodiamidoylacetyl chloride", id="acyl_halide_outranks_phosphorus_acid_amide"),
+        pytest.param("ClC(=O)CP(=O)(O)O", "(2-chloro-2-oxoethyl)phosphonic acid", id="phosphorus_acid_outranks_acyl_halide"),
+    ],
+)
+def test_carboxylic_acyl_halide_against_a_phosphorus_acid_derivative(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
