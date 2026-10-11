@@ -181,17 +181,6 @@ def test_benzenide_name_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C1CCC2CC[CH+]CC2C1", id="fused_ring_carbenium_raises"),
-    ],
-)
-def test_branch_point_carbenium_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("C[C+]=O", "acetylium", id="acetylium_acylium_cation_name"),
@@ -932,6 +921,9 @@ def test_ylidene_ylidyne_and_ring_nitrogen_radicals_beside_groups(smiles, expect
         pytest.param("[CH2+]C(Cl)", "2-chloroethan-1-ylium", id="halogen"),
         pytest.param("[CH2+]C1CCC2(CC1)CCCC2", "(spiro[4.5]decan-8-yl)methylium", id="spiro_substituent"),
         pytest.param("[CH2+]C1CC2CCC1C2", "(bicyclo[2.2.1]heptan-2-yl)methylium", id="bridged_substituent"),
+        pytest.param("[c+]1cccc2ccccc12", "naphthalen-1-ylium", id="mancude_fused_ring_position_takes_no_added_hydrogen"),
+        pytest.param("[CH+]1CC=Cc2ccccc12", "1,2-dihydronaphthalen-1-ylium", id="hydro_pair_on_fused_ring_stays_a_prefix"),
+        pytest.param("C1CCC2CC[CH+]CC2C1", "decahydronaphthalen-2-ylium", id="saturated_fused_ring"),
     ],
 )
 def test_carbenium_centre_beside_groups(smiles, expected):
