@@ -46,6 +46,7 @@ from rdkit import Chem
 from ._chalcogenourea import is_core_substituent_root, is_urea_substituent_root, n_substituent_names, unprimed_first
 from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import format_substituent_prefixes
+from ._urea import _is_hydrazine_tail
 
 
 def _is_guanidine_substituent_root(mol, atom):
@@ -61,12 +62,13 @@ def _carbonyl_carbon(mol, atom):
     )
 
 
-def _guanidine_core(mol):
+def _guanidine_core(mol, hydrazine=False):
     """(carbon_idx, imino_idx, (amino1_idx, amino2_idx)) for the guanidine
     carbon and its three nitrogens, or None if the molecule isn't shaped
     like a guanidine core at all (a carbon with exactly one double-bonded
     nitrogen and two singly-bonded nitrogens, each nitrogen bonded only to
-    that carbon and 0-2 carbons besides)."""
+    that carbon and 0-2 carbons besides). With `hydrazine`, one amino nitrogen is the first nitrogen of a hydrazine
+    instead (P-68.3.1.2.4)."""
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
             continue
@@ -101,8 +103,19 @@ def _guanidine_core(mol):
             continue
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in amino):
             continue
+        tails = [
+            nn.GetIdx()
+            for n in amino
+            for nn in n.GetNeighbors()
+            if nn.GetIdx() != atom.GetIdx() and _is_hydrazine_tail(mol, nn, n.GetIdx())
+        ]
+        if len(tails) != hydrazine:
+            continue
         if any(
-            not _is_guanidine_substituent_root(mol, nn) for n in amino for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()
+            not _is_guanidine_substituent_root(mol, nn) and nn.GetIdx() not in tails
+            for n in amino
+            for nn in n.GetNeighbors()
+            if nn.GetIdx() != atom.GetIdx()
         ):
             continue
         if any(
@@ -117,11 +130,36 @@ def _guanidine_core(mol):
 
 
 def has_guanidine_shape(mol) -> bool:
-    return _guanidine_core(mol) is not None
+    return _guanidine_core(mol) is not None or _guanidine_core(mol, hydrazine=True) is not None
+
+
+_AMIDINE_CARBON = Chem.MolFromSmarts("[CX3](=[NX2])[NX3]")
+
+
+def _hydrazinecarboximidamide_name(mol, core):
+    """Hydrazine-1-carboximidamide with N on the amino nitrogen of the amidine, N' on its imino nitrogen and 1 and 2 on
+    the hydrazine nitrogens (P-66.4.1.1, P-68.3.1.2.4)."""
+    carbon_idx, imino_idx, amino = core
+    if any(match[0] != carbon_idx for match in mol.GetSubstructMatches(_AMIDINE_CARBON)):
+        raise UnsupportedStructure("several amidine groups on the hydrazine are suffixes of one parent (P-66.4.1.1)")
+    graph = adjacency(mol)
+    alpha = next(n for n in amino if any(_is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n) for t in graph[n] if t != carbon_idx))
+    amide = next(n for n in amino if n != alpha)
+    tail = next(t for t in graph[alpha] if t != carbon_idx and _is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), alpha))
+    names = n_substituent_names(
+        mol, graph, {carbon_idx, imino_idx, alpha, amide, tail}, (amide, imino_idx, alpha, tail), carbon_idx, junior_groups=True
+    )
+    grouped = group_substituents({k: v for k, v in zip(("N", "N'", 1, 2), names) if v})
+    numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
+    return f"{format_substituent_prefixes(grouped) if grouped else ''}hydrazine{'-1-' if numbered else ''}carboximidamide"
 
 
 def name_guanidine(mol) -> str:
     core = _guanidine_core(mol)
+    if core is None and len(Chem.GetMolFrags(mol)) == 1:
+        hydrazine_core = _guanidine_core(mol, hydrazine=True)
+        if hydrazine_core is not None:
+            return _hydrazinecarboximidamide_name(mol, hydrazine_core)
     if core is None:
         raise UnsupportedStructure(
             "no guanidine (HN=C(NH2)2 or an N-/N'-/N''-substituted "
