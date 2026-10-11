@@ -651,10 +651,12 @@ def _hydrogen_words(parts):
 
 def _ester_words(mol, parts, esters, cited):
     graph, halogens = parts["graph"], parts["halogens"]
-    by_name = {}
+    by_name, compound_names = {}, set()
     for ester in esters:
-        name, _ = name_branch(graph, ester["R"], ester["atom"], halogens, mol=mol)
+        name, compound = name_branch(graph, ester["R"], ester["atom"], halogens, mol=mol)
         by_name.setdefault(name, []).append(ester.get("nuclide") or _CHALCOGEN[ester["z"]])
+        if compound:
+            compound_names.add(name)
     cited = cited or any(p.get("nuclide") for p in (*parts["ylidenes"], *parts["singles"]))
     words = []
     for name in sorted(by_name, key=alpha_sort_key):
@@ -662,7 +664,7 @@ def _ester_words(mol, parts, esters, cited):
         if cited and len(letters) == 1 and (name[0].isdigit() or name[0] in "([{"):
             word = enclose(name)
         else:
-            word = format_ester_words([name] * len(letters))
+            word = format_ester_words([name] * len(letters), compound_names)
         words.append((",".join(letters) + "-" if cited else "") + word)
     return words
 

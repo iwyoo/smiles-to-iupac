@@ -311,7 +311,7 @@ def test_multi_cation_salt_name(smiles, expected):
     [
         pytest.param("CC(=O)[O-].CC(=O)[O-].CC(=O)[O-].[Fe+3]", "iron(3+) triacetate", id="charge_number_after_metal"),
         pytest.param("[CH3-].[CH3-].[Cu+2]", "copper(2+) dimethanide", id="carbanide_anion"),
-        pytest.param("[Fe+3].[Fe+3].[O-]S(=O)(=O)[O-].[O-]S(=O)(=O)[O-].[O-]S(=O)(=O)[O-]", "diiron(3+) trisulfate", id="multiplied_cation"),
+        pytest.param("[Fe+3].[Fe+3].[O-]S(=O)(=O)[O-].[O-]S(=O)(=O)[O-].[O-]S(=O)(=O)[O-]", "diiron(3+) tris(sulfate)", id="multiplied_cation"),
         pytest.param("[Na+].[Cu+2].CC(=O)[O-].CC(=O)[O-].CC(=O)[O-]", "copper(2+) sodium triacetate", id="cations_alphabetical"),
         pytest.param("CC(=O)[O-].[Ag+]", "silver acetate", id="single_common_charge_without_number"),
     ],
@@ -1711,4 +1711,18 @@ def test_diazonium_prefix_on_an_anionic_parent(smiles, expected):
     ],
 )
 def test_cationic_ring_nitrogen_of_a_substituted_diazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-16.3.6(a), P-16.3.6(e): bis/tris before an anion name that 'di' would merge into another structure
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[Ru+4].[O-]C([O-])=O.[O-]C([O-])=O", "ruthenium(4+) bis(carbonate)", id="mononuclear_oxoanion"),
+        pytest.param("[Al+3].[I-].[I-].[I-]", "aluminium tris(iodide)", id="iodide_against_triiodide"),
+        pytest.param("[Mn+2].[N-]=C=S.[N-]=C=S", "manganese(2+) bis(sulfanylidenemethaniminide)", id="anion_opening_with_a_prefix"),
+        pytest.param("[Cu+2].[O-]C(=O)C(Cl)(Cl)Cl.[O-]C(=O)C(Cl)(Cl)Cl", "copper(2+) bis(trichloroacetate)", id="prefix_with_its_own_multiplier"),
+    ],
+)
+def test_bis_before_an_anion_that_di_would_misname(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

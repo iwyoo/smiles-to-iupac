@@ -1160,3 +1160,15 @@ def test_sulfimides_sulfoximides_and_sulfur_imides_on_the_lambda_sulfane_parent(
 )
 def test_chalcogen_imide_cited_as_a_ylidene_prefix_beside_a_senior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-16.3.5: a substituted ester group of sulfurous or sulfuric acid is multiplied with bis
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ClCOS(=O)OCCl", "bis(chloromethyl) sulfite", id="sulfite"),
+        pytest.param("ClC(Cl)OS(=O)(=O)OC(Cl)Cl", "bis(dichloromethyl) sulfate", id="sulfate_with_a_prefix_of_its_own_multiplier"),
+    ],
+)
+def test_multiplier_of_identical_substituted_sulfur_ester_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

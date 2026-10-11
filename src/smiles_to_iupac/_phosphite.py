@@ -27,7 +27,7 @@ oxygens), any chalcogen-replacement analogue, and any other heteroatom.
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphate import format_ester_words
+from ._phosphate import format_ester_entries
 from ._substituents import name_branch
 
 _PHOSPHORUS = 15
@@ -96,5 +96,5 @@ def name_phosphite(mol) -> str:
         (root,) = [n for n in graph[oxygen_idx] if n != phosphorus.GetIdx()]
         roots.append((root, oxygen_idx))
 
-    names = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol)[0] for root, coming_from in roots]
-    return format_ester_words(names) + " phosphite"
+    entries = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol) for root, coming_from in roots]
+    return format_ester_entries(entries) + " phosphite"
