@@ -1024,6 +1024,8 @@ def test_spiro_systems_with_atoms_of_nonstandard_bonding_number(smiles, expected
         pytest.param("[SiH]12[SiH2][SiH2][SiH2][SiH2][SiH]([SiH2][SiH2]1)[SiH2]2", "bicyclo[4.2.1]nonasilane", id="same_element_von_baeyer"),
         pytest.param("[SiH2]1[SiH2][SiH2][Si]2([SiH2]1)[SiH2][SiH2][SiH2][SiH2]2", "spiro[4.4]nonasilane", id="same_element_spiro"),
         pytest.param("P12PPP(P1)PP2", "bicyclo[2.2.1]heptaphosphane", id="same_element_cage_perceived_aromatic"),
+        pytest.param("N12[SiH]3[NH][SiH]([NH]3)N([SiH2]2)[SiH2][NH][SiH2]1", "1N-tricyclo[3.3.1.1^2,4]pentasilazane", id="nitrogen_at_locant_one"),
+        pytest.param("N1[SiH2]N[SiH]2N[SiH]1N1[SiH2]N2[SiH2]1", "1Si-tricyclo[3.3.1.1^2,4]pentasilazane", id="silicon_at_locant_one"),
     ],
 )
 def test_alternating_heteroatom_cages_take_the_preselected_name(smiles, expected):

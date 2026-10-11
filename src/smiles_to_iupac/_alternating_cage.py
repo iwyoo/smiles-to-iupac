@@ -87,6 +87,42 @@ def _retained_head(carbon_name, extra=None):
     return head
 
 
+def _locant_one_elements(mol):
+    """The elements that can occupy locant 1 over every von Baeyer numbering of the cage the name's descriptor allows
+    (P-23.2), empty when the cage is not a bicyclic or polycyclic von Baeyer system."""
+    from ._bicyclic import find_bicyclic_core, iter_bicyclic_numberings
+    from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
+
+    rings = mol.GetNumBonds() - mol.GetNumAtoms() + 1
+    if rings == 2:
+        core = find_bicyclic_core(mol)
+        orders = list(iter_bicyclic_numberings(core)) if core is not None else []
+    else:
+        core = find_polycyclic_core(mol, rings) if rings in (3, 4, 5, 6) else None
+        candidates = list(iter_polycyclic_candidates(core, rings)) if core is not None else []
+        best = min((outer for _, _, outer in candidates), default=None)
+        orders = [order for order, _, outer in candidates if outer == best]
+    return {mol.GetAtomWithIdx(order[0]).GetSymbol() for order in orders}
+
+
+def _exchange_is_another_compound(mol, first, second):
+    """Whether exchanging the two elements gives a compound different from `mol` (P-23.5.2: only then must the atom at
+    locant 1 be specified)."""
+    editable = Chem.RWMol(mol)
+    for atom in editable.GetAtoms():
+        symbol = atom.GetSymbol()
+        if symbol in (first, second):
+            atom.SetAtomicNum(Chem.GetPeriodicTable().GetAtomicNumber(second if symbol == first else first))
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    exchanged = editable.GetMol()
+    try:
+        Chem.SanitizeMol(exchanged)
+    except Chem.MolSanitizeException:
+        return False
+    return Chem.MolToSmiles(exchanged) != Chem.MolToSmiles(mol)
+
+
 def has_alternating_cage_shape(mol) -> bool:
     return _shape(mol) is not None
 
@@ -118,5 +154,9 @@ def name_alternating_cage(mol):
         other = senior if bridgehead == junior else junior
         if _VALENCE[other] >= max(a.GetDegree() for a in mol.GetAtoms()):
             prefix = f"1{bridgehead}-"
+    elif len(heads) == 2 and _exchange_is_another_compound(mol, junior, senior):
+        elements = _locant_one_elements(mol)
+        if len(elements) == 1:
+            prefix = f"1{next(iter(elements))}-"
     multiplier = numerical_term(count) if count > 1 else ""
     return f"{prefix}{head}{multiplier}{joined}"
