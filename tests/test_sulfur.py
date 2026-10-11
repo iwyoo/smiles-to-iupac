@@ -81,6 +81,17 @@ def test_sulfite_ester_unaffected_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("O=S1Oc2ccc(C)cc2O1", "5-methyl-2H-1,3,2λ4-benzodioxathiol-2-one", id="sulfite"),
+        pytest.param("O=S1(=O)Oc2ccc(C)cc2O1", "5-methyl-2H-1,3,2λ6-benzodioxathiole-2,2-dione", id="sulfate"),
+    ],
+)
+def test_sulfur_in_a_ring_is_a_heterocycle_not_a_sulfite_or_sulfate_ester(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("OS(=O)(=O)OCCOS(=O)(=O)O", "ethane-1,2-diyl bis(hydrogen sulfate)", id="sulfate"),
         pytest.param("OS(=O)OCCOS(=O)O", "ethane-1,2-diyl bis(hydrogen sulfite)", id="sulfite"),
         pytest.param("OS(=O)(=O)OCC(Cl)COS(=O)(=O)O", "2-chloropropane-1,3-diyl bis(hydrogen sulfate)", id="substituted_diyl"),
