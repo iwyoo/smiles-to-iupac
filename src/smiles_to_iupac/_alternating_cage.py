@@ -1,8 +1,8 @@
-"""Von Baeyer and spiro systems made of two alternating skeletal heteroatoms (P-23.5, P-24.2.4.3, P-52.1.6.2): the
-preselected name cites the hydrocarbon descriptor, then the number of atoms of the element cited first in the 'a'
-term, that term, and the mononuclear parent hydride of the other element: bicyclo[3.3.1]tetrasiloxane,
-tricyclo[3.3.1.1^3,7]tetrasiloxane, 1N-tricyclo[3.3.1.1^2,4]pentasilazane, spiro[5.5]pentasiloxane. The skeleton is
-numbered as the corresponding hydrocarbon; the atom at locant 1 is named by '1Si-'/'1N-' where either could be there."""
+"""Von Baeyer and spiro systems of one skeletal heteroatom (P-52.1.6.1: bicyclo[4.2.1]nonasilane) or of two alternating
+ones (P-23.5, P-24.2.4.3, P-52.1.6.2): the preselected name cites the hydrocarbon descriptor, the number of atoms of the
+element cited first in the 'a' term, that term, and the parent hydride of the other element: bicyclo[3.3.1]tetrasiloxane,
+spiro[5.5]pentasiloxane, 1N-tricyclo[3.3.1.1^2,4]pentasilazane. The skeleton is numbered as the hydrocarbon; locant 1
+is named by '1Si-'/'1N-' where either could be there."""
 
 import re
 
@@ -21,6 +21,10 @@ _PARENT = {
     "Sb": "stibane", "Bi": "bismuthane", "Si": "silane", "Ge": "germane", "Sn": "stannane", "Pb": "plumbane",
     "B": "borane",
 }
+_HYDRIDE = {
+    "O": "oxidane", "S": "sulfane", "Se": "selane", "Te": "tellane", "N": "azane", "P": "phosphane", "As": "arsane",
+    "Sb": "stibane", "Bi": "bismuthane", "Si": "silane", "Ge": "germane", "Sn": "stannane", "Pb": "plumbane", "B": "borane",
+}
 _VALENCE = {"O": 2, "S": 2, "Se": 2, "Te": 2, "N": 3, "P": 3, "As": 3, "Sb": 3, "Bi": 3, "Si": 4, "Ge": 4, "Sn": 4, "Pb": 4, "B": 3}
 _RETAINED_HEAD = {"cubane": "pentacyclo[4.2.0.0^2,5.0^3,8.0^4,7]"}
 _HEAD = re.compile(r"^((?:bi|tri|tetra|penta|hexa|hepta|octa|nona)cyclo\[[^\]]+\]|(?:di|tri|tetra|penta)?spiro\[[^\]]+\])")
@@ -32,6 +36,15 @@ def _shape(mol):
         return None
     atoms = list(mol.GetAtoms())
     elements = {a.GetSymbol() for a in atoms}
+    if len(elements) == 1 and elements <= set(_HYDRIDE):
+        (element,) = elements
+        if any(
+            not a.IsInRing() or a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons()
+            or a.GetDegree() + a.GetTotalNumHs() != _VALENCE[element]
+            for a in atoms
+        ) or any(b.GetBondTypeAsDouble() not in (1.0, 1.5) for b in mol.GetBonds()):
+            return None
+        return element, None, len(atoms), set()
     if len(elements) != 2 or not elements <= set(_PARENT):
         return None
     if any(not a.IsInRing() or a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in atoms):
@@ -48,32 +61,49 @@ def _shape(mol):
     return junior, senior, sum(a.GetSymbol() == junior for a in atoms), heads
 
 
-def has_alternating_cage_shape(mol) -> bool:
-    return _shape(mol) is not None
-
-
-def name_alternating_cage(mol):
+def _carbon_skeleton_name(mol):
     from .core import smiles_to_iupac
 
-    found = _shape(mol)
-    junior, senior, count, heads = found
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
         atom.SetAtomicNum(6)
         atom.SetNoImplicit(False)
         atom.SetNumExplicitHs(0)
+        atom.SetIsAromatic(False)
+    for bond in editable.GetBonds():
+        bond.SetIsAromatic(False)
+        bond.SetBondType(Chem.BondType.SINGLE)
     hydrocarbon = editable.GetMol()
     Chem.SanitizeMol(hydrocarbon)
-    carbon_name = smiles_to_iupac(Chem.MolToSmiles(hydrocarbon))
+    return smiles_to_iupac(Chem.MolToSmiles(hydrocarbon))
+
+
+def _retained_head(carbon_name, extra=None):
+    """The von Baeyer or spiro prefix and descriptor of a carbon skeleton name, or None for any other name."""
+    head = {**_RETAINED_HEAD, **(extra or {})}.get(carbon_name)
+    if head is None:
+        match = _HEAD.match(carbon_name)
+        head = match.group(1) if match else None
+    return head
+
+
+def has_alternating_cage_shape(mol) -> bool:
+    return _shape(mol) is not None
+
+
+def name_alternating_cage(mol):
+    found = _shape(mol)
+    junior, senior, count, heads = found
+    carbon_name = _carbon_skeleton_name(mol)
+    if senior is None:
+        head = _retained_head(carbon_name, {"adamantane": "tricyclo[3.3.1.1^3,7]"})
+        return None if head is None else f"{head}{numerical_term(count)}{_HYDRIDE[junior]}"
     if carbon_name == "adamantane":
         # P-68.2.1.2 prints the replacement name of an adamantane skeleton as the preselected one, against P-52.1.6.2
         return None
-    head = _RETAINED_HEAD.get(carbon_name)
+    head = _retained_head(carbon_name)
     if head is None:
-        match = _HEAD.match(carbon_name)
-        if match is None:
-            return None
-        head = match.group(1)
+        return None
     parent = _PARENT[senior]
     a_term = _A_TERM[junior]
     if parent[0] == "a":
