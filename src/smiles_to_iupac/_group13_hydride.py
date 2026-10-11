@@ -90,24 +90,6 @@ GROUP_15_STEMS = {
 }
 
 
-def _branch_atoms(graph, root, boundary):
-    """Every atom reachable from `root` without crossing into `boundary`
-    (here, just the metal atom) -- mirrors `_aromatic.py`'s identical
-    local helper, used the same way: to isolate one substituent's own
-    branch so an unsaturated bond can be attributed to the branch that
-    contains it."""
-    seen = {root}
-    stack = [root]
-    while stack:
-        current = stack.pop()
-        for neighbor in graph[current]:
-            if neighbor in boundary or neighbor in seen:
-                continue
-            seen.add(neighbor)
-            stack.append(neighbor)
-    return seen
-
-
 def has_group13_hydride_shape(mol) -> bool:
     return any(atom.GetAtomicNum() in GROUP_13_STEMS for atom in mol.GetAtoms())
 
@@ -178,8 +160,6 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    unsaturated_bonds = [b for b in non_single_bonds(mol) if b[0] != metal_idx and b[1] != metal_idx]
-
     substituent_names = []
     for root in roots:
         if root in phenyl_atoms:
@@ -193,14 +173,6 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
         if root_atomic_num in HALOGEN_PREFIXES:
             substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
             continue
-        if unsaturated_bonds:
-            branch_atoms = _branch_atoms(graph, root, {metal_idx})
-            branch_bonds = [b for b in unsaturated_bonds if b[0] in branch_atoms and b[1] in branch_atoms]
-            if branch_bonds:
-                # The Blue Book's worked example cites it as `bromodi(ethenyl)stibane (PIN)`.
-                name, _ = name_branch(graph, root, metal_idx, {}, mol=mol)
-                substituent_names.append((name, True))
-                continue
         substituent_names.append(name_branch(graph, root, metal.GetIdx(), {}, mol=mol))
 
     distinct_names = {name for name, _ in substituent_names}

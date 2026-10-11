@@ -223,43 +223,10 @@ def wrap_marks(name: str) -> str:
 
 
 def format_mononuclear_prefixes(entries) -> str:
-    """Format substituent prefixes for a mononuclear parent hydride whose
-    own atom is the sole skeletal atom (e.g. a phosphane/borane central
-    atom, P-14.3.4.2(a) locants always omitted): each distinct name gets
-    its own ordinary multiplying prefix (di-, tri-) by its own count;
-    when two or more distinct names are present, every one is
-    parenthesized except the alphabetically first, regardless of that
-    name's own count (P-16.5.1.3.1, per the Blue Book's own published
-    errata, https://iupac.qmul.ac.uk/bibliog/BBerrors.html) -- but the
-    multiplying prefix itself always sits *outside* those parentheses
-    ('ethyldi(methyl)phosphane', not 'ethyl(dimethyl)phosphane'), per
-    that same rule's own text and confirmed directly by the Blue Book's
-    'ethyldi(methyl)phosphane (PIN)' worked example (the Blue Book).
-
-    `entries`: a flat list of `(name, is_compound)` tuples (as returned by
-    `name_branch`, not a `grouped` dict like `format_substituent_prefixes`
-    above takes). A lone compound name (has its own locant, e.g.
-    'propan-2-yl') with nothing else to cite is never parenthesized
-    ('propan-2-ylphosphane', P-16.5.1.3.2's own "second and subsequent"
-    framing implying the sole substituent needs no enclosing marks at
-    all) -- but as soon as there's a second, different substituent to
-    cite, the literal P-16.5.1.3.1 text ("the first cited substituent
-    never has enclosing marks *unless* it is a compound substituent group
-    or includes a locant") means a compound first substituent *does* get
-    parenthesized too, e.g. '(propan-2-yl)(propyl)phosphane' -- a
-    correction from this project's own earlier (undocumented, PubChem-
-    trusted) assumption that only non-first compound names needed
-    parentheses; PubChem's raw auto-generated names are already
-    documented elsewhere in this project as unreliable for omitting
-    required parentheses (see e.g. `_azide.py`/`_ether.py`'s benzene-ring
-    paths), and this turned out to be another instance of that. A
-    *multiplied* compound name needs its own inner parentheses regardless
-    of position to avoid ambiguity ('tri(propan-2-yl)phosphane', PubChem
-    CID 80969; confirmed independently via the Blue Book's own
-    'ethyldi(propan-2-yl)silane (PIN)' worked example, the Blue Book P-16.5.1.3.1), mirroring the 'di(...)' rule already
-    established for `_carbamate.py`/`_urea.py`. A multiplied compound
-    name mixed with a different substituent keeps its multiplying prefix
-    ('bis') outside its own enclosing marks, first position included."""
+    """Prefixes of a mononuclear parent hydride, locants omitted (P-14.3.4.2(a)); `entries` are `(name, is_compound)`.
+    P-16.5.1.3.1: a compound or locant-bearing prefix is enclosed even when first or alone, a simple one only from the
+    second prefix on, and the multiplier stays outside the marks (ethyldi(methyl)phosphane, tri(propan-2-yl)phosphane);
+    prefixes of the same alphanumerical name are cited by their lowest locants (P-14.5.2)."""
     counts = {}
     compound_of = {}
     # P-68.3.1.1.1.5: 'aminooxy' is a preselected simple prefix, cited first without enclosing marks
@@ -269,14 +236,7 @@ def format_mononuclear_prefixes(entries) -> str:
     if len(counts) == 1:
         (name, count), = counts.items()
         if count == 1:
-            # A compound name that itself begins with a locant digit (e.g.
-            # '4-chlorophenyl') needs enclosing marks even alone, unlike a
-            # branched name whose own locant isn't leading ('propan-2-yl',
-            # left bare above) -- confirmed via PubChem PUG REST:
-            # `Clc1ccc(cc1)P` -> '(4-chlorophenyl)phosphane' (CID 17762777).
-            if compound_of[name] and (name[0] in "0123456789([{" or "-" not in name):
-                return wrap_marks(name)
-            return name
+            return wrap_marks(name) if compound_of[name] else name
         # A digit-leading compound name is itself a *substituted*
         # substituent group (e.g. '4-chlorophenyl' = phenyl substituted by
         # chloro), which takes the irregular 'bis'/'tris' series (P-14.2.2)
@@ -287,7 +247,7 @@ def format_mononuclear_prefixes(entries) -> str:
         # one phosphorus -> 'tris(4-chlorophenyl)phosphane' (CID 70874).
         return multiplied_prefix(count, name, compound_of[name])
 
-    ordered = sorted(counts, key=alpha_sort_key)
+    ordered = sorted(counts, key=lambda n: (alpha_sort_key(n), tuple(int(d) for d in re.findall(r"\d+", n))))
     parts = []
     for i, name in enumerate(ordered):
         count = counts[name]
