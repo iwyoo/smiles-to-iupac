@@ -514,13 +514,17 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             }
         else:
             monocyclic_bonds |= comp["bonds"]
-    for s, (lam, charged) in info.items():
+    for s, (lam, charged) in sorted(info.items(), key=lambda item: item[1][1]):
         if lam and not charged:
             pi_bonds = lam - mol.GetAtomWithIdx(s).GetDegree()
             if pi_bonds > 1:
                 raise UnsupportedStructure("a spiro atom with several multiple bonds is not supported yet")
             if pi_bonds == 1 and any(named[m]["fused"] for m in spiro[s]):
                 capable.add(s)
+        elif lam and any(named[m]["fused"] for m in spiro[s]) and capable <= _doubled_atoms(mol):
+            # P-73.4: with no other saturated atom, the hydrogen of the hydride the ylium derives from is the
+            # indicated hydrogen of the spiro atom
+            capable.add(s)
 
     lam_members = defaultdict(list)
     for s in info:
@@ -739,6 +743,17 @@ def _compose(ctx, mol, sol, indicated, hydro, prefixes, ending):
         joined = out and (token[0].isdigit() or token[0] in "[(" or out.endswith("H"))
         out += ("-" if joined else "") + token
     return out
+
+
+def _doubled_atoms(mol):
+    kekule = Chem.Mol(mol)
+    Chem.Kekulize(kekule, clearAromaticFlags=True)
+    return {
+        atom
+        for bond in kekule.GetBonds()
+        if bond.GetBondTypeAsDouble() == 2.0
+        for atom in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+    }
 
 
 def _mark_ambiguous(ctx, name):
