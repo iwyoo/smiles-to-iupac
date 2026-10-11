@@ -2633,6 +2633,18 @@ def _only_plain_hydrazines(mol):
     return True
 
 
+_SENIOR_ATOM_ORDER = (*_PARENT_HYDRIDE_ORDER, 8, 16, 34, 52, 6)
+
+
+def _ring_outranks_hydrides(mol, centers):
+    """P-44.1.2: the parent holds the most senior atom of N > P > As > Sb > Bi > Si > Ge > Sn > Pb > B > Al > Ga > In > Tl > O > S >
+    Se > Te > C, and a ring wins over a chain of the same element."""
+    rank = {z: i for i, z in enumerate(_SENIOR_ATOM_ORDER)}
+    ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    ring_rank = min((rank.get(mol.GetAtomWithIdx(a).GetAtomicNum(), len(rank)) for a in ring_atoms), default=len(rank))
+    return ring_rank <= min(rank[c.GetAtomicNum()] for c in centers)
+
+
 def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     """Parent without a principal group: the monocycle when there is one
     (P-44.1.2.2), else the longest chain, with every substituent a prefix."""
@@ -2647,6 +2659,8 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         if hydroxylamine is not None:
             return ((0,), hydroxylamine, (None, None, None, 0, {}, False))
     centers = [] if ring_cation else [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
+    if centers and _ring_outranks_hydrides(mol, centers):
+        centers = []
     if centers:
         named = [
             (

@@ -1196,3 +1196,18 @@ def test_branched_heteroatom_skeletons(smiles, expected):
 )
 def test_prefixes_of_a_group15_parent_hydride(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[As](C)c1ccnc2ccccc12", "4-(dimethylarsanyl)quinoline", id="nitrogen_ring_outranks_arsane"),
+        pytest.param("CCP(C)c1c[nH]cn1", "4-[ethyl(methyl)phosphanyl]-1H-imidazole", id="nitrogen_ring_outranks_phosphane"),
+        pytest.param("C[Si](C)(C)c1ccncc1", "4-(trimethylsilyl)pyridine", id="nitrogen_ring_outranks_silane"),
+        pytest.param("CP(C)CCc1ccncc1", "4-[2-(dimethylphosphanyl)ethyl]pyridine", id="nitrogen_ring_beyond_a_chain"),
+        pytest.param("CP(C)c1cccs1", "dimethyl(thiophen-2-yl)phosphane", id="phosphane_outranks_sulfur_ring"),
+        pytest.param("CB(C)c1ccoc1", "(furan-3-yl)di(methyl)borane", id="borane_outranks_oxygen_ring"),
+    ],
+)
+def test_hydride_atom_against_a_ring_by_the_seniority_of_atoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
