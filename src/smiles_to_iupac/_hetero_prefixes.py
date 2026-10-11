@@ -793,6 +793,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _enclose(rname, rcomp) + word, True
     if z == 7 and atom.GetFormalCharge() == 1 and nitrogen_pseudohalide_prefix(mol, root, others, order) == "isocyano":
         return "isocyano", False
+    if z == 7 and order == 1.0 and len(others) == 3 and azono_ligands(mol, root, others):
+        return "azono", False
     oxidized = _oxidized_nitrogen_prefix(graph, root, order, others, halogens, aromatic_atoms, mol)
     if oxidized is not None:
         return oxidized
@@ -1842,6 +1844,27 @@ def _aci_nitro_ligands(mol, nitrogen, others, order):
     if ether.GetAtomicNum() != 8 or ether.GetFormalCharge() or mol.GetBondBetweenAtoms(nitrogen, rest[0]).GetBondTypeAsDouble() != 1.0:
         return None
     return rest
+
+
+def pentavalent_nitrogen_oxo(mol, nitrogen, ligand):
+    """Whether `ligand` is the oxo oxygen of the pentavalent nitrogen of an azonic or azinic acid group: N(=O), which
+    RDKit holds as the zwitterion N(+)-O(-)."""
+    atom = mol.GetAtomWithIdx(ligand)
+    centre = mol.GetAtomWithIdx(nitrogen)
+    if atom.GetAtomicNum() != 8 or atom.GetDegree() != 1 or atom.GetIsotope():
+        return False
+    bond = mol.GetBondBetweenAtoms(nitrogen, ligand).GetBondTypeAsDouble()
+    if bond == 2.0:
+        return centre.GetFormalCharge() == 0 and atom.GetFormalCharge() == 0
+    return bond == 1.0 and centre.GetFormalCharge() == 1 and atom.GetFormalCharge() == -1 and centre.GetDegree() == 4
+
+
+def azono_ligands(mol, nitrogen, neighbors):
+    """Whether `neighbors` of a pentavalent nitrogen hold one oxo and two hydroxy groups, the -N(O)(OH)2 group
+    'azono' (P-67.1.4.1.1.1)."""
+    oxo = [n for n in neighbors if pentavalent_nitrogen_oxo(mol, nitrogen, n)]
+    hydroxy = [n for n in neighbors if mol.GetBondBetweenAtoms(nitrogen, n).GetBondTypeAsDouble() == 1.0 and _hydroxy_oxygen(mol, n)]
+    return len(oxo) == 1 and len(hydroxy) == 2
 
 
 def _oxide_atom(mol, n):
