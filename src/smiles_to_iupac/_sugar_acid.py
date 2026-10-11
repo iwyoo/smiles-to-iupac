@@ -510,7 +510,10 @@ def substituted_chain_name(mol, bridges=()):
     ending = _suffixes(kind)
     stem = aldose[: -len("ose")]
     cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
-    cited += [("anhydro", f"{ends[0]},{ends[1]}-anhydro") for ends in bridged]
+    if bridged:
+        from ._sugar_substituted import anhydro_segment
+
+        cited.append(("anhydro", anhydro_segment(bridged)))
     segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
     prefix = "-".join(segments) + "-" if segments else ""
     name = prefix + stem + ending
