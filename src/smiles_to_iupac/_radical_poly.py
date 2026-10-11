@@ -7,7 +7,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, specified_stereo_elements
-from ._hetero_prefixes import is_functional_carbon
+from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._numerals import multiplying_prefix
 
 _MAX_ATOMS = 80
@@ -100,9 +100,52 @@ def _all_on_one_parent(mol, centres):
     return None if part is None else _benzene(part.text)
 
 
+def _side(mol, start, blocked):
+    seen, stack = {start}, [start]
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            if n.GetIdx() != blocked and n.GetIdx() not in seen:
+                seen.add(n.GetIdx())
+                stack.append(n.GetIdx())
+    return seen
+
+
+def _hydride_unit(mol, centre):
+    """The radical group of a mononuclear-hydride centre ('silyl', 'methylsilyl'): the centre with the substituents on
+    the side away from the skeleton that holds the other centres, named as the radical it becomes when the bond to the
+    skeleton is replaced by a hydrogen."""
+    from .core import smiles_to_iupac
+
+    index = centre.GetIdx()
+    if centre.GetNumRadicalElectrons() != 1 or centre.IsInRing() or not centre.GetDegree():
+        return None
+    others = {a.GetIdx() for a in mol.GetAtoms() if a.GetNumRadicalElectrons() and a.GetIdx() != index}
+    sides = {n.GetIdx(): _side(mol, n.GetIdx(), index) for n in centre.GetNeighbors()}
+    toward = [n for n, side in sides.items() if side & others]
+    if len(toward) != 1 or not others <= sides[toward[0]]:
+        return None
+    skeleton = toward[0]
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in centre.GetBonds()):
+        return None
+    atoms = [index] + [a for n, side in sides.items() if n != skeleton for a in side]
+    fragment = Chem.RWMol(mol)
+    target = fragment.GetAtomWithIdx(index)
+    target.SetNoImplicit(True)
+    target.SetNumExplicitHs(centre.GetTotalNumHs() + 1)
+    for atom in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        fragment.RemoveAtom(atom)
+    try:
+        word = smiles_to_iupac(Chem.MolToSmiles(fragment.GetMol()))
+    except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
+        return None
+    return (word, atoms, skeleton) if word.endswith("yl") else None
+
+
 def _unit(mol, centre):
     """(word, atoms from the centre toward the skeleton, skeleton atom) of a monovalent radical group, or None."""
     z = centre.GetAtomicNum()
+    if z in MONONUCLEAR_HYDRIDES:
+        return _hydride_unit(mol, centre)
     if centre.GetNumRadicalElectrons() != 1 or centre.GetDegree() != 1 or centre.IsInRing():
         return None
     (neighbour,) = centre.GetNeighbors()
@@ -246,7 +289,7 @@ def polyradical_name(mol):
     name = _group_radical_name(mol, centres)
     if name is not None:
         return name
-    if all(a.GetAtomicNum() == 6 for a in centres):
+    if all(a.GetAtomicNum() == 6 or a.IsInRing() for a in centres):
         name = _all_on_one_parent(mol, centres)
         if name is not None:
             return name
