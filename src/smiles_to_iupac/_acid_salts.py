@@ -87,6 +87,31 @@ _MONONUCLEAR_ONIUM = frozenset(
 )
 
 
+_CATENATING_CENTRES = frozenset({5, 6, 14, 32, 33, 15, 16, 34, 50, 51, 52})
+_CHALCOGEN_LIGANDS = frozenset({8, 16, 34, 52})
+_LEADING_PREFIX = re.compile(
+    r"(?:(?:di|tri|tetra)?(?:fluoro|chloro|bromo|iodo|oxo|sulfanylidene|selanylidene|sulfanyl|hydroxy|amino|imino|cyano|nitro|"
+    r"azido|methyl|ethyl|propyl|butyl|phenyl|benzyl|methoxy|ethoxy|phenoxy|acetyl))+[a-z]"
+)
+
+
+def _needs_bis(frag, name):
+    """Whether 'di' before this anion name would read as another structure (P-16.3.6(a), P-16.3.6(e)): the iodide
+    ion (triiodide is I3-), a mononuclear oxoanion whose 'di' form names a polynuclear one (dicarbonate, disulfate), or
+    a name that opens with a substituent prefix that the multiplier would merge with (dichloroacetate)."""
+    heavy = [a for a in frag.GetAtoms() if a.GetAtomicNum() > 1]
+    if len(heavy) == 1 and heavy[0].GetAtomicNum() == 53:
+        return True
+    centres = [a for a in heavy if a.GetDegree() > 1]
+    if (
+        len(centres) == 1
+        and centres[0].GetAtomicNum() in _CATENATING_CENTRES
+        and all(a.GetAtomicNum() in _CHALCOGEN_LIGANDS for a in heavy if a.GetIdx() != centres[0].GetIdx())
+    ):
+        return True
+    return bool(_LEADING_PREFIX.match(name))
+
+
 def _counted(entries):
     """Cited text for (name, count, simple) entries in alphabetical order with multiplying prefixes."""
     parts = []
@@ -121,7 +146,7 @@ def name_acid_salt(mol):
             name, charge = _anion_name(frag)
             if charge != -net:
                 raise UnsupportedStructure("charge of the anion is not -net")
-            entry = anions.setdefault(key, [name, charge, 0, True])
+            entry = anions.setdefault(key, [name, charge, 0, not _needs_bis(frag, name)])
         else:
             raise UnsupportedStructure("a neutral fragment is not part of a simple salt")
         entry[2] += 1

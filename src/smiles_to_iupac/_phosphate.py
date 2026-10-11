@@ -56,7 +56,7 @@ from ._multiplicative_text import enclose
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._salt import _MONOATOMIC_CATION_NAMES
-from ._substituents import BRANCH_STEREO, name_branch
+from ._substituents import BRANCH_STEREO, name_branch, prefix_multiplier
 
 _PHOSPHORUS = 15
 
@@ -219,14 +219,14 @@ def name_phosphate(mol) -> str:
     }
     token = BRANCH_STEREO.set(context)
     try:
-        names = [name_branch(graph, root, via, halogens, aromatic_atoms, mol=mol)[0] for root, via in roots]
+        entries = [name_branch(graph, root, via, halogens, aromatic_atoms, mol=mol) for root, via in roots]
     finally:
         BRANCH_STEREO.reset(token)
     if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element of the ester groups is not cited by any supported name")
-    ester_words = format_ester_words(names)
+    ester_words = format_ester_entries(entries)
     # P-67.1.3.2: a partial ester of a polybasic acid inserts the word
     # "hydrogen" (with a multiplying prefix if more than one remaining
     # acidic P-OH) between the R-group word(s) and the anion name --
@@ -238,6 +238,12 @@ def name_phosphate(mol) -> str:
     else:
         anion_name = ester_words + " phosphate"
     return f"{cation_name} {anion_name}" if cation_name else anion_name
+
+
+def format_ester_entries(entries) -> str:
+    """`format_ester_words` for (name, is compound) pairs as `name_branch` returns them: a substituted group is cited
+    with 'bis', 'tris' (P-16.3.5)."""
+    return format_ester_words([name for name, _ in entries], frozenset(name for name, compound in entries if compound))
 
 
 def format_ester_words(names, compound_names=frozenset()) -> str:
@@ -261,6 +267,10 @@ def format_ester_words(names, compound_names=frozenset()) -> str:
     words = []
     for name in sorted(counts, key=alpha_sort_key):
         count = counts[name]
+        if count > 1 and name in compound_names:
+            multiplier, enclosed = prefix_multiplier(count, name, True)
+            words.append(multiplier + (enclose(name) if enclosed else name))
+            continue
         needs_enclosure = (name[0].isdigit() or name[0] == "(" or name in compound_names) and count > 1
         group = enclose(name) if needs_enclosure else name
         prefix = multiplying_prefix(count, compound=needs_enclosure) if count > 1 else ""

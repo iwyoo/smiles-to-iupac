@@ -668,3 +668,16 @@ def test_carboxylic_acyl_halide_against_a_phosphorus_acid_derivative(smiles, exp
 )
 def test_ring_phosphorus_is_not_the_centre_of_a_phosphite(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-16.3.5, P-16.3.2: a substituted ester group is multiplied with bis/tris, a plain stem with a locant with di/tri
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ClCOP(=O)(OCCl)Cl", "bis(chloromethyl) phosphorochloridate", id="substituted_group_of_a_halide"),
+        pytest.param("ClCOP(=S)(OCCl)OCCl", "O,O,O-tris(chloromethyl) phosphorothioate", id="substituted_group_under_chalcogen_locants"),
+        pytest.param("CC(C)OP(=O)(OC(C)C)Cl", "di(propan-2-yl) phosphorochloridate", id="plain_stem_with_a_locant"),
+    ],
+)
+def test_multiplier_of_identical_ester_groups_of_a_phosphorus_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
