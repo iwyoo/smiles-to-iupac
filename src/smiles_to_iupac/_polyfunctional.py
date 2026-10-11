@@ -3132,7 +3132,7 @@ def _assembly_beside_systems(mol, graph, halogens, aromatic_atoms, stereo):
 
     ring_info = mol.GetRingInfo()
     monocycles = [list(r) for r in ring_info.AtomRings() if all(ring_info.NumAtomRings(a) == 1 for a in r)]
-    best = None
+    best, named = None, set()
     for i, first in enumerate(monocycles):
         for second in monocycles[i + 1 :]:
             found = _pair_assembly(mol, graph, halogens, aromatic_atoms, None, [], [first, second])
@@ -3140,14 +3140,66 @@ def _assembly_beside_systems(mol, graph, halogens, aromatic_atoms, stereo):
                 continue
             ylidene = _junction_is_ylidene(mol, found[2], [spec_of(mol, first), spec_of(mol, second)])
             atoms = set(first) | set(second)
+            named.add(frozenset(atoms))
             key = (not ylidene, ring_seniority_key(mol, atoms, assembly=True), found[1][1])
             if best is None or key < best[0]:
                 best = (key, atoms, (found[0], found[1]))
+    for atoms, members in _joined_system_sets(mol):
+        found = _system_set_assembly(mol, graph, halogens, aromatic_atoms, stereo, atoms, members)
+        if found is None:
+            continue
+        joined = frozenset(found[1][2][4])
+        if joined in named:
+            continue
+        named.add(joined)
+        ylidene = any(
+            b.GetBondTypeAsDouble() == 2.0
+            for b in mol.GetBonds()
+            if b.GetBeginAtomIdx() in joined and b.GetEndAtomIdx() in joined and not b.IsInRing()
+        )
+        key = (not ylidene, ring_seniority_key(mol, joined, assembly=True), found[1][1])
+        if best is None or key < best[0]:
+            best = (key, joined, found)
     if best is None:
         return None
     if any(ring_seniority_key(mol, system) < best[0][1] for system in _ring_systems(mol) if not system <= best[1]):
         return None
     return best[2]
+
+
+def _joined_system_sets(mol, largest=6):
+    """(atoms, member systems) of every set of two to `largest` ring systems linked through direct bonds between them."""
+    from ._multiplicative import _ring_systems
+
+    systems = [frozenset(s) for s in _ring_systems(mol)]
+    owner = {a: i for i, system in enumerate(systems) for a in system}
+    links = {i: set() for i in range(len(systems))}
+    for bond in mol.GetBonds():
+        i, j = owner.get(bond.GetBeginAtomIdx()), owner.get(bond.GetEndAtomIdx())
+        if i is not None and j is not None and i != j:
+            links[i].add(j)
+            links[j].add(i)
+    found, grown = set(), {frozenset([i]) for i in links}
+    for _ in range(largest - 1):
+        grown = {chosen | {n} for chosen in grown for i in chosen for n in links[i] if n not in chosen}
+        found |= grown
+    ordered = sorted(found, key=sorted)
+    return [(frozenset().union(*(systems[i] for i in chosen)), [systems[i] for i in chosen]) for chosen in ordered]
+
+
+def _system_set_assembly(mol, graph, halogens, aromatic_atoms, stereo, atoms, members):
+    """The assembly name of ring systems that are the same component joined by direct bonds, as
+    (count, (key, name, parts)); None when they are not one or cannot be named."""
+    from ._chain_assembly import chain_assembly
+    from ._system_assembly import _skeleton_key, system_assembly
+
+    if len({_skeleton_key(mol, m) for m in members}) != 1:
+        return None
+    build = system_assembly if len(members) == 2 else chain_assembly
+    try:
+        return build(mol, graph, halogens, aromatic_atoms, None, [], stereo, within=atoms)
+    except UnsupportedStructure:
+        return None
 
 
 def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings):
