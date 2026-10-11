@@ -2840,9 +2840,9 @@ def _configuration_senior_system(mol, graph, tied):
     """The numbered parent among equally senior ring systems that differ only in isotopic modification or configuration:
     the lowest locants for the modified atoms (P-44.4.1.11.4-6), then Z before E and R before S (P-44.4.1.12.1,
     P-44.4.1.12.2, P-45.6.2); identical ones need a multiplicative or assembly name."""
-    from ._diester_ring_diyl import evaluate_skeleton
+    from ._diester_ring_diyl import PARENT_START, evaluate_skeleton
 
-    candidates = []
+    candidates, starts = [], []
     for rings, atoms in tied:
         if len(rings) > 1:
             _require_mancude_system(mol, atoms)
@@ -2850,16 +2850,38 @@ def _configuration_senior_system(mol, graph, tied):
         if found is None:
             raise UnsupportedStructure("this fused ring system has no supported numbering")
         candidates.append(found)
+        starts.append(PARENT_START.get())
     from ._substituents import ISOTOPE_LABELS
 
     entries = _isotope_entries((ISOTOPE_LABELS.get() or {}).get("labels", {}))
     ranks = [_isotope_locant_rank(entries, c[2]) for c in candidates]
-    candidates = [c for c, rank in zip(candidates, ranks) if rank == min(ranks)]
+    keep = [i for i, rank in enumerate(ranks) if rank == min(ranks)]
+    candidates, starts = [candidates[i] for i in keep], [starts[i] for i in keep]
     if len(candidates) == 1:
         return candidates[0]
     if len({_ALL_DESCRIPTORS.sub("", c[1]) for c in candidates}) > 1 or len({c[0] for c in candidates}) == 1:
-        raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
+        return _by_substituents(mol, graph, [t for i, t in enumerate(tied) if i in keep], candidates, starts)
     return min(candidates, key=lambda c: c[0])
+
+
+def _by_substituents(mol, graph, tied, candidates, starts):
+    """Identical ring systems that the units of a multiplicative name do not match (different junction atoms or different
+    substituents) are told apart as parent by the number of substituents, their locants and the alphanumerical order of
+    the names (P-45.2.1, P-45.2.2, P-45.2.3, P-45.5)."""
+    from ._diester_ring_diyl import PARENT_START
+    from ._multiplicative import name_if_multiplicative
+
+    if name_if_multiplicative(mol) is not None:
+        raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
+
+    def key(index):
+        found = candidates[index]
+        roots = sum(1 for a in tied[index][1] for n in graph[a] if n not in tied[index][1])
+        return (-roots, found[0], alphanumerical_name_key(found[1]), found[1])
+
+    best = min(range(len(candidates)), key=key)
+    PARENT_START.set(starts[best])
+    return candidates[best]
 
 
 def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
