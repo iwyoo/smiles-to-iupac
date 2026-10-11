@@ -1215,6 +1215,7 @@ def test_polycations_of_ylium_groups_on_one_skeleton(smiles, expected):
         pytest.param("CCOP(=O)(C1CCCCC1)OCC[S+](C)CCCCCC", "4-cyclohexyl-8-methyl-4-oxo-3,5-dioxa-8-thia-4λ5-phosphatetradecan-8-ium", id="lambda_heterounit_with_oxo_and_ring_substituent"),
         pytest.param("C1CC[As+]2(C1)CCCC2", "5λ5-arsaspiro[4.4]nonan-5-ylium", id="spiro_atom_cation_by_the_lambda_convention"),
         pytest.param("C1CC[N+]2(C1)CCCC2", "5λ5-azaspiro[4.4]nonan-5-ylium", id="spiro_ammonium_by_the_lambda_convention"),
+        pytest.param("[P+]12(c3ccccc3-c3ccccc31)c1ccccc1-c1ccccc12", "5H-5λ5,5′-spirobi[benzo[b]phosphindol]-5-ylium", id="spiro_atom_cation_of_mancude_components_keeps_its_indicated_hydrogen"),
         pytest.param("C1CC2CC[S+]1CC2", "1λ4-thiabicyclo[2.2.2]octan-1-ylium", id="bridgehead_cation_by_the_lambda_convention"),
     ],
 )
