@@ -225,6 +225,13 @@ def test_assembly_indicated_hydrogen_primes_after_the_number_and_replacement_pre
         ("C1=CC2CCC1CC2C1CC2CCC1C=C2", "[2,2'-bi(bicyclo[2.2.2]octane)]-5,5'-diene"),
         ("C12C(C3CC4PCC3CC4)CC(NC1)CC2", "5-aza-5'-phospha-2,2'-bi(bicyclo[2.2.2]octane)"),
         ("ClC1CC2CCC1CC2C1CC2CCC1CC2Cl", "5,5'-dichloro-2,2'-bi(bicyclo[2.2.2]octane)"),
+        ("OC1(CC2CCC1C2)C1CC2CCC1C2", "[2,2'-bi(bicyclo[2.2.1]heptan)]-2-ol"),
+        ("OC1CC2CCC1CC2C1CC2CCC1CN2", "5-aza[2,2'-bi(bicyclo[2.2.2]octan)]-5'-ol"),
+        ("OC(=O)CC1CC2CCC1C2C1CC2CCC1C2", "{[2,7'-bi(bicyclo[2.2.1]heptan)]-2'-yl}acetic acid"),
+        (
+            "CC(=O)NC1CC2CCC1CC2C1CC2CCC1CC2NC(C)=O",
+            "N,N'-{[2,2'-bi(bicyclo[2.2.2]octane)]-5,5'-diyl}diacetamide",
+        ),
         ("C1C2C3CC(C3)C2C1C1C2C3CC(C3)C2C1", "3,3'-bi(tricyclo[4.1.1.0^2,5]octane)"),
         (
             "C12(C34CSC(C=C3)(C56CSC(C=C5)CC6)CC4)SCC(C=C1)CC2",
