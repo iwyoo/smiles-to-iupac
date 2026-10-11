@@ -223,13 +223,13 @@ def _joined_by_chalcogens(mol, graph, best, runs):
     return True
 
 
-def _unsaturated_parent(z, size, ene, yne, grouped):
+def _unsaturated_parent(z, size, ene, yne, grouped, locants_needed=False):
     """'disilyne', 'triazene', 'triaz-1-ene', 'pentaaza-1,3-diene' (P-14.3.4.2(d), P-31.1.4): the 'ane' of the chain hydride
     becomes 'ene' or 'yne'; the unsaturation locants are omitted for a dinuclear chain and for an unsubstituted
-    monounsaturated one."""
+    monounsaturated one, unless the numbering is fixed by a cited suffix (`locants_needed`)."""
     root = multiplying_prefix(size) + _STEMS[z][:-3]
     unsubstituted = not grouped
-    if size == 2 or (size == 3 and len(ene) + len(yne) == 1 and unsubstituted):
+    if size == 2 or (size == 3 and len(ene) + len(yne) == 1 and unsubstituted and not locants_needed):
         return root + ("yne" if yne and not ene else "ene" if ene and not yne else _unsat_words(ene, yne)), True
     body, needs_a = unsaturation_suffix(ene, yne)
     return f"{root}{'a' if needs_a else ''}-{body}", False
@@ -352,9 +352,10 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
     return _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating)
 
 
-def _one_arrangement(substituents, capacity):
+def _one_arrangement(substituents, capacity, mirror=None):
     """P-14.3.4.4: whether every placement of the substituents on the chain atoms (each atom taking no more than its
-    substitutable hydrogens and substituents) gives the same compound, so that no locant is needed."""
+    substitutable hydrogens and substituents) gives the same compound, so that no locant is needed. `mirror`: whether
+    reading the chain from its other end gives the same chain (default: the capacities read alike both ways)."""
     positions = len(capacity)
     counts = {}
     for entries in substituents.values():
@@ -364,7 +365,7 @@ def _one_arrangement(substituents, capacity):
         return False
     names = sorted(counts)
     seen = set()
-    symmetric = list(capacity) == list(capacity)[::-1]
+    symmetric = list(capacity) == list(capacity)[::-1] if mirror is None else mirror
 
     def compositions(total, room):
         if len(room) == 1:
