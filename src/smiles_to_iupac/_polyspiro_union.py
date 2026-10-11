@@ -522,10 +522,15 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             monocyclic_bonds |= comp["bonds"]
     for s, (lam, charged) in sorted(info.items(), key=lambda item: item[1][1]):
         if lam and not charged:
-            pi_bonds = lam - mol.GetAtomWithIdx(s).GetDegree()
+            atom = mol.GetAtomWithIdx(s)
+            pi_bonds = lam - atom.GetDegree()
             if pi_bonds > 1:
                 raise UnsupportedStructure("a spiro atom with several multiple bonds is not supported yet")
-            if pi_bonds == 1 and any(named[m]["fused"] for m in spiro[s]):
+            skeleton_valence = sum(
+                bond.GetBondTypeAsDouble() for bond in atom.GetBonds() if bond.GetOtherAtomIdx(s) in scope
+            )
+            # a substituent on the spiro atom stands in for the one hydrogen the skeleton leaves there (P-25.6)
+            if (pi_bonds == 1 or lam - skeleton_valence == 1) and any(named[m]["fused"] for m in spiro[s]):
                 capable.add(s)
         elif lam and any(named[m]["fused"] for m in spiro[s]) and capable <= _doubled_atoms(mol):
             # P-73.4: with no other saturated atom, the hydrogen of the hydride the ylium derives from is the
