@@ -1702,6 +1702,22 @@ def stereo_element_atoms(mol, stereo):
     return atoms
 
 
+_POLYHEDRAL_ATOM_TYPES = (Chem.StereoType.Atom_TrigonalBipyramidal, Chem.StereoType.Atom_Octahedral)
+_MAIN_GROUP_CENTRES = frozenset({5, 13, 14, 15, 16, 17, 31, 32, 33, 34, 35, 49, 50, 51, 52, 53, 81, 82, 83})
+
+
+def is_polyhedral_centre(mol, element):
+    """A specified trigonal-bipyramidal or octahedral main-group centre (P-93.3.4.2)."""
+    return element.type in _POLYHEDRAL_ATOM_TYPES and mol.GetAtomWithIdx(element.centeredOn).GetAtomicNum() in _MAIN_GROUP_CENTRES
+
+
+def polyhedral_code(mol, idx):
+    """'(TBPY-5-12-C)': the polyhedral symbol, configuration index and chirality symbol of the centre `idx`."""
+    from ._complex_stereo import complex_stereo_descriptor
+
+    return f"({complex_stereo_descriptor(mol, idx)})"
+
+
 def specified_stereo_elements(mol):
     """Like `specified_stereocenters`/`specified_double_bond_stereo`, but
     allows a specified tetrahedral stereocenter and a specified C=C
@@ -1745,6 +1761,8 @@ def specified_stereo_elements(mol):
                     raise UnsupportedStructure("could not determine a CIP E/Z label for this double bond")
                 continue
             labels.append(("bond", element.centeredOn, bond.GetProp("_CIPCode")))
+        elif is_polyhedral_centre(mol, element):
+            labels.append(("atom", element.centeredOn, polyhedral_code(mol, element.centeredOn)))
         else:
             raise UnsupportedStructure(
                 "stereochemistry beyond a tetrahedral R/S stereocenter or a "
