@@ -36,7 +36,7 @@ _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
 
 def _acylamino_nitrogen(mol, root, parent):
     """A neutral acyclic nitrogen joined singly to `parent` that carries an acyl group (acetamido, sulfonamido,
-    ethanimidamido; P-66.1.1.4.3) and at most one carbon group."""
+    ethanimidamido; P-66.1.1.4.3) and at most one carbon group, or two acyl groups (N-acetylacetamido; P-66.1.2)."""
     atom = mol.GetAtomWithIdx(root)
     if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() or atom.IsInRing() or atom.GetDegree() > 3:
         return False
@@ -44,7 +44,7 @@ def _acylamino_nitrogen(mol, root, parent):
         return False
     kids = [n for n in atom.GetNeighbors() if n.GetIdx() != parent]
     acyl = [n for n in kids if _thioacyl(mol, n.GetIdx()) or _imidoyl_centre(mol, n.GetIdx())]
-    return len(acyl) == 1 and len(kids) <= 2 and all(n in acyl or n.GetAtomicNum() == 6 for n in kids)
+    return len(acyl) in (1, 2) and len(kids) <= 2 and all(n in acyl or n.GetAtomicNum() == 6 for n in kids)
 
 
 def _acyl_hydrazine_sulfur(mol, root):

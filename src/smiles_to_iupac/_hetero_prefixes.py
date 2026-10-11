@@ -999,6 +999,14 @@ def _fragment_name(fragment, namer):
     return name
 
 
+def _diacylamide_name(fragment):
+    from ._diacylamine import diacylamine_name
+
+    from ._polyfunctional import name_polyfunctional
+
+    return diacylamine_name(fragment) or name_polyfunctional(fragment)
+
+
 def _chalcogen_amido(graph, root, others, mol):
     """'acetamido', 'ethanethioamido', 'methanesulfonamido' for R-CO-NH-, R-CS-NH-, R-SO2-NH- and N-substituted
     forms: the final 'e' in the complete name of the amide becomes 'o' (P-66.1.1.4.3); None for any other nitrogen."""
@@ -1006,7 +1014,7 @@ def _chalcogen_amido(graph, root, others, mol):
 
     acyl = [n for n in others if _thioacyl(mol, n) or _imidoyl_centre(mol, n)]
     rest = [n for n in others if n not in acyl]
-    if len(acyl) != 1 or len(rest) > 1 or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in rest):
+    if len(acyl) not in (1, 2) or len(rest) > 1 or (len(acyl) == 2 and rest) or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in rest):
         return None
     if not rest:
         from ._amino_acyl_group import amino_acyl_group
@@ -1014,7 +1022,7 @@ def _chalcogen_amido(graph, root, others, mol):
         amino = amino_acyl_group(mol, graph, acyl[0], root)
         if amino is not None:
             return amino[0] + "amino", True
-    keep = {root} | _side(graph, acyl[0], root)
+    keep = {root}.union(*(_side(graph, n, root) for n in acyl))
     if rest:
         keep |= _side(graph, rest[0], root)
     if any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in map(mol.GetAtomWithIdx, keep)) or any(
@@ -1029,10 +1037,10 @@ def _chalcogen_amido(graph, root, others, mol):
     fragment = fragment.GetMol()
     try:
         Chem.SanitizeMol(fragment)
-        name = _fragment_name(fragment, name_polyfunctional)
+        name = _fragment_name(fragment, _diacylamide_name if len(acyl) == 2 else name_polyfunctional)
     except (UnsupportedStructure, ValueError):
         return None
-    if not name.endswith("amide") or _acylated_nitrogens(fragment) > 1:
+    if not name.endswith("amide") or _acylated_nitrogens(fragment) > len(acyl):
         return None
     prefix = name[:-1] + "o"
     return prefix, any(part in prefix for part in ("-", "ane", "benzene"))
