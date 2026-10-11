@@ -45,7 +45,7 @@ urea core (hydantoin) and groups senior to urea (acids, esters, amides) are out 
 from rdkit import Chem
 
 from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first
-from ._common import UnsupportedStructure, adjacency, group_substituents
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
 from ._substituents import format_substituent_prefixes
 
 
@@ -89,13 +89,11 @@ def _urea_core(mol, atomic_num=8):
             if nn.GetIdx() != atom.GetIdx()
         ):
             continue
-        amino_neighbors = [
-            nn
+        tails = [
+            [nn for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx() and _is_hydrazine_tail(mol, nn, n.GetIdx())]
             for n in nitrogens
-            for nn in n.GetNeighbors()
-            if nn.GetIdx() != atom.GetIdx() and _is_hydrazine_tail(mol, nn, n.GetIdx())
         ]
-        if len(amino_neighbors) > 1:
+        if max(len(t) for t in tails) > 1:
             continue
         return atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
     return None
@@ -151,6 +149,12 @@ def name_urea(mol, atomic_num=8) -> str:
 
     core_atoms = {carbon_idx, oxygen_idx, n1_idx, n2_idx}
     graph = adjacency(mol)
+    tails = [next((t for t in graph[n] if t != carbon_idx and _is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n)), None) for n in (n1_idx, n2_idx)]
+    if all(t is not None for t in tails):
+        core_atoms.update(tails)
+        units = ((n1_idx, tails[0]), (n2_idx, tails[1]))
+        names = n_substituent_names(mol, graph, core_atoms, (*units[0], *units[1]), carbon_idx, junior_groups=True)
+        return _hydrazinecarbohydrazide_name((names[0], names[1]), (names[2], names[3]), _HYDRAZIDE_ENDING[atomic_num])
     if amino_nitrogen_idx is not None:
         core_atoms.add(amino_nitrogen_idx)
         alpha, amide = (
@@ -190,6 +194,35 @@ def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="car
     hydrazine nitrogens."""
     positions = {"N": amide_names, 1: alpha_names, 2: beta_names}
     grouped = group_substituents({k: v for k, v in positions.items() if v})
+    if not grouped:
+        return f"hydrazine{ending}"
+    numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
+    return f"{format_substituent_prefixes(grouped)}hydrazine{'-1-' if numbered else ''}{ending}"
+
+
+_HYDRAZIDE_ENDING = {8: "carbohydrazide", 16: "carbothiohydrazide", 34: "carboselenohydrazide", 52: "carbotellurohydrazide"}
+
+
+def _locant_rank(locant):
+    return (0, locant) if isinstance(locant, int) else (1, len(locant))
+
+
+def _hydrazinecarbohydrazide_name(unit_a, unit_b, ending):
+    """Hydrazine-1-carbohydrazide (P-68.3.1.2.6): the hydrazine unit with more substituents is the parent chain (1 on
+    the nitrogen bonded to the carbonyl carbon, 2 on the other), the other unit is the hydrazide (N, N'); then the
+    lowest locants, then the alphanumerically first prefix at the lowest locant."""
+    options = []
+    for parent, hydrazide in ((unit_a, unit_b), (unit_b, unit_a)):
+        positions = {1: parent[0], 2: parent[1], "N": hydrazide[0], "N'": hydrazide[1]}
+        grouped = group_substituents({k: v for k, v in positions.items() if v})
+        by_name = sorted(grouped, key=alpha_sort_key)
+        key = (
+            -(len(parent[0]) + len(parent[1])),
+            sorted(_locant_rank(loc) for info in grouped.values() for loc in info["locants"]),
+            [sorted(_locant_rank(loc) for loc in grouped[name]["locants"]) for name in by_name],
+        )
+        options.append((key, grouped))
+    grouped = min(options, key=lambda option: option[0])[1]
     if not grouped:
         return f"hydrazine{ending}"
     numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])

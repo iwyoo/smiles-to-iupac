@@ -1075,6 +1075,23 @@ def test_hydrazide_semicarbazone_and_guanidine_n_substituents(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param(
+            "O=C(NN=Cc1ccccc1)N(C)N=CC",
+            "N'-benzylidene-2-ethylidene-1-methylhydrazine-1-carbohydrazide",
+            id="twice_substituted_unit_is_the_parent_hydrazine",
+        ),
+        pytest.param("NNC(=O)N(C)N", "1-methylhydrazine-1-carbohydrazide", id="single_substituent_on_the_parent_unit"),
+        pytest.param("CNNC(=O)NNC", "N',2-dimethylhydrazine-1-carbohydrazide", id="equal_units_cite_n_prime_locant"),
+        pytest.param("NNC(=S)NNC", "2-methylhydrazine-1-carbothiohydrazide", id="chalcogen_analogue"),
+    ],
+)
+def test_substituted_hydrazinecarbohydrazides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC(=O)NC(=O)OC", "methyl N-acetylcarbamate", id="n_acyl_carbamate"),
         pytest.param("O=C(NC(=O)c1ccccc1)OC", "methyl N-benzoylcarbamate", id="n_aroyl_carbamate"),
         pytest.param("CC(=O)N(C)C(=O)OC", "methyl N-acetyl-N-methylcarbamate", id="n_acyl_n_alkyl_carbamate"),
