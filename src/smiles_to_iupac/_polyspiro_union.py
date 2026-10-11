@@ -529,8 +529,9 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             skeleton_valence = sum(
                 bond.GetBondTypeAsDouble() for bond in atom.GetBonds() if bond.GetOtherAtomIdx(s) in scope
             )
-            # a substituent on the spiro atom stands in for the one hydrogen the skeleton leaves there (P-25.6)
-            if (pi_bonds == 1 or lam - skeleton_valence == 1) and any(named[m]["fused"] for m in spiro[s]):
+            # a substituent on the spiro atom stands in for a hydrogen the skeleton leaves there (P-25.6); the atom
+            # takes one double bond at most (P-22.2.7.1, '3H-1λ4-thiophene')
+            if (pi_bonds == 1 or lam - skeleton_valence >= 1) and any(named[m]["fused"] for m in spiro[s]):
                 capable.add(s)
         elif lam and any(named[m]["fused"] for m in spiro[s]) and capable <= _doubled_atoms(mol):
             # P-73.4: with no other saturated atom, the hydrogen of the hydride the ylium derives from is the
