@@ -361,7 +361,9 @@ def test_polyhedral_descriptors_of_main_group_centres(smiles, expected):
 
 def test_octahedral_spiro_index_cites_the_unprimed_number_first():
     name = smiles_to_iupac("F[S@OH16]13(F)(OC(C(F)(F)F)(C(F)(F)F)c2ccccc12)OC(C(F)(F)F)(C(F)(F)F)c1ccccc13")
-    assert name.startswith("(OC-6-22′-C)-1,1-difluoro-3,3,3′,3′-tetrakis(trifluoromethyl)-")
+    assert name == (
+        "(OC-6-22′-C)-1,1-difluoro-3,3,3′,3′-tetrakis(trifluoromethyl)-1,3′-dihydro-3H-1λ6,1′-spirobi[[2,1]benzoxathiole]"
+    )
 
 
 def test_lone_pair_on_the_axis_is_not_a_see_saw():
