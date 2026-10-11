@@ -1133,8 +1133,8 @@ def test_senior_spiro_and_von_baeyer_system(senior, junior):
 def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted=(), replaced=None, saturated=(), inserted_element=6, attached=()):
     """The cage at systematic locants with atoms `deleted`, bonds `cleaved`, bonds `formed`, atoms `inserted` into bonds
     and atoms `replaced` ({locant: atomic number}); the atoms at `saturated` locants carry the extra hydrogen. `attached`
-    are (cage locants, SMILES) of rings and bridges, written with [Xe:1], [Xe:2], ... for those atoms; a bond between two
-    of them is the cage bond itself."""
+    are (cage locants, SMILES) of rings and bridges, written with [Xe:1], [Xe:2], ... for those atoms (a locant 'insertedN'
+    is the Nth atom inserted); a bond between two of them is the cage bond itself."""
     import networkx as nx
     from smiles_to_iupac._fullerene_numbering import fullerene_numberings
 
@@ -1190,7 +1190,7 @@ def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted
         atom = mol.GetAtomWithIdx(index[n])
         atom.SetNoImplicit(True)
         if n in inserted_names:
-            atom.SetNumExplicitHs({6: 2, 7: 1, 8: 0}[inserted_element])
+            atom.SetNumExplicitHs({6: 4, 7: 3, 8: 2}[inserted_element] - atom.GetDegree())
         elif atom.GetAtomicNum() in (6, 14):
             atom.SetNumExplicitHs(max(0, (4 if n in saturated else 3) - atom.GetDegree()))
     result = mol.GetMol()
@@ -1318,6 +1318,30 @@ def test_bridged_fullerenes(operations, expected):
     operations = dict(operations)
     cage = _FULLERENE_C70_SMILES if operations.pop("cage", 60) == 70 else _FULLERENE_C60_SMILES
     assert smiles_to_iupac(_modified_fullerene(cage, **operations)) == expected
+
+
+@pytest.mark.parametrize(
+    "operations,expected",
+    [
+        pytest.param(
+            {"inserted": ((1, 9),), "attached": [(("inserted0",), "[Xe:1]1CCCCC1")]},
+            "spiro[cyclohexane-1,1′a-[1(9)a]homo(C60-Ih)[5,6]fullerene]",
+            id="homofullerene_atom_is_the_spiro_atom",
+        ),
+        pytest.param(
+            {"attached": [((1, 9), "C1(CCCCC1)([Xe:1])[Xe:2]")]},
+            "spiro[cyclohexane-1,3′′-cyclopropa[1,9](C60-Ih)[5,6]fullerene]",
+            id="atom_of_a_fused_ring_is_the_spiro_atom",
+        ),
+    ],
+)
+def test_spiro_fullerenes(operations, expected):
+    assert smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, **operations)) == expected
+
+
+def test_spiro_atom_of_a_fused_ring_with_other_saturated_positions_is_not_named():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, attached=[((1, 9), "[Xe:1]CCC2(CCCCC2)[Xe:2]")]))
 
 
 def test_bridge_with_a_substituent_is_not_named():
