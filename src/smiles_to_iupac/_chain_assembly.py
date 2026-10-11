@@ -69,10 +69,11 @@ def _unit_systems(mol, graph, frees, within):
     return systems
 
 
-def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None):
+def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None, place=None):
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free`
     = (root, coming_from) or a list of such pairs (within the atom set `within`); None when `mol` is not such
     an assembly."""
+    from ._diester_ring_diyl import _isotope_key
     from ._polyfunctional import _assembly_spec, _require_mancude_system, _stereo_rank
     from ._ring_diyl_numbering import SUFFIX_ATOMS, system_numberings
     from ._system_assembly import _fully_hydro, _hydro, _lit_hydrogens, _stem
@@ -179,6 +180,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
                     tuple(sorted(locants[r] for r, _, _ in entries)),
                     _citation_key([(locants[r], name) for r, name, _ in entries]),
                     _stereo_rank(stereo, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True),
+                    _isotope_key(locants, locants),
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, junction_text, entries, len(chain), head)
@@ -220,7 +222,14 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     if frees:
         spots = ",".join(_cite(c) for c in sorted(locants[f[0]] for f in frees))
         core = f"{bracketed(True)}-{spots}-{multiplied_word(len(frees), 'yl')}"
-        return (assembly_join(prefix, core)), True
+        name = assembly_join(prefix, core)
+        if place is not None:
+            place.update(
+                locants={a: CompositeLocant(*loc) for a, loc in locants.items()},
+                start=len(name) - len(core),
+                atoms=atoms_all,
+            )
+        return name, True
     total = len(occurrences)
     if principal is None:
         core = base(False)

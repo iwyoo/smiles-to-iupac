@@ -3161,25 +3161,28 @@ def _assembly_spec(mol, graph, ring, replaceable=False):
     return RingSpec(cycle, found[0], hetero, name=found[1], fixed=options)
 
 
-def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms):
+def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms, place=None):
     """(name, True) of a substituent group made of two identical directly
-    joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise."""
+    joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise. `place`, a dict, receives the locant of
+    every ring atom of the group and the offset of the assembly name inside the group name."""
     from ._system_assembly import system_assembly
 
     fused = system_assembly(
-        mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from), within=_arm_atoms(graph, root, coming_from)
+        mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from), within=_arm_atoms(graph, root, coming_from),
+        place=place,
     )
     if fused is not None:
         return fused
     from ._chain_assembly import chain_assembly
 
-    chained = chain_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from))
+    chained = chain_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from), place=place)
     if chained is not None:
         return chained
     from ._vb_ring_assembly import vb_assembly
 
     von_baeyer = vb_assembly(
-        mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from), within=_arm_atoms(graph, root, coming_from)
+        mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from), within=_arm_atoms(graph, root, coming_from),
+        place=place,
     )
     if von_baeyer is not None:
         return von_baeyer
@@ -3223,7 +3226,10 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     spot = locants[root]
     enes = f"{ending[:-1]}-" if ending else ""
     core = _assembly_replacement(mol, specs, locants) + f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
-    return (assembly_join(prefix, core)), True
+    name = assembly_join(prefix, core)
+    if place is not None:
+        place.update(locants={a: PrimedLocant(*loc) for a, loc in locants.items()}, start=len(name) - len(core), atoms=ring_atoms)
+    return name, True
 
 
 def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo):

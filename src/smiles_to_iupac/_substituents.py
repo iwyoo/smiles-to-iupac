@@ -548,8 +548,17 @@ def _ring_system_label_positions(mol, graph, root, coming_from, labelled, name, 
     """(positions, offset of the ring parent in `name`, locants omitted) for a ring group numbered by its ring system:
     the free valence, then the substituents, then the modified atoms take the lowest locants (P-82.5.2)."""
     from ._diester_ring_diyl import ring_substituent_numbering
+    from ._common import halogen_substituents
+    from ._polyfunctional import assembly_substituent
 
-    found = ring_substituent_numbering(mol, graph, root, coming_from)
+    place = {}
+    assembled = assembly_substituent(
+        mol, graph, root, coming_from, halogen_substituents(mol), frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()), place
+    )
+    if assembled is not None and assembled[0] == name and place:
+        found = (name, place["locants"], place["start"], place["atoms"])
+    else:
+        found = ring_substituent_numbering(mol, graph, root, coming_from)
     if found is None or found[0] != name or any(a not in found[1] for a in labelled):
         raise UnsupportedStructure("an isotopically modified ring substituent of this kind is not supported yet")
     _, positions, offset, system = found

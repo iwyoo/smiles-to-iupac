@@ -17,6 +17,11 @@ def _order(locant):
     return float(locant[1]), locant[0]
 
 
+class _FusedAssemblyLocant(PrimedLocant):
+    def __str__(self):
+        return _primed(self.number, self.primes)
+
+
 def _primed(position, primes):
     """P-16.9.4: primes follow the number, not the letter of a fusion locant (4'a, 3'a)."""
     return re.sub(r"^(\d+)", lambda m: m.group(1) + chr(39) * primes, str(position))
@@ -142,9 +147,11 @@ def _split_added(numbering, frees):
     return hydro, []
 
 
-def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, ring_suffix=None, within=None):
+def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, ring_suffix=None, within=None, place=None):
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free`
     = (root, coming_from); None when `mol` is not two identical fused systems joined by one bond."""
+    from ._diester_ring_diyl import _isotope_key
+
     systems = [s for s in _systems(mol) if within is None or set(s[1]) <= within]
     if len(systems) != 2 or all(len(rings) == 1 for rings, _ in systems) and not all(
         _hetero_mancude_ring(mol, atoms) for _, atoms in systems
@@ -237,6 +244,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
                     (marked_key, ih_key) if frees and free_ylidene else (ih_key, marked_key),
                     tuple(sorted(_order(locants[r]) for r, _, _ in entries)),
                     tuple(loc for loc, _ in sorted(((_order(locants[r]), name) for r, name, _ in entries), key=lambda e: (e[1], e[0]))),
+                    _isotope_key({a: _order(loc) for a, loc in locants.items()}, locants),
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, stem_first, ih, unprimed, hydro_first, _fully_hydro(first))
@@ -275,7 +283,12 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
             core = f"{hydro_prefix}[{base(multiplied_word(len(frees), 'ylidene')[0] in 'aeiouy')}]-{tail}-{multiplied_word(len(frees), 'ylidene')}"
         else:
             core = f"{ih_text}[{base(multiplied_word(len(frees), 'yl')[0] in 'aeiouy')}]-{free_spots}-{multiplied_word(len(frees), 'yl')}"
-        return (assembly_join(prefix, core)), True
+        name = assembly_join(prefix, core)
+        if place is not None:
+            place.update(
+                locants={a: _FusedAssemblyLocant(*loc) for a, loc in locants.items()}, start=len(name) - len(core), atoms=atoms_all
+            )
+        return name, True
     count = len(occurrences)
     if principal is None:
         core = f"{ih_text}{base(False)}"
