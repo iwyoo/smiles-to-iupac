@@ -1659,3 +1659,15 @@ def test_suffix_of_the_principal_group_on_a_skeletal_replacement_chain(smiles, e
 )
 def test_ester_on_a_substituent_beside_a_free_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C(N[SiH3])N[SiH3]", "N,N'-disilylmethanediamine", id="one_carbon_parent_omits_the_locant_of_the_carbon"),
+        pytest.param("CC(N[SnH3])(N[SnH3])N", "N1,N'1-distannylethane-1,1,1-triamine", id="geminal_nitrogens_told_apart_by_primes"),
+        pytest.param("OC(O)CC(N)N", "3,3-diaminopropane-1,1-diol", id="geminal_hydroxy_groups_are_suffixes_of_one_carbon"),
+    ],
+)
+def test_geminal_groups_of_one_carbon_are_one_multiplied_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
