@@ -15,7 +15,9 @@ from ._common import (
     carbon_adjacency,
     component_subgraph,
     halogen_substituents,
+    is_polyhedral_centre,
     longest_chains,
+    polyhedral_code,
 )
 from ._ester import _name_acyl_part
 from ._functional_prefixes import functional_names
@@ -75,7 +77,9 @@ def cip_labels(mol, side, chain_double_bonds=False):
     if not specified:
         return []
     allowed = _is_double_bond if chain_double_bonds else _is_ring_double_bond
-    if any(e.type != Chem.StereoType.Atom_Tetrahedral and not allowed(mol, e) for e in specified) or any(
+    if any(
+        e.type != Chem.StereoType.Atom_Tetrahedral and not allowed(mol, e) and not is_polyhedral_centre(mol, e) for e in specified
+    ) or any(
         e.type == Chem.StereoType.Bond_Double and e.specified != Chem.StereoSpecified.Specified for e in in_side
     ):
         raise UnsupportedStructure(
@@ -85,7 +89,9 @@ def cip_labels(mol, side, chain_double_bonds=False):
     assign_cip_labels(mol)
     labels = []
     for element in specified:
-        if element.type == Chem.StereoType.Atom_Tetrahedral:
+        if is_polyhedral_centre(mol, element):
+            labels.append((element.centeredOn, polyhedral_code(mol, element.centeredOn)))
+        elif element.type == Chem.StereoType.Atom_Tetrahedral:
             atom = mol.GetAtomWithIdx(element.centeredOn)
             if not atom.HasProp("_CIPCode"):
                 raise UnsupportedStructure("could not determine a CIP label for a stereocenter")

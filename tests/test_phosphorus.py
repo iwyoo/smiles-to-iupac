@@ -328,6 +328,22 @@ def test_heterones_of_group_14_15_16_atoms(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("F[P@TB1](Cl)(Br)(I)C", "(TBPY-5-45-C)-bromo(chloro)(fluoro)(iodo)(methyl)-λ5-phosphane", id="trigonal_bipyramid"),
+        pytest.param("C[S@OH2](F)(Cl)(Br)(I)I", "(OC-6-53-C)-bromo(chloro)(fluoro)di(iodo)(methyl)-λ6-sulfane", id="octahedron"),
+        pytest.param(
+            "C[C@@H]1[P@TB9](OC(C(F)(F)F)C(F)(F)F)(c2ccccc2)(c2ccccc2)OC1(C(F)(F)F)C(F)(F)F",
+            "[2(TBPY-5-12),3S]-2-[(1,1,1,3,3,3-hexafluoropropan-2-yl)oxy]-3-methyl-2,2-diphenyl-4,4-bis(trifluoromethyl)-1,2λ5-oxaphosphetane",
+            id="ring_with_a_second_centre",
+        ),
+    ],
+)
+def test_polyhedral_descriptors_of_main_group_centres(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         ("OP(=O)(O)CC(O)=O", "phosphonoacetic acid"),

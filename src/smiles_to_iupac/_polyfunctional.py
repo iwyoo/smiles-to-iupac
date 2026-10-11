@@ -2829,7 +2829,10 @@ def _fused_plain_parent(mol, graph, rings):
     return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True, PARENT_START.get()))
 
 
-_DESCRIPTOR = r"(?:\d+[a-z]*['\u2032]*(?:\(\d+[a-z]*['\u2032]*\))?)?(?:[RSEZrsMPmp]|seqCis|seqTrans)"
+_DESCRIPTOR = (
+    r"(?:\d+[a-z]*['\u2032]*(?:\(\d+[a-z]*['\u2032]*\))?)?"
+    r"(?:[RSEZrsMPmp]|seqCis|seqTrans|\((?:TBPY-5|OC-6)-\d+['\u2032]*(?:-[AC])?\))"
+)
 _ALL_DESCRIPTORS = re.compile(rf"[(\[]{_DESCRIPTOR}(?:,{_DESCRIPTOR})*[)\]]-")
 
 

@@ -156,4 +156,14 @@ def name_nonstandard_hydride(mol) -> str:
     if hydroxyls:
         suffix = {1: "ol", 2: "diol", 3: "triol"}[len(hydroxyls)]
         stem = stem[:-1] if len(hydroxyls) == 1 else stem
-    return f"{prefixes}λ{center.GetTotalValence()}-{stem}{suffix}"
+    return f"{_polyhedral_prefix(mol, center)}{prefixes}λ{center.GetTotalValence()}-{stem}{suffix}"
+
+
+def _polyhedral_prefix(mol, center):
+    """'(TBPY-5-12-C)-': the polyhedral symbol, configuration index and chirality symbol of a pentacoordinate or
+    hexacoordinate centre, cited in front of the name (P-93.3.4.2.1)."""
+    if center.GetChiralTag() not in (Chem.ChiralType.CHI_TRIGONALBIPYRAMIDAL, Chem.ChiralType.CHI_OCTAHEDRAL):
+        return ""
+    from ._complex_stereo import complex_stereo_prefix
+
+    return complex_stereo_prefix(mol, center.GetIdx())
