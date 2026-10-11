@@ -282,15 +282,11 @@ def test_azide_prefix_on_substituted_ring_and_unsaturated_parent(smiles, expecte
         pytest.param("OC(=O)C1CCC(CC1)=NN=C(C)C", "4-[(propan-2-ylidene)hydrazinylidene]cyclohexane-1-carboxylic acid", id="azine_as_a_prefix_on_an_acid"),
         pytest.param("NC(=S)NN=C(C)C", "2-(propan-2-ylidene)hydrazine-1-carbothioamide", id="thiosemicarbazone"),
         pytest.param("NNC(N)=[Se]", "hydrazinecarboselenoamide", id="selenosemicarbazide"),
+        pytest.param("CC[C@@H](C)C(C)=NN=C(C)[C@H](C)CC", "bis[(3R)-3-methylpentan-2-ylidene]hydrazine", id="azine_with_specified_chain_stereocenters"),
     ],
 )
 def test_azines_and_chalcogen_semicarbazones_are_hydrazine_derivatives(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_azine_with_a_specified_chain_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC[C@@H](C)C(C)=NN=C(C)[C@H](C)CC")
 
 
 def test_methyl_n_n_dimethylcarbamate():
@@ -2061,3 +2057,25 @@ def test_ring_azo_bond_is_not_a_diazene(smiles, expected):
 )
 def test_hydrazido_prefix_of_a_substituted_or_carbonic_acylhydrazide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-93.4.2.1.3, P-93.5.1.4.2.1, P-68.3.1.2.5, P-66.4.4: the configuration of a C=N bond is cited by the ylidene group, or in
+# front of the name when the carbon belongs to a suffix that the ring parent does not number
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC/C=N/NC(N)=O", "2-[(1E)-propylidene]hydrazine-1-carboxamide", id="semicarbazone"),
+        pytest.param("C/C(=N\\NC(N)=O)CC", "2-[(2E)-butan-2-ylidene]hydrazine-1-carboxamide", id="semicarbazone_of_a_ketone"),
+        pytest.param("CC/C=N/NC(N)=S", "2-[(1E)-propylidene]hydrazine-1-carbothioamide", id="thiosemicarbazone"),
+        pytest.param("c1ccccc1/C=N/Nc1ccccc1", "1-[(E)-benzylidene]-2-phenylhydrazine", id="hydrazone_with_a_single_atom_ylidene"),
+        pytest.param("N/C(=N\\O)c1ccccc1", "(Z)-N'-hydroxybenzenecarboximidamide", id="amidoxime_on_a_ring_without_a_locant"),
+        pytest.param("N/C(=N/O)C1CC1", "(E)-N'-hydroxycyclopropanecarboximidamide", id="amidoxime_other_configuration"),
+    ],
+)
+def test_configuration_of_the_c_n_bond_of_hydrazones_and_amidoximes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_azine_ylidenes_that_differ_in_configuration_are_not_ordered():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C/C=N/N=C\\C")
