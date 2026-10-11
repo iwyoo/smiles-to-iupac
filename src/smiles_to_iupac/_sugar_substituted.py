@@ -94,6 +94,8 @@ def _ring_skeleton(mol, graph):
     if len(anomerics) != 1:
         return None
     anomeric = anomerics[0]
+    if any(mol.GetBondBetweenAtoms(anomeric, n).GetBondTypeAsDouble() != 1.0 for n in exo(anomeric)):
+        return None
     other = next(c for c in ends if c != anomeric)
     chain = _walk_ring(ring_set, graph, anomeric, hetero)
     ketose = any(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in exo(anomeric))
