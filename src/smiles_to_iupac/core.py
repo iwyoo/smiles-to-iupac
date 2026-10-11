@@ -655,7 +655,19 @@ def _name_isotope_label(mol) -> str:
         return name_polyfunctional(mol)
     except UnsupportedStructure:
         pass
+    from ._nitrogen_parent_labels import (
+        has_labelled_azoxy,
+        has_labelled_diazene,
+        has_labelled_hydrazone,
+        name_labelled_azoxy,
+        name_labelled_diazene,
+        name_labelled_hydrazone,
+    )
+
     for has_shape, namer in (
+        (has_labelled_azoxy, name_labelled_azoxy),
+        (has_labelled_diazene, name_labelled_diazene),
+        (has_labelled_hydrazone, name_labelled_hydrazone),
         (has_isotope_hydride_shape, name_isotope_hydride),
         (has_isotope_alcohol_shape, name_isotope_alcohol),
         (has_isotope_ketone_shape, name_isotope_ketone),
