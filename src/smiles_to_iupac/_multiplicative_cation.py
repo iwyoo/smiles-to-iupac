@@ -152,7 +152,7 @@ def _unit_molecule(mol, unit, replacement):
 
 
 def _unit_text(mol, unit):
-    from ._polyfunctional import _without_iodo
+    from ._polyfunctional import _without_marker
     from .core import smiles_to_iupac
 
     bare = smiles_to_iupac(_unit_molecule(mol, unit, None))
@@ -161,7 +161,7 @@ def _unit_text(mol, unit):
         match = _JUNCTION_IODO.search(probe)
         if match is None:
             raise UnsupportedStructure("the junction locant of the parent cation cannot be read")
-        locant, text = match.group(1), _without_iodo(probe, match.group(1))
+        locant, text = match.group(1), _without_marker(probe, match.group(1), "iodo")
     else:
         locant, text = None, bare
     if len(unit.ring_atoms) == 1 and mol.GetAtomWithIdx(next(iter(unit.ring_atoms))).GetAtomicNum() == 6:

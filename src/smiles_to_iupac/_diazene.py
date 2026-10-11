@@ -92,14 +92,14 @@ def _azo_pairs(mol):
     for atom in nitrogens:
         if atom.GetIdx() in seen:
             continue
-        if atom.GetDegree() > 2 or atom.GetFormalCharge():
+        if atom.GetDegree() > 2 or atom.GetFormalCharge() or atom.IsInRing():
             return []
         partners = [
             n
             for n in atom.GetNeighbors()
             if n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
         ]
-        if len(partners) != 1 or partners[0].GetIdx() in seen or partners[0].GetDegree() > 2:
+        if len(partners) != 1 or partners[0].GetIdx() in seen or partners[0].GetDegree() > 2 or partners[0].IsInRing():
             return []
         if any(n.GetAtomicNum() != 6 for pair_atom in (atom, partners[0]) for n in pair_atom.GetNeighbors() if n.GetIdx() not in (atom.GetIdx(), partners[0].GetIdx())):
             return []

@@ -43,7 +43,7 @@ def _borinic_acid_boron_atoms(mol):
     (terminal, one H)."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != _BORON or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0:
+        if atom.GetAtomicNum() != _BORON or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0 or atom.IsInRing():
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]

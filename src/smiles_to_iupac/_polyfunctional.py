@@ -78,6 +78,7 @@ _AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
 _CHALCOGEN_AMIDE = {16: "thioamide", 34: "selenoamide", 52: "telluroamide"}
 _CHALCOGEN_AMIDE_CLASSES = tuple(_CHALCOGEN_AMIDE.values())
 _REPLACED_INFIX = {16: "thio", 34: "seleno", 52: "telluro"}
+_RING_ACID_CENTRES = frozenset({5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83})
 _SULFONYL_AMIDE_ORDER = [n for (_, _, t), n in SULFONYL_GROUP_NAMES.items() if t == "amide" and n != "sulfonamide"]
 _SULFONYL_HYDRAZIDE_ORDER = [n for (_, _, t), n in SULFONYL_GROUP_NAMES.items() if t == "hydrazide"]
 
@@ -780,6 +781,11 @@ def _group_of(mol, carbon):
         if len(ring_nitrogens) == 2 and len(hetero) == 2 and not carbon_neighbors:
             if all(_ring_nitrogen_acyl(mol, h, carbon) for h in ring_nitrogens):
                 return "ketone", {oxygens[0]}
+        ring_centres = [h for h in hetero if h.IsInRing() and h.GetAtomicNum() in _RING_ACID_CENTRES and not h.GetFormalCharge()]
+        if len(hetero) == 2 and len(ring_centres) == 1 and not carbon_neighbors:
+            other = next(h for h in hetero if h.GetIdx() != ring_centres[0].GetIdx())
+            if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
+                return "acid", {oxygens[0], other.GetIdx()}
         if len(hetero) == 2 and len(ring_nitrogens) == 1:
             other = next(h for h in hetero if h.GetIdx() != ring_nitrogens[0].GetIdx())
             if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
@@ -949,7 +955,7 @@ def _ring_center_base(mol):
     substituted = center.GetDegree() - sum(1 for n in center.GetNeighbors() if n.GetIdx() in system[1]) - len(oxides) > 0
     probe = None
     if other_nitrogens and not substituted:
-        probe = _probe_with_iodine(mol, center, oxides)
+        probe = _probe_with_marker(mol, center, oxides)
         if probe is None:
             return None
     neutral = Chem.RWMol(mol)
@@ -974,20 +980,27 @@ def _ring_center_base(mol):
     return base, index, "oxide" if oxides else "ium", probe
 
 
-def _probe_with_iodine(mol, center, oxides):
-    """The same ring cation with an iodine on the centre: its name numbers the centre lowest, as the name of an
-    N-oxide or protonated ring (no substituent on the centre) must; the iodo prefix is cut out afterwards."""
-    if any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()):
+_CENTRE_MARKERS = ((35, "bromo"), (17, "chloro"), (9, "fluoro"), (53, "iodo"))
+
+
+def _probe_with_marker(mol, center, oxides):
+    """(marked ring cation, its centre, marker prefix): the same ring cation with a halogen on the centre. Its name
+    numbers the centre lowest, as the name of an N-oxide or protonated ring (no substituent on the centre) must; the
+    marker is the alphabetically first halogen absent from the molecule, so that it is cited first on a tie, and its
+    prefix is cut out afterwards."""
+    present = {a.GetAtomicNum() for a in mol.GetAtoms()}
+    marker = next(((z, word) for z, word in _CENTRE_MARKERS if z not in present), None)
+    if marker is None:
         return None
     probe = Chem.RWMol(mol)
     if oxides:
-        iodine = probe.GetAtomWithIdx(oxides[0].GetIdx())
-        iodine.SetAtomicNum(53)
-        iodine.SetFormalCharge(0)
+        halogen = probe.GetAtomWithIdx(oxides[0].GetIdx())
+        halogen.SetAtomicNum(marker[0])
+        halogen.SetFormalCharge(0)
     else:
-        added = probe.AddAtom(Chem.Atom(53))
+        added = probe.AddAtom(Chem.Atom(marker[0]))
         probe.AddBond(center.GetIdx(), added, Chem.BondType.SINGLE)
-        probe.GetAtomWithIdx(center.GetIdx()).SetNumExplicitHs(0)
+        probe.GetAtomWithIdx(center.GetIdx()).SetNumExplicitHs(max(center.GetTotalNumHs() - 1, 0))
         probe.GetAtomWithIdx(center.GetIdx()).SetNoImplicit(True)
     try:
         probe = probe.GetMol()
@@ -995,11 +1008,11 @@ def _probe_with_iodine(mol, center, oxides):
     except Exception:
         return None
     found = _ring_center_base(probe)
-    return None if found is None else found[:2]
+    return None if found is None else (*found[:2], marker[1])
 
 
-def _without_iodo(name, locant):
-    token = f"{locant}-iodo"
+def _without_marker(name, locant, word):
+    token = f"{locant}-{word}"
     at = name.find(token)
     if at < 0:
         raise UnsupportedStructure("the centre marker is not cited in the name")
@@ -1160,13 +1173,13 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
     try:
         if probe is None:
             return _name_labelled(base, labels or {}, lambda name, placed: _attach(name, placed, center, kind))
-        marked, marked_center = probe
+        marked, marked_center, word = probe
 
         def attach_marked(name, placed):
             locant = placed.get(marked_center)
             if locant is None:
                 raise UnsupportedStructure("the ring nitrogen is not numbered in the parent hydride")
-            return _attach(_without_iodo(name, locant), {marked_center: locant}, marked_center, kind)
+            return _attach(_without_marker(name, locant, word), {marked_center: locant}, marked_center, kind)
 
         return _name_labelled(marked, labels or {}, attach_marked)
     finally:
