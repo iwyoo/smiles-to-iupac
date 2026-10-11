@@ -3227,6 +3227,9 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
         return chained
     ring_info = mol.GetRingInfo()
     all_rings = [list(r) for r in ring_info.AtomRings()]
+    if occurrences:
+        # P-44.1.1: the assembly holding the principal group is the parent, so every other ring system is a substituent
+        all_rings = [r for r in all_rings if all(ring_info.NumAtomRings(a) == 1 for a in r)]
     if len(all_rings) < 2 or any(ring_info.NumAtomRings(a) != 1 for r in all_rings for a in r):
         return None
     ring_specs = [_assembly_spec(mol, graph, r, True) for r in all_rings]
