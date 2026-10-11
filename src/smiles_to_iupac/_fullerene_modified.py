@@ -65,6 +65,7 @@ class _Edit:
     replaced: dict = field(default_factory=dict)
     saturated: list = field(default_factory=list)
     fusions: list = field(default_factory=list)
+    mapping: dict = field(default_factory=dict)
 
     @property
     def cost(self):
@@ -193,10 +194,10 @@ def name_modified_fullerene(mol):
     return None if found is None else found.text()
 
 
-def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), ring_locants=None):
-    """The numbered cage of the lowest cost that the heavy atoms `atoms` form, with `fusions` (atom, atom, tag) as the
-    bonds that organic rings are fused to, else None. `ring_locants(numbering, edit)` ranks the numberings that tie on
-    the fusion locants by the locants of the fused rings."""
+def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), extra_key=None):
+    """The numbered cage of the lowest cost that the heavy atoms `atoms` form, with `fusions` (atom, atom, (kind, label,
+    index)) as the atom pairs that rings are fused to (kind 0) or bridges are attached to (kind 1), else None.
+    `extra_key(numbering, edit)` ranks the numberings that tie on all other locants."""
     skeleton = _skeleton(mol, atoms, fusion_atoms)
     if skeleton is None:
         return None
@@ -249,7 +250,7 @@ def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), ri
                         return None
                     if found is None:
                         continue
-                    candidate = _name(reference, *found, ring_locants)
+                    candidate = _name(reference, *found, extra_key)
                     if candidate is not None and (best is None or (candidate.cost, candidate.key) < (best.cost, best.key)):
                         best = candidate
     return best
@@ -279,6 +280,7 @@ def _edit(graph, hydrogens, element, reference, mapping, homo, fusions=()):
         if hydrogens[x]:
             edit.saturated.append(bond)
     edit.fusions = [(mapping[a], mapping[b], tag) for a, b, tag in fusions]
+    edit.mapping = dict(mapping)
     if not (edit.deleted or edit.seco or edit.cyclo or edit.homo or edit.replaced or edit.fusions):
         return UNMODIFIED
     if sum(1 for s in edit.saturated if not isinstance(s, tuple)) > 1:
@@ -291,7 +293,7 @@ def _edit(graph, hydrogens, element, reference, mapping, homo, fusions=()):
     return edit, rings
 
 
-def _name(reference, edit, rings, ring_locants=None):
+def _name(reference, edit, rings, extra_key=None):
     """The candidate under the numbering of the cage that gives the lowest locants: 'nor' first, then 'homo', then
     the 'seco' and 'cyclo' locants together and in the order of citation, then the fusion locants, then the replaced
     atoms and the indicated hydrogen; None for a fragment that has too few atoms or rings to keep the fullerene
@@ -310,13 +312,13 @@ def _name(reference, edit, rings, ring_locants=None):
         seco = sorted(pair(bond) for bond in edit.seco)
         joined = sorted(n for p in cyclo + seco for n in p)
         cited = [n for p in cyclo + seco for n in p]
-        fused = sorted((tag[0], pair((first, second))) for first, second, tag in edit.fusions)
+        fused = sorted((tag[1], pair((first, second))) for first, second, tag in edit.fusions if tag[0] == 0)
         fused_joined = sorted(n for _, p in fused for n in p)
         fused_cited = [n for _, p in fused for n in p]
         replaced = sorted(numbering[g] for g in edit.replaced)
         indicated = sorted(pair(s) + (1,) if isinstance(s, tuple) else (numbering[s], 0, 0) for s in edit.saturated)
-        ring_cited = ring_locants(numbering, edit) if ring_locants else ()
-        key = (nor, homo, joined, cited, fused_joined, fused_cited, ring_cited, replaced, indicated)
+        attached = extra_key(numbering, edit) if extra_key else ()
+        key = (nor, homo, joined, cited, fused_joined, fused_cited, attached, replaced, indicated)
         if best is None or key < best[0]:
             best = (key, numbering)
     key, numbering = best
