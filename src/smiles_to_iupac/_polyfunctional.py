@@ -4957,13 +4957,32 @@ def _plain_nitrogen_arm(mol, nitrogen, partners, allow_ylidene):
     return True
 
 
+def _carbonic_ether_oxygen(mol, oxygen, carbon):
+    """Whether `oxygen` joins `carbon` to a second carbonic carbon -O-C(=N)-N, a dicarbonic derivative (P-65.2.3.1)."""
+    ends = [n for n in oxygen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
+    return (
+        oxygen.GetAtomicNum() == 8
+        and oxygen.GetDegree() == 2
+        and len(ends) == 1
+        and ends[0].GetAtomicNum() == 6
+        and sum(n.GetAtomicNum() == 7 for n in ends[0].GetNeighbors()) >= 1
+        and any(
+            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(ends[0]).GetAtomicNum() in (7, 8, 16)
+            for b in ends[0].GetBonds()
+        )
+    )
+
+
 def _amidrazone_group(mol, atom):
     """("hydrazonamide" | "imidohydrazide", owned nitrogens) of a -C(-N)=N-N or -C(=N)-N-N group on a carbon with at
     most one carbon neighbour (P-66.4.2.1); the owned atoms are the three nitrogens."""
     carbon = atom.GetIdx()
     nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
     others = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 7]
-    if len(nitrogens) != 2 or len(others) > 1 or any(n.GetAtomicNum() != 6 for n in others):
+    forced = FORCED_PRINCIPAL.get() in _AMIDRAZONE
+    if len(nitrogens) != 2 or len(others) > 1 or any(
+        n.GetAtomicNum() != 6 and not (forced and _carbonic_ether_oxygen(mol, n, atom)) for n in others
+    ):
         return None
     double = [n for n in nitrogens if mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0]
     single = [n for n in nitrogens if mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0]

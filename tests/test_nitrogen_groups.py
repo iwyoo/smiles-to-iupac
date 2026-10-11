@@ -1142,6 +1142,8 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         pytest.param("CC(=NN)N", "ethanehydrazonamide", id="hydrazonamide"),
         pytest.param("NC(=NN)c1ccccc1", "benzenecarbohydrazonamide", id="carbohydrazonamide_on_a_ring"),
         pytest.param("C(=N)NN", "methanimidohydrazide", id="imidohydrazide_of_a_one_carbon_parent"),
+        pytest.param("NNC=NN", "methanehydrazonohydrazide", id="hydrazonohydrazide_of_a_one_carbon_parent"),
+        pytest.param("CNC=NN", "N-methylmethanehydrazonamide", id="hydrazonamide_of_a_one_carbon_parent"),
         pytest.param("N=C(NN)C1CCCCC1", "cyclohexanecarboximidohydrazide", id="carboximidohydrazide_on_a_ring"),
         pytest.param("CN(C)C=NN=C(C)C", "N,N-dimethyl-N'-(propan-2-ylidene)methanehydrazonamide", id="ylidene_on_the_terminal_nitrogen"),
         pytest.param("CCN=C(c1ccccc1)N(C)Nc1ccccc1", "N''-ethyl-N-methyl-N'-phenylbenzenecarboximidohydrazide", id="three_nitrogen_locants"),
@@ -1440,6 +1442,9 @@ def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
         ("CC(=N)NNCC(=O)OC", "methyl (ethanimidohydrazido)acetate"),
         ("N=C(NNc1ccc(C(=O)O)cc1)c1ccccc1", "4-(benzenecarboximidohydrazido)benzoic acid"),
         ("NNC(=N)c1cccc(C(=O)O)c1", "3-(hydrazinecarboximidoyl)benzoic acid"),
+        ("OC(=O)CNNC=NN", "[2-(methanehydrazonoyl)hydrazin-1-yl]acetic acid"),
+        ("OC(=O)CNNC(=NN)c1ccccc1", "[2-(benzenecarbohydrazonoyl)hydrazin-1-yl]acetic acid"),
+        ("OC(=O)c1ccc(cc1)NNC(=N)OC(N)=N", "4-[C-(carbamimidoyloxy)methanimidohydrazido]benzoic acid"),
     ],
 )
 def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):

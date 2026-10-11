@@ -1037,12 +1037,19 @@ def _chalcogen_amido(graph, root, others, mol):
     return prefix, any(part in prefix for part in ("-", "ane", "benzene"))
 
 
+def _name_with_principal(fragment, principal):
+    from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
+
+    FORCED_PRINCIPAL.set(principal)
+    return name_polyfunctional(fragment)
+
+
 def _hydrazido(graph, root, others, mol):
     """'ethanimidohydrazido', 'formohydrazido', 'hydrazinecarbohydrazido' for R-CO-NH-NH- and R-C(=NH)-NH-NH- joined
     through the terminal nitrogen (P-66.3.5.3, P-66.4.2.3.6): the final 'e' of the hydrazide name becomes 'o'; None for
     any other hydrazine nitrogen."""
     from ._carbonic_hydrazide import carbonic_hydrazide_name
-    from ._polyfunctional import name_polyfunctional
+    from ._polyfunctional import _carbonic_ether_oxygen, name_polyfunctional
 
     if len(others) != 1 or mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 7 or mol.GetAtomWithIdx(root).IsInRing():
         return None
@@ -1059,9 +1066,14 @@ def _hydrazido(graph, root, others, mol):
     for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
         fragment.RemoveAtom(index)
     fragment = fragment.GetMol()
+    carbon = mol.GetAtomWithIdx(onward[0])
+    dicarbonic = any(_carbonic_ether_oxygen(mol, n, carbon) for n in carbon.GetNeighbors())
     try:
         Chem.SanitizeMol(fragment)
-        name = carbonic_hydrazide_name(fragment) or contextvars.Context().run(name_polyfunctional, fragment)
+        if dicarbonic:
+            name = contextvars.Context().run(_name_with_principal, fragment, "imidohydrazide")
+        else:
+            name = carbonic_hydrazide_name(fragment) or contextvars.Context().run(name_polyfunctional, fragment)
     except (UnsupportedStructure, ValueError):
         try:
             from .core import smiles_to_iupac
@@ -1071,6 +1083,10 @@ def _hydrazido(graph, root, others, mol):
             return None
     if not name.endswith("hydrazide") or name.endswith("dihydrazide") and name.startswith("dicarbonic"):
         return None
+    if name.endswith("hydrazonohydrazide"):
+        return None
+    if dicarbonic:
+        name = "C-" + name
     return name[:-1] + "o", not name.startswith(("formo", "aceto", "benzo"))
 
 
