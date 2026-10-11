@@ -407,11 +407,32 @@ def test_smiles_to_iupac_hydroperoxide_amine(smiles, expected):
         pytest.param("NCCSSC", "2-(methyldisulfanyl)ethan-1-amine", id="disulfanyl_prefix_on_amine"),
         pytest.param("OC(=O)CSSSCCO", "[(2-hydroxyethyl)trisulfanyl]acetic acid", id="homonuclear_run_of_three"),
         pytest.param("OC(=O)COOOC", "(methyltrioxidanyl)acetic acid", id="oxygen_run_of_three"),
-        pytest.param("OC(=O)CSSOC", "[(methoxysulfanyl)sulfanyl]acetic acid", id="mixed_run_of_three"),
+        pytest.param("OC(=O)CSSOC", "(methoxydisulfanyl)acetic acid", id="mixed_run_of_three"),
         pytest.param("OC(=O)CSSSCC(=O)O", "2,2'-trisulfanediyldiacetic acid", id="trisulfanediyl_linker"),
     ],
 )
 def test_chalcogen_chain_prefixes_beside_a_principal_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("COSOC", "[(methoxysulfanyl)oxy]methane", id="heterogeneous_run_as_a_compound_prefix"),
+        pytest.param("COOSC", "[(methylperoxy)sulfanyl]methane", id="peroxy_inside_a_chain_prefix"),
+        pytest.param("CSSOCC", "[(methyldisulfanyl)oxy]ethane", id="identical_atoms_grouped_inside_a_mixed_prefix"),
+        pytest.param("COS[Se]c1ccccc1", "[(methoxysulfanyl)selanyl]benzene", id="ring_parent_outranks_the_chain"),
+        pytest.param("C[Se]OSC", "{[(methylselanyl)oxy]sulfanyl}methane", id="oxygen_inside_a_selanyl_prefix"),
+        pytest.param("CCC(=O)OOSC", "1-[(methylsulfanyl)peroxy]propan-1-one", id="pseudoketone_with_a_peroxy_prefix"),
+        pytest.param("CC(=O)SSOC", "1-(methoxydisulfanyl)ethan-1-one", id="pseudoketone_with_a_grouped_run"),
+        pytest.param("CCC(=O)[Se]OSC", "1-{[(methylsulfanyl)oxy]selanyl}propan-1-one", id="pseudoketone_on_selenium"),
+        pytest.param("CCC(=[Se])[Se]OSC", "1-{[(methylsulfanyl)oxy]selanyl}propane-1-selone", id="selone_with_a_chain_prefix"),
+        pytest.param("CCC(=O)OSSOC(=O)CC", "1,1'-[disulfanediylbis(oxy)]di(propan-1-one)", id="symmetric_mixed_chain_between_acyl_groups"),
+        pytest.param("CC(=O)OOSOOC(C)=O", "1,1'-[sulfanediylbis(peroxy)]di(ethan-1-one)", id="peroxy_arms_around_a_central_chalcogen"),
+        pytest.param("CCO[Se]SOC(=O)CC", "3,6-dioxa-5-thia-4-selenanonan-7-one", id="skeletal_replacement_with_a_pseudoketone_suffix"),
+    ],
+)
+def test_heterogeneous_chalcogen_chains_between_organic_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

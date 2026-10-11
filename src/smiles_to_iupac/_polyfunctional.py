@@ -562,22 +562,22 @@ _GROUP_15_ATOMS = {15, 33, 51, 83}
 
 
 def _diacyl_chalcogen_chain(mol, carbon, first):
-    """Whether the acyl `carbon` is joined through `first` to another acyl carbon by a chain of three or more
-    chalcogen atoms (P-65.7.5.1: a diacyl trioxidane or tetrasulfane is a pseudoketone, not an ester)."""
+    """Whether the acyl `carbon` is joined through `first` to a carbon group by a chain of three or more chalcogen atoms:
+    a pseudoketone, not an ester, since no acid has such a chain (P-64.1.2.1, P-65.7.5.1, P-68.4.2.4)."""
     if _homogeneous_chalcogen_chain(mol, carbon, first):
         return True
     chain, previous, atom = [], carbon, first
     while atom.GetAtomicNum() in (8, 16, 34, 52):
-        if atom.GetFormalCharge() or atom.GetDegree() != 2 or atom.IsInRing():
+        if atom.GetFormalCharge() or atom.IsInRing() or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
             return False
         chain.append(atom.GetIdx())
-        onward = next(n for n in atom.GetNeighbors() if n.GetIdx() != previous)
-        previous, atom = atom.GetIdx(), onward
-    if len(chain) < 3 or atom.GetAtomicNum() != 6 or atom.GetIdx() == carbon:
-        return False
-    return bool(_double_oxygens(mol, atom.GetIdx())) and any(
-        n.GetAtomicNum() == 6 for n in atom.GetNeighbors()
-    )
+        onward = [n for n in atom.GetNeighbors() if n.GetIdx() != previous]
+        if not onward:
+            return len(chain) >= 3 and atom.GetTotalNumHs() == 1
+        if len(onward) != 1:
+            return False
+        previous, atom = atom.GetIdx(), onward[0]
+    return len(chain) >= 3 and atom.GetAtomicNum() == 6 and atom.GetIdx() != carbon
 
 
 def _homogeneous_chalcogen_chain(mol, carbon, first):
@@ -706,7 +706,11 @@ def _group_of(mol, carbon):
             if n.GetAtomicNum() == z and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0
         ]
         if found and all(
-            n.GetAtomicNum() == 6 or _acyl_diazene_nitrogen(mol, n, carbon) for n in atom.GetNeighbors() if n.GetIdx() != found[0]
+            n.GetAtomicNum() == 6
+            or _acyl_diazene_nitrogen(mol, n, carbon)
+            or (n.GetAtomicNum() in (8, 16, 34, 52) and _diacyl_chalcogen_chain(mol, carbon, n))
+            for n in atom.GetNeighbors()
+            if n.GetIdx() != found[0]
         ) and atom.GetDegree() == 3:
             return thione, {found[0]}
         if found:
@@ -3955,7 +3959,22 @@ def _chalcogen_linker_word(elements):
         return multiplying_prefix(len(elements)) + _CHALCOGEN_CHAIN_STEMS[elements[0]] + "diyl"
     if len(elements) == 3 and elements[1] == 8 and elements[0] in _THIO_PREFIXES:
         return "di" + _THIO_PREFIXES[elements[0]] + "xanediyl"
-    return None
+    half = len(elements) // 2
+    centre, arms = (elements[half : half + 1], elements[:half]) if len(elements) % 2 else (elements[half - 1 : half + 1], elements[: half - 1])
+    return _chalcogen_run_word(centre, True) + "bis(" + _chalcogen_run_word(arms[::-1], False) + ")"
+
+
+def _chalcogen_run_word(elements, central):
+    """'sulfanediyl', 'disulfanediyl', 'oxy', 'peroxy', 'oxyselanediyl': the divalent group of a run of chalcogen atoms,
+    each stretch of identical atoms one word (P-29.3.2.2, P-15.3.1.2)."""
+    words = []
+    for z, group in itertools.groupby(elements):
+        count = len(list(group))
+        if z == 8:
+            words.append({1: "oxy", 2: "peroxy"}.get(count) or multiplying_prefix(count) + "oxidanediyl")
+        else:
+            words.append((multiplying_prefix(count) if count > 1 else "") + _CHALCOGEN_CHAIN_STEMS[z][:-1] + "ediyl")
+    return "".join(words)
 
 
 def _diacyl_chalcogen_chain_name(mol, graph, stereo):
@@ -4014,6 +4033,8 @@ def _diacyl_chalcogen_chain_name(mol, graph, stereo):
         unit = names[0][:-2] + "-1-one"
     else:
         return None
+    if "bis(" in word:
+        word = f"[{word}]"
     if unit[0].isdigit():
         return f"1,1'-{word}bis({unit})"
     return f"1,1'-{word}di({unit})"

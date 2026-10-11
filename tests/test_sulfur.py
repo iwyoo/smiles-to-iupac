@@ -821,6 +821,31 @@ def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("SO", "sulfanol", id="hydroxy_outranks_thiol"),
+        pytest.param("CSSO", "methyldisulfanol", id="identical_run_kept_whole_under_hydroxy"),
+        pytest.param("c1ccccc1SSSO", "phenyltrisulfanol", id="organic_end_on_a_homogeneous_run"),
+        pytest.param("COOS", "methyldioxidanethiol", id="thiol_on_dioxidane"),
+        pytest.param("COOSS", "methyldioxidanedithioperoxol", id="two_atom_suffix_of_identical_atoms"),
+        pytest.param("CSSOO", "methyldisulfaneperoxol", id="peroxol_suffix_after_an_identical_run"),
+        pytest.param("COS[Se][SeH]", "methoxysulfanediselenoperoxol", id="alkoxy_prefix_beside_a_peroxol_suffix"),
+        pytest.param("C[Se][Se][Se]OS", "methyltriselane-OS-thioperoxol", id="mixed_pair_suffix_with_locants"),
+        pytest.param("CSOSO", "[(methylsulfanyl)oxy]sulfanol", id="hydroxy_outranks_thioperoxol"),
+        pytest.param("[SeH][Te][SeH]", "tellanediselenol", id="same_suffix_at_both_ends"),
+        pytest.param("OOSO", "(hydroperoxy)sulfanol", id="junior_peroxol_end_as_a_prefix"),
+        pytest.param("OOSS", "disulfaneperoxol", id="peroxol_outranks_dithioperoxol"),
+        pytest.param("[TeH][Te][Te][Se][SeH]", "tritellane(diselenoperoxol)", id="suffix_in_parentheses_without_prefixes"),
+        pytest.param("OSOSO", "dithioxanediol", id="alternating_parent_with_two_suffixes"),
+        pytest.param("SSSCSSS", "1,1'-methylenebis(trisulfane)", id="multiplicative_chalcogen_chain_parents"),
+        pytest.param("SSSCCSSS", "1,1'-(ethane-1,2-diyl)bis(trisulfane)", id="multiplicative_chain_linker_with_locants"),
+    ],
+)
+def test_hydrogen_terminated_chalcogen_chains_are_parent_hydrides_with_suffixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("[AsH5]", "λ5-arsane", id="pnictogen_hypervalent"),
         pytest.param("[IH3]", "λ3-iodane", id="halogen_hypervalent"),
         pytest.param("C[SH3]", "methyl-λ4-sulfane", id="substituted_hypervalent"),
