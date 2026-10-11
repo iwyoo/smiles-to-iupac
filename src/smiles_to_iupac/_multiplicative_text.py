@@ -44,6 +44,14 @@ def enclose(text):
     return f"{left}{text}{right}"
 
 
+def join_parts(pieces):
+    """The pieces of a concatenated substituent, with a hyphen between a name and the locants that follow it (P-16.2.4.1)."""
+    text = ""
+    for piece in pieces:
+        text += ("-" if text and text[-1] not in "([{-" and piece[:1].isdigit() else "") + piece
+    return text
+
+
 def multiplier_word(count, use_bis):
     if count == 1:
         return ""
