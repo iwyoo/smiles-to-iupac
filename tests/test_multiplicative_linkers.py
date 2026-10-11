@@ -87,9 +87,14 @@ def test_amine_units_joined_through_nitrogen_to_a_heteroatom_linker(smiles, expe
     [
         ("O=C(O)CNC(=O)C(=O)NCC(=O)O", "2,2'-[oxalylbis(azanediyl)]diacetic acid"),
         ("OC(=O)CNC(=O)NCC(O)=O", "2,2'-[carbonylbis(azanediyl)]diacetic acid"),
-        ("O=C(O)CNC(=O)CCC(=O)NCC(=O)O", "2,2'-[(1,4-dioxobutane-1,4-diyl)bis(azanediyl)]diacetic acid"),
+        ("O=C(O)CNC(=O)CCC(=O)NCC(=O)O", "2,2'-[butanedioylbis(azanediyl)]diacetic acid"),
         ("OC(=O)c1ccccc1C(=O)CCC(=S)c1ccccc1C(=O)O", "2,2'-(1-oxo-4-sulfanylidenebutane-1,4-diyl)dibenzoic acid"),
         ("O=C(N)C(=O)NCCC(=O)O", "3-(oxamoylamino)propanoic acid"),
+        ("OC(=O)c1ccc(cc1)C(=O)C1CCCCC1C(=O)c1ccc(cc1)C(O)=O", "4,4'-(cyclohexane-1,2-dicarbonyl)dibenzoic acid"),
+        ("OC(=O)c1ccc(cc1)C(=S)CCC(=S)c1ccc(cc1)C(O)=O", "4,4'-[butanebis(thioyl)]dibenzoic acid"),
+        ("OC(=O)c1ccc(cc1)NC(=S)CCC(=S)Nc1ccc(cc1)C(O)=O", "4,4'-[butanebis(thioyl)bis(azanediyl)]dibenzoic acid"),
+        ("OC(=O)CNC(=O)c1ccccc1C(=O)NCC(=O)O", "2,2'-[(benzene-1,2-dicarbonyl)bis(azanediyl)]diacetic acid"),
+        ("OC(=O)CNC(=O)CC(C)C(=O)NCC(=O)O", "2,2'-[(methylbutanedioyl)bis(azanediyl)]diacetic acid"),
     ],
 )
 def test_diacyl_linking_groups_and_oxamoylamino(smiles, expected):
