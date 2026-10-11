@@ -549,7 +549,7 @@ def test_nested_fragment_is_named_once_per_top_level_call(monkeypatch):
         ("Nc1ccccc1S(=O)(=O)N1CCC1", "2-[(azetidin-1-yl)sulfonyl]aniline"),
         ("OC(=O)CS(=O)(=O)N1CCCC1", "[(pyrrolidin-1-yl)sulfonyl]acetic acid"),
         ("OC(=O)c1ccccc1S(=O)(=O)N1CCOCC1", "2-[(morpholin-4-yl)sulfonyl]benzoic acid"),
-        ("OC(=O)CNC(=O)N1CCCC1", "(pyrrolidine-1-carboxamido)acetic acid"),
+        ("OC(=O)CCNC(=O)N1CCCC1", "3-(pyrrolidine-1-carboxamido)propanoic acid"),
     ],
 )
 def test_ring_nitrogen_acyl_prefix_keeps_the_ring_intact(smiles, expected):
@@ -864,7 +864,7 @@ def test_different_alkyl_groups_on_one_polyacid_are_cited_with_the_locants_of_th
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("CCN(Cc1ccccn1)CC(=O)O", "{ethyl[(pyridin-2-yl)methyl]amino}acetic acid", id="second_substituent_of_amino_takes_the_next_mark"),
+        pytest.param("CCN(Cc1ccccn1)CCC(=O)O", "3-{ethyl[(pyridin-2-yl)methyl]amino}propanoic acid", id="second_substituent_of_amino_takes_the_next_mark"),
         pytest.param(
             "OC(=O)CN1C(=O)c2ccccc2CC1", "(1-oxo-3,4-dihydroisoquinolin-2(1H)-yl)acetic acid", id="added_hydrogen_parentheses_are_ignored"
         ),

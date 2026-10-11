@@ -697,8 +697,8 @@ def test_unsaturated_ring_thioketone_is_named():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(C)(C)OC(=O)NCC(=O)O", "[(tert-butoxycarbonyl)amino]acetic acid"),
-        ("O=C(O)CNC(=O)c1ccccc1", "benzamidoacetic acid"),
+        ("CC(C)(C)OC(=O)NCCC(=O)O", "3-[(tert-butoxycarbonyl)amino]propanoic acid"),
+        ("O=C(O)CCNC(=O)c1ccccc1", "3-benzamidopropanoic acid"),
     ],
 )
 def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expected):
@@ -711,8 +711,8 @@ def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expecte
         ("OC[C@H]1CCCC[C@@H]1C", "[(1S,2S)-2-methylcyclohexyl]methanol"),
         ("OC(=O)CC[C@H]1CCCC[C@@H]1C", "3-[(1R,2S)-2-methylcyclohexyl]propanoic acid"),
         ("OC[C@H]1CCCC[C@@H]1Cl", "[(1R,2S)-2-chlorocyclohexyl]methanol"),
-        ("OC(=O)CNC(=O)[C@H](Cl)CC", "{[(2R)-2-chlorobutanoyl]amino}acetic acid"),
-        ("OC(=O)CNC(=O)[C@@H](N)c1ccccc1", "{[(2S)-amino(phenyl)acetyl]amino}acetic acid"),
+        ("OC(=O)CCNC(=O)[C@H](Cl)CC", "3-{[(2R)-2-chlorobutanoyl]amino}propanoic acid"),
+        ("OC(=O)CCNC(=O)[C@@H](N)c1ccccc1", "3-{[(2S)-amino(phenyl)acetyl]amino}propanoic acid"),
         ("OC(=O)CCOC(=O)[C@@H]1CCC[C@H]1C", "3-{[(1R,2R)-2-methylcyclopentane-1-carbonyl]oxy}propanoic acid"),
     ],
 )

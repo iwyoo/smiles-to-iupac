@@ -568,6 +568,9 @@ def test_alditols_and_sugar_acids(smiles, expected):
         ('CNC(=O)C[C@H](N)C(=O)O', 'N4-methyl-L-asparagine'),
         ('CN=C(NC)NCCC[C@H](NC(C)=O)C(=O)O', 'Nα-acetyl-Nω,Nω′-dimethyl-L-arginine'),
         ('NC(=N)N(C)CCC[C@H](N)C(=O)O', 'Nδ-methyl-L-arginine'),
+        ('OC(=O)CN(O)O', 'N,N-dihydroxyglycine'),
+        ('OC(=O)CNn1ccnc1', 'N-(1H-imidazol-1-yl)glycine'),
+        ('CC(NC)C(=O)O', 'N-methylalanine'),
     ],
 )
 def test_substituted_amino_acids(smiles, expected):
@@ -588,10 +591,10 @@ def test_substituted_amino_acids(smiles, expected):
         pytest.param("OC(=O)C[C@H](N)C(=O)OC", "1-methyl L-aspartate", id="diacid_monoester_locant"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OCC", "1-ethyl 4-methyl L-aspartate", id="diacid_mixed_esters"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OC", "dimethyl L-aspartate", id="diacid_identical_esters"),
-        pytest.param("CN(C)C(CCC(=O)OCc1ccccc1)C(=O)OCC", "5-benzyl 1-ethyl N,N-dimethyl-glutamate", id="diacid_esters_alphanumerical_not_locant_order"),
+        pytest.param("CN(C)C(CCC(=O)OCc1ccccc1)C(=O)OCC", "5-benzyl 1-ethyl N,N-dimethylglutamate", id="diacid_esters_alphanumerical_not_locant_order"),
         pytest.param(
             "CN(C)C(CCC(=O)OCc1ccccc1)C(=O)OCC[Si](C)(C)C",
-            "5-benzyl 1-[2-(trimethylsilyl)ethyl] N,N-dimethyl-glutamate",
+            "5-benzyl 1-[2-(trimethylsilyl)ethyl] N,N-dimethylglutamate",
             id="diacid_compound_ester_group_enclosed_after_locant",
         ),
         pytest.param("C[C@H](N)C(=O)[O-]", "L-alaninate", id="anion"),

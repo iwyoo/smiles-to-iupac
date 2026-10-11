@@ -1116,7 +1116,7 @@ def test_indicated_hydrogen_and_halogen_atoms_of_nonstandard_bonding_in_rings(sm
             "[3-(2-{[2-(3,5-dichlorophenoxy)ethyl](methanesulfonyl)amino}ethyl)phenyl]acetic acid",
             id="sulfonyl_and_alkyl_on_the_nitrogen_of_an_amino_prefix",
         ),
-        pytest.param("CC(=O)N(S(C)(=O)=O)CC(=O)O", "[acetyl(methanesulfonyl)amino]acetic acid", id="acyl_and_sulfonyl"),
+        pytest.param("CC(=O)N(S(C)(=O)=O)CCC(=O)O", "3-[acetyl(methanesulfonyl)amino]propanoic acid", id="acyl_and_sulfonyl"),
     ],
 )
 def test_amino_prefix_with_a_sulfonyl_group_on_the_nitrogen(smiles, expected):

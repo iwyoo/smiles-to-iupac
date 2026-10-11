@@ -313,6 +313,7 @@ _ALPHA_NITROGEN_LOCANT = {"lysine": "N2", "asparagine": "N2", "glutamine": "N2",
 _SIDE_NITROGEN_LOCANT = {"lysine": "N6", "asparagine": "N4", "glutamine": "N5", "ornithine": "N5"}
 _MAX_CUT_CANDIDATES = 8
 _ALPHA_AMINO_ACID = Chem.MolFromSmarts("[NX3;+0][CX4][CX3](=O)[OX2H1]")
+_GLYCINE = Chem.MolFromSmarts("[NX3][CH2][CX3](=O)[OX2H1]")
 
 
 def _cut_candidates(mol):
@@ -341,7 +342,11 @@ def _skeleton_after_cuts(mol, cuts):
         atom.SetNoImplicit(False)
         atom.SetNumExplicitHs(0)
     cut_mol = rw.GetMol()
-    Chem.SanitizeMol(cut_mol)
+    try:
+        Chem.SanitizeMol(cut_mol)
+    except Chem.rdchem.MolSanitizeException:
+        # a ring atom that lost its substituent (an N-azolyl group) cannot be kekulized, and it is not the skeleton
+        Chem.SanitizeMol(cut_mol, Chem.SANITIZE_ALL ^ Chem.SANITIZE_KEKULIZE ^ Chem.SANITIZE_SETAROMATICITY)
     for frag in Chem.GetMolFrags(cut_mol, asMols=True, sanitizeFrags=False):
         if _match_skeleton(frag) is not None:
             return frag
@@ -371,7 +376,7 @@ def _match(mol):
                 continue
             name, alpha, side_chain, _ = _match_skeleton(frag)
             if alpha is None:
-                continue
+                alpha = frag.GetSubstructMatch(_GLYCINE)[1]
             to_orig = {a.GetIdx(): a.GetIntProp("_orig") for a in frag.GetAtoms()}
             alpha = to_orig[alpha]
             side_chain = frozenset(to_orig[i] for i in side_chain)
@@ -468,6 +473,11 @@ def has_amino_acid_shape(mol) -> bool:
     if found is None:
         return False
     name, alpha_carbon, side_chain_atoms = found[:3]
+    if found[4]:
+        try:
+            _substituent_prefixes(mol, adjacency(mol), found[4])
+        except UnsupportedStructure:
+            return False
     if name in _BETA_NATURAL and alpha_carbon is not None:
         beta = _beta_specified(mol, _beta_atom(mol, alpha_carbon, side_chain_atoms))
         try:
@@ -527,7 +537,9 @@ def name_amino_acid(mol) -> str:
             name = "allo" + name
     prefix = ""
     if phosphoryl is not None:
-        prefix = f"O-{_phosphoryl_group_name(mol, adjacency(mol), *phosphoryl, side_chain_atoms)}-"
+        prefix = f"O-{_phosphoryl_group_name(mol, adjacency(mol), *phosphoryl, side_chain_atoms)}"
     elif substituents:
-        prefix = _substituent_prefixes(mol, adjacency(mol), substituents) + "-"
-    return f"{prefix}{mapping[label]}-{name}" if label else f"{prefix}{name}"
+        prefix = _substituent_prefixes(mol, adjacency(mol), substituents)
+    if not label:
+        return prefix + name
+    return f"{prefix}-{mapping[label]}-{name}" if prefix else f"{mapping[label]}-{name}"
