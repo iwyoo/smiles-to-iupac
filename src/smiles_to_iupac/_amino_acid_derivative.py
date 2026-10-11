@@ -152,7 +152,8 @@ def _derivative_name(mol):
 
 
 def has_amino_acid_shape(mol) -> bool:
-    if SYSTEMATIC_ACID_PROBE.get():
+    # P-82.6.3.2: the retained name numbers no position, so a nuclide sends the acid to its systematic name
+    if SYSTEMATIC_ACID_PROBE.get() or any(atom.GetIsotope() for atom in mol.GetAtoms()):
         return False
     if has_retained_amino_acid_shape(mol):
         return True
