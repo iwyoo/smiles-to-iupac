@@ -141,7 +141,7 @@ def name_propellane(mol, core) -> str:
                 for secondary_dir in ({tuple(secondary), tuple(reversed(secondary))}):
                     full_order = main_order + list(secondary_dir)
                     total_atoms = a + b + c + d + 2
-                    substituents = substituents_for_ring(graph, full_order, halogens)
+                    substituents = substituents_for_ring(graph, full_order, halogens, mol=mol)
                     parent = f"tricyclo[{a}.{b}.{c}.{d}^{lo},{hi}]{alkane_name(total_atoms)}"
                     # P-23.2.6.2.4/.2.5 (lowest secondary-bridge locants) then
                     # P-14.4/P-45.2 (lowest substituent locants).

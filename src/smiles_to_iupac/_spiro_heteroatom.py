@@ -121,7 +121,7 @@ def name_spiro_heteroatom(mol, spiro_atom) -> str:
     best_order = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
         heteroatom_locant = full_order.index(heteroatom_idx) + 1
-        substituents = substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens, mol=mol)
         key = _candidate_key(
             parent,
             substituents,

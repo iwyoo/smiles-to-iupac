@@ -359,7 +359,7 @@ def name_linear_polyspiro(mol, chain) -> str:
     for parent, seq, spiros, descriptor in iter_linear_polyspiro_numberings(mol, chain):
         locants = {atom: pos for pos, atom in enumerate(seq, start=1)}
         spiro_locants = tuple(sorted(locants[s] for s in spiros))
-        substituents = substituents_for_ring(graph, seq, halogens)
+        substituents = substituents_for_ring(graph, seq, halogens, mol=mol)
         key = _candidate_key(parent, spiro_locants, descriptor, substituents)
         if best_key is None or key < best_key:
             best_key, best_name, best_locants = key, key[-1], locants
@@ -477,7 +477,7 @@ def name_branched_polyspiro(mol, hub_data) -> str:
     for parent, seq, spiros, descriptor in iter_branched_polyspiro_numberings(mol, hub_data):
         locants = {atom: pos for pos, atom in enumerate(seq, start=1)}
         spiro_locants = tuple(sorted(locants[s] for s in spiros))
-        substituents = substituents_for_ring(graph, seq, halogens)
+        substituents = substituents_for_ring(graph, seq, halogens, mol=mol)
         key = _candidate_key(parent, spiro_locants, descriptor, substituents)
         if best_key is None or key < best_key:
             best_key, best_name, best_locants = key, key[-1], locants

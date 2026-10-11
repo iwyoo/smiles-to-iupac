@@ -139,7 +139,7 @@ def name_monospiro(mol, spiro_atom) -> str:
     best_name = None
     best_order = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
-        substituents = substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens, mol=mol)
         key = _candidate_key(parent, substituents)
         if best_key is None or key < best_key:
             best_key, best_name, best_order = key, key[-1], full_order

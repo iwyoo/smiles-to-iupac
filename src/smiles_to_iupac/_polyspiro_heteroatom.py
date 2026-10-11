@@ -179,7 +179,7 @@ def name_linear_polyspiro_heteroatom(mol, chain) -> str:
                     )
                     parent = f"{_replacement_prefix(mol, heteroatoms, locants)}{spiro_prefix}[{descriptor_str}]{alkane_name(len(seq))}"
                     spiro_locants = tuple(sorted(locants[s] for s in spiros))
-                    substituents = substituents_for_ring(graph, seq, halogens)
+                    substituents = substituents_for_ring(graph, seq, halogens, mol=mol)
                     key = _candidate_key(parent, spiro_locants, tuple(descriptor), heteroatom_locant, substituents)
                     if best_key is None or key < best_key:
                         best_key, best_locants = key, locants
