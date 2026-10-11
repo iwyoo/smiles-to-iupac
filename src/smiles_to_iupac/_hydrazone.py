@@ -184,6 +184,9 @@ def _validate_and_find_hydrazone(mol):
             "is not supported yet"
         )
 
+    if any(n.GetAtomicNum() == 7 and n.GetIdx() != imine_n.GetIdx() for n in carbon.GetNeighbors()):
+        raise UnsupportedStructure("a second nitrogen on the hydrazone carbon makes an amidrazone (P-66.4.2, P-66.4.3)")
+
     carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
     if len(carbon_neighbors) not in (0, 1, 2):
         raise UnsupportedStructure(
