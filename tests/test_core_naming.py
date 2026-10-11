@@ -664,6 +664,7 @@ def test_locants_without_information_are_omitted(smiles, expected):
     [
         ("C(CCCCCCCCC)C1CC(CC(C1)CCCCCCCCCC)CCCCCCCCCC", "1,3,5-tri(decyl)cyclohexane"),
         ("C(CCCCCCCCCCCC)C1=CC=C(C=C1)CCCCCCCCCCCCC", "1,4-di(tridecyl)benzene"),
+        ("CCCCCCCCCCCN(CCCCCCCCCCC)c1ccccc1", "N,N-di(undecyl)aniline"),
         ("C(C)(C)(C)C1=C(C=CC=C1)C(C)(C)C", "1,2-di-tert-butylbenzene"),
         ("SC(CC(=O)O)CS", "3,4-bis(sulfanyl)butanoic acid"),
         ("S(S)C=1C=C(C(=O)N)C=CC1SS", "3,4-bis(disulfanyl)benzamide"),

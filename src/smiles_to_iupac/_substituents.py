@@ -71,7 +71,7 @@ def is_plain_stem_prefix(name: str) -> bool:
 
 
 _CHALCOGEN_HYDRIDE_GROUP = re.compile(r"^(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)(?:idene)?$")
-_LEADING_NUMERAL = re.compile(r"^(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec)[a-z]*(?:yl|oyl)$")
+_LEADING_NUMERAL = re.compile(r"^(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec|undec)[a-z]*(?:yl|oyl)$")
 _PLAIN_CARBONYL = re.compile(r"^(?:cyclo)?[a-z]+(?:ane|an|e)?(?:-[\d,]+)?-?carbon(?:yl|othioyl)$")
 _HYDRIDE_ACYL = re.compile(r"^[a-z]{3,}(?:ane|ene)(?:sulfonyl|sulfinyl)$")
 
