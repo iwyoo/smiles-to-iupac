@@ -5,16 +5,17 @@ first), single and homonuclear heteroatom groups, and ring components.
 
 from dataclasses import dataclass
 
+from ._acid_lexicon import SULFONYL_CENTRES, acyl_suffix, make_spec
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
+from ._multiplicative_groups import chalcogen_linker_ligands
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
 from ._multiplicative_ring import name_ring_component
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
-_OXO_LINKER_WORDS = {16: ("sulfinyl", "sulfonyl"), 34: ("seleninyl", "selenonyl"), 52: ("tellurinyl", "telluronyl")}
 _TERMINAL_DOUBLE_WORDS = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
 _OXOACID_LINKER = {15: ("phosphoryl", "phosphonoyl"), 33: ("arsoryl", "arsonoyl"), 51: ("stiboryl", "stibonoyl")}
 _SUBSTITUTABLE_WORDS = {
@@ -226,13 +227,12 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
         entries = [_entry(mol, atoms[0], root, ctx) for _, root in pend]
         prefix = format_mononuclear_prefixes(entries) if entries else ""
         return Part(prefix + _lambda_citation(mol, atoms[0], prefix) + _SINGLE_ATOM_WORDS[z], True, False)
-    oxo = [r for _, r in pend if mol.GetAtomWithIdx(r).GetAtomicNum() == 8 and mol.GetAtomWithIdx(r).GetDegree() == 1]
-    if len(oxo) != len(pend):
+    ligands = chalcogen_linker_ligands(mol.GetAtomWithIdx(atoms[0]))
+    if ligands is not None and len(ligands) == len(pend):
+        spec = make_spec(SULFONYL_CENTRES[z], [symbol for symbol, _ in ligands], ("O",))
+        return Part(acyl_suffix(spec, False, 1), False, False)
+    if pend or z not in _SINGLE_ATOM_WORDS:
         raise UnsupportedStructure("a substituted chalcogen linker is not supported")
-    if z in _OXO_LINKER_WORDS and len(oxo) in (1, 2):
-        return Part(_OXO_LINKER_WORDS[z][len(oxo) - 1], False, False)
-    if oxo or z not in _SINGLE_ATOM_WORDS:
-        raise UnsupportedStructure("this heteroatom linker is not supported")
     return Part(_SINGLE_ATOM_WORDS[z], False, False)
 
 

@@ -616,3 +616,42 @@ def test_parent_choice_beside_identical_hydrides_acyl_diazenes_and_heterounits(s
 )
 def test_alternating_chalcogen_chains_are_divalent_parent_hydride_linkers(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param(
+            "OC(=O)c1ccc(cc1)S(=N)(=N)c1ccc(cc1)C(O)=O",
+            "4,4'-sulfonodiimidoyldibenzoic acid",
+            id="sulfonyl_centre_with_replaced_positions",
+        ),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)[Se](=S)(=N)c1ccc(cc1)C(O)=O",
+            "4,4'-selenonimidothioyldibenzoic acid",
+            id="centre_of_another_chalcogen_with_infixes_in_alphabetical_order",
+        ),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)S(=N)c1ccc(cc1)C(O)=O",
+            "4,4'-sulfinimidoyldibenzoic acid",
+            id="sulfinyl_type_centre_with_one_replaced_position",
+        ),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)S(=O)(=N)CCS(=O)(=N)c1ccc(cc1)C(O)=O",
+            "4,4'-[ethane-1,2-diylbis(sulfonimidoyl)]dibenzoic acid",
+            id="replaced_sulfonyl_group_in_an_arm",
+        ),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)N(c1ccc(cc1)C(O)=O)[N+](=O)[O-]",
+            "4,4'-(nitroazanediyl)dibenzoic acid",
+            id="nitro_group_on_the_linking_nitrogen",
+        ),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)[Sb](O)c1ccc(cc1)C(O)=O",
+            "4,4'-(hydroxystibanediyl)dibenzoic acid",
+            id="hydroxy_group_on_a_linking_group_15_atom",
+        ),
+    ],
+)
+def test_divalent_central_groups_with_replaced_chalcogen_positions_and_hetero_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -62,8 +62,8 @@ _JUNIOR_PATTERNS = [
     f"{_NOT_CARBONYL}[SX3,SeX3,TeX3;!R](=O){_NOT_CARBONYL}",
     f"{_NOT_CARBONYL}[SX4,SeX4,TeX4;!R](=O)(=O){_NOT_CARBONYL}",
     f"{_NOT_CARBONYL}[PX4,AsX4,SbX4;!R](=O)[OX2H1,#6]",
-    "[#6][N+](=O)[O-]",
-    "[#6][NX2]=O",
+    "[#6,#7][N+](=O)[O-]",
+    "[#6,#7][NX2]=O",
     "[#6][NX2;!R]=[NX2;!R][#6]",
     "[#6;!R]=[NX2;!R][NX3H2;!R]",
 ]
@@ -109,14 +109,52 @@ def _hydrazinediylidene_nitrogen(atom):
     )
 
 
+_MONONUCLEAR_CENTRES = {5, 7, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
+
+
 def _hydroxy_on_nitrogen(atom):
-    """The oxygen of an N-OH group, cited as 'hydroxy' on a linking nitrogen (hydroxyazanediyl, P-68.3.1.1.1.5)."""
+    """The oxygen of a hydroxy group on a linking mononuclear hydride atom, cited as 'hydroxy' (hydroxyazanediyl,
+    hydroxystibanediyl; P-68.3.1.1.1.5, P-29.3.1)."""
     return (
         atom.GetAtomicNum() == 8
         and atom.GetDegree() == 1
         and atom.GetTotalNumHs() == 1
-        and atom.GetNeighbors()[0].GetAtomicNum() == 7
+        and atom.GetNeighbors()[0].GetAtomicNum() in _MONONUCLEAR_CENTRES
     )
+
+
+def terminal_ligand(atom, centre):
+    """('O' | 'S' | 'Se' | 'Te' | 'NH' | 'NNH2', atoms) when `atom` is a terminal =X position of a sulfonyl-type centre
+    (P-65.3.2.3 infixes), else None."""
+    bond = atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), centre.GetIdx())
+    if bond.GetBondTypeAsDouble() != 2.0 or atom.GetFormalCharge():
+        return None
+    z = atom.GetAtomicNum()
+    if atom.GetDegree() == 1:
+        symbol = {8: "O", 16: "S", 34: "Se", 52: "Te"}.get(z)
+        if symbol:
+            return symbol, (atom.GetIdx(),)
+        if z == 7 and atom.GetTotalNumHs() == 1:
+            return "NH", (atom.GetIdx(),)
+    if z == 7 and atom.GetDegree() == 2 and not atom.GetTotalNumHs():
+        partner = next(n for n in atom.GetNeighbors() if n.GetIdx() != centre.GetIdx())
+        bond = atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), partner.GetIdx())
+        if partner.GetAtomicNum() == 7 and partner.GetDegree() == 1 and partner.GetTotalNumHs() == 2 and bond.GetBondTypeAsDouble() == 1.0:
+            return "NNH2", (atom.GetIdx(), partner.GetIdx())
+    return None
+
+
+def chalcogen_linker_ligands(atom):
+    """The =X ligands of a sulfonyl- or sulfinyl-type centre (S, Se, Te) with two single bonds and one or two terminal
+    =X positions, as [(symbol, atoms)], else None (P-65.3.2.3, P-67.1.4.4.1)."""
+    if atom.GetAtomicNum() not in (16, 34, 52) or atom.GetFormalCharge() or atom.IsInRing() or atom.GetIsAromatic():
+        return None
+    singles = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 1.0]
+    doubles = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 2.0]
+    if len(singles) != 2 or len(doubles) not in (1, 2) or len(singles) + len(doubles) != atom.GetDegree():
+        return None
+    ligands = [terminal_ligand(b.GetOtherAtom(atom), atom) for b in doubles]
+    return None if None in ligands else ligands
 
 
 def classify(mol):
@@ -154,6 +192,11 @@ def classify(mol):
 
     for chain in mol.GetSubstructMatches(FORMAZAN_SKELETON):
         covered.update(chain)
+    for atom in mol.GetAtoms():
+        ligands = chalcogen_linker_ligands(atom)
+        if ligands is not None:
+            covered.add(atom.GetIdx())
+            covered.update(a for _, atoms in ligands for a in atoms)
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
         z = atom.GetAtomicNum()
