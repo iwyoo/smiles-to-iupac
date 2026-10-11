@@ -93,7 +93,9 @@ def _compose(neutral, chain, centers, z, free):
     lambdas = {position[a.GetIdx()]: a.GetProp("_anion_lambda") for a in centers if a.HasProp("_anion_lambda")}
     stem, retained = _CHAIN_STEMS[z]
     omit = z in _CHALCOGENS and not lambdas
-    prefixes = format_substituent_prefixes(grouped, omit_locants=omit or _single_site(neutral, chain, locants, z))
+    prefixes = format_substituent_prefixes(
+        grouped, omit_locants=omit or (not lambdas and _one_arrangement_of(grouped, locants, free_locant, len(chain), z, neutral, chain, position))
+    )
     n = len(chain)
     parent = retained if (retained and n == 2) else multiplied_word(n, stem)
     if lambdas:
@@ -139,14 +141,21 @@ def _chain_atoms(mol, start, z, blocked):
     return ordered
 
 
-def _single_site(mol, chain, locants, z):
-    """True when exactly one non-center chain atom could carry a substituent."""
-    center_positions = set(locants)
-    open_sites = 0
-    for i, atom in enumerate(chain):
-        if i + 1 in center_positions:
-            continue
-        neighbors = sum(1 for n in mol.GetAtomWithIdx(atom).GetNeighbors() if n.GetIdx() in chain)
-        if _STANDARD[z] - neighbors > 0:
-            open_sites += 1
-    return open_sites == 1
+def _one_arrangement_of(grouped, locants, free_locant, size, z, mol, chain, position):
+    """P-14.3.4.4: whether moving a prefix to another chain atom, or exchanging two of them, can only give the same
+    compound once the cited anionic centers and free valence hold their atoms, so that the locants of the prefixes
+    are omitted ('acetylhydrazine-1,1-diide')."""
+    from ._hydride_chain import _one_arrangement
+
+    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(chain, chain[1:])):
+        return False
+    entries = {}
+    for name, info in grouped.items():
+        for locant in info["locants"]:
+            entries.setdefault(locant, []).append((name, info["compound"]))
+    taken = [*locants, *([free_locant] if free_locant else [])]
+    capacity = [
+        _STANDARD[z] - sum(1 for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in chain) - taken.count(position[a])
+        for a in sorted(chain, key=position.get)
+    ]
+    return len(capacity) == size and _one_arrangement(entries, capacity)
