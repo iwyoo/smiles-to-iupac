@@ -331,6 +331,16 @@ def test_group13_hydride_name(smiles, expected):
             "dimethyl dibutylstannanediyl dibutanedioate",
             id="pseudoester_beside_alkyl_esters",
         ),
+        pytest.param(
+            "CCC(=O)O[Sn](C)(C)O[Sn](C)(C)OC(=O)CC",
+            "1,1,3,3-tetramethyldistannoxane-1,3-diyl dipropanoate",
+            id="pseudoester_of_a_chain_bridged_by_oxygen",
+        ),
+        pytest.param(
+            "CC(=O)O[Sn](Cl)(C)[Sn](C)(C)OC(=O)C",
+            "1-chloro-1,2,2-trimethyldistannane-1,2-diyl diacetate",
+            id="pseudoester_of_a_directly_bonded_chain",
+        ),
         pytest.param("OC(=O)c1ccc(B(S)O)cc1", "4-(thioborono)benzoic acid", id="chalcogen_analogue_of_borono"),
         pytest.param("Oc1ccc(BOB)cc1", "4-diboroxanylphenol", id="diboroxanyl_prefix"),
         pytest.param(
