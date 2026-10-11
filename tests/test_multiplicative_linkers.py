@@ -686,6 +686,25 @@ def test_locants_of_an_arylene_after_a_linking_group_follow_a_hyphen(smiles, exp
     "smiles, expected",
     [
         pytest.param(
+            "OC(=O)CCc1ccc(OCCOc2cccc(CCC(O)=O)c2)cc1",
+            "3-(3-{2-[4-(2-carboxyethyl)phenoxy]ethoxy}phenyl)propanoic acid",
+            id="linker_components_differ_on_the_two_sides",
+        ),
+        pytest.param(
+            "OC(=O)CCOCC(C)OCCC(O)=O",
+            "3,3'-[propane-1,2-diylbis(oxy)]dipropanoic acid",
+            id="unsymmetrical_central_group_with_identical_branches",
+        ),
+    ],
+)
+def test_multiplicative_name_needs_identical_branches_on_the_linking_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param(
             "OC(=O)CCc1ccc(/C=C/O/C=C/c2ccc(CCC(O)=O)cc2)cc1",
             "3,3'-{oxybis[(1E)-ethene-2,1-diyl-4,1-phenylene]}dipropanoic acid",
             id="descriptor_of_the_linker_is_cited_once_before_its_component",
