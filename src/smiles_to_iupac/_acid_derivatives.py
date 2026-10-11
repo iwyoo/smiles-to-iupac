@@ -354,6 +354,8 @@ def anion_name(acid_name):
         return stem[: -len("phosphoric")] + "phosphate" + close
     if stem.endswith("ic"):
         return stem[:-2] + "ate" + close
+    if stem.endswith("ic)"):
+        return stem[:-3] + "ate)" + close
     if stem.endswith("phosphorous"):
         return stem[: -len("phosphorous")] + "phosphite" + close
     if stem.endswith("ous"):
