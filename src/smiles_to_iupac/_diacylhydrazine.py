@@ -1,6 +1,6 @@
 """Diacyl and triacyl derivatives of hydrazine (P-66.3.3.3): N'-benzoylbenzohydrazide, N'-acetyl-N'-ethyl-N-methyl-
-propanehydrazide. The senior acyl group is the hydrazide; the other acyl groups are stood in for by methyl groups whose
-names are replaced by the acyl prefixes, as for the diacylamines."""
+propanehydrazide, N'1,N'4-diacetylbutanedihydrazide. The senior acyl group is the hydrazide; the other acyl groups are
+stood in for by methyl groups whose names are replaced by the acyl prefixes, as for the diacylamines."""
 
 from rdkit import Chem
 
@@ -24,6 +24,28 @@ def _hydrazine_pair(mol):
             yield a, b
 
 
+def _hydrazide_groups(mol, root):
+    """The carbonyl carbons of the carbon skeleton `root` belongs to: the principal groups its hydrazide would carry."""
+    seen, stack = {root}, [root]
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            if n.GetAtomicNum() == 6 and n.GetIdx() not in seen:
+                seen.add(n.GetIdx())
+                stack.append(n.GetIdx())
+    return sum(
+        1
+        for c in seen
+        if any(o.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(c, o.GetIdx()).GetBondTypeAsDouble() == 2.0 for o in mol.GetAtomWithIdx(c).GetNeighbors())
+        and any(n.GetAtomicNum() == 7 for n in mol.GetAtomWithIdx(c).GetNeighbors())
+    )
+
+
+def _parent_rank(mol, graph, root, nitrogen):
+    """P-44.1.1: the acid with the most principal groups gives the parent hydrazide, then the seniority of its skeleton."""
+    rank = _rank(mol, graph, root, nitrogen)
+    return (rank[0], -_hydrazide_groups(mol, root)) + rank[1:]
+
+
 def diacylhydrazine_name(mol):
     """The name of a molecule with an acyclic N-N bond whose nitrogens carry two or more acyl groups, else None."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(
@@ -35,13 +57,21 @@ def diacylhydrazine_name(mol):
         roots = {a.GetIdx(): _acyl_roots(mol, a), b.GetIdx(): _acyl_roots(mol, b)}
         if sum(len(r) for r in roots.values()) >= 2:
             pairs.append((a, b, roots))
-    if len(pairs) != 1:
+    nitrogens = [n for _, _, roots in pairs for n in roots]
+    if not pairs or len(set(nitrogens)) != len(nitrogens):
         return None
-    a, b, roots = pairs[0]
     graph = adjacency(mol)
-    candidates = [(r, n) for n, rs in roots.items() for r in rs]
-    parent, parent_n = min(candidates, key=lambda item: (_rank(mol, graph, item[0], item[1]), item[0]))
-    donors = [(r, n) for r, n in candidates if r != parent]
+    parents, donors = set(), []
+    for _, _, roots in pairs:
+        candidates = [(r, n) for n, rs in roots.items() for r in rs]
+        parent = min(candidates, key=lambda item: (_parent_rank(mol, graph, item[0], item[1]), item[0]))[0]
+        parents.add(parent)
+        donors += [(r, n) for r, n in candidates if r != parent]
+    taken = [_side(graph, r, n) for r, n in donors]
+    if sum(len(s) for s in taken) != len(set().union(*taken)) or any(
+        s & (parents | set(nitrogens)) for s in taken
+    ):
+        return None
     halogens = halogen_substituents(mol)
     aromatic = frozenset(x.GetIdx() for x in mol.GetAtoms() if x.GetIsAromatic())
     try:
