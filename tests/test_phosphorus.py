@@ -416,6 +416,9 @@ def test_mononuclear_oxoacids_modified_by_functional_replacement(smiles, expecte
         ("[PH4]O[PH4]", "1λ5,3λ5-diphosphoxane"),
         ("POP", "diphosphoxane"),
         ("[SiH3]S[SiH3]", "disilathiane"),
+        ("[SiH3]S[SiH2]Cl", "chlorodisilathiane"),
+        ("[SiH3]P([SiH3])Cl", "2-chlorodisilaphosphane"),
+        ("[SiH3]P[SiH2]Cl", "1-chlorodisilaphosphane"),
         (
             "C1(=CC=CC=C1)[P+]1(P=P(CC1)(C1=CC=CC=C1)C1=CC=CC=C1)C1=CC=CC=C1",
             "1,1,3,3-tetraphenyl-4,5-dihydro-1H-1,2,3λ5-triphosphol-1-ium",
