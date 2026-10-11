@@ -921,6 +921,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             far = mol.GetAtomWithIdx(others[0])
             if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge():
                 return "hydrazinyl", False
+        if len(others) == 1 and atom.GetTotalNumHs() == 1 and is_nitro_nitrogen(mol, others[0]):
+            return "nitramido", False
         amido = _chalcogen_amido(graph, root, others, mol) or _hydrazido(graph, root, others, mol)
         if amido is not None:
             return amido
