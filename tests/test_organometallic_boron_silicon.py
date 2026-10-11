@@ -372,7 +372,7 @@ def test_group13_hydride_unaffected():
 
 
 def test_unsaturated_substituent_across_groups():
-    assert smiles_to_iupac("C=C[As](C=C)C=C") == "tri(ethenyl)arsane"
+    assert smiles_to_iupac("C=C[As](C=C)C=C") == "triethenylarsane"
     assert smiles_to_iupac("CCCC[Sn](CCCC)(CCCC)C=C") == "tributyl(ethenyl)stannane"
 
 
@@ -1183,4 +1183,16 @@ def test_locants_of_heteroatom_chains_follow_the_arrangement_rule(smiles, expect
     ],
 )
 def test_branched_heteroatom_skeletons(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[AsH2]c1ccc2ccccc2c1", "(naphthalen-2-yl)arsane", id="lone_prefix_with_a_locant_is_enclosed"),
+        pytest.param("ClCC[AsH]C(Cl)C", "(1-chloroethyl)(2-chloroethyl)arsane", id="same_name_prefixes_ordered_by_locant"),
+        pytest.param("[SbH2]c1ccc(cc1)[AsH2]", "(4-stibanylphenyl)arsane", id="simple_metal_group_on_an_aryl_prefix"),
+    ],
+)
+def test_prefixes_of_a_group15_parent_hydride(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

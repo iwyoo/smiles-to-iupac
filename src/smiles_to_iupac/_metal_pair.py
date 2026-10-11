@@ -122,7 +122,8 @@ def _aryl_substituent(mol, graph, n, ring_atom, seen):
         seen.add(n)
         return HALOGEN_PREFIXES[z], False
     if z in _STEMS:
-        return _metal_group_name(mol, graph, n, ring_atom, seen), True
+        group = _metal_group_name(mol, graph, n, ring_atom, seen)
+        return group, group != _group_stem(z)
     if z == 6 and not atom.GetIsAromatic():
         if _is_carboxy(mol, graph, n):
             seen.update(_chain_atoms(graph, n, ring_atom))

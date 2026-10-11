@@ -133,7 +133,8 @@ def has_phosphanimine_shape(mol) -> bool:
 
 def name_phosphanimine(mol) -> str:
     """P-62.3.1.3: =NH or =NR on a hydride atom of standard bonding number is the imine suffix (1-methylphosphanimine);
-    P-74.2.1.5: R3P=NR' is a N,P-substituted lambda5-phosphanimine (N-ethyl-P,P,P-triphenyl-λ5-phosphanimine)."""
+    P-74.2.1.5, P-68.3.3: R3E=NR' is a lambda5-imine whose substituents cite the locants N and the element symbol of E
+    (N-ethyl-P,P,P-triphenyl-λ5-phosphanimine, As,As,As-trimethyl-λ5-arsanimine)."""
     from ._substituents import format_substituent_prefixes
 
     found = _find_imine_center(mol)
@@ -145,7 +146,7 @@ def name_phosphanimine(mol) -> str:
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     grouped = {}
     for locant, atom, root in (
-        *(("P", center.GetIdx(), n) for n in graph[center.GetIdx()] if n != nitrogen.GetIdx()),
+        *((center.GetSymbol(), center.GetIdx(), n) for n in graph[center.GetIdx()] if n != nitrogen.GetIdx()),
         *(("N", nitrogen.GetIdx(), n) for n in graph[nitrogen.GetIdx()] if n != center.GetIdx()),
     ):
         name, compound = name_branch(graph, root, atom, halogens, aromatic, mol=mol, unsaturated=True)
@@ -154,9 +155,6 @@ def name_phosphanimine(mol) -> str:
     parent = _IMINE_CENTERS[center.GetAtomicNum()]
     if valence == _STANDARD_VALENCE[center.GetAtomicNum()]:
         for info in grouped.values():
-            info["locants"] = ["1" if locant == "P" else locant for locant in info["locants"]]
+            info["locants"] = ["1" if locant == center.GetSymbol() else locant for locant in info["locants"]]
         return f"{format_substituent_prefixes(grouped)}{parent}"
-    if not any("N" in info["locants"] for info in grouped.values()):
-        entries = [(name, info["compound"]) for name, info in grouped.items() for _ in info["locants"]]
-        return f"{format_mononuclear_prefixes(entries)}-λ{valence}-{parent}"
     return f"{format_substituent_prefixes(grouped)}-λ{valence}-{parent}"

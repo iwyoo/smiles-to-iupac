@@ -337,7 +337,7 @@ def test_oxidanium():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CC(C)[OH2+]", "propan-2-yloxidanium", id="branched_substituent"),
+        pytest.param("CC(C)[OH2+]", "(propan-2-yl)oxidanium", id="branched_substituent"),
         pytest.param("[OH2+]C1CCCCC1", "cyclohexyloxidanium", id="ring_substituent"),
         pytest.param("Cc1ccccc1[OH2+]", "(2-methylphenyl)oxidanium", id="substituted_phenyl"),
         pytest.param("CC(=O)C[O+](C)C", "dimethyl(2-oxopropyl)oxidanium", id="ketone_group_in_a_substituent"),
@@ -1336,7 +1336,7 @@ def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
         pytest.param("P[P]", "diphosphanylidene", id="diatomic_chain_ylidene"),
         pytest.param("CC(C)(C)O[P](c1ccccc1)(c1ccccc1)c1ccccc1", "tert-butoxytri(phenyl)-λ5-phosphanyl", id="lambda5_phosphanyl"),
         pytest.param("C[P](C)=O", "dimethylphosphinoyl", id="phosphinoyl_acyl_radical"),
-        pytest.param("C[P](C)(C)=[N]", "trimethyl-λ5-phosphaniminyl", id="phosphaniminyl"),
+        pytest.param("C[P](C)(C)=[N]", "P,P,P-trimethyl-λ5-phosphaniminyl", id="phosphaniminyl"),
         pytest.param("c1ccccc1[N]", "benzenaminylidene", id="nitrene_on_a_ring"),
         pytest.param("CC(=O)[N]", "acetamidylidene", id="acylnitrene"),
         pytest.param("CC(C)(C)S[S]", "tert-butyldisulfanyl", id="disulfanyl_radical"),

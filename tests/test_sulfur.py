@@ -450,7 +450,7 @@ def test_ring_substituent_chain_and_related_3(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CC(C)[SH2+]", "propan-2-ylsulfanium", id="branched_substituent"),
+        pytest.param("CC(C)[SH2+]", "(propan-2-yl)sulfanium", id="branched_substituent"),
         pytest.param("[SH2+]C1CCCCC1", "cyclohexylsulfanium", id="ring_substituent"),
         pytest.param("Cc1ccccc1[SH2+]", "(2-methylphenyl)sulfanium", id="substituted_phenyl"),
         pytest.param("C[S+](C)CC=C", "dimethyl(prop-2-en-1-yl)sulfanium", id="unsaturated_substituent"),
