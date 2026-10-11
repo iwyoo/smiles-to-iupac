@@ -166,6 +166,9 @@ def test_nitrogen_multiplicative_amines(smiles, expected):
     [
         ("CCNc1ccc(Cl)cc1", "4-chloro-N-ethylaniline"),
         ("c1ccccc1CNc1ccccc1", "N-benzylaniline"),
+        ("Brc1cc(Cl)ccc1Nc1ccc(Br)cc1Br", "2-bromo-4-chloro-N-(2,4-dibromophenyl)aniline"),
+        ("Brc1ccc(N(C)c2ccc(Cl)cc2Br)c(Br)c1", "2-bromo-4-chloro-N-(2,4-dibromophenyl)-N-methylaniline"),
+        ("Brc1ccc(Cl)cc1Nc1ccc(Br)cc1Br", "2,4-dibromo-N-(2-bromo-5-chlorophenyl)aniline"),
     ],
 )
 def test_n_substituted_aniline_and_multi_ring_chain_amine(smiles, expected):

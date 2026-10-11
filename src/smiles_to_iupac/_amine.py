@@ -99,6 +99,7 @@ from contextvars import ContextVar
 from rdkit import Chem
 
 from ._common import (
+    alphanumerical_name_key,
     stereo_locant_rank,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -747,7 +748,7 @@ def _aniline_candidate_key(amine_locant, substituents, n_names=()):
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _aniline_name_from_substituents(grouped, n_names)
-    return amine_locant, locant_set, citation_locants, name
+    return amine_locant, locant_set, citation_locants, alphanumerical_name_key(name), name
 
 
 def _name_n_substituted_aniline(mol, benzene_rings):

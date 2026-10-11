@@ -1834,5 +1834,5 @@ def assembly_join(prefix, core):
 
 
 def alphanumerical_name_key(name):
-    """P-14.5: whole names compare by their letters alone, locants and enclosing marks ignored."""
-    return re.sub(r"[^a-z]", "", name.lower())
+    """P-14.5: whole names compare by their letters alone; locants, enclosing marks and italic capitals (N, H) are ignored."""
+    return re.sub(r"[^a-z]", "", name)
