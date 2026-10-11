@@ -468,12 +468,29 @@ def _beta_specified(mol, beta):
     )
 
 
+def _acylated_hydrazine_nitrogen(mol, site, root):
+    """Whether the substituent root on the amine nitrogen is the far nitrogen of a hydrazide, which the hydrazido prefix
+    cites ahead of an N-substituted amino acid name (P-66.3.5.3)."""
+    atom = mol.GetAtomWithIdx(root)
+    return atom.GetAtomicNum() == 7 and any(
+        n.GetIdx() != site
+        and n.GetAtomicNum() == 6
+        and any(
+            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() in (7, 8, 16, 34, 52) and b.GetOtherAtom(n).GetDegree() == 1
+            for b in n.GetBonds()
+        )
+        for n in atom.GetNeighbors()
+    )
+
+
 def has_amino_acid_shape(mol) -> bool:
     found = _match(mol)
     if found is None:
         return False
     name, alpha_carbon, side_chain_atoms = found[:3]
     if found[4]:
+        if any(_acylated_hydrazine_nitrogen(mol, site, root) for _, site, root in found[4]):
+            return False
         try:
             _substituent_prefixes(mol, adjacency(mol), found[4])
         except UnsupportedStructure:

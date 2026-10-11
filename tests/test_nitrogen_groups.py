@@ -2046,6 +2046,19 @@ def test_ring_azo_bond_is_not_a_diazene(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-66.3.2.3, P-66.3.5.3: an acylhydrazide group is cited as a hydrazido prefix, also with a substituted acyl nitrogen
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)N(CC)Nc1ccc(cc1)S(=O)(=O)O", "4-(N-ethylacetohydrazido)benzene-1-sulfonic acid", id="substituted_acyl_nitrogen"),
+        pytest.param("NNC(=O)NNCC(=O)O", "(hydrazinecarbohydrazido)acetic acid", id="hydrazide_ahead_of_an_n_substituted_glycine"),
+        pytest.param("O=C(O)CCCNNC(=O)OC(=O)NN", "4-{[(hydrazinecarbonyl)oxy]formohydrazido}butanoic acid", id="carbonic_residue_as_an_oxy_group"),
+    ],
+)
+def test_hydrazido_prefix_of_a_substituted_or_carbonic_acylhydrazide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-93.4.2.1.3, P-93.5.1.4.2.1, P-68.3.1.2.5, P-66.4.4: the configuration of a C=N bond is cited by the ylidene group, or in
 # front of the name when the carbon belongs to a suffix that the ring parent does not number
 @pytest.mark.parametrize(

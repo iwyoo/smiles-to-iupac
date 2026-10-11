@@ -1080,19 +1080,20 @@ def _hydrazido(graph, root, others, mol):
         return None
     alpha = others[0]
     onward = [n for n in graph[alpha] if n != root]
-    if len(onward) != 1 or mol.GetAtomWithIdx(alpha).IsInRing() or mol.GetAtomWithIdx(onward[0]).GetAtomicNum() != 6:
+    acyl = [n for n in onward if mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and (_imidoyl_centre(mol, n) or _thioacyl(mol, n))]
+    if mol.GetAtomWithIdx(alpha).IsInRing() or len(acyl) != 1:
         return None
-    if not (_imidoyl_centre(mol, onward[0]) or _thioacyl(mol, onward[0])) or any(
-        a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()
-    ):
+    keep = {root, alpha}.union(*(_side(graph, n, alpha) for n in onward))
+    if any(mol.GetAtomWithIdx(i).GetIsotope() or mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in keep):
         return None
-    keep = {root, alpha} | _side(graph, onward[0], alpha)
     fragment = Chem.RWMol(mol)
     for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
         fragment.RemoveAtom(index)
     fragment = fragment.GetMol()
-    carbon = mol.GetAtomWithIdx(onward[0])
+    carbon = mol.GetAtomWithIdx(acyl[0])
     dicarbonic = any(_carbonic_ether_oxygen(mol, n, carbon) for n in carbon.GetNeighbors())
+    if dicarbonic and onward == acyl and _has_oxo_oxygen(mol, carbon):
+        return _formohydrazido_of_carbonic_ether(graph, mol, carbon)
     try:
         Chem.SanitizeMol(fragment)
         if dicarbonic:
@@ -1113,6 +1114,35 @@ def _hydrazido(graph, root, others, mol):
     if dicarbonic:
         name = "C-" + name
     return name[:-1] + "o", not name.startswith(("formo", "aceto", "benzo"))
+
+
+def _has_oxo_oxygen(mol, carbon):
+    return any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in carbon.GetNeighbors()
+    )
+
+
+def _formohydrazido_of_carbonic_ether(graph, mol, carbon):
+    """'[(hydrazinecarbonyl)oxy]formohydrazido' for -NH-NH-C(=O)-O-C(=O)-NH-NH2: the acyl part is the formohydrazide
+    carrying the other carbonic residue as an oxy substituent (P-66.3.5.3)."""
+    from ._common import halogen_substituents
+    from ._substituents import name_branch
+
+    oxygens = [n.GetIdx() for n in carbon.GetNeighbors() if _carbonic_ether_oxygen_atom(mol, n, carbon)]
+    if len(oxygens) != 1:
+        return None
+    try:
+        name, _ = name_branch(graph, oxygens[0], carbon.GetIdx(), halogen_substituents(mol), frozenset(), mol=mol)
+    except UnsupportedStructure:
+        return None
+    return f"{enclose(name)}formohydrazido", True
+
+
+def _carbonic_ether_oxygen_atom(mol, oxygen, carbon):
+    from ._polyfunctional import _carbonic_ether_oxygen
+
+    return _carbonic_ether_oxygen(mol, oxygen, carbon)
 
 
 _CYANATE_PREFIXES = {8: "cyanato", 16: "thiocyanato", 34: "selenocyanato", 52: "tellurocyanato"}
