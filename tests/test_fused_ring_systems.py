@@ -348,6 +348,13 @@ def test_two_peri_fused_cyclopenta_rings_on_perylene():
     assert smiles_to_iupac("c1cc2ccc3cc4ccc5ccc6cc1c1c2c3c4c5c61") == "dicyclopenta[ghi,pqr]perylene"
 
 
+def test_abbreviated_descriptors_of_primed_parent_components_are_separated_by_a_colon():
+    assert (
+        smiles_to_iupac("c1c2cc3ccc4ccc(cc2cc2cc5ccc6ccc(cc12)c65)c43")
+        == "dicyclopenta[ij:i'j']benzo[1,2-f:4,5-f']diazulene"
+    )
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [

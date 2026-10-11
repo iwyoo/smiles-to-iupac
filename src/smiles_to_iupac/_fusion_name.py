@@ -417,7 +417,12 @@ def _render_group(ctx, members, parent_primes, is_root):
     if multiplied:
         complete = descriptors[0][1] == "complete"
         separator = (":" if is_root else ";") if complete else (":" if not is_root else ",")
-        joined = separator.join(d[0] for d in descriptors)
+        joined = descriptors[0][0]
+        # The book cites a colon between peri letter sets of different parents (P-25.5.1.1) but a comma between single
+        # letters (P-25.3.6.1, P-25.3.7.2).
+        for previous, current, (text, _) in zip(best_per_member, best_per_member[1:], descriptors[1:]):
+            peri_sets_of_two_parents = previous[4] != current[4] and len(previous[2]) > 1 and len(current[2]) > 1
+            joined += (":" if peri_sets_of_two_parents and not complete and is_root else separator) + text
     else:
         joined = descriptors[0][0]
     prefix_core = first.comp.bracketed_prefix()
