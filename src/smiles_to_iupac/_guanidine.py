@@ -43,9 +43,13 @@ substituent, and the imino nitrogen takes N''. A ring fused to the guanidine cor
 
 from rdkit import Chem
 
-from ._chalcogenourea import is_core_substituent_root, n_substituent_names, unprimed_first
+from ._chalcogenourea import is_core_substituent_root, is_urea_substituent_root, n_substituent_names, unprimed_first
 from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import format_substituent_prefixes
+
+
+def _is_guanidine_substituent_root(mol, atom):
+    return is_core_substituent_root(mol, atom) or (atom.GetAtomicNum() != 7 and is_urea_substituent_root(mol, atom))
 
 
 def _carbonyl_carbon(mol, atom):
@@ -91,14 +95,14 @@ def _guanidine_core(mol):
                 continue
         elif imino_n.GetDegree() == 2:
             other = [n for n in imino_n.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
-            if imino_n.GetTotalNumHs() != 0 or not is_core_substituent_root(mol, other[0]):
+            if imino_n.GetTotalNumHs() != 0 or not _is_guanidine_substituent_root(mol, other[0]):
                 continue
         else:
             continue
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in amino):
             continue
         if any(
-            not is_core_substituent_root(mol, nn) for n in amino for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()
+            not _is_guanidine_substituent_root(mol, nn) for n in amino for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()
         ):
             continue
         if any(
