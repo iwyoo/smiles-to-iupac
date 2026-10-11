@@ -620,6 +620,8 @@ def _benzene_text(locants, valence, substituted=frozenset(), suffix="yl"):
     loc = _locs(locants)
     if suffix == "carboxylate":
         return "benzoate"
+    if suffix == "hydryl":
+        return f"benzene-{loc}-hydryl"
     if valence == 1:
         return "phenyl"
     return f"{loc}-phenylene" if valence == 2 else f"benzene-{loc}-{_yl(valence)}"

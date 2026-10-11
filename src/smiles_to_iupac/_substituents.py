@@ -409,6 +409,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         nuclides = sorted((n for e in labelled.values() for n in _modifications(e)), key=_nuclide_sort_key)
         context["consumed"].update(labelled)
         return "(" + ",".join(nuclides) + ")carboxy", False
+    if name == "carbamimidoyl" and mol is not None:
+        text = _labelled_carbamimidoyl(mol, root, coming_from, labelled, capacity)
+        context["consumed"].update(labelled)
+        return text + name, True
     if name == "benzyl" and set(labelled) == {root}:
         context["consumed"].add(root)
         return "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
@@ -453,6 +457,26 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     context["consumed"].update(labelled)
     text = descriptor(labelled, positions, omit, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
     return name[:stem_index] + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
+
+
+def _labelled_carbamimidoyl(mol, root, coming_from, labelled, capacity):
+    """The carbon of a carbamimidoyl group is cited without a locant and its nitrogens by the letter locants N (amino)
+    and N' (imino) of the group (P-82.6.1.2, P-82.6.2)."""
+    from ._isotope_labels import descriptor
+
+    letters = {
+        n.GetIdx(): "N′" if mol.GetBondBetweenAtoms(root, n.GetIdx()).GetBondTypeAsDouble() == 2.0 else "N"
+        for n in mol.GetAtomWithIdx(root).GetNeighbors()
+        if n.GetIdx() != coming_from
+    }
+    extra = []
+    for atom, entry in labelled.items():
+        locant = None if atom == root else letters[atom]
+        if entry["skeleton"]:
+            extra.append((entry["skeleton"], locant, 1, False))
+        for nuclide, count in entry["H"].items():
+            extra.append((nuclide, locant, count, capacity[atom] > 1))
+    return descriptor({}, {}, False, extra)
 
 
 _HYDRIDE_BEFORE_SULFONYL = re.compile(

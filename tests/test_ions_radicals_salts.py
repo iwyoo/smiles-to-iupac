@@ -448,6 +448,27 @@ def test_ring_diradical_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccc2c(c1)[CH]c1ccccc1C2", "anthracene-9-hydryl", id="fused_hydrocarbon"),
+        pytest.param("c1ccc2c(c1)[CH]c1ccccc1C2C", "9-methylanthracene-9-hydryl", id="hydrogen_added_to_a_substituted_atom"),
+        pytest.param("Clc1ccc2c(c1)[CH]c1ccccc1C2", "3-chloroanthracene-9-hydryl", id="lowest_locant_to_the_hydryl_atom"),
+        pytest.param("[CH]1C=CC2=CC=CC=C2C1", "naphthalene-1-hydryl", id="radical_beside_the_added_hydrogen"),
+        pytest.param("[CH]1C=CC=C2C=CC=CC12", "naphthalene-4a-hydryl", id="hydrogen_added_to_a_fusion_atom"),
+        pytest.param("c1ccc2c(c1)[CH]c1ccccc1N2", "acridine-10-hydryl", id="hydrogen_added_to_a_ring_nitrogen"),
+        pytest.param("[N]1C=CC=CC1", "pyridine-2-hydryl", id="radical_on_a_ring_nitrogen"),
+        pytest.param("C1=CSC[CH]1", "thiophene-2-hydryl", id="monocycle_with_a_lone_pair_atom"),
+        pytest.param("CC1C=CC=C[CH]1", "1-methylbenzene-1-hydryl", id="substituted_benzene"),
+        pytest.param("[CH]1C=CC=CC1", "cyclohexa-2,4-dien-1-yl", id="every_position_equivalent"),
+        pytest.param("C1CC2=CC=CC=C2[CH]1", "2,3-dihydro-1H-inden-1-yl", id="indicated_hydrogen_parent"),
+        pytest.param("c1ccc2c(c1)[CH]c1ccccc1C2(C)C", "10,10-dimethyl-9,10-dihydroanthracen-9-yl", id="no_hydrogen_to_receive"),
+    ],
+)
+def test_hydryl_radicals_of_mancude_ring_systems(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_diradical_branch_point_name():
     assert smiles_to_iupac("[CH2]C([CH2])C") == "2-methylpropane-1,3-diyl"
 
