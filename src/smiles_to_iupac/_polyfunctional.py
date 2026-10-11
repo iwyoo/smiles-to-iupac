@@ -689,9 +689,30 @@ def _sulfonyl_groups_on(mol, carbon):
     return found
 
 
+def _hydroxy_type_groups(mol, carbon):
+    """[(class, terminal atoms)] of the hydroxy, chalcogenol and amino groups on `carbon`, geminal ones together."""
+    found = []
+    for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (34, 1, "selenol"), (52, 1, "tellurol"), (7, 2, "amine")):
+        found.append(
+            (
+                name,
+                [
+                    n
+                    for n in _single_neighbors(mol, carbon, z)
+                    # in an aminium name only the cationic nitrogens are the suffix; a neutral amino group is a prefix
+                    if _terminal_heteroatom(mol, n, hydrogens)
+                    and not (AMINIUM.get() is True and z == 7 and not mol.GetAtomWithIdx(n).HasProp("_cationic_amine"))
+                ],
+            )
+        )
+    return found
+
+
 def _group_weight(mol, carbon, cls):
-    """How many groups of class `cls` sit on `carbon` (two sulfonic acid groups on one carbon: methanedisulfonic acid)."""
-    return sum(1 for c, _ in _sulfonyl_groups_on(mol, carbon) if c == cls) or 1
+    """How many groups of class `cls` sit on `carbon` (two sulfonic acid groups on one carbon: methanedisulfonic acid,
+    two amino groups: methanediamine)."""
+    geminal = next((len(found) for name, found in _hydroxy_type_groups(mol, carbon) if name == cls), 0)
+    return sum(1 for c, _ in _sulfonyl_groups_on(mol, carbon) if c == cls) or geminal or 1
 
 
 def _is_ketene_carbon(mol, atom, oxygen):
@@ -855,13 +876,9 @@ def _group_of(mol, carbon):
     if sulfonyls:
         same = [owned for cls, owned in sulfonyls if cls == sulfonyls[0][0]]
         return sulfonyls[0][0], set().union(*same)
-    for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (34, 1, "selenol"), (52, 1, "tellurol"), (7, 2, "amine")):
-        for n in _single_neighbors(mol, carbon, z):
-            # in an aminium name only the cationic nitrogens are the suffix; a neutral amino group is a prefix
-            if AMINIUM.get() is True and z == 7 and not mol.GetAtomWithIdx(n).HasProp("_cationic_amine"):
-                continue
-            if _terminal_heteroatom(mol, n, hydrogens):
-                return name, {n}
+    for name, found in _hydroxy_type_groups(mol, carbon):
+        if found:
+            return name, set(found)
     for n in _single_neighbors(mol, carbon, 8):
         bridge = mol.GetAtomWithIdx(n)
         ends = [m for m in bridge.GetNeighbors() if m.GetIdx() != carbon]
@@ -4117,10 +4134,12 @@ def _boranyl_amines(mol, graph, halogens, aromatic_atoms):
             removed |= arm
     n_names = []
     editable = Chem.RWMol(mol)
-    for number, (n_idx, carbon, hydrides) in enumerate(nitrogens, start=1):
+    numbers = {}
+    for n_idx, carbon, hydrides in nitrogens:
+        number = numbers.setdefault(carbon, len(numbers) + 1)
         editable.GetAtomWithIdx(carbon).SetAtomMapNum(number)
         for h in hydrides:
-            n_names.append((*name_branch(graph, h, n_idx, halogens, aromatic_atoms, mol=mol), number))
+            n_names.append((*name_branch(graph, h, n_idx, halogens, aromatic_atoms, mol=mol), number, n_idx))
     kept = [i for i in range(mol.GetNumAtoms()) if i not in removed]
     for idx in sorted(removed, reverse=True):
         editable.RemoveAtom(idx)
@@ -4134,7 +4153,7 @@ def _boranyl_amines(mol, graph, halogens, aromatic_atoms):
     mapped = {a.GetAtomMapNum(): a.GetIdx() for a in parent.GetAtoms() if a.GetAtomMapNum()}
     for a in parent.GetAtoms():
         a.SetAtomMapNum(0)
-    tagged = [(name, compound, ("N", mapped[number])) for name, compound, number in n_names]
+    tagged = [(name, compound, ("N", mapped[number], n_idx)) for name, compound, number, n_idx in n_names]
     with _renumbered_branch_stereo(kept):
         result = _select(parent, None, tagged)
     positions = result[2][4]
@@ -5503,7 +5522,7 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
                     mark *= located[5]
                 elif len(located) > 4:
                     mark *= 2
-                located = f"{located[0]}{mark}{position}"
+                located = f"{located[0]}{mark}{'' if len(position_of) == 1 else position}"
         merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append(located)
     return merged
 
