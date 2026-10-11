@@ -4231,17 +4231,38 @@ def _identical_group_units(mol, graph, group_atoms):
             if other in atoms or not atoms & group_atoms or not atoms - group_atoms:
                 continue
             canonical, _ = _unit_molecule(mol, atoms, root)
-            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical)))
-    for i, (bi, ai, si) in enumerate(sides):
-        for bj, aj, sj in sides[:i]:
-            if bi != bj and si == sj and not ai & aj:
+            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical) + _arm_descriptors(mol, atoms), root))
+    ranks = _double_bond_ranks(mol)
+    for i, (bi, ai, si, ri) in enumerate(sides):
+        for bj, aj, sj, rj in sides[:i]:
+            if bi != bj and si == sj and not ai & aj and (ranks is None or ranks[ri] == ranks[rj]):
                 if _unsymmetric_chalcogen_linker(mol, graph, ai, aj):
                     continue
                 # a multiplied parent must express every principal group (P-15.6.1.5)
-                units = ai | aj | set().union(*(ak for bk, ak, sk in sides if sk == si and not ak & (ai | aj)))
+                units = ai | aj | set().union(*(ak for bk, ak, sk, _ in sides if sk == si and not ak & (ai | aj)))
                 if group_atoms <= units:
                     return True
     return False
+
+
+def _double_bond_ranks(mol):
+    """Canonical ranks that tell halves of a molecule apart by their E/Z bonds, None without any: a linker whose two
+    sides differ in E/Z does not make the halves a multiplied pair (P-93.6)."""
+    if not any(kind == "bond" for kind, _, _ in specified_stereo_elements(mol) or ()):
+        return None
+    plain = Chem.Mol(mol)
+    for atom in plain.GetAtoms():
+        atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+    return list(Chem.CanonicalRankAtoms(plain, breakTies=False, includeChirality=True))
+
+
+def _arm_descriptors(mol, atoms):
+    """The double-bond descriptors inside `atoms`: arms differing in E/Z are not identical, those differing in R/S are."""
+    codes = []
+    for kind, idx, code in specified_stereo_elements(mol) or ():
+        if kind == "bond" and {mol.GetBondWithIdx(idx).GetBeginAtomIdx(), mol.GetBondWithIdx(idx).GetEndAtomIdx()} <= atoms:
+            codes.append(code)
+    return "|" + ",".join(sorted(codes))
 
 
 def _unsymmetric_chalcogen_linker(mol, graph, first_arm, second_arm):
@@ -4429,15 +4450,14 @@ def _multiplicative_name(mol, stereo=None):
             continue
         if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] == "amine":
             continue
+        unit, attach = units[0]
+        try:
+            _, _, parts = _select(_achiral_copy(unit), attach)
+        except UnsupportedStructure:
+            continue
         stereo_text = ""
         if stereo:
             parts, stereo_text = _stereo_arms(mol, stereo, parts_atoms, units)
-        else:
-            unit, attach = units[0]
-            try:
-                _, _, parts = _select(unit, attach)
-            except UnsupportedStructure:
-                continue
         prefix, body, tail, locant = parts[:4]
         lead = ",".join(str(locant) + "'" * i for i in range(arms)) + "-" if locant is not None else ""
         text = prefix + body
@@ -4698,12 +4718,18 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
     return per_arm[0][0], f"({','.join(labels)})-"
 
 
+def _achiral_copy(unit):
+    plain = Chem.Mol(unit)
+    Chem.RemoveStereochemistry(plain)
+    return plain
+
+
 def _unit_molecule(mol, atoms, attach, refill=False):
     editable = Chem.RWMol(mol)
     root = editable.GetAtomWithIdx(attach)
     root.SetAtomMapNum(1)
     cut = sum(1 for n in root.GetNeighbors() if n.GetIdx() not in atoms)
-    if (root.GetIsAromatic() or refill) and cut:
+    if (root.GetIsAromatic() or refill or (root.GetNoImplicit() and root.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED)) and cut:
         root.SetNumExplicitHs(root.GetNumExplicitHs() + cut)
     for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
         editable.RemoveAtom(idx)

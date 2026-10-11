@@ -353,6 +353,10 @@ def test_concatenated_linkers(smiles, expected):
     [
         ("c1ccccc1/C=C/c1ccccc1", "1,1'-[(1E)-ethene-1,2-diyl]dibenzene"),
         ("C[C@H](c1ccccc1)[C@@H](C)c1ccccc1", "1,1'-[(2R,3S)-butane-2,3-diyl]dibenzene"),
+        (
+            "C[C@H](C(=O)O)c1ccc(/C=C/O/C=C/c2ccc([C@H](C)C(=O)O)cc2)cc1",
+            "(2S,2'S)-2,2'-{oxybis[(1E)-ethene-2,1-diyl-4,1-phenylene]}dipropanoic acid",
+        ),
     ],
 )
 def test_linker_stereodescriptors(smiles, expected):

@@ -369,7 +369,27 @@ def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=N
     return Part(name, False, True)
 
 
-def _make_context(mol, graph):
+def _linker_stereo_cited(mol, graph, center_edges, linker_stereo, used):
+    """Whether the double bonds of the linker are cited once, the branches of the centre carrying the same descriptors
+    (P-93.4.1.3)."""
+    per_branch = []
+    for x, y, _ in center_edges:
+        branch = _arm(graph, y, x)
+        per_branch.append(
+            [
+                (kind, idx, code)
+                for kind, idx, code in linker_stereo
+                if {mol.GetBondWithIdx(idx).GetBeginAtomIdx(), mol.GetBondWithIdx(idx).GetEndAtomIdx()} <= branch
+            ]
+        )
+    if len(per_branch) < 2 or any(len(found) > 1 for found in per_branch):
+        return False
+    if len({tuple(code for _, _, code in found) for found in per_branch}) != 1:
+        return False
+    return all((kind, idx) in used for kind, idx, _ in per_branch[0]) and sum(map(len, per_branch)) == len(linker_stereo)
+
+
+def _make_context(mol, graph, stereo=()):
     halogens = halogen_substituents(mol)
     aromatic = frozenset()
 
@@ -379,7 +399,7 @@ def _make_context(mol, graph):
             return f"({name})", False
         return name, compound
 
-    return _Context([], None, None, [], set(), {}, entry)
+    return _Context([], None, None, list(stereo), set(), {}, entry)
 
 
 _MULTIPLIED_HETERO_HYDRIDE = re.compile(
@@ -425,7 +445,7 @@ def _skeletal_linker_name(mol, graph, arms, span):
 
 
 def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
-    from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
+    from ._polyfunctional import _achiral_copy, _arm_atoms, _select, _stereo_arms, _unit_molecule
 
     count = len(arms)
     roots = [r for r, _, _ in arms]
@@ -466,12 +486,16 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             break
     if center is None:
         return None
-    if stereo:
-        for _, where, _ in stereo:
-            touched = {where} if isinstance(where, int) else set(where)
-            if not touched <= arm_atoms:
-                return None
-    ctx = _make_context(mol, graph)
+    arm_stereo, linker_stereo = [], []
+    for kind, where, code in stereo or ():
+        touched = {where} if isinstance(where, int) else set(where)
+        if touched <= arm_atoms:
+            arm_stereo.append((kind, where, code))
+        elif kind == "bond":
+            linker_stereo.append((kind, mol.GetBondBetweenAtoms(*where).GetIdx(), code))
+        else:
+            return None
+    ctx = _make_context(mol, graph, linker_stereo)
     kind, atoms = components[center]
     # P-15.6.1.5, P-51.5: a ring bearing a side chain with a further principal group is a substituent of the chain
     # parent that carries them, not a multiplicative centre
@@ -552,16 +576,17 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         ):
             return f"{lead}{linker}{multiplier_word(count, True)}({text})"
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
+    if linker_stereo and not _linker_stereo_cited(mol, graph, edges[center], linker_stereo, ctx.used):
+        return None
     linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
-    if stereo:
-        parts, stereo_text = _stereo_arms(mol, stereo, parts_atoms, units)
-    else:
-        unit, attach = units[0]
-        try:
-            _, _, parts = _select(unit, attach)
-        except UnsupportedStructure:
-            return None
+    unit, attach = units[0]
+    try:
+        _, _, parts = _select(_achiral_copy(unit), attach)
+    except UnsupportedStructure:
+        return None
+    if arm_stereo:
+        parts, stereo_text = _stereo_arms(mol, arm_stereo, parts_atoms, units)
     prefix, body, tail, locant = parts[:4]
     lead = ",".join(str(locant) + "'" * i for i in range(count)) + "-" if locant is not None else ""
     text = prefix + body

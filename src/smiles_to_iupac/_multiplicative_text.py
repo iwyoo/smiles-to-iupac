@@ -28,16 +28,41 @@ def nesting_text(text):
     return _ADDED_HYDROGEN.sub("", _ASSEMBLY_BRACKETS.sub("", text))
 
 
-def enclose(text):
-    depth = deepest = 0
-    core = nesting_text(text)
-    for ch in core:
+_CODE = r"(?:\d+[a-z]?['\u2032]*)?(?:[RSEZrsMPmp]|seqCis|seqTrans)"
+_DESCRIPTOR = re.compile(rf"\((?:{_CODE}(?:,{_CODE})*|(?:T|SP|SS|TBPY|OC|SPY)-[\dA-Z\u2032-]+)\)-")
+
+
+def _mark_index(core):
+    """Index into ( [ { of the marks that enclose `core`: the one above its deepest group. A stereodescriptor opening a
+    group is no group of its own, but a group whose mark would repeat its first character takes the next one
+    (P-16.5.4)."""
+    stack, deepest, i = [], 0, 0
+    lead = _DESCRIPTOR.match(core)
+    if lead:
+        i = lead.end()
+    while i < len(core):
+        ch = core[i]
         if ch in _OPENERS:
-            depth += 1
-            deepest = max(deepest, depth)
-        elif ch in ")]}":
-            depth -= 1
-    level = deepest % 3
+            stack.append((i, 0))
+            lead = _DESCRIPTOR.match(core, i + 1)
+            i = lead.end() if lead else i + 1
+            continue
+        if ch in ")]}" and stack:
+            opened, below = stack.pop()
+            rank = below + 1
+            while core[opened + 1:opened + 2] == _MARKS[(rank - 1) % 3][0]:
+                rank += 1
+            if stack:
+                stack[-1] = (stack[-1][0], max(stack[-1][1], rank))
+            else:
+                deepest = max(deepest, rank)
+        i += 1
+    return deepest % 3
+
+
+def enclose(text):
+    core = nesting_text(text)
+    level = _mark_index(core)
     if core.startswith(_MARKS[level][0]):
         level = (level + 1) % 3
     left, right = _MARKS[level]
