@@ -157,7 +157,7 @@ def cyanic_acid_name(chain):
     if len(chain) == 1:
         return _INFIX[chain[0]] + "cyanic acid"
     word = _peroxo_word(chain)[: -len("o")] + "y"
-    letters = _letters("O", [chain])
+    letters = _letters("N", [chain])
     return word + "cyanic" + (f" {letters}-acid" if letters else " acid")
 
 

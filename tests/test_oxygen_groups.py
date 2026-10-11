@@ -943,6 +943,8 @@ def test_cationic_hydrazine_outranks_a_neutral_acid():
         ("S(C#N)CCC(=O)O", "3-(thiocyanato)propanoic acid"),
         ("S(C#N)CCC(SCC)=O", "S-ethyl 3-(thiocyanato)propanethioate"),
         ("OC(=O)CCOC#N", "3-cyanatopropanoic acid"),
+        ("OC(=O)CCOOC#N", "3-(cyanoperoxy)propanoic acid"),
+        ("OC(=O)CCSSC#N", "3-(cyanodisulfanyl)propanoic acid"),
         ("OC(=O)CCC[Se]C#N", "4-(selenocyanato)butanoic acid"),
     ],
 )
@@ -1050,6 +1052,7 @@ def test_acid_derivative_prefixes(smiles, expected):
         ("OC(=O)OO", "carbonoperoxoic acid"),
         ("N#COO", "peroxycyanic acid"),
         ("N#COS", "thioperoxycyanic OS-acid"),
+        ("N#CSS", "dithioperoxycyanic acid"),
         ("NC(=N)S", "carbamimidothioic acid"),
         ("[N-]=[N+]=NC(=O)O", "carbonazidic acid"),
         ("OC(=O)OC(=O)OC(=O)OC(=O)OC(=O)O", "3,5,7-trioxo-2,4,6,8-tetraoxanonanedioic acid"),
