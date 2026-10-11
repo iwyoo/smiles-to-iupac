@@ -378,6 +378,21 @@ def test_selone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=S)CC(C)=[Se]", "4-selanylidenepentane-2-thione", id="selone_beside_a_thione"),
+        pytest.param("CC(=[Se])CC(C)=[Te]", "4-tellanylidenepentane-2-selone", id="tellone_beside_a_selone"),
+        pytest.param(
+            "CC(=S)CC(C(=[Se])CC)CC(C)=S", "4-(propaneselenoyl)heptane-2,6-dithione", id="selone_acyl_prefix_beside_thiones"
+        ),
+    ],
+)
+def test_ketone_analogues_of_two_chalcogens_follow_the_order_o_s_se_te(smiles, expected):
+    # P-64.6.1, P-64.7.3
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_unsaturated_ring_selone_with_substituent_is_named():
     assert smiles_to_iupac("[Se]=C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-selone"
 

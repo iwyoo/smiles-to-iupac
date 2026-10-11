@@ -39,6 +39,7 @@ _SENIOR_TO_SELENOL = [
         "[CX2]#[NX1]",
         "[CX3H1](=O)[#6]",
         "[#6][CX3](=O)[#6]",
+        "[#6][CX3](=S)[#6]",
         "[CX3](=[O,S,Se,Te])[NX2]=[NX2]",
         "[#6][CX3](=O)[O,S,Se,Te;X2][O,S,Se,Te;X2][O,S,Se,Te;X2]",
         "[#6][CX3](=O)[OX2][NX3;!R]",
@@ -46,6 +47,7 @@ _SENIOR_TO_SELENOL = [
         "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
     )
 ]
+_SELONE_KETONE = Chem.MolFromSmarts("[#6][CX3](=[Se])[#6]")
 AMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
 _ENAMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX3;!a]=[#6]")
 _SENIOR_SULFONYL = [
@@ -139,7 +141,9 @@ def _chain_prefix_allowed(mol):
 def require_senior_group(mol, z):
     """A free -SeH/-TeH/=Se/=Te is the principal group (selenol, tellurol, selone) unless a more senior class
     (acid, ester, amide, nitrile, aldehyde, ketone, alcohol, thiol) is present (P-41, P-63.1)."""
-    if z in (34, 52) and not any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL):
+    if z in (34, 52) and not any(
+        mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *([_SELONE_KETONE] if z == 52 else []))
+    ):
         raise UnsupportedStructure("a selenol, tellurol, selone or tellone is the principal group, not a prefix")
 
 
