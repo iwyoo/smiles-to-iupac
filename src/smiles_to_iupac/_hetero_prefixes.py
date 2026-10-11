@@ -666,7 +666,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return center_prefix(mol, root, coming_from)
     if z == 6 and not atom.HasProp("_anion") and _branch_has_anionic_carbon(graph, root, coming_from, mol):
         if atom.IsInRing():
-            raise UnsupportedStructure("an anionic carbon beyond a ring substituent is not supported yet")
+            from ._diester_ring_diyl import _system_of, ring_substituent_name
+
+            if not any(mol.GetAtomWithIdx(a).HasProp("_anion") for a in _system_of(mol, root)[1]):
+                raise UnsupportedStructure("an anionic carbon beyond a ring substituent is not supported yet")
+            return ring_substituent_name(mol, graph, root, coming_from)
         return _anionic_chain_prefix(graph, root, coming_from, mol)
     if z == 6:
         from ._imidoyl_prefix import imidoyl_prefix, ketene_prefix
