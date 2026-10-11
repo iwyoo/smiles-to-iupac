@@ -1647,7 +1647,7 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
     if in_parent or front:
         bare = len(parts[4]) == 1 or _locants_omitted(mol, in_parent, parts)
         capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
-        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity, _sole_heteroatoms(mol, in_parent, parts[4])))
+        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity, _sole_heteroatoms(mol, in_parent, parts[4]), bare and len(parts[4]) > 1))
     return name
 
 
