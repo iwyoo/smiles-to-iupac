@@ -1168,16 +1168,14 @@ def test_acetal_name_accounts_for_every_carbon(alkoxy_a, alkoxy_b, acyl):
         pytest.param("O=C=C1CCCCC1", "cyclohexylidenemethanone", id="ring_ylidene_methanone"),
         pytest.param("CC=C=O", "prop-1-en-1-one", id="longer_ketene"),
         pytest.param("O=C=C=C", "propa-1,2-dien-1-one", id="cumulated_diene"),
+        pytest.param("OC(=O)CC=C=O", "4-oxobut-3-enoic acid", id="ketene_demoted_to_oxo_under_an_acid"),
+        pytest.param("CCC(=O)C=C=O", "pent-1-ene-1,3-dione", id="ketene_and_ketone_share_the_suffix"),
+        pytest.param("O=C=CC(N)C", "3-aminobut-1-en-1-one", id="amine_cited_as_prefix_on_a_ketene"),
+        pytest.param("O=C=CC=O", "3-oxoprop-2-enal", id="aldehyde_outranks_the_ketene"),
     ],
 )
 def test_ketenes_are_named_as_ene_ones(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize("smiles", ["O=C=CC(=O)O", "O=C=CC(N)C", "O=C=CCC(C)=O"])
-def test_ketene_with_other_groups_is_rejected_not_misnamed(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(

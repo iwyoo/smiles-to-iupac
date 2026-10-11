@@ -694,6 +694,17 @@ def _group_weight(mol, carbon, cls):
     return sum(1 for c, _ in _sulfonyl_groups_on(mol, carbon) if c == cls) or 1
 
 
+def _is_ketene_carbon(mol, atom, oxygen):
+    """O=C=C: a ketone-class carbon that ends the chain, its single carbon neighbour joined by the cumulated C=C (P-64.2.2.4)."""
+    others = [n for n in atom.GetNeighbors() if n.GetIdx() != oxygen]
+    return (
+        len(others) == 1
+        and others[0].GetAtomicNum() == 6
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), others[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+    )
+
+
 def _group_of(mol, carbon):
     """(class, atoms owned by the group) for a principal-capable group on
     `carbon`, else None. Raises on carbon-bound groups this engine cannot
@@ -763,6 +774,8 @@ def _group_of(mol, carbon):
         ):
             if any(n.IsInRing() for n in carbon_neighbors):
                 return None
+            if _is_ketene_carbon(mol, atom, oxygens[0]):
+                return "ketone", {oxygens[0]}
             raise UnsupportedStructure("a cumulated carbonyl (ketene) is not supported")
         if not hetero:
             if len(carbon_neighbors) == 1 and atom.GetTotalNumHs() == 1:
