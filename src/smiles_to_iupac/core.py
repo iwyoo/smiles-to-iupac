@@ -265,6 +265,7 @@ from ._dipole_oxide import (
     name_nitrone,
 )
 from ._isotope import has_isotope_hydride_shape, has_isotope_shape, name_isotope, name_isotope_hydride
+from ._isotope_steroid import has_isotope_steroid_shape, name_isotope_steroid
 from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
 from ._radical_group import has_group_cation_shape, has_radical_group_shape, name_group_cation, name_radical_group
 from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
@@ -997,6 +998,11 @@ def _name_unabridged_body(smiles: str) -> str:
             steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None
             if steroid is not None:
                 return steroid
+            if has_isotope_steroid_shape(parsed):
+                try:
+                    return name_isotope_steroid(parsed)
+                except UnsupportedStructure:
+                    pass
             if has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed):
                 try:
                     return name_polyfunctional(parsed)

@@ -509,3 +509,28 @@ def test_nuclides_on_acyl_and_sulfonyl_halides(smiles, expected):
 )
 def test_nuclides_on_the_cyano_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.6.3.2: the carbonyl carbon of a retained or carbonyl-suffixed acyl group is not numbered, so the nuclide is cited with the systematic name
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OP(O)(=O)[14C](=O)c1ccccc1", "[benzene(14C)carbonyl]phosphonic acid", id="retained_benzoyl_becomes_benzenecarbonyl"),
+        pytest.param("OP(O)(=O)[14C](=O)c1ccc2ccccc2c1", "[naphthalene-2-(14C)carbonyl]phosphonic acid", id="carbonyl_with_a_ring_locant"),
+    ],
+)
+def test_nuclide_on_the_carbonyl_carbon_of_an_acyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.4.1, P-82.4.2: steroid parent hydrides take the locants of the steroid numbering; a nuclide that makes a centre stereogenic adds its descriptor
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[C@@]12[C@@H]([C@H](C)CC[C@@H]([2H])C(C)C)CC[C@H]1[C@@H]1CC[C@H]3CCCC[C@]3(C)[C@H]1CC2", "(24R)-5α-(24-2H1)cholestane", id="side_chain_centre_made_stereogenic_by_deuterium"),
+        pytest.param("C[C@@]12[C@@H]([C@H](C)CC[C@H]([2H])C(C)C)CC[C@H]1[C@@H]1CC[C@H]3CCCC[C@]3(C)[C@H]1CC2", "(24S)-5α-(24-2H1)cholestane", id="other_configuration_of_the_same_centre"),
+        pytest.param("[2H][C@]1(CC)CC[C@H]2[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3CC[C@@]21C", "5α-(17-2H)pregnane", id="existing_centre_needs_no_descriptor"),
+    ],
+)
+def test_isotopically_modified_steroid_parent_hydride(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
