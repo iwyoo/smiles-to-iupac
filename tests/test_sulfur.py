@@ -1083,6 +1083,9 @@ def test_sulfur_chain_broken_to_express_the_senior_group(smiles, expected):
             "OC(=O)c1ccc(cc1)C[SiH2]C[SiH2]C[SiH2]C(CCC)[SiH2]C",
             "4-(7-propyl-2,4,6,8-tetrasilanonan-1-yl)benzoic acid",
         ),
+        ("OC(=O)c1ccc(cc1)[SiH2]C[SiH2]C[SiH2]C[SiH2]C", "4-(1,3,5,7-tetrasilaoctan-1-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)[SiH](S[SiH3])O[SiH3]", "4-[1-(silylsulfanyl)disiloxanyl]benzoic acid"),
+        ("OC(=O)c1ccc(cc1)[SiH](O[SiH3])O[SiH3]", "4-[1-(silyloxy)disiloxanyl]benzoic acid"),
     ],
 )
 def test_nonstandard_bonding_in_substituents_and_substituent_chains(smiles, expected):

@@ -480,6 +480,7 @@ def _amino(names):
 
 
 _CHAIN_ELEMENTS = {8, 16, 34, 52}
+_CHAIN_ELEMENTS_BY_SENIORITY = [8, 16, 34, 52]
 _CHAIN_WORDS = {8: "oxy", 16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 _CHAIN_HYDRO = {8: "hydroxy", 16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 
@@ -719,8 +720,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         ):
             return _phosphoryloxy(graph, other, root, halogens, aromatic_atoms, mol)
         if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
-            silyl, _ = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
-            return _enclose(silyl, True) + "oxy", True
+            silyl, compound = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
+            return _enclose(silyl, compound) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
             acyl, acyl_compound = _sulfur_oxo_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(acyl, acyl_compound) + "oxy", True
@@ -2093,42 +2094,50 @@ _GROUP_13_CHAIN = {5, 13, 31, 49, 81}
 
 def _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """disiloxanyl, diboroxanyl, trisiloxan-1-yl: an unbranched E-O-E... chain attached through a terminal atom E (P-68.1.2)."""
-    from ._common import group_substituents
+    from ._common import group_substituents, substituent_locant_set_and_citation
     from ._hydride_chain import _alternating_parent
     from ._substituents import format_substituent_prefixes, name_branch
 
     element = mol.GetAtomWithIdx(root).GetAtomicNum()
-    bridge_element = None
-    walk, previous = [root], coming_from
-    while True:
-        bridges = [
-            n
-            for n in graph[walk[-1]]
-            if n != previous
-            and mol.GetAtomWithIdx(n).GetAtomicNum() in _CHAIN_ELEMENTS
-            and bridge_element in (None, mol.GetAtomWithIdx(n).GetAtomicNum())
-            and any(m != walk[-1] and mol.GetAtomWithIdx(m).GetAtomicNum() == element for m in graph[n])
-        ]
-        if not bridges:
-            break
-        if len(bridges) > 1:
-            raise UnsupportedStructure("a branched oxane substituent is not supported yet")
-        (centre,) = [m for m in graph[bridges[0]] if m != walk[-1]]
-        if mol.GetAtomWithIdx(bridges[0]).GetDegree() != 2:
-            raise UnsupportedStructure("this oxane substituent is not supported yet")
-        bridge_element = mol.GetAtomWithIdx(bridges[0]).GetAtomicNum()
-        walk += [bridges[0], centre]
-        previous = bridges[0]
-    chain = set(walk)
-    subs = {}
-    for i, atom in enumerate(walk):
-        for n in graph[atom]:
-            if n in chain or n == coming_from:
+
+    def walks(walk, previous, bridge_element):
+        found = []
+        for n in graph[walk[-1]]:
+            atom = mol.GetAtomWithIdx(n)
+            if (
+                n == previous
+                or atom.GetAtomicNum() not in _CHAIN_ELEMENTS
+                or bridge_element not in (None, atom.GetAtomicNum())
+                or atom.GetDegree() != 2
+                or atom.GetFormalCharge()
+            ):
                 continue
-            if mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) and n not in halogens:
-                raise UnsupportedStructure("this oxane substituent carries something other than organyl groups")
-            subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
-    grouped = group_substituents(subs)
+            centre = [m for m in graph[n] if m != walk[-1]][0]
+            if mol.GetAtomWithIdx(centre).GetAtomicNum() != element or centre in walk:
+                continue
+            found += walks(walk + [n, centre], n, atom.GetAtomicNum())
+        return found or [(walk, bridge_element)]
+
+    candidates = walks([root], coming_from, None)
+    longest = max(len(w) for w, _ in candidates)
+    candidates = [c for c in candidates if len(c[0]) == longest]
+    most_senior = min(_CHAIN_ELEMENTS_BY_SENIORITY.index(b) for _, b in candidates)
+    candidates = [c for c in candidates if _CHAIN_ELEMENTS_BY_SENIORITY.index(c[1]) == most_senior]
+    best = None
+    for walk, bridge_element in candidates:
+        chain = set(walk)
+        subs = {}
+        for i, atom in enumerate(walk):
+            for n in graph[atom]:
+                if n in chain or n == coming_from:
+                    continue
+                subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True))
+        grouped = group_substituents(subs)
+        locant_set, total, citation = substituent_locant_set_and_citation(grouped)
+        key = (-total, locant_set, citation)
+        if best is None or key < best[0]:
+            best = (key, walk, bridge_element, grouped)
+    _, walk, bridge_element, grouped = best
     count = (len(walk) + 1) // 2
     parent = _alternating_parent(element, bridge_element, count)
     base = parent[:-1] + "yl" if count == 2 else parent[:-1] + "-1-yl"
