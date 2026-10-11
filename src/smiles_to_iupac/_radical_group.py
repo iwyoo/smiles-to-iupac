@@ -9,6 +9,7 @@ from rdkit import Chem
 from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
 from ._hetero_prefixes import DIPOLAR_GROUPS, EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, PEROXY_PREFIXES, is_functional_carbon
 from ._numerals import alkyl_name
+from ._radical_hydryl import hydryl_radical_name
 from ._radical_poly import polyradical_name
 from ._substituents import name_branch
 
@@ -176,6 +177,9 @@ def _name_radical_group(mol) -> str:
     peroxy = PEROXY_PREFIXES.set(True)
     extended = EXTENDED_PREFIXES.set(centre.GetAtomicNum() in (16, 34, 52) or mol.HasSubstructMatch(_IMINE))
     try:
+        hydryl = None if labels else hydryl_radical_name(mol, centre)
+        if hydryl is not None:
+            return hydryl
         name, _ = name_branch(
             graph, centre.GetIdx(), hydrogen, halogen_substituents(hydride), aromatic, mol=hydride, unsaturated=True
         )

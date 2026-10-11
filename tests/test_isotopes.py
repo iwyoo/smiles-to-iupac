@@ -257,6 +257,12 @@ def test_isotope_on_characteristic_group_atom(smiles, expected):
             "2-{[(2H7)naphthalen-1-yl]methyl}pyridine",
             id="every_position_of_a_fused_group_modified",
         ),
+        pytest.param(
+            "N[C@@H](CCCN[14C](N)=[15NH])C(=O)O",
+            "(2S)-2-amino-5-{[(14C,N′-15N)carbamimidoyl]amino}pentanoic acid",
+            id="carbamimidoyl_carbon_unlocated_nitrogens_take_letter_locants",
+        ),
+        pytest.param("OC(=O)CCCNC(N[2H])=N", "4-{[(N-2H1)carbamimidoyl]amino}butanoic acid", id="deuterated_carbamimidoyl_nitrogen"),
         pytest.param("OC(=O)c1ccc(cc1)O[2H]", "4-(2H)hydroxybenzoic acid", id="deuterated_hydroxy_takes_no_subscript"),
         pytest.param("OC(=O)c1ccc(cc1)N([2H])[2H]", "4-(2H2)aminobenzoic acid", id="deuterated_amino_counts_its_atoms"),
     ],
