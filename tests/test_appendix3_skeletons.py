@@ -297,3 +297,18 @@ def test_structures_the_parent_cannot_carry_are_left_to_the_other_engines(smiles
 def test_monoterpenes_keep_their_systematic_names(smiles, expected):
     # P-13.4.3.2 gives the bicyclo[2.2.1]heptane name as the PIN for bornane-based structures
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CN1C2CC(=O)CC1C(O)C2", "6-hydroxy-8-methyl-8-azabicyclo[3.2.1]octan-3-one"),
+        (
+            "CN1[C@H]2CC[C@@H]1CC(SCC)(SCC)C2",
+            "(1R,5S)-3,3-bis(ethylsulfanyl)-8-methyl-8-azabicyclo[3.2.1]octane",
+        ),
+    ],
+)
+def test_tropane_skeleton_is_named_by_von_baeyer_nomenclature(smiles, expected):
+    # P-64.7.1, P-101.7.2: the von Baeyer name is the PIN; tropane is a Table 10.1 name for general nomenclature
+    assert smiles_to_iupac(smiles) == expected
