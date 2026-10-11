@@ -1,7 +1,6 @@
 import pytest
 from rdkit import Chem
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._ring_system_seniority import ring_seniority_key
 
 
@@ -177,15 +176,11 @@ def test_ring_assembly_ylidene_name(smiles, expected):
         pytest.param("C1CCC(Cl)C1=C1CCCC1", "2-chloro-1,1'-bi(cyclopentylidene)", id="halogen_substituent__ring_assembly_ylidene"),
         pytest.param("C1CC2CCC1C2=C1C2CCC1CC2", "7,7'-bi(bicyclo[2.2.1]heptanylidene)", id="bicyclic_ring_assembly_ylidene_bridge_carbon_attachment"),
         pytest.param("C1CCC2C(=C3CC4CCC3C4)CCC2C1", "1-(bicyclo[2.2.1]heptan-2-ylidene)octahydro-1H-indene", id="bicyclic_ylidene_between_different_ring_systems_is_a_substituent"),
+        pytest.param("ClC1CC2CCC1C2=C1CC2CCC1C2", "7-(bicyclo[2.2.1]heptan-2-ylidene)-2-chlorobicyclo[2.2.1]heptane", id="identical_ring_systems_the_one_with_more_substituents_is_the_parent"),
     ],
 )
 def test_halogen_substituent__and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_bicyclic_ring_assembly_ylidene_halogen_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClC1CC2CCC1C2=C1CC2CCC1C2")
 
 
 @pytest.mark.parametrize(

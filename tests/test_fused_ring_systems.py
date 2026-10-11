@@ -955,3 +955,22 @@ def test_senior_bridged_fused_system(senior, junior):
 )
 def test_senior_phane_system(senior, junior):
     assert phane_seniority_key(Chem.MolFromSmiles(senior)) < phane_seniority_key(Chem.MolFromSmiles(junior))
+
+
+# P-45.2.1, P-45.2.2, P-45.5: identical fused ring systems that a multiplicative name does not unite
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("c1ccc2ccccc2c1CCc1ccc2ccccc2c1", "1-[2-(naphthalen-2-yl)ethyl]naphthalene", id="different_attachment_positions_lowest_locant"),
+        pytest.param("c1ccc2ccccc2c1COc1ccc2ccccc2c1", "1-{[(naphthalen-2-yl)oxy]methyl}naphthalene", id="attachment_through_a_heteroatom"),
+        pytest.param(
+            "Brc1c(CCOCc2cc(Br)c3ccccc3c2Br)cc(Cl)c2ccccc12",
+            "1-bromo-4-chloro-2-{2-[(1,4-dibromonaphthalen-2-yl)methoxy]ethyl}naphthalene",
+            id="same_locants_alphanumerical_order_of_the_names",
+        ),
+        pytest.param("c1ccc2cc(COCCc3ccc4ccccc4c3)ccc2c1", "2-{[2-(naphthalen-2-yl)ethoxy]methyl}naphthalene", id="same_positions_unsymmetrical_chain"),
+        pytest.param("c1ccc2c(c1)cccc2CCc1cccc2ccccc12", "1,1'-(ethane-1,2-diyl)dinaphthalene", id="same_positions_stay_multiplicative"),
+    ],
+)
+def test_identical_fused_systems_choose_the_parent_by_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
