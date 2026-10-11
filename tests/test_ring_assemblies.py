@@ -200,6 +200,10 @@ def test_three_rings_with_a_double_bond_junction_name_a_two_ring_assembly_with_r
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_assembly_holding_the_principal_group_is_the_parent_beside_a_fused_ring_substituent():
+    assert smiles_to_iupac("OC1CCCCN1C1CCCCN1c1ccc2ccccc2c1") == "1'-(naphthalen-2-yl)[1,2'-bipiperidin]-2-ol"
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
