@@ -7,7 +7,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, specified_stereo_elements
-from ._hetero_prefixes import is_functional_carbon
+from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._numerals import multiplying_prefix
 
 _MAX_ATOMS = 80
@@ -116,6 +116,11 @@ def _unit(mol, centre):
         if centre.GetTotalNumHs() != 1 or neighbour.GetAtomicNum() != 6:
             return None
         return "aminyl", [centre.GetIdx()], neighbour.GetIdx()
+    if z in MONONUCLEAR_HYDRIDES:
+        _, word, standard = MONONUCLEAR_HYDRIDES[z]
+        if centre.GetTotalNumHs() != standard - 2 or neighbour.GetAtomicNum() != 6:
+            return None
+        return word, [centre.GetIdx()], neighbour.GetIdx()
     if z not in (8, *_CHALCOGEN_WORDS) or centre.GetTotalNumHs():
         return None
     chain = [centre.GetIdx()]
@@ -246,7 +251,7 @@ def polyradical_name(mol):
     name = _group_radical_name(mol, centres)
     if name is not None:
         return name
-    if all(a.GetAtomicNum() == 6 for a in centres):
+    if all(a.GetAtomicNum() == 6 or a.IsInRing() for a in centres):
         name = _all_on_one_parent(mol, centres)
         if name is not None:
             return name
