@@ -4753,7 +4753,7 @@ def _peroxy_group(mol, atom, groups, ring_groups):
     owned = {atom.GetIdx(), y.GetIdx()}
     c = carbon.GetIdx()
     if carbon.IsInRing():
-        if not oxo:
+        if not oxo and ("peroxol", c, owned) not in ring_groups:
             ring_groups.append(("peroxol", c, owned))
         return
     if oxo:

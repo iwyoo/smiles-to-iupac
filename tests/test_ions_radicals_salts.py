@@ -605,6 +605,8 @@ _P72_ANIONS = [
     ("CO[O-]", "methaneperoxolate"),
     ("CCS[O-]", "ethane(SO-thioperoxolate)"),
     ("[O-]OCCO[O-]", "ethane-1,2-bis(peroxolate)"),
+    ("[O-]OC1CCCC1", "cyclopentaneperoxolate"),
+    ("[O-]Oc1ccc(O[O-])cc1", "benzene-1,4-bis(peroxolate)"),
     ("[S-]Sc1ccc(S[S-])cc1", "benzene-1,4-bis(dithioperoxolate)"),
     ("N[O-]", "aminoxide"),
     ("[OH-]", "hydroxide"),
