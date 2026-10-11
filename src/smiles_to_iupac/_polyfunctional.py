@@ -1854,12 +1854,20 @@ def _sole_heteroatoms(mol, in_parent, positions):
 
 
 def _locants_omitted(mol, in_parent, parts):
-    """P-82.6.1.3 (every parent position modified in the same way, none keeping a hydrogen) and the one modified atom
-    of a bare hydrocarbon whose positions are all equivalent (benzene, ethane; P-82.6.1.1)."""
+    """P-82.6.1.3 (every parent position modified in the same way, none keeping a hydrogen; or every hydrogen of the
+    compound replaced by one nuclide, acetonitrile) and the one modified atom of a bare hydrocarbon whose positions are
+    all equivalent (benzene, ethane; P-82.6.1.1)."""
     positions = set(parts[4])
     if set(in_parent) == positions and len({repr(sorted(e["H"])) + str(e["skeleton"]) for e in in_parent.values()}) == 1:
         if all(sum(in_parent[a]["H"].values()) == mol.GetAtomWithIdx(a).GetTotalNumHs() for a in positions):
             return True
+    if (
+        in_parent
+        and not any(e["skeleton"] for e in in_parent.values())
+        and len({tuple(sorted(e["H"])) for e in in_parent.values()}) == 1
+        and sum(sum(e["H"].values()) for e in in_parent.values()) == sum(a.GetTotalNumHs() for a in mol.GetAtoms())
+    ):
+        return True
     ranks = Chem.CanonicalRankAtoms(mol, breakTies=False)
     return (
         len(in_parent) == 1

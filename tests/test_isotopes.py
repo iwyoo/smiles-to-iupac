@@ -172,6 +172,9 @@ def test_isotope_ring_name(smiles, expected):
         pytest.param("[2H]c1c([2H])c([2H])c([2H])c([2H])c1[2H]", "(2H6)benzene", id="every_position_modified"),
         pytest.param("Cc1ccccc1[2H]", "1-methyl(2-2H)benzene", id="benzene_locants_cited_for_a_ring_label"),
         pytest.param("[2H]c1ccc(cc1)C(=O)O", "(4-2H)benzoic acid", id="ring_label_with_a_principal_group"),
+        pytest.param("[2H]C([2H])([2H])C#N", "(2H3)acetonitrile", id="every_hydrogen_modified_beside_a_position_without_hydrogen"),
+        pytest.param("[2H]C([2H])([2H])C(=O)C([2H])([2H])[2H]", "(2H6)propan-2-one", id="every_hydrogen_modified_keeps_the_locant_of_the_name"),
+        pytest.param("[2H]C([2H])([2H])C(=O)O", "(2,2,2-2H3)acetic acid", id="locants_kept_when_a_hydroxy_hydrogen_remains"),
     ],
 )
 def test_isotope_on_ring_parent(smiles, expected):
