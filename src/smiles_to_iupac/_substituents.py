@@ -1228,7 +1228,11 @@ def cited_branch_stereo(mol, graph, blocked, roots):
         "bonds": {
             (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
             for b in probe.GetBonds()
-            if b.GetBeginAtomIdx() in inside and b.GetEndAtomIdx() in inside and b.HasProp("_CIPCode")
+            if b.HasProp("_CIPCode")
+            and (
+                (b.GetBeginAtomIdx() in inside and b.GetEndAtomIdx() in inside)
+                or _ylidene_bond_to_blocked_nitrogen(b, inside, blocked)
+            )
         },
         "used": set(),
     }
@@ -1241,6 +1245,29 @@ def cited_branch_stereo(mol, graph, blocked, roots):
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element inside a substituent is not cited by any supported name")
+
+
+def _ylidene_bond_to_blocked_nitrogen(bond, inside, blocked):
+    """The double bond from a substituent atom to a nitrogen of the parent, whose configuration the ylidene group cites
+    (P-93.5.1.4.2.1)."""
+    ends = (bond.GetBeginAtom(), bond.GetEndAtom())
+    inner = [a for a in ends if a.GetIdx() in inside]
+    outer = [a for a in ends if a.GetIdx() not in inside]
+    return len(inner) == 1 and outer[0].GetIdx() in blocked and outer[0].GetAtomicNum() == 7 and not bond.IsInRing()
+
+
+@contextlib.contextmanager
+def cited_whole_stereo(mol):
+    """`cited_branch_stereo` for every atom of `mol`, unless an enclosing name already cites its stereo elements: the
+    substituents of a parent that has none of its own, such as a hydrazine, cite them all (P-93.4.2.1.3, P-93.5.1.4.2.1)."""
+    specified = any(
+        b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY) for b in mol.GetBonds()
+    ) or any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms())
+    if BRANCH_STEREO.get() is not None or not specified:
+        yield
+        return
+    with cited_branch_stereo(mol, adjacency(mol), frozenset(), range(mol.GetNumAtoms())):
+        yield
 
 
 @contextlib.contextmanager

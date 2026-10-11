@@ -85,6 +85,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   ring amine, P-62.2.1.3, e.g. 'piperidin-1-amine').
 """
 
+import re
+
 from rdkit import Chem
 
 from ._multiplicative_text import enclose
@@ -96,7 +98,9 @@ from ._common import (
     non_single_bonds,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import cited_whole_stereo, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+
+_STEREO_DESCRIPTOR = re.compile(r"^\((?:\d+[A-Za-z]+(?:,\d+[A-Za-z]+)*|[A-Za-z]+)\)-")
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
@@ -239,12 +243,18 @@ def hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated
     (P-68.3.1.2.1); every substituent must be nameable by the substituent namer."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
-    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+    with cited_whole_stereo(mol):
+        names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+        names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
 
     total = len(names_n1) + len(names_n2)
     if total == 0:
         return "hydrazine"
+    bare = {}
+    for name, _ in names_n1 + names_n2:
+        bare.setdefault(_STEREO_DESCRIPTOR.sub("", name, count=1), set()).add(name)
+    if any(len(variants) > 1 for variants in bare.values()):
+        raise UnsupportedStructure("the order of identical substituents that differ in configuration is not supported yet")
     if _is_azine(mol, n1_idx, n2_idx):
         # P-14.3.4.5: every hydrogen is replaced by an ylidene, so no locant is cited
         return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
