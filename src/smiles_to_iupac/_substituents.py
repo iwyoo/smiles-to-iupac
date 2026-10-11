@@ -409,6 +409,13 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         nuclides = sorted((n for e in labelled.values() for n in _modifications(e)), key=_nuclide_sort_key)
         context["consumed"].update(labelled)
         return "(" + ",".join(nuclides) + ")carboxy", False
+    if name == "cyano" and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
+        from ._polyfunctional import _modifications
+        from ._isotope_labels import _nuclide_sort_key
+
+        nuclides = sorted((n for e in labelled.values() for n in _modifications(e)), key=_nuclide_sort_key)
+        context["consumed"].update(labelled)
+        return "(" + ",".join(nuclides) + ")cyano", False
     if name == "carbamimidoyl" and mol is not None:
         text = _labelled_carbamimidoyl(mol, root, coming_from, labelled, capacity)
         context["consumed"].update(labelled)

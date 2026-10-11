@@ -267,6 +267,7 @@ from ._isotope import has_isotope_hydride_shape, has_isotope_shape, name_isotope
 from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
 from ._radical_group import has_group_cation_shape, has_radical_group_shape, name_group_cation, name_radical_group
 from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
+from ._isotope_halide import has_labelled_halide_shape, name_labelled_halide
 from ._isotope_carboxylic_acid import has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid
 from ._isotope_ketone import has_isotope_ketone_shape, name_isotope_ketone
 from ._ketone import (
@@ -667,6 +668,7 @@ def _name_isotope_label(mol) -> str:
     )
 
     for has_shape, namer in (
+        (has_labelled_halide_shape, name_labelled_halide),
         (has_labelled_azoxy, name_labelled_azoxy),
         (has_labelled_diazene, name_labelled_diazene),
         (has_labelled_hydrazone, name_labelled_hydrazone),

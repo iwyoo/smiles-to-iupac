@@ -167,7 +167,7 @@ def test_isotope_ring_name(smiles, expected):
     [
         pytest.param("[3H]C1CCCCC1", "(3H1)cyclohexane", id="tritium_on_a_ring"),
         pytest.param("[2H]C1CCCCC1C", "1-methyl(2-2H1)cyclohexane", id="ring_label_beside_a_substituent"),
-        pytest.param("[2H]c1ccccc1", "(2H)benzene", id="one_deuterium_on_benzene"),
+        pytest.param("[2H]c1ccccc1", "(2H1)benzene", id="one_deuterium_on_benzene"),
         pytest.param("[2H]c1ccccc1[2H]", "(1,2-2H2)benzene", id="two_deuteriums_need_locants"),
         pytest.param("[2H]c1c([2H])c([2H])c([2H])c([2H])c1[2H]", "(2H6)benzene", id="every_position_modified"),
         pytest.param("Cc1ccccc1[2H]", "1-methyl(2-2H)benzene", id="benzene_locants_cited_for_a_ring_label"),
@@ -475,4 +475,21 @@ def test_nuclides_on_other_parent_hydrides(smiles, expected):
     ],
 )
 def test_nuclides_on_nitrogens_of_double_bonded_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.2.2: an acid halide takes the descriptor of the acid it derives from; a cyano prefix cites its own nuclide
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[13CH3]C(=O)Cl", "(2-13C)acetyl chloride", id="acyl_halide_with_a_chain_label"),
+        pytest.param("ClC(=O)c1ccccc1[2H]", "(2-2H)benzoyl chloride", id="acyl_halide_with_a_ring_label"),
+        pytest.param("[2H]C([2H])([2H])C(=O)Cl", "(2H3)acetyl chloride", id="every_hydrogen_modified_drops_the_locants"),
+        pytest.param("O=C(Cl)[13CH2]C(=O)Cl", "(2-13C)propanedioyl dichloride", id="two_acyl_halide_groups"),
+        pytest.param("[13CH3]S(=O)(=O)Cl", "(13C)methanesulfonyl chloride", id="sulfonyl_halide"),
+        pytest.param("N#[13C]CCC(=O)O", "3-(13C)cyanopropanoic acid", id="cyano_carbon_label_beside_an_acid"),
+        pytest.param("N#[13C]CC(=O)OC", "methyl (13C)cyanoacetate", id="cyano_carbon_label_beside_an_ester"),
+    ],
+)
+def test_isotopically_modified_acid_halides_and_cyano_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
