@@ -178,7 +178,7 @@ def marked_neutral(mol):
         hydrogens = atom.GetTotalNumHs()
         atom.SetFormalCharge(0)
         if center in others:
-            word, lam = center_kind(center, preferred="ide" if center.IsInRing() else "uide")
+            word, lam = center_kind(center, preferred="uide" if len(centers) == 1 else "ide")
             atom.SetNoImplicit(True)
             atom.SetNumExplicitHs(hydrogens)
             atom.SetProp("_anion_word", word)
