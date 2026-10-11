@@ -4247,7 +4247,7 @@ def _multiplicative_name(mol, stereo=None):
         parts_atoms = [_arm_atoms(graph, n, blockers[0] if i == 0 or len(blockers) == 1 else blockers[1]) for i, n in enumerate(neighbors)]
         if sum(len(p) for p in parts_atoms) != mol.GetNumAtoms() - extra or any(
             parts_atoms[i] & parts_atoms[j] for i in range(arms) for j in range(i)
-        ):
+        ) or len({len(p) for p in parts_atoms}) != 1:
             continue
         units = [_unit_molecule(mol, atoms, n) for atoms, n in zip(parts_atoms, neighbors)]
         keys = {Chem.MolToSmiles(unit[0], isomericSmiles=False) for unit in units}
