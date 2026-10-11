@@ -4248,26 +4248,6 @@ def _identical_group_units(mol, graph, group_atoms):
     return False
 
 
-def _double_bond_ranks(mol):
-    """Canonical ranks that tell halves of a molecule apart by their E/Z bonds, None without any: a linker whose two
-    sides differ in E/Z does not make the halves a multiplied pair (P-93.6)."""
-    if not any(kind == "bond" for kind, _, _ in specified_stereo_elements(mol) or ()):
-        return None
-    plain = Chem.Mol(mol)
-    for atom in plain.GetAtoms():
-        atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
-    return list(Chem.CanonicalRankAtoms(plain, breakTies=False, includeChirality=True))
-
-
-def _arm_descriptors(mol, atoms):
-    """The double-bond descriptors inside `atoms`: arms differing in E/Z are not identical, those differing in R/S are."""
-    codes = []
-    for kind, idx, code in specified_stereo_elements(mol) or ():
-        if kind == "bond" and {mol.GetBondWithIdx(idx).GetBeginAtomIdx(), mol.GetBondWithIdx(idx).GetEndAtomIdx()} <= atoms:
-            codes.append(code)
-    return "|" + ",".join(sorted(codes))
-
-
 def _unsymmetric_chalcogen_linker(mol, graph, first_arm, second_arm):
     """Whether the rest of the molecule is one chain of chalcogen atoms whose element sequence reads differently from
     each end, so no divalent multiplying group names it (P-65.7.5.1: 1-[(acetylperoxy)sulfanyl]ethan-1-one)."""
@@ -4719,12 +4699,6 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
         for locant, code in entries
     ]
     return per_arm[0][0], f"({','.join(labels)})-"
-
-
-def _achiral_copy(unit):
-    plain = Chem.Mol(unit)
-    Chem.RemoveStereochemistry(plain)
-    return plain
 
 
 def _unit_molecule(mol, atoms, attach, refill=False):

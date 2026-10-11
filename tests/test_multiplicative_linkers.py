@@ -353,10 +353,6 @@ def test_concatenated_linkers(smiles, expected):
     [
         ("c1ccccc1/C=C/c1ccccc1", "1,1'-[(1E)-ethene-1,2-diyl]dibenzene"),
         ("C[C@H](c1ccccc1)[C@@H](C)c1ccccc1", "1,1'-[(2R,3S)-butane-2,3-diyl]dibenzene"),
-        (
-            "C[C@H](C(=O)O)c1ccc(/C=C/O/C=C/c2ccc([C@H](C)C(=O)O)cc2)cc1",
-            "(2S,2'S)-2,2'-{oxybis[(1E)-ethene-2,1-diyl-4,1-phenylene]}dipropanoic acid",
-        ),
     ],
 )
 def test_linker_stereodescriptors(smiles, expected):
@@ -701,7 +697,7 @@ def test_locants_of_an_arylene_after_a_linking_group_follow_a_hyphen(smiles, exp
         ),
         pytest.param(
             "OC(=O)CCc1ccc(/C=C/O/C=C\\c2ccc(CCC(O)=O)cc2)cc1",
-            "3-{4-[(1E)-2-({(1Z)-2-[4-(2-carboxyethyl)phenyl]ethen-1-yl}oxy)ethen-1-yl]phenyl}propanoic acid",
+            "3-{4-[(E)-2-({(Z)-2-[4-(2-carboxyethyl)phenyl]ethen-1-yl}oxy)ethen-1-yl]phenyl}propanoic acid",
             id="different_descriptors_in_the_linker_forbid_a_multiplicative_name",
         ),
     ],

@@ -432,7 +432,7 @@ def _skeletal_linker_name(mol, graph, arms, span):
 
 
 def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
-    from ._polyfunctional import _achiral_copy, _arm_atoms, _select, _stereo_arms, _unit_molecule
+    from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
     count = len(arms)
     roots = [r for r, _, _ in arms]
@@ -567,8 +567,6 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         ):
             return f"{lead}{linker}{multiplier_word(count, True)}({text})"
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
-    if linker_stereo and not _linker_stereo_cited(mol, graph, edges[center], linker_stereo, ctx.used):
-        return None
     linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
     if len(ctx.used) != len(branch_stereo[0]):
