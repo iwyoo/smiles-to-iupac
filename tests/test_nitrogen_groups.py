@@ -1496,6 +1496,8 @@ def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):
         ("CC(=O)NNC(=O)CCC(=O)NNC(=O)c1ccccc1", "N'1-acetyl-N'4-benzoylbutanedihydrazide"),
         ("C(CC)(NN)=S", "propanethiohydrazide"),
         ("C1(=CC=CC=C1)C(NN)=S", "benzenecarbothiohydrazide"),
+        ("NNC(=S)CCC(=S)NN", "butanedithiohydrazide"),
+        ("NNC(=S)N1CCCCC1", "piperidine-1-carbothiohydrazide"),
         ("CC(=[Se])NN", "ethaneselenohydrazide"),
         ("NNC(=O)NN", "hydrazinecarbohydrazide"),
         ("C(=O)(OC(=O)NN)NN", "dicarbonic dihydrazide"),
