@@ -26,7 +26,7 @@ from ._multiplicative_ring import (
     spec_of,
     substituted_polycyclic_unit,
 )
-from ._multiplicative_text import enclose, multiplier_word, primed_locants
+from ._multiplicative_text import enclose, join_parts, multiplier_word, primed_locants
 
 _MAX_GROUP = 8
 _SENIOR_HYDRIDE_ATOMS = {5, 14, 15, 32, 33, 50, 51, 82, 83}
@@ -534,7 +534,7 @@ def _assemble(count, unit, central, arm_parts):
     else:
         central_text = enclose(central.text) if central.has_prefix else central.text
         pieces = [enclose(p.text) if p.has_prefix and len(arm_parts) > 1 else p.text for p in arm_parts]
-        arm_text = "".join(pieces)
+        arm_text = join_parts(pieces)
         single_locant_only = (
             len(arm_parts) == 1
             and arm_parts[0].has_locants

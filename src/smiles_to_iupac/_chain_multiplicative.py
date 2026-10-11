@@ -12,7 +12,7 @@ from ._diacyl_linker import acyl_part, diacyl_linker
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
 from ._multiplicative_linker import DecompositionRejected, name_component
-from ._multiplicative_text import enclose, multiplier_word, unit_phrase
+from ._multiplicative_text import enclose, join_parts, multiplier_word, unit_phrase
 from ._substituents import name_branch
 
 _LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
@@ -392,7 +392,7 @@ def _linker_text(count, central, arm_parts, led=True):
         return enclose(central.text) if (central.has_prefix or central.has_locants) and led else central.text
     central_text = enclose(central.text) if central.has_prefix else central.text
     pieces = [enclose(p.text) if p.has_prefix and len(arm_parts) > 1 else p.text for p in arm_parts]
-    arm_text = "".join(pieces)
+    arm_text = join_parts(pieces)
     plain = len(arm_parts) == 1 and arm_parts[0].has_locants and not arm_parts[0].has_prefix
     simple = (plain and not _MULTIPLIED_HETERO_HYDRIDE.match(arm_text)) or arm_text == "nitrilo"
     arm_enclosed = arm_text if arm_text == "nitrilo" else enclose(arm_text)

@@ -672,6 +672,20 @@ def test_alternating_chalcogen_chains_are_divalent_parent_hydride_linkers(smiles
     "smiles, expected",
     [
         pytest.param(
+            "OC(=O)CCc1ccc(OCCOc2ccc(CCC(O)=O)cc2)cc1",
+            "3,3'-[ethane-1,2-diylbis(oxy-4,1-phenylene)]dipropanoic acid",
+            id="linking_group_then_arylene",
+        ),
+    ],
+)
+def test_locants_of_an_arylene_after_a_linking_group_follow_a_hyphen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param(
             "OC(=O)c1ccc(cc1)S(=N)(=N)c1ccc(cc1)C(O)=O",
             "4,4'-sulfonodiimidoyldibenzoic acid",
             id="sulfonyl_centre_with_replaced_positions",
