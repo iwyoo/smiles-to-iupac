@@ -351,6 +351,20 @@ def test_ring_with_more_or_heavier_nuclides_is_the_parent(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("[2H]c1cccc(Cc2ccccc2[2H])c1", "1-[(3-2H)phenylmethyl](2-2H)benzene"),
+        ("c1ccc(Cc2cccc([2H])c2)c([2H])c1", "1-[(3-2H)phenylmethyl](2-2H)benzene"),
+        ("[2H]c1cccc(Cc2ccc[13cH]c2[2H])[13cH]1", "1-[(3-13C,2-2H)phenylmethyl](2-13C,3-2H)benzene"),
+        ("c1c[14cH][13cH]c(Cc2ccc[13cH][14cH]2)c1", "1-[(2-13C,3-14C)phenylmethyl](3-13C,2-14C)benzene"),
+        ("c1ccc(Cc2ccc[14cH][13cH]2)[14cH][13cH]1", "1-[(2-13C,3-14C)phenylmethyl](3-13C,2-14C)benzene"),
+    ],
+)
+def test_ring_with_lower_locants_for_the_nuclides_is_the_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("[2H]c1ccc(cc1)-c1ccccc1", "(4-2H)-1,1'-biphenyl"),
         ("c1ccc(cc1)-c1ccc(cc1)[2H]", "(4-2H)-1,1'-biphenyl"),
         ("c1ccc(cc1)-c1ccccc1[2H]", "(2-2H)-1,1'-biphenyl"),

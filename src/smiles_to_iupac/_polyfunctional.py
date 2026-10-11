@@ -1866,14 +1866,19 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
 def _stereo_rank(stereo, position_of, ring_parent=False):
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
     marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
-    isotopic = tuple(sorted(position_of[w] for w, code in marked for _ in code.split("|")))
     return (
         _isotope_counts(stereo, marked),
-        isotopic,
-        _nuclide_precedence(marked, position_of),
+        *_isotope_locant_rank(stereo, position_of),
         _substituent_isotope_locants(position_of),
         tuple(0 if code in "RZr" else 1 for _, code in entries),
     )
+
+
+def _isotope_locant_rank(stereo, position_of):
+    """P-44.4.1.11.4-6: the lowest locants for the isotopically modified atoms of a parent in its own numbering, then
+    for the nuclides of higher atomic number and of higher mass number."""
+    marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
+    return tuple(sorted(position_of[w] for w, code in marked for _ in code.split("|"))), _nuclide_precedence(marked, position_of)
 
 
 def _substituent_isotope_locants(position_of, mol=None, labels=None):
@@ -2377,7 +2382,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
 
         placed = found[2]
         name = _without_stereo(found[1])
-        return (modified, _parent_configuration_rank(stereo, placed), -len(roots), tuple(sorted(placed[r] for r, _ in roots)), alphanumerical_name_key(name), name), (
+        return (modified, _isotope_locant_rank(stereo, placed), _parent_configuration_rank(stereo, placed), -len(roots), tuple(sorted(placed[r] for r, _ in roots)), alphanumerical_name_key(name), name), (
             (0,), name, (None, None, None, 0, placed, True, PARENT_START.get())
         )
     from ._substituents import ISOTOPE_LABELS
@@ -2388,7 +2393,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         if not ring_labelled:
             raise UnsupportedStructure("an unsubstituted ring is not a polyfunctional case")
         locants = min(numberings(spec), key=lambda option: _stereo_rank(stereo, option))
-        return (modified, _parent_configuration_rank(stereo, locants), 0, (), spec.parent), ((0,), spec.parent, (None, None, None, 0, locants, True, 0))
+        return (modified, _isotope_locant_rank(stereo, locants), _parent_configuration_rank(stereo, locants), 0, (), spec.parent), ((0,), spec.parent, (None, None, None, 0, locants, True, 0))
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     best = None
     for locants in numberings(spec):
@@ -2407,7 +2412,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     else:
         prefix_text = _prefix_text(entries, best[1])
     name = _join(prefix_text, spec.parent)
-    return (modified, _parent_configuration_rank(stereo, best[1]), -len(roots), best[0][0], alphanumerical_name_key(name), name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
+    return (modified, _isotope_locant_rank(stereo, best[1]), _parent_configuration_rank(stereo, best[1]), -len(roots), best[0][0], alphanumerical_name_key(name), name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
 
 
 _GROUP_14 = (14, 32, 50, 82)
