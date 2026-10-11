@@ -121,11 +121,7 @@ def has_diazene_shape(mol) -> bool:
     return bool(_azo_pairs(mol))
 
 
-def name_diazene(mol) -> str:
-    pairs = _azo_pairs(mol)
-    if not pairs:
-        raise UnsupportedStructure("no plain diazene (N=N) skeleton found; this module only handles diazenes")
-
+def check_diazene_scope(mol, pairs):
     aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
@@ -147,6 +143,14 @@ def name_diazene(mol) -> str:
         raise UnsupportedStructure(
             "unsaturation in a substituent is out of scope for this module"
         )
+    return aromatic_atoms
+
+
+def name_diazene(mol) -> str:
+    pairs = _azo_pairs(mol)
+    if not pairs:
+        raise UnsupportedStructure("no plain diazene (N=N) skeleton found; this module only handles diazenes")
+    aromatic_atoms = check_diazene_scope(mol, pairs)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -166,8 +170,9 @@ def name_diazene(mol) -> str:
     return min(names, key=alpha_sort_key)
 
 
-def _name_on_pair(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx):
-    substituents = []
+def pair_substituents(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx):
+    """{nitrogen: (name, compound)} of the groups bonded to the two nitrogens of an N=N pair."""
+    substituents = {}
     for n_idx in (n1_idx, n2_idx):
         (root,) = [n for n in graph[n_idx] if n not in (n1_idx, n2_idx)] or (None,)
         if root is None:
@@ -177,7 +182,12 @@ def _name_on_pair(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx):
                 "a halogen bonded directly to a diazene nitrogen is out "
                 "of scope for this module (see module docstring)"
             )
-        substituents.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms, mol=mol))
+        substituents[n_idx] = name_branch(graph, root, n_idx, halogens, aromatic_atoms, mol=mol)
+    return substituents
+
+
+def _name_on_pair(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx):
+    substituents = list(pair_substituents(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx).values())
 
     if not substituents:
         return "diazene"

@@ -453,3 +453,26 @@ def test_deuterium_alkene_stereodescriptor_writes_no_rdkit_logs_to_stderr(capfd)
 )
 def test_nuclides_on_other_parent_hydrides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.5.1, P-82.5.2, P-82.6.1.1, P-82.6.3.3: nuclides on the nitrogens of C=N, N=N and azoxy groups
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("c1ccc2cc(ccc2c1)[15N]=Nc1ccccc1", "1-(naphthalen-2-yl)-2-phenyl(1-15N)diazene", id="diazene_substituents_fix_the_locants"),
+        pytest.param("c1ccc2cc(ccc2c1)N=[15N]c1ccccc1", "1-(naphthalen-2-yl)-2-phenyl(2-15N)diazene", id="diazene_nuclide_on_the_second_nitrogen"),
+        pytest.param("c1ccccc1N=[15N]c1ccccc1", "1,2-diphenyl(1-15N)diazene", id="identical_substituents_give_the_nuclide_locant_1"),
+        pytest.param("CN=N[2H]", "1-methyl(2-2H)diazene", id="deuterium_on_a_diazene_nitrogen"),
+        pytest.param("c1ccc([2H])cc1N=[15N]c1ccccc1", "1-(3-2H)phenyl-2-phenyl(2-15N)diazene", id="nuclides_on_the_substituent_and_the_parent"),
+        pytest.param("Clc1c(ccc2ccccc12)[15N]=[N+]([O-])c1ccccc1", "1-(1-chloronaphthalen-2-yl)-2-phenyl(1-15N)diazene 2-oxide", id="azoxy"),
+        pytest.param("c1ccccc1N=[15N+]([O-])c1ccccc1", "1,2-diphenyl(1-15N)diazene 1-oxide", id="identical_azoxy_groups_give_the_oxide_locant_1"),
+        pytest.param("CCC=[15N]N", "1-propylidene(1-15N)hydrazine", id="hydrazone_nitrogen_of_the_ylidene"),
+        pytest.param("CCC=N[15NH2]", "1-propylidene(2-15N)hydrazine", id="hydrazone_terminal_nitrogen"),
+        pytest.param("C/C=N/[15NH2]", "(E)-1-ethylidene(2-15N)hydrazine", id="hydrazone_configuration"),
+        pytest.param("C=[15N]C", "N-methyl(15N)methanimine", id="imine"),
+        pytest.param("CC=N[2H]", "(N-2H)ethanimine", id="deuterated_imine"),
+        pytest.param("CC=[15N]O", "N-hydroxy(15N)ethanimine", id="oxime"),
+    ],
+)
+def test_nuclides_on_nitrogens_of_double_bonded_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

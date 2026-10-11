@@ -1784,7 +1784,7 @@ def _group_atom_labels(mol, rest):
         if len(nuclides) != len(set(nuclides)) or len(rest) != 1:
             raise UnsupportedStructure("several isotopically modified atoms at the suffix are not supported yet")
         return [], ("(" + ",".join(sorted(nuclides, key=_nuclide_sort_key)) + ")", _SUFFIX_WORD[principal])
-    nitrogen = principal in ("amide", "amine", "nitrile") and element == 7
+    nitrogen = principal in ("amide", "amine", "imine", "nitrile") and element == 7
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
     acid = _is_acid_family(principal) and element == 8
