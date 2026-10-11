@@ -98,7 +98,9 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         spec = specs[0]
     elif len(rings) > _MAX_FUSED_UNITS:
         return None
-    if len({_bare_key(mol, set(r)) for r in rings}) != 1:
+    from ._system_assembly import _skeleton_key
+
+    if len({(_skeleton_key if any(fused) else _bare_key)(mol, set(r)) for r in rings}) != 1:
         return None
     paths = _longest_paths(mol, rings)
     if not paths:
@@ -162,13 +164,14 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
                 if fused[0]:
                     infos = [info for _, info in combo]
                     stems = {_stem(info) for info in infos}
-                    hydros = {_hydro(info) for info in infos}
-                    if len(stems) != 1 or None in stems or len(hydros) != 1:
+                    if len(stems) != 1 or None in stems:
                         continue
                     lit = sorted(
                         (i + 1, p) for i, info in enumerate(infos) for p in _lit_hydrogens(mol, info)
                     )
-                    head = (tuple(lit), (stems.pop(), hydros.pop(), _fully_hydro(infos[0])), ())
+                    hydro = tuple(sorted((i + 1, p) for i, info in enumerate(infos) for p in _hydro(info)))
+                    even = len({_hydro(info) for info in infos}) == 1
+                    head = (tuple(lit), (stems.pop(), hydro, even and all(_fully_hydro(info) for info in infos)), ())
                 junction_text = [(locants[a], locants[b]) for a, b in pairs]
                 flat = [x for pair in junction_text for x in pair]
                 key = (
@@ -176,6 +179,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
                     tuple(flat),
                     head[0],
                     tuple(sorted(locants[a] for a in marked)),
+                    head[1][1] if head[1] else (),
                     -len(entries),
                     tuple(sorted(locants[r] for r, _, _ in entries)),
                     _citation_key([(locants[r], name) for r, name, _ in entries]),
@@ -200,7 +204,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         stem, hydro, full = head[1]
         ring_word = stem
         if hydro:
-            cited = [superscript_locant(ring, p) for ring in range(1, count + 1) for p in hydro]
+            cited = [superscript_locant(ring, p) for ring, p in hydro]
             word = multiplied_word(len(cited), "hydro")
             ih_text = (word if full else f"{','.join(cited)}-{word}") + "-"
         if head[0]:
