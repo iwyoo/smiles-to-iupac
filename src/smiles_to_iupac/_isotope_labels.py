@@ -74,12 +74,13 @@ def modification_key(labels, position_of):
     )
 
 
-def descriptor(labels, position_of, single_position, extra=(), capacity=None, sole=frozenset()):
+def descriptor(labels, position_of, single_position, extra=(), capacity=None, sole=frozenset(), open_positions=False):
     """The '(…)' isotopic descriptor for the labelled parent atoms; `single_position` drops the locants for a
     one-atom parent (P-82.6.1.1). `extra`: (nuclide, locant text or None, count, repeatable) for atoms outside the
     parent, whose letter locant (P-82.6.2) is cited once however many atoms carry the nuclide; the count is a
     subscript only where several atoms can be substituted at that position (P-82.2.1). `capacity`: {atom: number of
-    hydrogens the atom carries unmodified}, so a position with one hydrogen takes no subscript for a single atom."""
+    hydrogens the atom carries unmodified}, so a position with one hydrogen takes no subscript for a single atom, unless
+    `open_positions`: the locant is omitted although the parent has several equivalent positions ((2H1)benzene)."""
     if any(a not in position_of for a in labels):
         raise UnsupportedStructure("an isotopically modified atom outside the parent hydride is not supported yet")
     located = {}
@@ -103,10 +104,10 @@ def descriptor(labels, position_of, single_position, extra=(), capacity=None, so
         numbers = sorted(located.get(nuclide, []))
         outside = letters.get(nuclide, {"locants": [], "count": 0, "repeatable": False})
         count = len(numbers) + outside["count"]
-        counted = nuclide[-1] == "H" and (nuclide in several or outside["repeatable"])
-        subscript = str(count) if count > 1 or counted else ""
-        symbol = f"{nuclide}{subscript}"
         locants = [str(x) for x in numbers] + sorted(outside["locants"])
         unlocated = (single_position or nuclide in sole) and not outside["locants"]
+        counted = nuclide[-1] == "H" and (nuclide in several or outside["repeatable"] or (unlocated and open_positions))
+        subscript = str(count) if count > 1 or counted else ""
+        symbol = f"{nuclide}{subscript}"
         groups.append(symbol if unlocated or not locants else f"{','.join(locants)}-{symbol}")
     return "(" + ",".join(groups) + ")"

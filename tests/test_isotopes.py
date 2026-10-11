@@ -167,7 +167,7 @@ def test_isotope_ring_name(smiles, expected):
     [
         pytest.param("[3H]C1CCCCC1", "(3H1)cyclohexane", id="tritium_on_a_ring"),
         pytest.param("[2H]C1CCCCC1C", "1-methyl(2-2H1)cyclohexane", id="ring_label_beside_a_substituent"),
-        pytest.param("[2H]c1ccccc1", "(2H)benzene", id="one_deuterium_on_benzene"),
+        pytest.param("[2H]c1ccccc1", "(2H1)benzene", id="one_deuterium_on_benzene"),
         pytest.param("[2H]c1ccccc1[2H]", "(1,2-2H2)benzene", id="two_deuteriums_need_locants"),
         pytest.param("[2H]c1c([2H])c([2H])c([2H])c([2H])c1[2H]", "(2H6)benzene", id="every_position_modified"),
         pytest.param("Cc1ccccc1[2H]", "1-methyl(2-2H)benzene", id="benzene_locants_cited_for_a_ring_label"),
