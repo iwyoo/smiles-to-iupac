@@ -15,7 +15,7 @@ from ._common import UnsupportedStructure, specified_stereo_elements
 from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
-from ._multiplicative_linker import DecompositionRejected, alternating_chalcogen_runs, name_component
+from ._multiplicative_linker import DecompositionRejected, alternating_chalcogen_runs, merge_acyl_arms, name_component
 from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
 from ._multiplicative_ring import (
     bare_polycyclic_unit,
@@ -504,6 +504,7 @@ _MULTIPLIED_HYDRIDE_ARM = re.compile(r"(?:di|tri|tetra|penta|hexa|hepta|octa)(?:
 
 
 def _assemble(count, unit, central, arm_parts):
+    central, arm_parts = merge_acyl_arms(count, central, arm_parts)
     if not arm_parts:
         linker = enclose(central.text) if (central.has_prefix or central.has_locants) else central.text
     else:

@@ -3,6 +3,7 @@
 first), single and homonuclear heteroatom groups, and ring components.
 """
 
+import re
 from dataclasses import dataclass
 
 from ._acid_lexicon import SULFONYL_CENTRES, acyl_suffix, make_spec
@@ -280,6 +281,64 @@ def _chain_descriptors(mol, ctx, position):
 
 
 
+_CARBON_ACYL_WORDS = {8: "carbonyl", 16: "carbonothioyl", 34: "carbonoselenoyl", 52: "carbonotelluroyl", 7: "carbonimidoyl"}
+_RING_ACYL_WORDS = {
+    "carbonyl": "carbonyl", "carbonothioyl": "carbothioyl", "carbonoselenoyl": "carboselenoyl",
+    "carbonotelluroyl": "carbotelluroyl", "carbonimidoyl": "carboximidoyl",
+}
+
+
+def merge_acyl_arms(count, central, arm_parts):
+    """(central, arm parts) with the acyl groups on the ring `central` joined into one acyl group named from the
+    'carboxylic acid' suffix: cyclohexane-1,2-dicarbonyl, benzene-1,2-dicarbothioyl (P-65.1.7.4.2, P-65.1.7.4.3)."""
+    if not arm_parts or arm_parts[0].text not in _RING_ACYL_WORDS or count not in (2, 3):
+        return central, arm_parts
+    text = re.sub(r"-?(\d+(?:,\d+)*)-phenylene$", r"benzene-\1-diyl", central.text)
+    match = re.fullmatch(r"(.*-\d+[a-z]?(?:,\d+[a-z]?)*-)" + ("di" if count == 2 else "tri") + "yl", text)
+    if match is None:
+        return central, arm_parts
+    merged = Part(match.group(1) + ("di" if count == 2 else "tri") + _RING_ACYL_WORDS[arm_parts[0].text], True, True)
+    return merged, arm_parts[1:]
+
+
+_DIACYL_ENDINGS = {
+    "oxo": "dioyl",
+    "sulfanylidene": "bis(thioyl)",
+    "selanylidene": "bis(selenoyl)",
+    "tellanylidene": "bis(telluroyl)",
+    "imino": "diimidoyl",
+}
+
+
+def _diacyl_name(length, cited, entries, ene, yne):
+    """(name, has_prefix) of a saturated chain whose two ends are the free valences and each carry the same terminal =O,
+    =S, =Se, =Te or =NH: 'butanedioyl', 'butanebis(thioyl)', with 'oxalyl' for ethanedioyl (P-65.1.7.4.1, P-65.1.7.2.3,
+    P-65.1.7.2.4); None for mixed ends (P-65.1.7.5) or any other chain."""
+    if length < 2 or cited != [1, length]:
+        return None
+    terminal = {p: [n for q, n, _ in entries if q == p and n in _DIACYL_ENDINGS] for p in (1, length)}
+    if len(terminal[1]) != 1 or len(terminal[length]) != 1 or terminal[1] != terminal[length]:
+        return None
+    word = terminal[1][0]
+    rest = {}
+    for p, name, compound in entries:
+        if not (p in (1, length) and name == word):
+            rest.setdefault(name, {"locants": [], "compound": compound})["locants"].append(p)
+    if any(p in (1, length) for info in rest.values() for p in info["locants"]):
+        return None
+    prefix = format_substituent_prefixes(rest) if rest else ""
+    if length == 2 and word in ("oxo", "sulfanylidene") and not prefix and not ene and not yne:
+        return ("oxalyl" if word == "oxo" else "ethanebis(thioyl)"), word != "oxo"
+    ending = _DIACYL_ENDINGS[word]
+    if ene or yne:
+        body, _ = suffix_body(ene, yne, ending)
+        stem = alkane_name(length)[:-3] + ("a" if (len(ene) if ene else len(yne)) >= 2 else "")
+        name = f"{stem}-{body}"
+    else:
+        name = alkane_name(length) + ending
+    return prefix + name, bool(prefix) or "(" in name
+
+
 def _carbon_part(mol, atoms, attachments, directed, ctx):
     pairs = {(a, b) for a, b, _ in attachments}
     mixed = any(order != 1 for _, _, order in attachments)
@@ -289,8 +348,14 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
         pend = _pendants(mol, atoms, pairs)
         if len(pend) == 1:
             o = mol.GetAtomWithIdx(pend[0][1])
-            if o.GetAtomicNum() == 8 and o.GetDegree() == 1 and mol.GetBondBetweenAtoms(atoms[0], o.GetIdx()).GetBondTypeAsDouble() == 2:
-                return Part("carbonyl", False, False)
+            if (
+                o.GetAtomicNum() in _CARBON_ACYL_WORDS
+                and o.GetDegree() == 1
+                and not o.GetFormalCharge()
+                and (o.GetAtomicNum() != 7 or o.GetTotalNumHs() == 1)
+                and mol.GetBondBetweenAtoms(atoms[0], o.GetIdx()).GetBondTypeAsDouble() == 2
+            ):
+                return Part(_CARBON_ACYL_WORDS[o.GetAtomicNum()], False, False)
     universe = _carbon_closure(mol, atoms)
     adj = {a: [n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in universe] for a in universe}
     free_atoms = [a for a, _, _ in attachments]
@@ -384,6 +449,9 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
         prefix = format_substituent_prefixes(grouped) if grouped else ""
         body = "-".join(f"{loc}-{word}" for loc, word in words)
         return Part(prefix + f"{stem}-{body}", bool(prefix), True)
+    acyl = _diacyl_name(length, cited, entries, ene, yne)
+    if acyl is not None:
+        return Part(stereo_prefix + acyl[0], acyl[1], acyl[1])
     grouped = {}
     for p, name, compound in entries:
         info = grouped.setdefault(name, {"locants": [], "compound": compound})

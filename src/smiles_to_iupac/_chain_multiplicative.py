@@ -10,7 +10,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
-from ._multiplicative_linker import DecompositionRejected, name_component
+from ._multiplicative_linker import DecompositionRejected, merge_acyl_arms, name_component
 from ._multiplicative_text import enclose, multiplier_word, unit_phrase
 from ._substituents import name_branch
 
@@ -380,6 +380,7 @@ _MULTIPLIED_HETERO_HYDRIDE = re.compile(
 
 
 def _linker_text(count, central, arm_parts, led=True):
+    central, arm_parts = merge_acyl_arms(count, central, arm_parts)
     if not arm_parts:
         return enclose(central.text) if (central.has_prefix or central.has_locants) and led else central.text
     central_text = enclose(central.text) if central.has_prefix else central.text
