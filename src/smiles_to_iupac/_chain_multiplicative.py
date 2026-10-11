@@ -369,7 +369,14 @@ def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=N
     return Part(name, False, True)
 
 
-def _make_context(mol, graph):
+def _context_element(mol, element):
+    kind, where, code = element
+    if kind == "bond":
+        return kind, mol.GetBondBetweenAtoms(*where).GetIdx(), code
+    return element
+
+
+def _make_context(mol, graph, stereo=()):
     halogens = halogen_substituents(mol)
     aromatic = frozenset()
 
@@ -379,7 +386,7 @@ def _make_context(mol, graph):
             return f"({name})", False
         return name, compound
 
-    return _Context([], None, None, [], set(), {}, entry)
+    return _Context([], None, None, list(stereo), set(), {}, entry)
 
 
 _MULTIPLIED_HETERO_HYDRIDE = re.compile(
@@ -466,12 +473,20 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             break
     if center is None:
         return None
-    if stereo:
-        for _, where, _ in stereo:
-            touched = {where} if isinstance(where, int) else set(where)
-            if not touched <= arm_atoms:
-                return None
-    ctx = _make_context(mol, graph)
+    unit_stereo, branch_stereo = [], [[] for _ in edges[center]]
+    branch_atoms = [_arm_atoms(graph, y, x) for x, y, _ in edges[center]]
+    for element in stereo:
+        touched = {element[1]} if isinstance(element[1], int) else set(element[1])
+        if touched <= arm_atoms:
+            unit_stereo.append(element)
+            continue
+        holders = [i for i, atoms_ in enumerate(branch_atoms) if touched <= atoms_]
+        if len(holders) != 1:
+            return None
+        branch_stereo[holders[0]].append(element)
+    if len({tuple(sorted(code for _, _, code in found)) for found in branch_stereo}) != 1:
+        return None
+    ctx = _make_context(mol, graph, [_context_element(mol, e) for e in branch_stereo[0]])
     kind, atoms = components[center]
     # P-15.6.1.5, P-51.5: a ring bearing a side chain with a further principal group is a substituent of the chain
     # parent that carries them, not a multiplicative centre
@@ -554,14 +569,15 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
     linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
-    if stereo:
-        parts, stereo_text = _stereo_arms(mol, stereo, parts_atoms, units)
-    else:
-        unit, attach = units[0]
-        try:
-            _, _, parts = _select(unit, attach)
-        except UnsupportedStructure:
-            return None
+    if len(ctx.used) != len(branch_stereo[0]):
+        return None
+    unit, attach = units[0]
+    try:
+        _, _, parts = _select(unit, attach)
+    except UnsupportedStructure:
+        return None
+    if unit_stereo:
+        parts, stereo_text = _stereo_arms(mol, unit_stereo, parts_atoms, units)
     prefix, body, tail, locant = parts[:4]
     lead = ",".join(str(locant) + "'" * i for i in range(count)) + "-" if locant is not None else ""
     text = prefix + body
