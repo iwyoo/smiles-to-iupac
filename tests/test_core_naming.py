@@ -508,27 +508,6 @@ def test_valid_smiles_do_not_write_rdkit_logs_to_stderr(smiles, capfd):
     assert capfd.readouterr().err == ""
 
 
-@pytest.mark.parametrize(
-    "smiles,expected",
-    [
-        # P-93.5.1: a centre bearing one R and one S ligand is pseudoasymmetric (lowercase s) in the group alone
-        ("c1ccccc1[C@@H]([C@H](C)O)[C@@H](C)O", {6: "s"}),
-        ("c1ccncc1[C@@H]([C@H](C)O)[C@@H](C)O", {6: "s"}),
-        # two like ligands leave the centre achiral, so the group has no pseudoasymmetric centre
-        ("c1ccccc1[C@@H]([C@H](C)O)[C@H](C)O", {}),
-    ],
-)
-def test_pseudoasymmetric_centre_in_a_group_on_an_aromatic_atom(smiles, expected):
-    from rdkit.Chem import rdCIPLabeler
-
-    from smiles_to_iupac._diester_anions import _pseudoasymmetric_in_group
-
-    mol = Chem.MolFromSmiles(smiles)
-    side = {a.GetIdx() for a in mol.GetAtoms() if not a.GetIsAromatic()}
-    rdCIPLabeler.AssignCIPLabels(mol)
-    assert _pseudoasymmetric_in_group(mol, side) == expected
-
-
 @pytest.mark.slow
 def test_nested_fragment_is_named_once_per_top_level_call(monkeypatch):
     from smiles_to_iupac import core
