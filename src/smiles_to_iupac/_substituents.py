@@ -412,6 +412,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if name == "benzyl" and set(labelled) == {root}:
         context["consumed"].add(root)
         return "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
+    sulfonyl = _labelled_sulfonyl(name, graph, root, coming_from, mol, labelled)
+    if sulfonyl is not None:
+        context["consumed"].update(labelled)
+        return sulfonyl, compound
     run = _chalcogen_run(mol, graph, root, coming_from) if mol is not None else None
     if run is not None and all(a in run for a in labelled):
         stem = _CHALCOGEN_RUN_STEM.search(name)
@@ -449,6 +453,35 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     context["consumed"].update(labelled)
     text = descriptor(labelled, positions, omit, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
     return name[:stem_index] + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
+
+
+_HYDRIDE_BEFORE_SULFONYL = re.compile(
+    "((?:cyclo)?(?:" + "|".join(sorted({alkane_name(n) for n in range(1, 41)}, key=len, reverse=True)) + r"|benzene)"
+    r")(?:sulfonyl|sulfinyl|selenonyl|seleninyl|telluronyl|tellurinyl)$"
+)
+
+
+def _labelled_sulfonyl(name, graph, root, coming_from, mol, labelled):
+    """'phenyl(18O1)methanesulfonyl': the nuclides of the doubly bonded oxygens of a sulfonyl-type group are cited without
+    locants in front of the hydride name that carries the group (P-82.2.1, P-82.6.1)."""
+    if mol is None or mol.GetAtomWithIdx(root).GetAtomicNum() not in (16, 34, 52) or mol.GetAtomWithIdx(root).IsInRing():
+        return None
+    terminal = {
+        n for n in graph[root]
+        if n != coming_from and mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0
+    }
+    if any(a not in terminal or labelled[a]["H"] or not labelled[a]["skeleton"] for a in labelled):
+        return None
+    match = _HYDRIDE_BEFORE_SULFONYL.search(name)
+    if match is None:
+        return None
+    counts = {}
+    for entry in labelled.values():
+        counts[entry["skeleton"]] = counts.get(entry["skeleton"], 0) + 1
+    from ._isotope_labels import _nuclide_sort_key
+
+    text = "(" + ",".join(f"{n}{counts[n]}" for n in sorted(counts, key=_nuclide_sort_key)) + ")"
+    return name[: match.start()] + text + name[match.start():]
 
 
 _CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")

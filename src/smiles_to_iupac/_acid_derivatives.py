@@ -1346,13 +1346,16 @@ def _stereogenic_phosphorus_ester(mol, name):
     phosphorus: 'methyl (S)-[methyl(phenyl)phosphinate]', 'ethyl (R)-4-nitrobenzene-1-sulfinate'."""
     from ._common import heteroatom_stereo_prefix
 
-    centres = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in (15, 16)]
+    centres = [
+        a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in (15, 16) and a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
+    ]
     if len(centres) != 1:
         return name
     descriptor = heteroatom_stereo_prefix(mol, centres[0])
     if descriptor is None:
         return name
     cations, _, anion = name.rpartition(" ")
-    if mol.GetAtomWithIdx(centres[0]).GetAtomicNum() == 16:
+    centre = mol.GetAtomWithIdx(centres[0])
+    if centre.GetAtomicNum() == 16 and centre.GetDegree() == 3:
         return f"{cations} {descriptor}{anion}"
-    return f"{cations} {descriptor}[{anion}]"
+    return f"{cations} {descriptor}{enclose(anion)}"

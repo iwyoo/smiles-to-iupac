@@ -313,7 +313,13 @@ def _counter_cation(mol):
         return False, ()
     cation, anion = sorted(fragments, key=len)
     if len(cation) != 1:
-        return False, ()
+        cation, anion = sorted(fragments, key=lambda f: sum(mol.GetAtomWithIdx(a).GetFormalCharge() < 0 for a in f))
+        if not any(mol.GetAtomWithIdx(a).GetFormalCharge() > 0 for a in cation):
+            return False, ()
+        from ._salt import _cation as named_cation
+
+        found = named_cation(Chem.MolFromSmiles(Chem.MolFragmentToSmiles(mol, cation)))
+        return (found[0], anion) if found is not None and found[1] == 1 else (False, ())
     atom = mol.GetAtomWithIdx(cation[0])
     name = _MONOATOMIC_CATION_NAMES.get((atom.GetSymbol(), atom.GetFormalCharge()))
     if name is None or atom.GetFormalCharge() != 1:
