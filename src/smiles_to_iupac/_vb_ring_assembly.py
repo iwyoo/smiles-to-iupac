@@ -11,6 +11,8 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    alpha_sort_key,
+    assembly_join,
     group_substituents,
     halogen_substituents,
     multiplied_word,
@@ -19,6 +21,7 @@ from ._common import (
     superscript_locant,
     von_baeyer_bond_citation,
 )
+from ._multiplicative_text import CompositeLocant, PrimedLocant
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
 from ._numerals import numerical_term
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
@@ -142,54 +145,6 @@ def _hetero_ok(mol, atom):
     )
 
 
-def find_vb_ring_assembly_core(mol):
-    """(path, junctions, parent, per-component numberings) for an unbranched chain of two to six identical von Baeyer
-    carbocyclic or skeletally replaced ring systems whose only substituents are halogens, else None."""
-    if mol.GetRingInfo().NumRings() < 4 or specified_stereocenters(mol) is not None:
-        return None
-    comps = _components(mol)
-    if not _MIN_COMPONENTS <= len(comps) <= _MAX_COMPONENTS:
-        return None
-    ring_atoms = set().union(*(atoms for atoms, _ in comps))
-    halogens = halogen_substituents(mol)
-    for atom in mol.GetAtoms():
-        if atom.GetIsAromatic() or (atom.GetIdx() not in ring_atoms and atom.GetIdx() not in halogens):
-            return None
-        if atom.GetIdx() in ring_atoms and atom.GetAtomicNum() != 6 and not _hetero_ok(mol, atom):
-            return None
-    chain = _chain_order(mol, comps)
-    if chain is None:
-        return None
-    order, junctions = chain
-    if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for pair in junctions for a in pair):
-        return None
-
-    parents, numberings = set(), []
-    for i in order:
-        atoms, bonds = comps[i]
-        ring_count = len(bonds) - len(atoms) + 1
-        if ring_count < 2:
-            return None
-        skeleton, ordered = _skeleton(atoms, bonds)
-        found = _von_baeyer_numberings(skeleton, ring_count)
-        if found is None:
-            return None
-        parent, orders = found
-        parents.add((parent, Chem.MolToSmiles(skeleton)))
-        numberings.append([[ordered[j] for j in o] for o in orders])
-    if len(parents) != 1:
-        return None
-    parent, skeleton_smiles = next(iter(parents))
-    from .core import smiles_to_iupac
-
-    try:
-        if smiles_to_iupac(skeleton_smiles) != parent:
-            return None
-    except Exception:
-        return None
-    return [comps[i][0] for i in order], junctions, parent, numberings
-
-
 def _locant_text(count, ring, position):
     return f"{position}{chr(39) * ring}" if count == 2 else superscript_locant(ring + 1, position)
 
@@ -222,15 +177,125 @@ def _sort_key(count, ring, position):
     return (position, ring) if count == 2 else (ring, position)
 
 
+def _candidate_components(mol, within=None):
+    """The ring systems of the one skeleton that occurs at least twice, as (atoms, bonds, skeleton, ordered atoms,
+    skeleton SMILES); None when no skeleton or several skeletons repeat."""
+    pool = []
+    for atoms, bonds in _components(mol):
+        if within is not None and not atoms <= within:
+            continue
+        if len(bonds) - len(atoms) + 1 < 2 or any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms):
+            continue
+        if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and not _hetero_ok(mol, mol.GetAtomWithIdx(a)) for a in atoms):
+            continue
+        skeleton, ordered = _skeleton(atoms, bonds)
+        pool.append((atoms, bonds, skeleton, ordered, Chem.MolToSmiles(skeleton)))
+    repeated = {smiles for smiles in (p[4] for p in pool) if sum(q[4] == smiles for q in pool) >= 2}
+    if len(repeated) != 1:
+        return None
+    return [p for p in pool if p[4] in repeated]
+
+
+def _chain_core(mol, pool):
+    """(path, junctions, parent, per-component numberings) for components joined as one unbranched chain."""
+    if not _MIN_COMPONENTS <= len(pool) <= _MAX_COMPONENTS:
+        return None
+    chain = _chain_order(mol, [(p[0], p[1]) for p in pool])
+    if chain is None:
+        return None
+    order, junctions = chain
+    if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for pair in junctions for a in pair):
+        return None
+    parents, numberings = set(), []
+    for i in order:
+        atoms, bonds, skeleton, ordered, skeleton_smiles = pool[i]
+        found = _von_baeyer_numberings(skeleton, len(bonds) - len(atoms) + 1)
+        if found is None:
+            return None
+        parent, orders = found
+        parents.add((parent, skeleton_smiles))
+        numberings.append([[ordered[j] for j in o] for o in orders])
+    if len(parents) != 1:
+        return None
+    parent, skeleton_smiles = next(iter(parents))
+    from .core import smiles_to_iupac
+
+    try:
+        if smiles_to_iupac(skeleton_smiles) != parent:
+            return None
+    except Exception:
+        return None
+    return [pool[i][0] for i in order], junctions, parent, numberings
+
+
+def find_vb_ring_assembly_core(mol):
+    """(path, junctions, parent, per-component numberings) for an unbranched chain of two to six identical von Baeyer
+    carbocyclic or skeletally replaced ring systems whose only substituents are halogens, else None."""
+    if mol.GetRingInfo().NumRings() < 4 or specified_stereocenters(mol) is not None:
+        return None
+    comps = _components(mol)
+    if not _MIN_COMPONENTS <= len(comps) <= _MAX_COMPONENTS:
+        return None
+    ring_atoms = set().union(*(atoms for atoms, _ in comps))
+    halogens = halogen_substituents(mol)
+    for atom in mol.GetAtoms():
+        if atom.GetIsAromatic() or (atom.GetIdx() not in ring_atoms and atom.GetIdx() not in halogens):
+            return None
+    pool = _candidate_components(mol)
+    if pool is None or len(pool) != len(comps):
+        return None
+    return _chain_core(mol, pool)
+
+
+def vb_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None):
+    """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free` = (root,
+    coming_from) or a list of such pairs, as the other assembly namers return; None when the ring systems joined by
+    single bonds are not such an assembly. Ring systems outside the chain are substituents."""
+    frees = [] if free is None else [free] if isinstance(free[0], int) else list(free)
+    if (principal is not None and not occurrences and not frees) or mol.GetRingInfo().NumRings() < 4:
+        return None
+    try:
+        if specified_stereocenters(mol) is not None:
+            return None
+    except UnsupportedStructure:
+        return None
+    pool = _candidate_components(mol, within)
+    core = _chain_core(mol, pool) if pool else None
+    if core is None:
+        return None
+    atoms_all = set().union(*core[0])
+    marked = [o[1] for o in occurrences] if not frees else [f[0] for f in frees]
+    if any(a not in atoms_all for a in marked):
+        return None
+    if principal is None and not frees and within is None and any(a.IsInRing() and a.GetIdx() not in atoms_all for a in mol.GetAtoms()):
+        return None
+    return _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences, frees)
+
+
 def name_vb_ring_assembly(mol, core) -> str:
+    return _assemble(mol, adjacency(mol), halogen_substituents(mol), set(), core, None, [], [])[1][1]
+
+
+def _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences, frees):
     path, junctions, parent, numberings = core
     count = len(path)
-    graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    atoms_all = set().union(*path)
+    owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
+    marked = [o[1] for o in occurrences] if not frees else [f[0] for f in frees]
+    free_bonds = {tuple(f) for f in frees}
     sort_key = lambda ring, position: _sort_key(count, ring, position)
-    ring_word = f"bi({parent})" if count == 2 else f"{_MULTIPLIER[count]}{parent}"
+    branches = {
+        (atom, nb): name_branch(graph, nb, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+        for atom in atoms_all
+        for nb in graph[atom]
+        if nb not in atoms_all and nb not in owned and (atom, nb) not in free_bonds
+    }
 
-    best_key, best_name = None, None
+    def ring_word(elide):
+        stem = parent[:-1] if elide and parent.endswith("e") else parent
+        return f"bi({stem})" if count == 2 else f"{_MULTIPLIER[count]}{stem}"
+
+    best_key, best = None, None
     for reverse in (False, True):
         rings = list(reversed(path)) if reverse else list(path)
         links = [(b, a) for a, b in reversed(junctions)] if reverse else list(junctions)
@@ -253,13 +318,10 @@ def name_vb_ring_assembly(mol, core) -> str:
                         high = max(position[a], position[b])
                         bonds.append((bond.GetBondTypeAsDouble(), primary, high if compound else None))
                 hetero = tuple(sorted((mol.GetAtomWithIdx(a).GetAtomicNum(), position[a]) for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6))
-                substituents = []
-                for atom in atoms:
-                    roots = [nb for nb in graph[atom] if nb not in atoms and nb in halogens]
-                    for root in roots:
-                        substituents.append((position[atom], name_branch(graph, root, atom, halogens, mol=mol)))
+                substituents = [(position[atom], branch) for (atom, _), branch in branches.items() if atom in atoms]
+                spots = tuple(sorted(position[a] for a in marked if a in atoms))
                 attach = tuple(position[a] if a is not None else None for a in toward)
-                signature = (attach, hetero, tuple(sorted(bonds, key=str)), tuple(sorted(substituents)))
+                signature = (attach, hetero, tuple(sorted(bonds, key=str)), tuple(sorted(substituents)), spots)
                 if signature in seen:
                     continue
                 seen.add(signature)
@@ -285,6 +347,8 @@ def name_vb_ring_assembly(mol, core) -> str:
             hetero_by_element = tuple(
                 tuple(sorted(sort_key(*loc) for loc, z in hetero_items if z == element)) for element, *_ in _REPLACEMENT
             )
+            marked_locations = sorted((locations[a] for a in marked), key=lambda rp: sort_key(*rp))
+            marked_key = tuple(sort_key(*loc) for loc in marked_locations)
             enes, ynes, compound_count, primaries, fulls = [], [], 0, [], []
             for ring, (_, bonds, _) in enumerate(combo):
                 for order, primary, high in bonds:
@@ -299,24 +363,43 @@ def name_vb_ring_assembly(mol, core) -> str:
             ene_texts = [t for _, t in sorted(enes)]
             yne_texts = [t for _, t in sorted(ynes)]
             unsaturation = (compound_count, tuple(sorted(primaries)), tuple(sorted(fulls)))
-            grouped_input = {}
+            grouped_input, cited = {}, []
             for ring, (_, _, substituents) in enumerate(combo):
-                for p, text in substituents:
-                    grouped_input.setdefault(_locant_text(count, ring, p), []).append(text)
-            grouped = group_substituents(grouped_input)
-            sub_set, _, sub_citation = substituent_locant_set_and_citation(grouped)
-            prefix = format_substituent_prefixes(grouped) if grouped else ""
+                for p, (text, compound) in substituents:
+                    grouped_input.setdefault(_locant_text(count, ring, p), []).append((text, compound))
+                    cited.append((sort_key(ring, p), text))
+            sub_set = tuple(sorted(k for k, _ in cited))
+            sub_citation = tuple(k for k, _ in sorted(cited, key=lambda item: (alpha_sort_key(item[1]), item[0])))
+            prefix = format_substituent_prefixes(group_substituents(grouped_input)) if grouped_input else ""
 
             junction_text = ":".join(f"{_locant_text(count, *a)},{_locant_text(count, *b)}" for a, b in pairs)
-            base = f"{junction_text}-{ring_word}"
             ending = _unsaturation_ending(ene_texts, yne_texts)
             hetero_prefix = _hetero_text(mol, locations, count)
-            if ending:
-                body = f"{hetero_prefix}[{base}]-{ending}"
+            if frees or principal is not None:
+                spots = ",".join(_locant_text(count, *loc) for loc in marked_locations)
+                if frees:
+                    word = multiplied_word(len(frees), "yl")
+                else:
+                    from ._multiplicative_ring import _SUFFIX_WORDS
+                    from ._polyfunctional import _RING_SUFFIX
+
+                    word = multiplied_word(len(occurrences), _SUFFIX_WORDS[_RING_SUFFIX[principal]])
+                vowel = word[0] in "aeiouy"
+                enes_text = f"{ending[:-1] if vowel else ending}-" if ending else ""
+                body = f"{hetero_prefix}[{junction_text}-{ring_word(vowel and not ending)}]-{enes_text}{spots}-{word}"
+            elif ending:
+                body = f"{hetero_prefix}[{junction_text}-{ring_word(False)}]-{ending}"
             else:
+                base = f"{junction_text}-{ring_word(False)}"
                 body = f"{hetero_prefix}-{base}" if hetero_prefix else base
-            name = f"{prefix}-{body}" if prefix else body
-            key = (junction_set, junction_citation, hetero_set, hetero_by_element, unsaturation, sub_set, sub_citation, name)
+            name = assembly_join(prefix, body)
+            key = (junction_set, junction_citation, hetero_set, hetero_by_element, marked_key, unsaturation, sub_set, sub_citation, name)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    return best_name
+                best_key, best = key, (name, body, locations)
+    name, body, locations = best
+    if frees:
+        return name, True
+    total = len(occurrences)
+    locant = (lambda loc: PrimedLocant(*loc)) if count == 2 else (lambda loc: CompositeLocant(loc[0] + 1, loc[1]))
+    parts = (None, None, None, 0, {a: locant(loc) for a, loc in locations.items()}, True, len(name) - len(body))
+    return total, ((-total,), name, parts)

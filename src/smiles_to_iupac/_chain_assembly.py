@@ -250,7 +250,14 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
         return fused[0]
     if len(rings) >= 3:
         found = chain_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
-        return found[0] if found else None
+        if found is not None:
+            return found[0]
+    if not mixed:
+        from ._vb_ring_assembly import vb_assembly
+
+        von_baeyer = vb_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
+        if von_baeyer is not None:
+            return von_baeyer[0]
     if len(rings) != 2:
         return None
     from ._polyfunctional import (

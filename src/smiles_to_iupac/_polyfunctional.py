@@ -3166,6 +3166,13 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     chained = chain_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from))
     if chained is not None:
         return chained
+    from ._vb_ring_assembly import vb_assembly
+
+    von_baeyer = vb_assembly(
+        mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from), within=_arm_atoms(graph, root, coming_from)
+    )
+    if von_baeyer is not None:
+        return von_baeyer
     ring_info = mol.GetRingInfo()
     own = next((list(r) for r in ring_info.AtomRings() if root in r), None)
     if own is None:
@@ -3225,6 +3232,11 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     chained = chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
     if chained is not None:
         return chained
+    from ._vb_ring_assembly import vb_assembly
+
+    von_baeyer = vb_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
+    if von_baeyer is not None:
+        return von_baeyer
     ring_info = mol.GetRingInfo()
     all_rings = [list(r) for r in ring_info.AtomRings()]
     if occurrences:
@@ -3324,11 +3336,17 @@ def _system_set_assembly(mol, graph, halogens, aromatic_atoms, stereo, atoms, me
 
     if len({_skeleton_key(mol, m) for m in members}) != 1:
         return None
+    from ._vb_ring_assembly import vb_assembly
+
     build = system_assembly if len(members) == 2 else chain_assembly
-    try:
-        return build(mol, graph, halogens, aromatic_atoms, None, [], stereo, within=atoms)
-    except UnsupportedStructure:
-        return None
+    for builder in (build, vb_assembly):
+        try:
+            found = builder(mol, graph, halogens, aromatic_atoms, None, [], stereo, within=atoms)
+        except UnsupportedStructure:
+            continue
+        if found is not None:
+            return found
+    return None
 
 
 def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings):
