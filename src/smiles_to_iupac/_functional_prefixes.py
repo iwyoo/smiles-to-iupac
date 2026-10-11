@@ -34,6 +34,15 @@ from ._substituents import FORCED_BRANCH_NAMES, _terminal_amide, name_branch
 _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
 
 
+def _anionic_branch(mol, root, branch):
+    """A substituent whose anionic centre is named by the anion prefixes (P-72.6.3), not by the functional-group
+    prefixes: a nitrogen or a carbon without substituents at the root, or a centre beyond the root."""
+    root_atom = mol.GetAtomWithIdx(root)
+    if root_atom.HasProp("_anion"):
+        return root_atom.GetAtomicNum() == 7 or root_atom.GetDegree() == 1
+    return any(mol.GetAtomWithIdx(a).HasProp("_anion") for a in branch)
+
+
 def _acylamino_nitrogen(mol, root, parent):
     """A neutral acyclic nitrogen joined singly to `parent` that carries an acyl group (acetamido, sulfonamido,
     ethanimidamido; P-66.1.1.4.3) and at most one carbon group, or two acyl groups (N-acetylacetamido; P-66.1.2)."""
@@ -243,6 +252,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             and root not in skip
             and (
                 mol.GetAtomWithIdx(root).GetAtomicNum() not in _NATIVE_ROOTS
+                or _anionic_branch(mol, root, subtree(root))
                 or _acyl_hydrazine_sulfur(mol, root)
                 or _acylamino_nitrogen(mol, root, parent_of[root])
             )

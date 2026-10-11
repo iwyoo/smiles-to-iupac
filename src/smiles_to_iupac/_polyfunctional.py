@@ -2422,7 +2422,21 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     )
     ring_count = ring_best[0] if ring_best else 0
 
-    if chain_error is not None and not (ring_count and ring_count >= total_principal):
+    ring_needed = total_principal
+    if chain_error is not None and ring_count:
+        chain_capacity = max(
+            (
+                sum(
+                    anion_weight(mol.GetAtomWithIdx(a)) if principal == "ide" else _group_weight(mol, a, principal)
+                    for a in path
+                    if a in principal_atoms
+                )
+                for path in _paths(graph, eligible)
+            ),
+            default=0,
+        )
+        ring_needed = max(min(total_principal, chain_capacity), 1)
+    if chain_error is not None and not (ring_count and ring_count >= ring_needed):
         raise chain_error
     if ring_count and ring_count >= chain_count:
         if attach is not None:
@@ -4636,12 +4650,12 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
     return per_arm[0][0], f"({','.join(labels)})-"
 
 
-def _unit_molecule(mol, atoms, attach):
+def _unit_molecule(mol, atoms, attach, refill=False):
     editable = Chem.RWMol(mol)
     root = editable.GetAtomWithIdx(attach)
     root.SetAtomMapNum(1)
     cut = sum(1 for n in root.GetNeighbors() if n.GetIdx() not in atoms)
-    if root.GetIsAromatic() and cut:
+    if (root.GetIsAromatic() or refill) and cut:
         root.SetNumExplicitHs(root.GetNumExplicitHs() + cut)
     for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
         editable.RemoveAtom(idx)
