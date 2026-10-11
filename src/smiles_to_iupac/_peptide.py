@@ -88,8 +88,9 @@ def _cut(mol):
         editable.RemoveBond(carbon, nitrogen)
         editable.AddBond(carbon, editable.AddAtom(Chem.Atom(8)), Chem.BondType.SINGLE)
     for atom in editable.GetAtoms():
-        atom.SetNoImplicit(False)
-        atom.SetNumExplicitHs(0)
+        if atom.GetIdx() in {nitrogen for _, nitrogen in cuts} or atom.GetAtomicNum() == 8:
+            atom.SetNoImplicit(False)
+            atom.SetNumExplicitHs(0)
     pieces = editable.GetMol()
     Chem.SanitizeMol(pieces)
     return cuts, pieces
@@ -123,9 +124,9 @@ def _name(smiles):
     if not cuts or len(fragments) != len(cuts) + 1:
         return None
     order = _sequence(cuts, fragments)
-    if order is None:
-        return None
     owner = {a: i for i, atoms in enumerate(fragments) for a in atoms}
+    if order is None:
+        return _diacyl_name(cuts, owner, Chem.GetMolFrags(pieces, asMols=True))
     kind_of = {owner[c]: kind for (c, _), kind in cuts.items()}
     molecules = Chem.GetMolFrags(pieces, asMols=True)
     words, ester = [], None
@@ -145,6 +146,38 @@ def _name(smiles):
         words.append(word)
     text = words[0] + "".join(("-" if w[1:2] == "-" else "") + w for w in words[1:])
     return f"{ester} {text}" if ester else text
+
+
+_DIACYL = {"aspartyl": "aspartoyl", "glutamyl": "glutamoyl"}
+
+
+def _diacyl_name(cuts, owner, molecules):
+    """'L-aspartoyldiglycine': a dicarboxylic amino acid whose two carboxyl groups both acylate the same amino acid
+    (P-103.2.5)."""
+    from .core import smiles_to_iupac
+
+    if len(cuts) != 2 or len({owner[c] for c, _ in cuts}) != 1:
+        return None
+    middle = owner[next(iter(cuts))[0]]
+    ends = [owner[n] for _, n in cuts]
+    if middle in ends or len(set(ends)) != 2:
+        return None
+    try:
+        names = [smiles_to_iupac(Chem.MolToSmiles(molecules[i])) for i in (middle, *ends)]
+    except (UnsupportedStructure, ValueError):
+        return None
+    acyl = acyl_word(names[0])
+    terminal = [acyl_word(name, True) for name in names[1:]]
+    if acyl is None or None in terminal or terminal[0] != terminal[1]:
+        return None
+    for plain, diacyl in _DIACYL.items():
+        if acyl.endswith(plain):
+            acyl = acyl[: -len(plain)] + diacyl
+            break
+    else:
+        return None
+    word = terminal[0]
+    return acyl + (f"bis({word})" if "-" in word else f"di{word}")
 
 
 def has_peptide_shape(mol) -> bool:
