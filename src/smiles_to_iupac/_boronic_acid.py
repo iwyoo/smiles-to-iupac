@@ -30,6 +30,7 @@ analogue (thioboronic acid etc.).
 
 from rdkit import Chem
 
+from ._acid_groups import acid_group_at
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
@@ -77,14 +78,16 @@ def name_boronic_acid(mol) -> str:
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx():
             raise UnsupportedStructure("more than one boron atom is not supported yet")
-        if atomic_num not in (1, 6, 8, _BORON, *HALOGEN_PREFIXES):
+        if atomic_num not in (1, 6, 7, 8, 16, _BORON, *HALOGEN_PREFIXES):
             raise UnsupportedStructure(
                 "heteroatoms other than the boronic acid's own boron/"
-                "oxygens and a halogen substituent are not supported yet"
+                "oxygens, nitrogen, sulfur and a halogen substituent are not supported yet"
             )
 
     group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
-    if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON):
+    if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON) or any(
+        acid_group_at(mol, a.GetIdx()) is not None for a in mol.GetAtoms()
+    ):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the boronic acid")
 
     if len(Chem.GetMolFrags(mol)) > 1:

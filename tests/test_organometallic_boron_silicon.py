@@ -126,7 +126,7 @@ def test_benzene_ring():
     "smiles",
     [
         pytest.param("OB(O)CCB(O)O", id="second_boronic_acid_group"),
-        pytest.param("NCB(O)O", id="unrecognized_heteroatom__boronic_acid"),
+        pytest.param("OB(O)C[SiH3]", id="unrecognized_heteroatom__boronic_acid"),
     ],
 )
 def test_rejects_second_boronic_and_related_raise(smiles):
@@ -1150,6 +1150,10 @@ def test_diamines_whose_nitrogens_carry_boranyl_groups(smiles, expected):
         ("CCC(CO)B(C(CC)CO)OC", "methyl bis(1-hydroxybutan-2-yl)borinate"),
         ("OCCB(CCO)O", "bis(2-hydroxyethyl)borinic acid"),
         ("OCCB(O)O", "(2-hydroxyethyl)boronic acid"),
+        ("OB(O)CCN(C)C", "[2-(dimethylamino)ethyl]boronic acid"),
+        ("CSCCB(O)O", "[2-(methylsulfanyl)ethyl]boronic acid"),
+        ("NC(=O)CCB(O)O", "(3-amino-3-oxopropyl)boronic acid"),
+        ("OB(O)CC(=S)O", "boronoethanethioic O-acid"),
     ],
 )
 def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expected):
