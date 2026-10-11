@@ -1189,6 +1189,46 @@ def group_substituents(substituents):
     return grouped
 
 
+_MARK_RANK = {"{": 1, "[": 2, "(": 3, ".": 4, ",": 5, ";": 6, ":": 7, "-": 8}
+
+
+class _AlphaKey(str):
+    """Alphanumerical letters of a name; names whose letters are identical are told apart by their enclosing and
+    punctuation marks (P-14.6)."""
+
+    __slots__ = ("marks",)
+
+    def _pair(self):
+        return str(self), self.marks
+
+    @staticmethod
+    def _other(other):
+        return (str(other), getattr(other, "marks", ())) if isinstance(other, str) else None
+
+    def __eq__(self, other):
+        if isinstance(other, _AlphaKey):
+            return self._pair() == other._pair()
+        return str(self) == other if isinstance(other, str) else NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return equal if equal is NotImplemented else not equal
+
+    def __lt__(self, other):
+        return self._pair() < self._other(other) if isinstance(other, str) else NotImplemented
+
+    def __le__(self, other):
+        return self._pair() <= self._other(other) if isinstance(other, str) else NotImplemented
+
+    def __gt__(self, other):
+        return self._pair() > self._other(other) if isinstance(other, str) else NotImplemented
+
+    def __ge__(self, other):
+        return self._pair() >= self._other(other) if isinstance(other, str) else NotImplemented
+
+    __hash__ = str.__hash__
+
+
 def alpha_sort_key(name: str) -> str:
     """P-14.5.2: alphanumerical ordering ignores locants and italicized
     prefixes like 'tert-' -- only the rest of the name counts (so
@@ -1204,7 +1244,14 @@ def alpha_sort_key(name: str) -> str:
         if stripped[:1] in ("(", "[", "{") and not (_LEADING_STEREO_RE.match(stripped) or _LEADING_ISOTOPE_RE.match(stripped)):
             stripped = stripped[1:]
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
-    return re.sub(r"[^a-z]", "", re.sub(r"[A-Z]", "", stripped).lower())
+    key = _AlphaKey(re.sub(r"[^a-z]", "", re.sub(r"[A-Z]", "", stripped).lower()))
+    bare, previous = name, None
+    while bare != previous:
+        previous = bare
+        for leading in (_LEADING_ISOTOPE_RE, _LEADING_STEREO_RE, _LEADING_ANOMER_RE, _LEADING_LOCANTS_RE):
+            bare = leading.sub("", bare)
+    key.marks = tuple(_MARK_RANK.get(c, 0) for c in re.sub(r"[A-Z]", "", bare) if not c.isspace())
+    return key
 
 
 def citation_order_key(name: str):
