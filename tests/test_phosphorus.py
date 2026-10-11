@@ -341,10 +341,32 @@ def test_heterones_of_group_14_15_16_atoms(smiles, expected):
             "[2(TBPY-5-12),3S]-2-[(1,1,1,3,3,3-hexafluoropropan-2-yl)oxy]-3-methyl-2,2-diphenyl-4,4-bis(trifluoromethyl)-1,2λ5-oxaphosphetane",
             id="ring_with_a_second_centre",
         ),
+        pytest.param(
+            "O1CCC[P@OH30]12(c3ccccc3)SCCC2",
+            "(SPY-5-35-C)-5-phenyl-1-oxa-6-thia-5λ5-phosphaspiro[4.4]nonane",
+            id="square_pyramid_spiro_centre",
+        ),
+        pytest.param(
+            "CC1(C)O[S@TB1]2(OC(C)(C)c3ccccc32)c2ccccc12",
+            "(SS-4-11′-A)-3,3,3′,3′-tetramethyl-3H,3′H-1λ4,1′-spirobi[[2,1]benzoxathiole]",
+            id="see_saw_spiro_centre_with_primed_index",
+        ),
+        pytest.param("C[S@TB1](F)(Cl)Br", "(SS-4-24-A)-bromo(chloro)(fluoro)(methyl)-λ4-sulfane", id="see_saw"),
+        pytest.param("F[P@OH1](Cl)(Br)(I)C", "(SPY-5-24-C)-bromo(chloro)(fluoro)(iodo)(methyl)-λ5-phosphane", id="square_pyramid"),
     ],
 )
 def test_polyhedral_descriptors_of_main_group_centres(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_octahedral_spiro_index_cites_the_unprimed_number_first():
+    name = smiles_to_iupac("F[S@OH16]13(F)(OC(C(F)(F)F)(C(F)(F)F)c2ccccc12)OC(C(F)(F)F)(C(F)(F)F)c1ccccc13")
+    assert name.startswith("(OC-6-22′-C)-1,1-difluoro-3,3,3′,3′-tetrakis(trifluoromethyl)-")
+
+
+def test_lone_pair_on_the_axis_is_not_a_see_saw():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1(C)O[S@TB3]2(OC(C)(C)c3ccccc32)c2ccccc12")
 
 
 @pytest.mark.parametrize(

@@ -413,6 +413,9 @@ def _system_component(mol, comp, outer):
     }
 
 
+_POLYHEDRAL_TAGS = (Chem.ChiralType.CHI_TRIGONALBIPYRAMIDAL, Chem.ChiralType.CHI_OCTAHEDRAL)
+
+
 def _analyse(mol, atoms=None, outer=frozenset()):
     structure = _structure(mol, atoms)
     if structure is None:
@@ -423,7 +426,10 @@ def _analyse(mol, atoms=None, outer=frozenset()):
     if any(
         a.GetIsotope()
         or a.GetNumRadicalElectrons()
-        or (a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED and (a.GetIdx() not in spiro or atoms is not None))
+        or (
+            a.GetChiralTag() not in (Chem.ChiralType.CHI_UNSPECIFIED, *_POLYHEDRAL_TAGS)
+            and (a.GetIdx() not in spiro or atoms is not None)
+        )
         for a in inside
     ):
         raise UnsupportedStructure("isotopes, radicals and stereodescriptors of a spiro union are not supported yet")

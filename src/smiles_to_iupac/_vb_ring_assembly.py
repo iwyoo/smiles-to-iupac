@@ -231,7 +231,12 @@ def _chain_core(mol, pool):
 def find_vb_ring_assembly_core(mol):
     """(path, junctions, parent, per-component numberings) for an unbranched chain of two to six identical von Baeyer
     carbocyclic or skeletally replaced ring systems whose only substituents are halogens, else None."""
-    if mol.GetRingInfo().NumRings() < 4 or specified_stereocenters(mol) is not None:
+    if mol.GetRingInfo().NumRings() < 4:
+        return None
+    try:
+        if specified_stereocenters(mol) is not None:
+            return None
+    except UnsupportedStructure:
         return None
     comps = _components(mol)
     if not _MIN_COMPONENTS <= len(comps) <= _MAX_COMPONENTS:

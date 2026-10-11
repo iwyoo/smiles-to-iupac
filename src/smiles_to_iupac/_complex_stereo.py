@@ -1,7 +1,7 @@
 """Stereodescriptors of metal complexes (Red Book IR-9.3, P-93.3): polyhedral
 symbol, configuration index (CIP-ranked ligating atoms, priming for chelates)
 and C/A or Delta/Lambda chirality, read off idealised coordinates for
-T-4, SP-4, TBPY-5 and OC-6, also per metal in polynuclear complexes.
+T-4, SP-4, SS-4, TBPY-5, SPY-5 and OC-6, also per metal in polynuclear complexes.
 """
 
 import itertools
@@ -11,6 +11,8 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 
+_LONE_PAIR = -1
+_VACANT_SITES = {"TB": 4, "OH": 5}
 _SP_TRANS = {1: ((0, 2), (1, 3)), 2: ((0, 1), (2, 3)), 3: ((0, 3), (1, 2))}
 _TB = {
     1: ((0, 4), 1), 2: ((0, 4), -1), 3: ((0, 3), 1), 4: ((0, 3), -1), 5: ((0, 2), 1), 6: ((0, 2), -1),
@@ -333,12 +335,20 @@ def complex_stereo_descriptor(mol, metal_idx, metals=()):
     }.get(tag)
     if kind is None and not tetrahedral:
         raise UnsupportedStructure("this coordination geometry is not supported here")
+    vacant = not tetrahedral and len(nbrs) == _VACANT_SITES.get(kind, 0)
+    polyhedron = list(nbrs)
+    if vacant:
+        # RDKit places the empty site of the lone pair second, like an implicit hydrogen
+        polyhedron.insert(1, _LONE_PAIR)
     if tetrahedral:
         coords = _tetrahedral_coordinates(nbrs, info.descriptor == Chem.StereoDescriptor.Tet_CCW)
     else:
-        coords = _coordinates(kind, int(metal.GetProp("_chiralPermutation")), nbrs)
+        coords = _coordinates(kind, int(metal.GetProp("_chiralPermutation")), polyhedron)
     assignments = list(_priming_assignments(mol, metal_idx, nbrs, metals))
     numberings = [{d: (base[d], primes.get(d, 0)) for d in nbrs} for primes in assignments]
+    if vacant:
+        phantom = (max(base.values()) + 1, 0)
+        numberings = [{**number, _LONE_PAIR: phantom} for number in numberings]
     outcomes = []
     for number in numberings:
         if tetrahedral:
@@ -347,8 +357,11 @@ def complex_stereo_descriptor(mol, metal_idx, metals=()):
             index, sequence, symbol = _square_planar(coords, nbrs, number)
             outcomes.append(("SP-4", index, sequence, symbol))
         elif kind == "TB":
-            index, sequence, symbol = _bipyramid(coords, nbrs, number)
-            outcomes.append(("TBPY-5", index, sequence, symbol))
+            index, sequence, symbol = _bipyramid(coords, polyhedron, number)
+            outcomes.append(("SS-4" if vacant else "TBPY-5", index, sequence, symbol))
+        elif vacant:
+            index, sequence, symbol = _square_pyramid(coords, polyhedron, number)
+            outcomes.append(("SPY-5", index, sequence, symbol))
         else:
             index, sequence, symbol = _octahedral(coords, nbrs, number, numberings)
             outcomes.append(("OC-6", index, sequence, symbol))
@@ -396,6 +409,8 @@ def _square_planar(coords, nbrs, number):
 def _bipyramid(coords, nbrs, number):
     partner = _trans_partner(coords)
     axis = [a for a in nbrs if a in partner]
+    if _LONE_PAIR in axis:
+        raise UnsupportedStructure("a lone pair on the axis of a trigonal bipyramid is not a see-saw")
     x, y = sorted(axis, key=lambda a: number[a])[:2]
     index = (number[x], number[y])
     equatorial = [a for a in nbrs if a not in axis]
@@ -406,6 +421,22 @@ def _bipyramid(coords, nbrs, number):
     return index, sequence, symbol
 
 
+def _square_pyramid(coords, nbrs, number):
+    partner = _trans_partner(coords)
+    apex = partner[_LONE_PAIR]
+    base = [a for a in nbrs if a not in (apex, _LONE_PAIR)]
+    lowest = min(number[a] for a in base)
+    second = max(number[partner[a]] for a in base if number[a] == lowest)
+    ring = _anticlockwise_from(coords, apex, base)
+    sequence, symbol = _chirality_symbol(ring, number, "C", "A")
+    return (number[apex], second), sequence, symbol
+
+
+def _trans_choice(number, bottom, second):
+    """Trans-maximum-difference on the base priority numbers; primes only break a tie, the unprimed number first."""
+    return (number[bottom][0], second[0]), (-number[bottom][1], -second[1])
+
+
 def _octahedral(coords, nbrs, number, alternatives):
     partner = _trans_partner(coords)
     lowest = min(number.values())
@@ -414,11 +445,11 @@ def _octahedral(coords, nbrs, number, alternatives):
         bottom = partner[top]
         plane = [a for a in nbrs if a not in (top, bottom)]
         low = min(number[a] for a in plane)
-        second = max(number[partner[a]] for a in plane if number[a] == low)
-        key = (number[bottom], second)
+        second = max((number[partner[a]] for a in plane if number[a] == low), key=lambda n: (n[0], -n[1]))
+        key = _trans_choice(number, bottom, second)
         if best is None or key > best[0]:
-            best = (key, top, bottom, plane)
-    index, top, bottom, plane = best
+            best = (key, (number[bottom], second), top, plane)
+    _, index, top, plane = best
     sequence, symbol = (), ""
     if _octahedron_is_chiral(coords, number, alternatives):
         ring = _anticlockwise_from(coords, top, plane)

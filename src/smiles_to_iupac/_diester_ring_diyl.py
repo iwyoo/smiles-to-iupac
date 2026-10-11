@@ -488,7 +488,9 @@ def _evaluate_skeleton(
         prefixes += "-"
     group_name = prefixes + parent
     PARENT_START.set(len(prefixes) - (1 if prefixes.endswith("-") else 0))
-    if ring_stereo:
+    if len(ring_stereo) == 1 and ring_stereo[0][1].startswith("("):
+        group_name = f"{ring_stereo[0][1]}-{group_name}"
+    elif ring_stereo:
         labels = ",".join(f"{loc}{code}" for loc, code in sorted((_stereo_locant(a, position_of), c) for a, c in ring_stereo))
         group_name = f"({labels})-{group_name}"
     return key, group_name, position_of, ring_stereo, side
