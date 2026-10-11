@@ -8,6 +8,7 @@ from itertools import combinations
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._diacyl_linker import acyl_part, diacyl_linker
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
 from ._multiplicative_linker import DecompositionRejected, name_component
@@ -19,7 +20,6 @@ _RUN_ELEMENTS = {7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
 _MAX_UNITS = 6
 _SUBSTITUTED_PREFIX = re.compile(r"(?:carboxy|hydroxy|amino|chloro|bromo|fluoro|iodo|cyano|oxo|nitro(?!so\b)|sulfanyl|methoxy|ethoxy)[a-z]+")
 _SKELETAL_UNITS = 4
-_DIACYL_LINKER = re.compile(r"\(1,\d+-dioxo([a-z]+?)ane-1,\d+-diyl\)")
 
 
 def _arm(graph, start, blocked):
@@ -74,32 +74,40 @@ def _is_linker_atom(mol, atom):
 
 
 def _diacyl_carbon(mol, carbon, linker):
-    """A carbonyl carbon bonded to the `linker` heteroatom whose unbranched carbon chain ends in a second carbonyl carbon
-    bonded to a heteroatom (a diacyl linking group)."""
-    if linker.GetAtomicNum() not in (7, 8):
-        return False
-    previous, current, first = linker.GetIdx(), carbon, True
-    for _ in range(mol.GetNumAtoms()):
-        if current.GetIsAromatic() or current.IsInRing():
-            return False
-        oxo = {
+    """A carbonyl carbon bonded to the `linker` heteroatom whose carbon skeleton, side groups allowed, reaches
+    exactly one second carbonyl carbon bonded to a heteroatom (a diacyl linking group)."""
+    hetero = (7, 8, 16, 34, 52)
+
+    def terminals(atom):
+        return [
             n.GetIdx()
-            for n in current.GetNeighbors()
-            if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(current.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
-        }
-        others = [n for n in current.GetNeighbors() if n.GetIdx() != previous and n.GetIdx() not in oxo]
-        if len(others) != 1:
-            return False
-        if first and len(oxo) != 1:
-            return False
-        if first and others[0].GetAtomicNum() in (7, 8):
-            return True
-        if not first and oxo:
-            return len(oxo) == 1 and others[0].GetAtomicNum() in (7, 8)
-        if others[0].GetAtomicNum() != 6:
-            return False
-        previous, current, first = current.GetIdx(), others[0], False
-    return False
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() in hetero
+            and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+
+    if linker.GetAtomicNum() not in hetero or len(terminals(carbon)) != 1:
+        return False
+    seen, stack, ends = {linker.GetIdx(), carbon.GetIdx()}, [carbon], 0
+    while stack:
+        current = stack.pop()
+        for n in current.GetNeighbors():
+            if n.GetIdx() in seen or n.GetIdx() in terminals(current):
+                continue
+            seen.add(n.GetIdx())
+            if n.GetAtomicNum() != 6:
+                if current is carbon:
+                    return n.GetAtomicNum() in hetero and ends == 0 and not stack
+                continue
+            if terminals(n):
+                outward = [m for m in n.GetNeighbors() if m.GetIdx() not in seen and m.GetIdx() not in terminals(n)]
+                if len(terminals(n)) != 1 or len(outward) != 1 or outward[0].GetAtomicNum() not in hetero:
+                    return False
+                ends += 1
+                continue
+            stack.append(n)
+    return ends == 1
 
 
 def _principal_atoms(mol):
@@ -513,6 +521,13 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         if len({o for _, _, o in edges[center]}) > 1:
             return None
         raise
+    if count == 2:
+        diacyl = diacyl_linker(
+            mol, graph, set(atoms), edges[center], [set(components[comp_of[o]][1]) if o in comp_of else set() for _, o, _ in edges[center]], arm_atoms
+        )
+        if diacyl is not None:
+            central = acyl_part(diacyl[0], diacyl[2])
+            arm_parts = arm_parts[diacyl[1]:]
     parts_atoms = [a for _, _, a in arms]
     units = [_unit_molecule(mol, atoms_, root) for atoms_, root in zip(parts_atoms, roots)]
     if unit_kind != "chain":
@@ -523,9 +538,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             return None
         lead = ""
         if unit_kind == "anion":
-            linker = _DIACYL_LINKER.sub(
-                lambda m: f"{m.group(1)}anedioyl", _linker_text(branches, central, arm_parts, True)
-            )
+            linker = _linker_text(branches, central, arm_parts, True)
             return f"{linker}{multiplier_word(count, True)}({text})"
         if unit_kind in ("amide", "amine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"

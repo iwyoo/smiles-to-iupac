@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, specified_stereo_elements
+from ._diacyl_linker import acyl_part, diacyl_linker
 from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
@@ -425,6 +426,21 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         if soft:
             return None
         raise
+
+    if len(selected) == 2:
+        from ._common import adjacency
+
+        diacyl = diacyl_linker(
+            mol,
+            adjacency(mol),
+            set(atoms),
+            center_edges,
+            [set(components[comp_of[o]][1]) if o in comp_of else set() for _, o, _ in center_edges],
+            unit_atoms,
+        )
+        if diacyl is not None:
+            central = acyl_part(diacyl[0], diacyl[2])
+            arm_parts = arm_parts[diacyl[1]:]
 
     represented = set(atoms)
     for cid, _, _ in arm_chain:
