@@ -220,7 +220,9 @@ def _classify(mol, graph, atom, skeleton_atoms, skeleton):
         b = mol.GetAtomWithIdx(other)
         if subtree(graph, other, x) & skeleton_atoms:
             raise UnsupportedStructure("a cyclic acetal, carbonate or phosphate bridges two skeleton carbons")
-        if b.GetAtomicNum() in (15, 16):
+        if b.GetAtomicNum() in (15, 16) or (
+            b.GetAtomicNum() == 7 and all(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in b.GetNeighbors() if n.GetIdx() != x)
+        ):
             return ("ester", x, other)
         if b.GetAtomicNum() == 6 and any(bd.GetBondTypeAsDouble() == 2.0 and bd.GetOtherAtom(b).GetAtomicNum() == 8 for bd in b.GetBonds()):
             return ("ester", x, other)
@@ -244,6 +246,17 @@ def _classify(mol, graph, atom, skeleton_atoms, skeleton):
     raise UnsupportedStructure("unsupported substituent on a sugar carbon")
 
 
+def _anomeric_pseudohalide(mol, graph, carbon, skeleton_atoms):
+    """(atom, class name) of the azide, isocyanide, isocyanate, ... group on the anomeric carbon (P-102.6.1.5); a cyano
+    group is a nitrile, not a pseudohalide of the glycosyl group (P-66.5.1)."""
+    from ._acid_derivatives import _PSEUDOHALIDE_WORDS
+    from ._carbonic_family import pseudohalide_at
+
+    exo = [n for n in graph[carbon] if n not in skeleton_atoms]
+    key = pseudohalide_at(mol, exo[0], carbon) if len(exo) == 1 else None
+    return None if key in (None, "CN") else (exo[0], _PSEUDOHALIDE_WORDS[key])
+
+
 def _restore(mol, graph, skeleton, decorations):
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
@@ -254,8 +267,9 @@ def _restore(mol, graph, skeleton, decorations):
             oxygen = editable.AddAtom(Chem.Atom(8))
             editable.GetAtomWithIdx(oxygen).SetIntProp("_orig", -1)
             editable.AddBond(carbon, oxygen, Chem.BondType.SINGLE)
-        elif kind in ("N", "SH", "X", "thione", "Csub", "Sether"):
+        elif kind in ("N", "SH", "X", "thione", "Csub", "Sether", "pseudohalide"):
             editable.GetAtomWithIdx(x).SetAtomicNum(8)
+            editable.GetAtomWithIdx(x).SetFormalCharge(0)
             editable.GetAtomWithIdx(x).SetIsAromatic(False)
             for n in graph[x]:
                 if n != carbon:
@@ -398,8 +412,20 @@ def _oxo_anion(atom):
     )
 
 
+_IONIC_GROUPS = tuple(Chem.MolFromSmarts(s) for s in ("[#6]N=[N+]=[N-]", "[#6][N+]#[C-]", "O[N+](=O)[O-]"))
+
+
+def _ionic_group_atoms(mol):
+    """The charged atoms of azide, isocyanide and nitrate groups, which the names of this module can express."""
+    return {a for pattern in _IONIC_GROUPS for match in mol.GetSubstructMatches(pattern) for a in match}
+
+
 def _substituted_sugar_name(mol, bridges=()):
-    if any(a.GetAtomicNum() not in _ELEMENTS or (a.GetFormalCharge() and not _oxo_anion(a)) or a.GetIsotope() for a in mol.GetAtoms()):
+    ionic = _ionic_group_atoms(mol)
+    if any(
+        a.GetAtomicNum() not in _ELEMENTS or (a.GetFormalCharge() and not _oxo_anion(a) and a.GetIdx() not in ionic) or a.GetIsotope()
+        for a in mol.GetAtoms()
+    ):
         return None
     graph = adjacency(mol)
     skeleton = _ring_skeleton(mol, graph) or _chain_skeleton(mol, graph)
@@ -414,6 +440,13 @@ def _substituted_sugar_name(mol, bridges=()):
             if [n for n in graph[carbon] if n not in skeleton_atoms]:
                 return None
             continue
+        if skeleton.ring and position == skeleton.anomeric:
+            pseudohalide = _anomeric_pseudohalide(mol, graph, carbon, skeleton_atoms)
+            if pseudohalide is not None:
+                decorations[carbon] = ("pseudohalide", *pseudohalide)
+                anomeric_kind = "pseudohalide"
+                reached |= subtree(graph, pseudohalide[0], carbon)
+                continue
         kind, x, root = _classify(mol, graph, carbon, skeleton_atoms, skeleton)
         if kind == "oxo":
             reached.add(x)
@@ -449,7 +482,7 @@ def _substituted_sugar_name(mol, bridges=()):
         aglycone = None
         for carbon, (kind, x, root) in decorations.items():
             position = skeleton.position(carbon)
-            if skeleton.ring and position == skeleton.anomeric and kind in ("ether", "X", "N", "Sether"):
+            if skeleton.ring and position == skeleton.anomeric and kind in ("ether", "X", "N", "Sether", "pseudohalide"):
                 if kind in ("ether", "Sether"):
                     if not _plain_group(mol, graph, root, x):
                         return None
@@ -490,7 +523,7 @@ def _substituted_sugar_name(mol, bridges=()):
                     return None
                 name, compound = cited_group(mol, graph, root, carbon)
                 entries.setdefault((name, name, "C", compound), []).append(position)
-            elif kind == "ester" and anomeric_kind in ("X", "N"):
+            elif kind == "ester" and anomeric_kind in ("X", "N", "pseudohalide"):
                 name, compound = cited_group(mol, graph, root, x)
                 entries.setdefault((name, name, "O", compound), []).append(position)
             elif kind == "ester":
@@ -518,6 +551,8 @@ def _substituted_sugar_name(mol, bridges=()):
     prefix = "-".join(segments) + "-" if segments else ""
     if anomeric_kind in ("ether", "Sether"):
         return f"{aglycone} {prefix}{core[:-1]}ide" + (f" {ester_words([(a, sorted(l)) for a, l in esters.items()])}" if esters else "")
+    if anomeric_kind == "pseudohalide":
+        return f"{prefix}{core[:-1]}yl {decorations[skeleton.carbons[skeleton.anomeric - 1]][2]}"
     if anomeric_kind == "X":
         halide = _HALIDE_WORDS[mol.GetAtomWithIdx(decorations[skeleton.carbons[skeleton.anomeric - 1]][1]).GetAtomicNum()]
         return f"{prefix}{core[:-1]}yl {halide}"

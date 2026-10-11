@@ -726,6 +726,13 @@ def test_ionized_amino_acids(smiles, expected):
         pytest.param("OC[C@H]1O[C@@H](OC)[C@H](OC)[C@@H](O)[C@@H]1O", "methyl 2-O-methyl-β-D-glucopyranoside", id="substituted_glycoside"),
         pytest.param("CC(=O)OC[C@H]1O[C@@H](OC(C)=O)[C@H](OC(C)=O)[C@@H](OC(C)=O)[C@@H]1OC(C)=O", "β-D-glucopyranose 1,2,3,4,6-pentaacetate", id="anomeric_ester_like_other_esters"),
         pytest.param("OC[C@H]1O[C@@H](N)[C@H](OC(C)=O)[C@@H](O)[C@@H]1O", "2-O-acetyl-β-D-glucopyranosylamine", id="substituted_glycosylamine"),
+        pytest.param("OC[C@H]1O[C@H](N=C=O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranosyl isocyanate", id="glycosyl_pseudohalide_class_name"),
+        pytest.param("OC[C@H]1O[C@@H](N=[N+]=[N-])[C@H](O)[C@@H](O)[C@@H]1O", "β-D-glucopyranosyl azide", id="glycosyl_azide_with_charged_nitrogens"),
+        pytest.param(
+            "BrC[C@H]1O[C@H](O[N+](=O)[O-])[C@@H](N=[N+]=[N-])[C@@H](N=[N+]=[N-])[C@@H]1OC(=O)c1ccccc1",
+            "2,3-diazido-6-bromo-2,3,6-trideoxy-α-D-mannopyranose 4-benzoate 1-nitrate",
+            id="anomeric_nitrate_ester_beside_other_esters",
+        ),
     ],
 )
 def test_substituted_glycosides_and_glycosyl_derivatives(smiles, expected):
