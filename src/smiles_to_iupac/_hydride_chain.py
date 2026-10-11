@@ -423,8 +423,7 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
         )
         if alternating is not None:
             parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2, ene, yne)
-            cited = sum(len(info["locants"]) for info in grouped.values())
-            omit = not lam and ((len(chain) == 3 and cited == 1) or _one_arrangement(substituents, capacity))
+            omit = not lam and _one_arrangement(substituents, capacity)
         elif unsaturated:
             parent, omit = _unsaturated_parent(z, len(chain), ene, yne, grouped)
             if len(chain) == 2:
