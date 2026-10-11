@@ -9,8 +9,8 @@ from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _STEM = {
-    5: ("boran", 3), 7: ("azan", 3), 8: ("oxidan", 2), 14: ("sil", 4), 15: ("phosphan", 3), 16: ("sulfan", 2),
-    17: ("chloran", 1), 32: ("germ", 4), 33: ("arsan", 3), 34: ("selan", 2), 35: ("broman", 1), 50: ("stann", 4),
+    5: ("boran", 3), 7: ("azan", 3), 8: ("oxidan", 2), 9: ("fluoran", 1), 14: ("sil", 4), 15: ("phosphan", 3),
+    16: ("sulfan", 2), 17: ("chloran", 1), 32: ("germ", 4), 33: ("arsan", 3), 34: ("selan", 2), 35: ("broman", 1), 50: ("stann", 4),
     51: ("stiban", 3), 52: ("tellan", 2), 53: ("iodan", 1), 82: ("plumb", 4), 83: ("bismuthan", 3),
 }
 
@@ -94,7 +94,8 @@ def _oxylium(mol, graph, center, halogens, aromatic):
 
 
 _ONIUM_STEM = {
-    7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium", 33: "arsanium", 34: "selanium", 51: "stibanium",
+    7: "azanium", 8: "oxidanium", 9: "fluoranium", 15: "phosphanium", 16: "sulfanium", 33: "arsanium", 34: "selanium",
+    51: "stibanium",
     52: "telluranium", 17: "chloranium", 35: "bromanium", 53: "iodanium", 83: "bismuthanium",
 }
 _ONIUM_NEIGHBOURS = (6, 7, 8, 9, 16, 17, 34, 35, 52, 53)
@@ -114,7 +115,7 @@ def _onium_center(mol):
     if any(b.GetBondTypeAsDouble() > (3.0 if triple_allowed else 2.0) for b in atom.GetBonds()):
         return None
     if atom.GetAtomicNum() in (7, 8, 16):
-        if any(n.GetAtomicNum() != 6 for n in atom.GetNeighbors()):
+        if any(n.GetAtomicNum() not in (6, 9, 17, 35, 53) for n in atom.GetNeighbors()):
             return None
     elif any(n.GetAtomicNum() not in _ONIUM_NEIGHBOURS or n.GetAtomicNum() == atom.GetAtomicNum() for n in atom.GetNeighbors()):
         return None
@@ -143,10 +144,11 @@ def name_hydride_onium(mol) -> str:
         if nitrilium is not None:
             return nitrilium
     entries = []
+    halogens = halogen_substituents(mol)
     token = EXTENDED_PREFIXES.set(True)
     try:
         for n in graph[center.GetIdx()]:
-            name, compound = _group(mol, graph, n, center.GetIdx())
+            name, compound = _group(mol, graph, n, center.GetIdx(), halogens)
             entries.append((name, compound))
     finally:
         EXTENDED_PREFIXES.reset(token)
