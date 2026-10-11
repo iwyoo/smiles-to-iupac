@@ -601,6 +601,7 @@ def test_substituted_amino_acids(smiles, expected):
         pytest.param("[NH3+]CC(=O)O", "glycinium", id="cation"),
         pytest.param("NCC(=O)Cl", "glycyl chloride", id="acyl_halide"),
         pytest.param("C[C@H](N)C(=O)Br", "L-alanyl bromide", id="acyl_halide_with_the_configuration_descriptor"),
+        pytest.param("N[C@@H](Cc1c[nH]cn1)C(=O)Cl", "L-histidyl chloride", id="acyl_halide_of_histidine"),
         pytest.param("N[C@@H](CCC(=O)[O-])C(=O)[O-]", "L-glutamate", id="diacid_dianion"),
     ],
 )
@@ -662,6 +663,9 @@ def test_intramolecular_anhydro_sugars(smiles, expected):
         pytest.param("N[C@@H](C)C(=O)N(C)[C@@H](C)C(=O)O", "L-alanyl-N-methyl-L-alanine", id="n_methyl_amide_nitrogen"),
         pytest.param("N[C@@H](CC(O)=O)C(=O)N[C@@H](Cc1ccccc1)C(=O)OC", "methyl L-aspartyl-L-phenylalaninate", id="ester_of_the_c_terminal_residue"),
         pytest.param("NCC(=O)NCC(=O)OC", "methyl glycylglycinate", id="glycine_ester_peptide"),
+        pytest.param("C[C@H](N)C(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](C)C(=O)O", "L-alanyl-L-tryptophyl-L-alanine", id="indole_side_chain"),
+        pytest.param("C[C@H](N)C(=O)N[C@@H](Cc1c[nH]cn1)C(=O)O", "L-alanyl-L-histidine", id="imidazole_side_chain"),
+        pytest.param("O=C(NCC(=O)O)C[C@H](N)C(=O)NCC(=O)O", "L-aspartoyldiglycine", id="both_carboxyls_of_a_dicarboxylic_amino_acid"),
     ],
 )
 def test_peptide_acyl_names(smiles, expected):

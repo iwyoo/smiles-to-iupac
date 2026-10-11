@@ -115,9 +115,12 @@ def _acyl_halide_name(mol):
     acid = editable.GetMol()
     try:
         Chem.SanitizeMol(acid)
-        if not _has_plain(acid) or _match(acid)[0] in _DIACID_SIDE_LOCANT:
+        if has_histidine_shape(acid):
+            word = acyl_word(name_histidine(acid), xi=False)
+        elif not _has_plain(acid) or _match(acid)[0] in _DIACID_SIDE_LOCANT:
             return None
-        word = acyl_word(_name_plain(acid), xi=False)
+        else:
+            word = acyl_word(_name_plain(acid), xi=False)
     except UnsupportedStructure:
         return None
     return f"{word} {HALIDE_WORDS[mol.GetAtomWithIdx(halogen).GetAtomicNum()]}" if word else None
