@@ -3,6 +3,7 @@ locants in front of the fullerene parent (P-27.6.1). The fusion bond stays singl
 bond, so the ring component is judged without that bond: its remaining saturated positions take indicated hydrogen
 when odd in number and hydro prefixes otherwise (P-31.1.4.2.4)."""
 
+import re
 from dataclasses import dataclass
 
 from rdkit import Chem
@@ -10,6 +11,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._fused_numbering import _locant_key
 from ._fusion_components import _RETAINED_PREFIX, identify, skeleton
+from ._fusion_name import fused_prefix_data
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch, prefix_multiplier
@@ -65,10 +67,24 @@ def ring_component(mol, kekule, graph, a, b, atoms):
     try:
         components = identify(sub)
     except UnsupportedStructure:
-        return None
-    if not components or len({c.bracketed_prefix() for c in components}) > 1:
-        return None
-    component = components[0]
+        components = []
+    if components:
+        if len({c.bracketed_prefix() for c in components}) > 1:
+            return None
+        component = components[0]
+        numberings, prefix, bracketed = component.numberings, component.prefix, component.bracketed_prefix()
+        cite = not (component.kind in ("mono", "attached_only") and all(e == "C" for e in component.elements))
+        compound = bool(component.hetero_text) or (
+            component.kind in ("mono", "attached_only")
+            and component.name not in _RETAINED_PREFIX
+            and any(e != "C" for e in component.elements)
+        )
+    else:
+        try:
+            bracketed, numberings = fused_prefix_data(sub)
+        except UnsupportedStructure:
+            return None
+        prefix, cite, compound = re.sub(r"\[[^\]]*\]", "", bracketed), True, True
     carrying = {x for x, _, _ in branches}
     if any(mol.GetAtomWithIdx(x).GetSymbol() in _DONORS for x in carrying):
         return None
@@ -82,7 +98,7 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         )
 
     options = []
-    for numbering in component.numberings:
+    for numbering in numberings:
         locant = {x: numbering[index[x]] for x in members}
         positions = sorted((locant[x] for x in ring_atoms if saturated(x)), key=_locant_key)
         odd = len(positions) % 2
@@ -96,16 +112,14 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         )
         options.append((key, (locant[a], locant[b], indicated, hydro, locant)))
     best = min(key for key, _ in options)
-    kind = component.kind in ("mono", "attached_only")
     return Ring(
         a=a,
         b=b,
         atoms=frozenset(atoms),
-        prefix=component.prefix,
-        bracketed=component.bracketed_prefix(),
-        cite=not (kind and all(e == "C" for e in component.elements)),
-        compound=bool(component.hetero_text)
-        or (kind and component.name not in _RETAINED_PREFIX and any(e != "C" for e in component.elements)),
+        prefix=prefix,
+        bracketed=bracketed,
+        cite=cite,
+        compound=compound,
         options=[option for key, option in options if key == best],
         branches=tuple(branches),
     )
