@@ -14,7 +14,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, specified_stereo_elements
 from ._diacyl_linker import acyl_part, diacyl_linker
 from ._formazan import FORMAZAN_SKELETON
-from ._multiplicative_groups import SUFFIX_RANKS, classify
+from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, alternating_chalcogen_runs, name_component
 from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
@@ -387,7 +387,7 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     principal_group = None
     if principal is not None:
         principal_group = next(g.name for g in groups if g.anchor in unit_atoms and g.rank == principal)
-        if principal_group not in SUFFIX_CARRIERS and principal_group != "ketone":
+        if principal_group not in SUFFIX_CARRIERS and principal_group not in KETONE_LIKE:
             return None
     if principal_group == "amine" and any(mol.GetAtomWithIdx(u.linker_atom).GetAtomicNum() == 7 for u in selected):
         return None

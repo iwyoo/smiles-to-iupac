@@ -10,7 +10,7 @@ from ._acid_prefixes import acyl_stem
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
-from ._multiplicative_groups import chalcogen_linker_ligands
+from ._multiplicative_groups import KETONE_LIKE, chalcogen_linker_ligands
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
 from ._multiplicative_ring import name_ring_component
 from ._numerals import alkane_name, multiplying_prefix
@@ -86,7 +86,7 @@ def _substituent_entry(mol, owner, root, ctx):
         return _TERMINAL_DOUBLE_WORDS[atom.GetAtomicNum()], False
     atoms = subtree(mol, root, owner)
     for g in ctx.groups:
-        if g.anchor == root and g.atoms - {owner} == atoms and g.name in SIMPLE_PREFIXES and g.name != "ketone":
+        if g.anchor == root and g.atoms - {owner} == atoms and g.name in SIMPLE_PREFIXES and g.name not in KETONE_LIKE:
             if g.name in ("amide", "sulfonamide", "amine") and not _primary(mol, g):
                 break
             return SIMPLE_PREFIXES[g.name], False
