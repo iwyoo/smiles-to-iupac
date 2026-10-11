@@ -91,6 +91,11 @@ def test_assemblies_of_three_fused_systems(smiles, expected):
     [
         ("C1CCc2ccccc2C1C1CCc2ccccc2C1", "1,1',2,2',3,3',4,4'-octahydro-1,2'-binaphthalene"),
         ("C1CCC2CCCCC2C1-C1CCC2CCCCC2C1", "icosahydro-1,2'-binaphthalene"),
+        ("C1C(=CCc2ccccc12)C1C=C2C=CC=CC2=CC1", "1,2',3',4-tetrahydro-2,2'-binaphthalene"),
+        (
+            "C1(C3=NC4=C(C=C3)C=CCC4)C=CC2=C(C1)N=C(C5=CC6=NC=CC=C6C=C5)C=C2",
+            "1⁷,1⁸,2⁷,2⁸-tetrahydro-1²,2⁷:2²,3⁷-terquinoline",
+        ),
         (
             "C1Cc2ccccc2C1C1Cc2ccccc2C1C1Cc2ccccc2C1",
             "1²,1³,2²,2³,3²,3³-hexahydro-1¹H,2¹H,3¹H-1¹,2²:2¹,3²-terindene",
