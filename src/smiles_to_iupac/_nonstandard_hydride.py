@@ -61,6 +61,9 @@ def _oxo_acyl(atom, bridges):
 
 
 def _terminal_standard(atom):
+    if _primary_amino(atom):
+        host = atom.GetNeighbors()[0]
+        return host.GetAtomicNum() in _HYDRIDES and host.GetTotalValence() > _HYDRIDES[host.GetAtomicNum()][1]
     return (
         atom.GetDegree() == 1
         and atom.GetAtomicNum() in (8, 9, 17, 35, 53)
@@ -90,9 +93,15 @@ def _substituent_atom(atom):
         return True
     if atom.GetFormalCharge():
         return False
+    if z == 7:
+        return _primary_amino(atom)
     if z == 8 and atom.GetDegree() == 2 and not atom.GetTotalNumHs() and not atom.IsInRing():
         return any(n.GetAtomicNum() in (6, 16) for n in atom.GetNeighbors())
     return atom.GetDegree() == 1 and (z in (9, 17, 35, 53) or (z == 8 and atom.GetTotalNumHs() == 1))
+
+
+def _primary_amino(atom):
+    return atom.GetAtomicNum() == 7 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2 and not atom.GetFormalCharge()
 
 
 def _chalcogen_chain(mol):
@@ -144,11 +153,12 @@ def name_nonstandard_hydride(mol) -> str:
     graph = adjacency(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     hydroxyls = [n for n in graph[center.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1]
+    amines = [] if hydroxyls else [n for n in graph[center.GetIdx()] if _primary_amino(mol.GetAtomWithIdx(n))]
     halogens = {a.GetIdx(): HALOGEN_PREFIXES[a.GetAtomicNum()] for a in mol.GetAtoms() if a.GetAtomicNum() in HALOGEN_PREFIXES}
     entries = [
         name_branch(graph, n, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
         for n in graph[center.GetIdx()]
-        if n not in hydroxyls
+        if n not in hydroxyls and n not in amines
     ]
     stem, _ = _HYDRIDES[center.GetAtomicNum()]
     prefixes = f"{format_mononuclear_prefixes(entries)}-" if entries else ""
@@ -156,6 +166,9 @@ def name_nonstandard_hydride(mol) -> str:
     if hydroxyls:
         suffix = {1: "ol", 2: "diol", 3: "triol"}[len(hydroxyls)]
         stem = stem[:-1] if len(hydroxyls) == 1 else stem
+    elif amines:
+        suffix = {1: "amine", 2: "diamine", 3: "triamine"}[len(amines)]
+        stem = stem[:-1] if len(amines) == 1 else stem
     return f"{_polyhedral_prefix(mol, center)}{prefixes}λ{center.GetTotalValence()}-{stem}{suffix}"
 
 
