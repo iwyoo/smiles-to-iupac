@@ -5,7 +5,6 @@ import re
 
 
 from ._common import UnsupportedStructure, assembly_join
-from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS
 from ._common import multiplied_word
 from ._multiplicative_text import PrimedLocant
@@ -160,10 +159,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     frees = [] if free is None else [free] if isinstance(free[0], int) else list(free)
     (rings_a, atoms_a), (rings_b, atoms_b) = systems
     monocycles = all(len(rings) == 1 for rings, _ in systems)
-    if _bare_key(mol, atoms_a) != _bare_key(mol, atoms_b) and not (monocycles and _skeleton_key(mol, atoms_a) == _skeleton_key(mol, atoms_b)) and not (
-        frees and all(mol.GetBondBetweenAtoms(*f).GetBondTypeAsDouble() == 2.0 for f in frees)
-        and _skeleton_key(mol, atoms_a) == _skeleton_key(mol, atoms_b)
-    ):
+    if _skeleton_key(mol, atoms_a) != _skeleton_key(mol, atoms_b):
         return None
     if frees:
         if any(f[0] not in atoms_a | atoms_b for f in frees):
@@ -224,7 +220,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
                 else:
                     hydro_first, added_first = _split_added(first, frees) if frees and free_ylidene else (_hydro(first), [])
                     hydro_second, added_second = _split_added(second, frees) if frees and free_ylidene else (_hydro(second), [])
-                if stem_first is None or stem_first != stem_second or hydro_first != hydro_second:
+                if stem_first is None or stem_first != stem_second:
                     continue
                 locants = {a: (0, p) for a, p in first.position_of.items()}
                 locants.update({a: (1, p) for a, p in second.position_of.items()})
@@ -239,15 +235,17 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
                 junction = (locants[join[0 if join[0] in members[unprimed] else 1]][1], locants[join[1 if join[0] in members[unprimed] else 0]][1])
                 ih_key = tuple(_order(x) for x in ih)
                 marked_key = tuple(sorted(_order(locants[a]) for a in marked))
+                hydro_key = tuple(sorted(_order(loc) for loc in [(0, p) for p in hydro_first] + [(1, p) for p in hydro_second]))
                 key = (
                     junction,
                     (marked_key, ih_key) if frees and free_ylidene else (ih_key, marked_key),
+                    hydro_key,
                     tuple(sorted(_order(locants[r]) for r, _, _ in entries)),
                     tuple(loc for loc, _ in sorted(((_order(locants[r]), name) for r, name, _ in entries), key=lambda e: (e[1], e[0]))),
                     _isotope_key({a: _order(loc) for a, loc in locants.items()}, locants),
                 )
                 if best is None or key < best[0]:
-                    best = (key, locants, stem_first, ih, unprimed, hydro_first, _fully_hydro(first))
+                    best = (key, locants, stem_first, ih, unprimed, (hydro_first, hydro_second), _fully_hydro(first) and _fully_hydro(second))
     if best is None:
         raise UnsupportedStructure("this ring assembly of fused systems needs hydro or added hydrogen, not supported yet")
     _, locants, stem, ih, unprimed, hydro, fully_hydro = best
@@ -259,8 +257,8 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     ih_text = (",".join(f"{_primed(p, n)}H" for n, p in ih) + "-") if ih else ""
     hydro_prefix = ""
-    if hydro:
-        cited = sorted([(0, p) for p in hydro] + [(1, p) for p in hydro], key=_order)
+    if any(hydro):
+        cited = sorted([(0, p) for p in hydro[0]] + [(1, p) for p in hydro[1]], key=_order)
         hydro_word = multiplied_word(len(cited), "hydro")
         hydro_text = hydro_word if fully_hydro else f"{','.join(_primed(p, n) for n, p in cited)}-{hydro_word}"
         ih_text = hydro_text + "-" + ih_text
