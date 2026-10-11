@@ -87,6 +87,17 @@ def test_unsubstituted_cyclic_unsaturated(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C=C1C=CC(=C)C=C1", "3,6-dimethylidenecyclohexa-1,4-diene"),
+        ("C=C1C=CC=CC1=C", "5,6-dimethylidenecyclohexa-1,3-diene"),
+    ],
+)
+def test_quinodimethane_is_a_cyclohexadiene_not_a_benzene_with_two_exocyclic_double_bonds(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_mixed_enyne_ring():
     assert smiles_to_iupac("C1=CCC#CCCCCCCCCCC1") == "cyclopentadec-1-en-4-yne"
 
