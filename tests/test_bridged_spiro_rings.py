@@ -1119,3 +1119,78 @@ def test_parent_of_two_polycyclic_systems_follows_the_order_of_p44_2_2_2(smiles,
 )
 def test_senior_spiro_and_von_baeyer_system(senior, junior):
     assert _senior_to(senior, junior)
+
+
+def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted=(), replaced=None, saturated=(), inserted_element=6):
+    """The cage at systematic locants with atoms `deleted`, bonds `cleaved`, bonds `formed`, atoms `inserted` into bonds
+    and atoms `replaced` ({locant: atomic number}); the atoms at `saturated` locants carry the extra hydrogen."""
+    import networkx as nx
+    from smiles_to_iupac._fullerene_numbering import fullerene_numberings
+
+    cage = Chem.MolFromSmiles(cage_smiles)
+    graph = nx.Graph((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in cage.GetBonds())
+    locants = fullerene_numberings(graph)[0]
+    bonds = {frozenset((locants[u], locants[v])) for u, v in graph.edges}
+    bonds -= {frozenset(pair) for pair in cleaved} | {frozenset(pair) for pair in inserted}
+    bonds |= {frozenset(pair) for pair in formed}
+    nodes = [locant for locant in sorted(locants.values()) if locant not in deleted]
+    bonds = {bond for bond in bonds if not bond & set(deleted)}
+    inserted_names = [f"inserted{i}" for i in range(len(inserted))]
+    for name, pair in zip(inserted_names, inserted):
+        bonds |= {frozenset((pair[0], name)), frozenset((pair[1], name))}
+    nodes += inserted_names
+    replaced = replaced or {}
+    pi = [n for n in nodes if n not in inserted_names and replaced.get(n, 6) in (6, 14) and n not in saturated]
+    pi_graph = nx.Graph()
+    pi_graph.add_nodes_from(pi)
+    pi_graph.add_edges_from(tuple(b) for b in bonds if b <= set(pi))
+    double = {frozenset(pair) for pair in nx.max_weight_matching(pi_graph, maxcardinality=True)}
+    mol = Chem.RWMol()
+    index = {}
+    for n in nodes:
+        index[n] = mol.AddAtom(Chem.Atom(inserted_element if n in inserted_names else replaced.get(n, 6)))
+    degree = {n: sum(1 for b in bonds if n in b) for n in nodes}
+    for bond in bonds:
+        a, b = tuple(bond)
+        mol.AddBond(index[a], index[b], Chem.BondType.DOUBLE if bond in double else Chem.BondType.SINGLE)
+    for n in nodes:
+        atom = mol.GetAtomWithIdx(index[n])
+        atom.SetNoImplicit(True)
+        if n in inserted_names:
+            atom.SetNumExplicitHs({6: 2, 7: 1, 8: 0}[inserted_element])
+        elif atom.GetAtomicNum() in (6, 14):
+            atom.SetNumExplicitHs((4 if n in saturated else 3) - degree[n])
+    result = mol.GetMol()
+    Chem.SanitizeMol(result)
+    return Chem.MolToSmiles(result)
+
+
+@pytest.mark.parametrize(
+    "operations,expected",
+    [
+        pytest.param({"deleted": (1, 9)}, "1,9-dinor(C60-Ih)[5,6]fullerene", id="nor_even_number_of_atoms"),
+        pytest.param({"deleted": (1,), "saturated": (2,)}, "2H-1-nor(C60-Ih)[5,6]fullerene", id="nor_odd_number_gives_indicated_hydrogen"),
+        pytest.param({"cleaved": ((1, 9),)}, "1,9-seco(C60-Ih)[5,6]fullerene", id="seco"),
+        pytest.param({"cleaved": ((1, 9), (2, 3), (10, 11))}, "1,9:2,3:10,11-triseco(C60-Ih)[5,6]fullerene", id="several_seco_pairs"),
+        pytest.param({"inserted": ((1, 9),)}, "1(9)aH-1(9)a-homo(C60-Ih)[5,6]fullerene", id="homo"),
+        pytest.param({"inserted": ((1, 9), (2, 3))}, "1(2)aH,3(15)aH-1(2)a,3(15)a-dihomo(C60-Ih)[5,6]fullerene", id="two_homo_atoms_each_with_indicated_hydrogen"),
+        pytest.param({"deleted": (1,), "formed": ((2, 9),), "saturated": (2,)}, "2H-2,9-cyclo-1-nor(C60-Ih)[5,6]fullerene", id="cyclo_with_nor"),
+        pytest.param({"replaced": {1: 7}, "saturated": (2,)}, "2H-1-aza(C60-Ih)[5,6]fullerene", id="trivalent_heteroatom_gives_indicated_hydrogen"),
+        pytest.param({"replaced": {1: 7, 2: 7}}, "1,2-diaza(C60-Ih)[5,6]fullerene", id="two_replacements"),
+        pytest.param({"replaced": {1: 7, 9: 14}, "saturated": (2,)}, "2H-1-aza-9-sila(C60-Ih)[5,6]fullerene", id="replacement_prefixes_in_order_of_seniority"),
+        pytest.param({"inserted": ((1, 9),), "inserted_element": 7}, "1aH-1a-aza-1(9)a-homo(C60-Ih)[5,6]fullerene", id="replaced_homo_atom"),
+        pytest.param({"inserted": ((1, 9),), "inserted_element": 8}, "1a-oxa-1(9)a-homo(C60-Ih)[5,6]fullerene", id="homo_atom_without_hydrogen"),
+        pytest.param({"deleted": (1,), "saturated": (2,), "cage": 70}, "2H-1-nor(C70-D5h(6))[5,6]fullerene", id="c70_cage"),
+        pytest.param({"deleted": (1, 9, 32, 33, 38, 39)}, "1,9,32,33,38,39-hexanor(C60-Ih)[5,6]fullerene", id="fragment_with_more_than_half_the_atoms"),
+        pytest.param({"deleted": (1, 2, 3, 9, 12, 15), "cleaved": ((6, 7),)}, "6,7-seco-1,2,3,9,12,15-hexanor(C60-Ih)[5,6]fullerene", id="seco_and_nor_in_order_of_citation"),
+        pytest.param(
+            {"cleaved": ((1, 2), (5, 6), (11, 12), (20, 21), (29, 30), (40, 41), (49, 50), (59, 60)), "cage": 70},
+            "1,2:5,6:11,12:20,21:29,30:40,41:49,50:59,60-octaseco(C70-D5h(6))[5,6]fullerene",
+            id="seco_pairs_of_the_c70_cage",
+        ),
+    ],
+)
+def test_structurally_modified_and_replaced_fullerenes(operations, expected):
+    operations = dict(operations)
+    cage = _FULLERENE_C70_SMILES if operations.pop("cage", 60) == 70 else _FULLERENE_C60_SMILES
+    assert smiles_to_iupac(_modified_fullerene(cage, **operations)) == expected
