@@ -399,6 +399,17 @@ def test_isotopic_modification_of_ring_assemblies_and_fused_parent_choice(smiles
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("OC(=O)Cc1ccccc1-c1ccccc1-c1ccccc1[2H]", "[(3²-2H)[1¹,2¹:2²,3¹-terphenyl]-1²-yl]acetic acid", id="chain_of_rings"),
+        pytest.param("OC(=O)Cc1ccc2ccccc2c1-c1ccc2ccccc2c1[2H]", "[(1'-2H)[1,2'-binaphthalen]-2-yl]acetic acid", id="fused_components"),
+    ],
+)
+def test_isotopic_modification_of_chained_and_fused_ring_assembly_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("[2H]CC(C)CC[SiH3]", "[3-methyl(4-2H1)butyl]silane"),
         ("[SiH3]CCC([14CH3])C[2H]", "[3-(2H1)methyl(4-14C)butyl]silane"),
         ("CC(=O)NC(CO)C[18OH]", "N-[1-(18O)hydroxy-3-hydroxypropan-2-yl]acetamide"),

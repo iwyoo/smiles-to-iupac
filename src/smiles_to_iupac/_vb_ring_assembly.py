@@ -247,7 +247,7 @@ def find_vb_ring_assembly_core(mol):
     return _chain_core(mol, pool)
 
 
-def vb_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None):
+def vb_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None, place=None):
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free` = (root,
     coming_from) or a list of such pairs, as the other assembly namers return; None when the ring systems joined by
     single bonds are not such an assembly. Ring systems outside the chain are substituents."""
@@ -269,14 +269,16 @@ def vb_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, st
         return None
     if principal is None and not frees and within is None and any(a.IsInRing() and a.GetIdx() not in atoms_all for a in mol.GetAtoms()):
         return None
-    return _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences, frees)
+    return _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences, frees, place)
 
 
 def name_vb_ring_assembly(mol, core) -> str:
     return _assemble(mol, adjacency(mol), halogen_substituents(mol), set(), core, None, [], [])[1][1]
 
 
-def _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences, frees):
+def _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences, frees, place=None):
+    from ._diester_ring_diyl import _isotope_key
+
     path, junctions, parent, numberings = core
     count = len(path)
     atoms_all = set().union(*path)
@@ -393,13 +395,16 @@ def _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences
                 base = f"{junction_text}-{ring_word(False)}"
                 body = f"{hetero_prefix}-{base}" if hetero_prefix else base
             name = assembly_join(prefix, body)
-            key = (junction_set, junction_citation, hetero_set, hetero_by_element, marked_key, unsaturation, sub_set, sub_citation, name)
+            isotopes = _isotope_key({a: sort_key(*loc) for a, loc in locations.items()}, locations)
+            key = (junction_set, junction_citation, hetero_set, hetero_by_element, marked_key, unsaturation, sub_set, sub_citation, isotopes, name)
             if best_key is None or key < best_key:
                 best_key, best = key, (name, body, locations)
     name, body, locations = best
+    locant = (lambda loc: PrimedLocant(*loc)) if count == 2 else (lambda loc: CompositeLocant(loc[0] + 1, loc[1]))
     if frees:
+        if place is not None:
+            place.update(locants={a: locant(loc) for a, loc in locations.items()}, start=len(name) - len(body), atoms=atoms_all)
         return name, True
     total = len(occurrences)
-    locant = (lambda loc: PrimedLocant(*loc)) if count == 2 else (lambda loc: CompositeLocant(loc[0] + 1, loc[1]))
     parts = (None, None, None, 0, {a: locant(loc) for a, loc in locations.items()}, True, len(name) - len(body))
     return total, ((-total,), name, parts)
