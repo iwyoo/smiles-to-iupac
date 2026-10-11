@@ -4242,9 +4242,80 @@ def _identical_group_units(mol, graph, group_atoms):
                 if plain[ri] == plain[rj] and chiral[ri] != chiral[rj]:
                     continue
                 # a multiplied parent must express every principal group (P-15.6.1.5)
-                units = ai | aj | set().union(*(ak for bk, ak, sk, _ in sides if sk == si and not ak & (ai | aj)))
+                extra = set().union(*(ak for bk, ak, sk, _ in sides if sk == si and not ak & (ai | aj)))
+                units = ai | aj | extra
+                if plain[ri] != plain[rj] and not extra and _unsymmetrical_branches(mol, set(range(mol.GetNumAtoms())) - units, ai, aj):
+                    continue
                 if group_atoms <= units:
                     return True
+    return False
+
+
+def _unsymmetrical_branches(mol, linker, first_arm, second_arm):
+    """Whether the components of the linking group (ring system, carbon chain, run of one heteroatom) differ on the two
+    sides of its centre, which no multiplicative group can express (P-15.3.1.2.2.3, P-15.3.3.1, P-15.3.4.1.1)."""
+    parent = {a: a for a in linker}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def same_kind(bond):
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        ends = (mol.GetAtomWithIdx(a), mol.GetAtomWithIdx(b))
+        return bond.IsInRing() or (ends[0].GetAtomicNum() == ends[1].GetAtomicNum() and not any(e.IsInRing() for e in ends))
+
+    for bond in mol.GetBonds():
+        if bond.GetBeginAtomIdx() in linker and bond.GetEndAtomIdx() in linker and same_kind(bond):
+            parent[find(bond.GetBeginAtomIdx())] = find(bond.GetEndAtomIdx())
+    members = {}
+    for a in linker:
+        members.setdefault(find(a), set()).add(a)
+    neighbours = {c: set() for c in members}
+    for c, atoms in members.items():
+        for a in atoms:
+            for n in mol.GetAtomWithIdx(a).GetNeighbors():
+                if n.GetIdx() in linker and find(n.GetIdx()) != c:
+                    neighbours[c].add(find(n.GetIdx()))
+    touching = [[c for c, atoms in members.items() if any(n.GetIdx() in arm for a in atoms for n in mol.GetAtomWithIdx(a).GetNeighbors())] for arm in (first_arm, second_arm)]
+    if len(members) < 2 or any(len(t) != 1 for t in touching) or any(len(n) > 2 for n in neighbours.values()):
+        return False
+    order, seen = [touching[0][0]], {touching[0][0]}
+    while order[-1] != touching[1][0]:
+        onward = [n for n in neighbours[order[-1]] if n not in seen]
+        if len(onward) != 1:
+            return False
+        order.append(onward[0])
+        seen.add(onward[0])
+    if len(order) != len(members):
+        return False
+
+    def signature(component, outside):
+        editable = Chem.RWMol()
+        index = {}
+        for a in sorted(members[component]):
+            index[a] = editable.AddAtom(Chem.Atom(mol.GetAtomWithIdx(a).GetAtomicNum()))
+        for bond in mol.GetBonds():
+            a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+            if a in index and b in index:
+                editable.AddBond(index[a], index[b], bond.GetBondType())
+            elif a in index or b in index:
+                inner, other = (a, b) if a in index else (b, a)
+                dummy = Chem.Atom(0)
+                dummy.SetAtomMapNum(1 if other in outside else 2)
+                editable.AddBond(index[inner], editable.AddAtom(dummy), bond.GetBondType())
+        return Chem.MolToSmiles(editable.GetMol(), isomericSmiles=False)
+
+    outside = [set(first_arm), set(second_arm)]
+    low, high = 0, len(order) - 1
+    while high - low >= 1:
+        if signature(order[low], outside[0]) != signature(order[high], outside[1]):
+            return True
+        outside[0] |= members[order[low]]
+        outside[1] |= members[order[high]]
+        low, high = low + 1, high - 1
     return False
 
 
