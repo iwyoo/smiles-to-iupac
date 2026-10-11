@@ -720,6 +720,13 @@ def test_stereodescriptors_inside_substituent_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_ring_atoms_of_substituent_groups_take_their_descriptors_from_the_whole_molecule():
+    assert (
+        smiles_to_iupac("C[C@@H]1CC[C@H](CC1)C[C@H](O)C[C@@H]2CC[C@H](C)CC2")
+        == "(2R)-1-[(1r,4S)-4-methylcyclohexyl]-3-[(1s,4S)-4-methylcyclohexyl]propan-2-ol"
+    )
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
