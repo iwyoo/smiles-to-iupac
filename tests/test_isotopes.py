@@ -60,7 +60,7 @@ def test_isotope_alcohol_name(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("OCCC[18OH]", id="multiple_hydroxyls_raises"),
+        pytest.param("[18OH]CCC[18OH]", id="identically_labelled_hydroxyls_raise"),
     ],
 )
 def test_isotope_alcohol_cases_raise(smiles):
@@ -75,6 +75,9 @@ def test_isotope_alcohol_cases_raise(smiles):
         pytest.param("[18OH]CCC", "propan-1-(18O)ol", id="longer_chain"),
         pytest.param("[15OH]C", "methan(15O)ol", id="short_lived_oxygen_nuclide"),
         pytest.param("CC(O[2H])CC", "butan-2-(2H)ol", id="deuterated_hydroxyl_on_a_chain"),
+        pytest.param("[18OH]CC(CO)C1CCCCC1", "2-cyclohexyl-3-hydroxypropan-1-(18O)ol", id="labelled_hydroxyl_stays_the_suffix"),
+        pytest.param("OCC([18OH])CO", "1,3-dihydroxypropan-2-(18O)ol", id="labelled_hydroxyl_between_two_unmodified_ones"),
+        pytest.param("OC1CCC([18OH])CC1", "4-hydroxycyclohexan-1-(18O)ol", id="labelled_hydroxyl_on_a_ring"),
     ],
 )
 def test_isotope_alcohol_oxygen_inserted_before_suffix(smiles, expected):

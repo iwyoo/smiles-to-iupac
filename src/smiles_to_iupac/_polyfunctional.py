@@ -1521,13 +1521,14 @@ def _nuclide_rank(nuclide):
 
 
 def _demote_junior_groups(mol, labels):
-    """Carbon-suffix groups on a ring that are modified in different ways cannot be multiplied: the group with the
-    most modifications, then the nuclide of higher atomic number and mass number, stays the suffix and the others are
-    cited as prefixes (P-82.2.2.2)."""
+    """Characteristic groups that are modified in different ways cannot be multiplied: the group with the most
+    modifications, then the nuclide of higher atomic number and mass number, stays the suffix and the others are cited
+    as prefixes (P-82.2.2.2)."""
     if not labels:
         return mol
     principal, owned_groups = _principal_owned(mol)
-    groups = {frozenset(g) for g in owned_groups if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in g)}
+    found = {frozenset(g) for g in owned_groups}
+    groups = {g for g in found if not any(g < other for other in found)}
     if principal is None or len(groups) < 2:
         return mol
 
@@ -1540,9 +1541,11 @@ def _demote_junior_groups(mol, labels):
         return mol
     demoted = Chem.Mol(mol)
     for group in others:
-        for atom in group:
-            if mol.GetAtomWithIdx(atom).GetAtomicNum() == 6:
-                demoted.GetAtomWithIdx(atom).SetBoolProp(JUNIOR_GROUP, True)
+        anchors = [a for a in group if mol.GetAtomWithIdx(a).GetAtomicNum() == 6] or [
+            n.GetIdx() for a in group for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetAtomicNum() == 6 and n.GetIdx() not in group
+        ]
+        for atom in anchors:
+            demoted.GetAtomWithIdx(atom).SetBoolProp(JUNIOR_GROUP, True)
     return demoted
 
 
@@ -1751,7 +1754,8 @@ def _group_atom_labels(mol, rest):
     if len(elements) != 1:
         raise UnsupportedStructure("isotopic modification of several elements of a characteristic group is not supported yet")
     (element,) = elements
-    if any(
+    before_suffix = principal in _SUFFIX_WORD and element == _SUFFIX_ELEMENT.get(principal, 8)
+    if not before_suffix and any(
         a.GetAtomicNum() == element and a.GetIdx() not in owned and a.GetIdx() not in rest for a in mol.GetAtoms()
     ):
         raise UnsupportedStructure("the modified atom of the characteristic group needs a locant that is not defined yet")
@@ -1759,7 +1763,7 @@ def _group_atom_labels(mol, rest):
     heavy = [a for a, e in rest.items() if e["skeleton"]]
     if len(heavy) > 1 and not _same_label_on_every_group_atom(mol, rest, owned, element):
         raise UnsupportedStructure("several isotopically modified atoms in one characteristic group are not supported yet")
-    if principal in _SUFFIX_WORD and element == _SUFFIX_ELEMENT.get(principal, 8):
+    if before_suffix:
         if principal == "peroxol" and any(mol.GetAtomWithIdx(a).GetDegree() != 1 for a in rest):
             raise UnsupportedStructure("the oxygen of a peroxol that is bonded to carbon has no defined descriptor")
         if len(owned_groups) != 1:
@@ -5047,7 +5051,7 @@ def _ring_occurrences(mol):
     sitting directly on a ring atom (or, for a ketone, the ring carbonyl)."""
     found = []
     for atom in mol.GetAtoms():
-        if not atom.IsInRing():
+        if not atom.IsInRing() or atom.HasProp(JUNIOR_GROUP):
             continue
         r = atom.GetIdx()
         for n in atom.GetNeighbors():
