@@ -242,6 +242,7 @@ from ._hetero_monocyclic import (
 )
 from ._carbene_amine import has_carbene_amine_shape, name_carbene_amine
 from ._carbon_monoxide import has_carbon_monoxide_shape, name_carbon_monoxide
+from ._fused_ring_yne import has_fused_ring_yne_shape, name_fused_ring_yne
 from ._heteroaryne import has_heteroaryne_shape, name_heteroaryne
 from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
 from ._chalcogen_chain_heterone import name_chalcogen_chain_heterone
@@ -1871,6 +1872,7 @@ def _name_mol(mol) -> str:
         # for the shared `saturated_ring_name` dependency.
         (has_didehydro_ring_name, name_didehydro_ring),
         (has_heteroaryne_shape, name_heteroaryne),
+        (has_fused_ring_yne_shape, name_fused_ring_yne),
         # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
         # saturated-monocyclic retained names) are recognized the same way --
         # see _hetero_monocyclic.py's module docstring; none of the O/N

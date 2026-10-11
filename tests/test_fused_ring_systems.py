@@ -1010,3 +1010,17 @@ def test_senior_phane_system(senior, junior):
 )
 def test_identical_fused_systems_choose_the_parent_by_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-31.2.1, P-31.2.4.1: a ring triple bond of a fused carbocycle is cited with didehydro prefixes before the hydro prefixes
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("c1cc2ccccc2cc#1", "2,3-didehydronaphthalene", id="mancude_parent"),
+        pytest.param("C1#Cc2ccccc2C1", "2,3-didehydro-1H-indene", id="indicated_hydrogen_first"),
+        pytest.param("C1#Cc2ccccc2CC1", "1,2-didehydro-3,4-dihydronaphthalene", id="lowest_dehydro_locants_on_a_tie"),
+        pytest.param("C1#Cc2cc(C)ccc2C1", "5-methyl-2,3-didehydro-1H-indene", id="after_the_alphabetized_prefixes"),
+    ],
+)
+def test_ring_triple_bond_of_a_fused_carbocycle(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
