@@ -183,7 +183,7 @@ from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disj
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._inorganic_polyester import has_inorganic_polyester_shape, name_inorganic_polyester
-from ._hydride_polyester import has_hydride_polyester_shape, name_hydride_polyester
+from ._hydride_polyester import has_chain_polyester_shape, has_hydride_polyester_shape, name_hydride_polyester
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import name_heteroacyclic, has_carbonless_acyl
@@ -1424,6 +1424,7 @@ def _name_mol(mol) -> str:
     # single-metal hydride dispatches below, which reject a second metal.
     if (
         has_metal_pair_shape(mol)
+        and not has_chain_polyester_shape(mol)
         and not _has_senior_principal_group(mol)
         and not has_radical_shape(mol)
         and not has_carbonic_acid_shape(mol)
