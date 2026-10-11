@@ -22,6 +22,7 @@ _CHAIN_STEMS = {
 _CHALCOGENS = {8, 16, 34, 52}
 _STANDARD = {7: 3, 8: 2, 14: 4, 15: 3, 16: 2, 32: 4, 33: 3, 34: 2, 50: 4, 52: 2}
 _ENDING = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}
+_UNSATURATED_STEMS = {7, 14, 15, 32, 33, 50, 51, 82, 83}
 
 
 def is_chain_anion(mol):
@@ -81,23 +82,36 @@ def _compose(neutral, chain, centers, z, free):
         locants = sorted(position[a.GetIdx()] for a in centers for _ in range(int(a.GetProp("_anion_charge"))))
         free_locant = position[free[0]] if free else 0
         grouped = group_substituents(entries)
+        orders = [neutral.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() for a, b in zip(ordered, ordered[1:])]
+        ene = [i + 1 for i, order in enumerate(orders) if order == 2.0]
+        yne = [i + 1 for i, order in enumerate(orders) if order == 3.0]
         key = (
             tuple(locants),
             free_locant,
+            ene,
+            yne,
             sorted(loc for info in grouped.values() for loc in info["locants"]),
             sorted(grouped),
         )
         if best is None or key < best[0]:
-            best = (key, locants, grouped, position, free_locant)
-    _, locants, grouped, position, free_locant = best
+            best = (key, locants, grouped, position, free_locant, orders, ene, yne)
+    _, locants, grouped, position, free_locant, orders, ene, yne = best
     lambdas = {position[a.GetIdx()]: a.GetProp("_anion_lambda") for a in centers if a.HasProp("_anion_lambda")}
     stem, retained = _CHAIN_STEMS[z]
     omit = z in _CHALCOGENS and not lambdas
-    prefixes = format_substituent_prefixes(
-        grouped, omit_locants=omit or (not lambdas and _one_arrangement_of(grouped, locants, free_locant, len(chain), z, neutral, chain, position))
-    )
     n = len(chain)
-    parent = retained if (retained and n == 2) else multiplied_word(n, stem)
+    unsaturated = bool(ene or yne)
+    if unsaturated and z not in _UNSATURATED_STEMS:
+        raise UnsupportedStructure("an anion of an unsaturated chain of this element is not supported yet")
+    whole = unsaturated and n == 2 and not free and not lambdas and _arrangement_unique(grouped, locants, free_locant, z, orders, True)
+    omit_prefix_locants = omit or whole or (not lambdas and _arrangement_unique(grouped, locants, free_locant, z, orders, False))
+    prefixes = format_substituent_prefixes(grouped, omit_locants=omit_prefix_locants)
+    if unsaturated:
+        from ._hydride_chain import _unsaturated_parent
+
+        parent = _unsaturated_parent(z, n, ene, yne, grouped, True)[0]
+    else:
+        parent = retained if (retained and n == 2) else multiplied_word(n, stem)
     if lambdas:
         parent = ",".join(f"{loc}λ{lambdas[loc]}" for loc in sorted(lambdas)) + "-" + parent
     count_word = multiplied_word(len(locants), word)
@@ -105,6 +119,7 @@ def _compose(neutral, chain, centers, z, free):
         count_word = count_word[:-1]
     if count_word[0] in "aeiouy":
         parent = parent[:-1]
+    omit = omit or whole
     locant_text = "" if omit else f"-{','.join(str(x) for x in locants)}-"
     text = f"{prefixes}{parent}{locant_text}{count_word}"
     if free:
@@ -141,21 +156,33 @@ def _chain_atoms(mol, start, z, blocked):
     return ordered
 
 
-def _one_arrangement_of(grouped, locants, free_locant, size, z, mol, chain, position):
+def _mirror(capacity, orders, locants, free_locant, movable_ide):
+    """Whether the chain reads alike from both ends: the same slots, bond orders and cited anionic centers or free valence."""
+    size = len(capacity)
+    held = [(locants.count(i + 1) if not movable_ide else 0, free_locant == i + 1) for i in range(size)]
+    return capacity == capacity[::-1] and list(orders) == list(orders)[::-1] and held == held[::-1]
+
+
+def _arrangement_unique(grouped, locants, free_locant, z, orders, movable_ide):
     """P-14.3.4.4: whether moving a prefix to another chain atom, or exchanging two of them, can only give the same
-    compound once the cited anionic centers and free valence hold their atoms, so that the locants of the prefixes
-    are omitted ('acetylhydrazine-1,1-diide')."""
+    compound, so that the locants of the prefixes are omitted. The cited anionic centers and free valence stay where
+    they are ('acetylhydrazine-1,1-diide'), unless `movable_ide` also lets the anionic centers move."""
     from ._hydride_chain import _one_arrangement
 
-    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(chain, chain[1:])):
-        return False
     entries = {}
     for name, info in grouped.items():
         for locant in info["locants"]:
             entries.setdefault(locant, []).append((name, info["compound"]))
-    taken = [*locants, *([free_locant] if free_locant else [])]
+    size = len(orders) + 1
+    taken = [*([] if movable_ide else locants), *([free_locant] if free_locant else [])]
     capacity = [
-        _STANDARD[z] - sum(1 for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in chain) - taken.count(position[a])
-        for a in sorted(chain, key=position.get)
+        _STANDARD[z]
+        - (orders[i - 1] if i else 0)
+        - (orders[i] if i < size - 1 else 0)
+        - taken.count(i + 1)
+        for i in range(size)
     ]
-    return len(capacity) == size and _one_arrangement(entries, capacity)
+    if movable_ide:
+        for locant in locants:
+            entries.setdefault(locant, []).append(("\x00ide", False))
+    return _one_arrangement(entries, [int(slots) for slots in capacity], mirror=_mirror(capacity, orders, locants, free_locant, movable_ide))
