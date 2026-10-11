@@ -1121,15 +1121,13 @@ def name_from_substituents(
             stem = stem[:-1]
         return stem + own_word
 
-    if (
-        chain_length == 2
-        and not force_own_locant
-        and not substituted
-        and len(ene_locants or ()) + len(yne_locants or ()) == 1
-        and (own_locants is None or list(own_locants) == [1])
-    ):
+    if chain_length == 2 and not force_own_locant and len(ene_locants or ()) + len(yne_locants or ()) == 1:
         stem = "ethyn" if yne_locants else "ethen"
-        return stem + own_word if own_word[0] in "aeiouy" else stem + "e" + own_word
+        if not substituted and (own_locants is None or list(own_locants) == [1]):
+            return stem + own_word if own_word[0] in "aeiouy" else stem + "e" + own_word
+        # P-14.3.4.4: the only position of the double or triple bond of ethene or ethyne is never cited
+        body, elide_stem = suffix_body((), (), own_word, own_locants)
+        return stem + ("" if elide_stem else "e") + ("-" if own_locants else "") + body
 
     if has_unsaturation:
         stem = alkane_name(chain_length)[:-3]

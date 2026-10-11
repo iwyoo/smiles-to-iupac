@@ -183,8 +183,13 @@ def test_n_substituted_aniline_and_multi_ring_chain_amine(smiles, expected):
         pytest.param("NC=CC", "prop-1-en-1-amine", id="enamine"),
         pytest.param("CC(N)=CC(C)=NC", "4-(methylimino)pent-2-en-2-amine", id="enamine_outranks_an_imine_cited_as_a_prefix"),
         pytest.param("C/C=C\\N(/C=C\\C)C(C)(C)C", "2-methyl-N,N-bis[(1Z)-prop-1-en-1-yl]propan-2-amine", id="stereodefined_substituents_outside_the_parent_arm"),
-        pytest.param("C=C(C)N(/C=C/N)CC(C)C", "(1E)-N1-(2-methylpropyl)-N1-(prop-1-en-2-yl)eth-1-ene-1,2-diamine", id="stereodefined_bond_inside_the_parent_arm"),
+        pytest.param("C=C(C)N(/C=C/N)CC(C)C", "(1E)-N1-(2-methylpropyl)-N1-(prop-1-en-2-yl)ethene-1,2-diamine", id="stereodefined_bond_inside_the_parent_arm"),
         pytest.param("NC1(CCCCC1)[C@@H](C)CC", "1-[(2S)-butan-2-yl]cyclohexan-1-amine", id="cyclic_amine_branch_stereocenter"),
+        # P-44.1.1, P-62.2.4.1.2, P-14.3.4.4: every amine group of the chain is in the suffix, also on a carbon of the double bond
+        pytest.param("NC(N)=C", "ethene-1,1-diamine", id="geminal_groups_on_the_double_bond_of_ethene"),
+        pytest.param("NC(N)=CC", "prop-1-ene-1,1-diamine", id="geminal_groups_on_the_double_bond_of_a_longer_chain"),
+        pytest.param("NC(N)=C1CCCC1", "cyclopentylidenemethanediamine", id="geminal_groups_on_the_carbon_of_a_ylidene"),
+        pytest.param("ClC=CN", "2-chloroethen-1-amine", id="locant_of_the_double_bond_of_a_substituted_ethene_omitted"),
     ],
 )
 def test_enamine_and_related(smiles, expected):
