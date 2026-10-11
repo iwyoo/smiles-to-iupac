@@ -643,6 +643,8 @@ def test_sugar_substituent_is_glycosyl_only_when_linked_at_the_anomeric_carbon(s
         pytest.param("O=C[C@H](O)[C@H]1OC[C@@H](O)[C@@H]1O", "3,6-anhydro-D-galactose", id="anhydro_galactose"),
         pytest.param("OC[C@H]1OC[C@H](O)[C@@H](O)[C@H]1O", "1,5-anhydro-D-galactitol", id="anhydroalditol"),
         pytest.param("OC[C@H]1OC[C@@H](O)[C@@H](O)[C@@H]1O", "1,5-anhydro-D-mannitol", id="anhydro_mannitol"),
+        pytest.param("O[C@@H]1CO[C@H]2[C@@H]1OC[C@@H]2O", "1,4:3,6-dianhydro-D-glucitol", id="two_ethers_of_an_alditol"),
+        pytest.param("O[C@H]1[C@@H]2OC[C@@H](O2)[C@@H]2O[C@H]12", "1,6:3,4-dianhydro-β-D-galactopyranose", id="two_ethers_of_a_pyranose"),
         pytest.param(
             "O[C@@H]1[C@H](O)CO[C@]2(CO[C@@]3(CO2)OC[C@@H](O)[C@@H](O)[C@@H]3O)[C@H]1O",
             "α-D-fructopyranose β-D-fructopyranose 1,2\u2032:1\u2032,2-dianhydride",

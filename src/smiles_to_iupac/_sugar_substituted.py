@@ -14,6 +14,7 @@ from ._carbohydrate import _D_2_KETOSE_PATTERNS, _D_ALDOSE_PATTERNS, _FLIP_CIP
 from ._cited_group import cited_group, subtree
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, numerical_term
 from ._inositol_derivative import ester_anion, ester_words
+from ._numerals import multiplying_prefix
 
 _HALOGENS = {9: "fluoro", 17: "chloro", 35: "bromo", 53: "iodo"}
 _HALIDE_WORDS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
@@ -509,10 +510,10 @@ def _substituted_sugar_name(mol, bridges=()):
             del entries[(amino[0][1], amino[0][1], "", amino[0][2])]
             del entries[("deoxy", "deoxy", "", False)]
     cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()] + extra
-    for first, second in bridges:
-        if first not in skeleton.carbons or second not in skeleton.carbons:
-            return None
-        cited.append(("anhydro", "{},{}-anhydro".format(*sorted((skeleton.position(first), skeleton.position(second))))))
+    if any(end not in skeleton.carbons for bridge in bridges for end in bridge):
+        return None
+    if bridges:
+        cited.append(("anhydro", anhydro_segment([(skeleton.position(first), skeleton.position(second)) for first, second in bridges])))
     segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
     prefix = "-".join(segments) + "-" if segments else ""
     if anomeric_kind in ("ether", "Sether"):
@@ -551,28 +552,54 @@ def _opened_ether(mol, oxygen, carbon):
     return opened
 
 
-def _anhydro_name(mol):
-    """P-102.5.6.7.1: an ether between two skeleton carbons of a monosaccharide (1,6-anhydro-β-D-glucopyranose): the
-    ether is opened into two hydroxy groups, the sugar named, and 'anhydro' cited with the two locants."""
-    names = set()
-    for oxygen in mol.GetAtoms():
-        if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or not oxygen.IsInRing() or oxygen.GetIsAromatic():
-            continue
-        ends = [n.GetIdx() for n in oxygen.GetNeighbors()]
-        if any(mol.GetAtomWithIdx(e).GetAtomicNum() != 6 for e in ends):
-            continue
-        for kept, opened_end in (ends, ends[::-1]):
-            try:
-                opened = _opened_ether(mol, oxygen.GetIdx(), opened_end)
-                found = _substituted_sugar_name(opened, bridges=[(kept, opened_end)])
-                if found is None:
-                    from ._sugar_acid import substituted_chain_name
+def anhydro_segment(pairs):
+    """'1,6-anhydro' or '1,4:3,6-dianhydro': the locant pairs of the ethers between two skeleton carbons (P-102.5.6.7.1)."""
+    ordered = sorted(tuple(sorted(pair)) for pair in pairs)
+    return ":".join(f"{a},{b}" for a, b in ordered) + "-" + (multiplying_prefix(len(ordered)) if len(ordered) > 1 else "") + "anhydro"
 
-                    found = substituted_chain_name(opened, bridges=[(kept, opened_end)])
-            except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+
+_MAX_ANHYDRO_BRIDGES = 3
+
+
+def _chain_name(mol, bridges):
+    from ._sugar_acid import substituted_chain_name
+
+    return substituted_chain_name(mol, bridges=bridges)
+
+
+def _anhydro_name(mol):
+    """P-102.5.6.7.1: ethers between two skeleton carbons of a monosaccharide (1,6-anhydro-β-D-glucopyranose,
+    1,4:3,6-dianhydro-D-glucitol): each ether is opened into two hydroxy groups, the sugar named, and 'anhydro' cited
+    with the locant pairs."""
+    names = set()
+
+    def search(current, bridges):
+        for oxygen in current.GetAtoms():
+            if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or not oxygen.IsInRing() or oxygen.GetIsAromatic():
                 continue
-            if found is not None:
-                names.add(found)
+            ends = [n.GetIdx() for n in oxygen.GetNeighbors()]
+            if any(current.GetAtomWithIdx(e).GetAtomicNum() != 6 for e in ends):
+                continue
+            for kept, opened_end in (ends, ends[::-1]):
+                try:
+                    opened = _opened_ether(current, oxygen.GetIdx(), opened_end)
+                except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+                    continue
+                chosen = [*bridges, (kept, opened_end)]
+                found = None
+                for namer in (_substituted_sugar_name, _chain_name):
+                    try:
+                        found = namer(opened, bridges=chosen)
+                    except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+                        found = None
+                    if found is not None:
+                        break
+                if found is not None:
+                    names.add(found)
+                elif len(chosen) < _MAX_ANHYDRO_BRIDGES:
+                    search(opened, chosen)
+
+    search(mol, [])
     return next(iter(names)) if len(names) == 1 else None
 
 
