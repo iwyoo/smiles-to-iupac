@@ -54,7 +54,7 @@ def _sulfite_sulfur_atoms(mol):
     here)."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != _SULFUR or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0:
+        if atom.GetAtomicNum() != _SULFUR or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0 or atom.IsInRing():
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
