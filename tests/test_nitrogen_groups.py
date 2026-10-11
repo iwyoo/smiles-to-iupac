@@ -1214,8 +1214,8 @@ def test_heteroatom_substituents_on_nitrogen_and_pseudohalide_prefixes(smiles, e
         pytest.param("OC(=O)c1ccc(cc1)C(N)=S", "4-carbamothioylbenzoic acid", id="thioamide_prefix_under_an_acid"),
         pytest.param("NC(=[Se])c1ccc(cc1)C(=O)O", "4-carbamoselenoylbenzoic acid", id="selenoamide_prefix_under_an_acid"),
         pytest.param("NC(=O)c1ccc(NC(C)=S)cc1", "4-(ethanethioamido)benzamide", id="thioacylamino_prefix_is_an_amido_prefix"),
-        pytest.param("OC(=O)CN(C)C(=S)C(Cl)C", "(2-chloro-N-methylpropanethioamido)acetic acid", id="n_substituted_amido_prefix_merges_with_the_acyl_prefixes"),
-        pytest.param("NC(=S)NCC(=O)O", "(carbamothioylamino)acetic acid", id="thiourea_group_stays_an_acylamino_prefix"),
+        pytest.param("OC(=O)CCN(C)C(=S)C(Cl)C", "3-(2-chloro-N-methylpropanethioamido)propanoic acid", id="n_substituted_amido_prefix_merges_with_the_acyl_prefixes"),
+        pytest.param("NC(=S)NCCC(=O)O", "3-(carbamothioylamino)propanoic acid", id="thiourea_group_stays_an_acylamino_prefix"),
         pytest.param("OC(=O)c1ccccc1C(=S)C(N)=S", "2-[amino(sulfanylidene)ethanethioyl]benzoic acid", id="completely_substituted_acyl_group_omits_locants"),
     ],
 )
@@ -1439,11 +1439,11 @@ def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
         ("NN=CNc1ccc(C(=O)O)cc1", "4-(methanehydrazonamido)benzoic acid"),
         ("NNC=Nc1ccc(C(=O)O)cc1", "4-[(hydrazinylmethylidene)amino]benzoic acid"),
         ("N=CNNCCC(=O)O", "3-(methanimidohydrazido)propanoic acid"),
-        ("CC(=N)NNCC(=O)OC", "methyl (ethanimidohydrazido)acetate"),
+        ("CC(=N)NNCCC(=O)OC", "methyl 3-(ethanimidohydrazido)propanoate"),
         ("N=C(NNc1ccc(C(=O)O)cc1)c1ccccc1", "4-(benzenecarboximidohydrazido)benzoic acid"),
         ("NNC(=N)c1cccc(C(=O)O)c1", "3-(hydrazinecarboximidoyl)benzoic acid"),
-        ("OC(=O)CNNC=NN", "[2-(methanehydrazonoyl)hydrazin-1-yl]acetic acid"),
-        ("OC(=O)CNNC(=NN)c1ccccc1", "[2-(benzenecarbohydrazonoyl)hydrazin-1-yl]acetic acid"),
+        ("OC(=O)CCNNC=NN", "3-[2-(methanehydrazonoyl)hydrazin-1-yl]propanoic acid"),
+        ("OC(=O)CCNNC(=NN)c1ccccc1", "3-[2-(benzenecarbohydrazonoyl)hydrazin-1-yl]propanoic acid"),
         ("OC(=O)c1ccc(cc1)NNC(=N)OC(N)=N", "4-[C-(carbamimidoyloxy)methanimidohydrazido]benzoic acid"),
     ],
 )
@@ -1469,7 +1469,7 @@ def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):
         ("NNC(=O)NN", "hydrazinecarbohydrazide"),
         ("C(=O)(OC(=O)NN)NN", "dicarbonic dihydrazide"),
         ("C(=O)(NN)NC(=O)NN", "2-imidodicarbonic dihydrazide"),
-        ("NNC(=O)NNCC(=O)O", "(hydrazinecarbohydrazido)acetic acid"),
+        ("NNC(=O)NNCCC(=O)O", "3-(hydrazinecarbohydrazido)propanoic acid"),
         ("O=CNNCCC(=O)O", "3-formohydrazidopropanoic acid"),
         ("N(N)S(=O)C=1C(=CC2=CC=CC=C2C1)C(=O)O", "3-(hydrazinesulfinyl)naphthalene-2-carboxylic acid"),
         ("C(C1=CC=CC=C1)=NNC(C(=O)N)=O", "2-(benzylidenehydrazinyl)-2-oxoacetamide"),
@@ -1886,7 +1886,7 @@ def test_nitrogen_chain_broken_to_express_the_senior_group(smiles, expected):
             id="ether_in_a_substituent",
         ),
         pytest.param("CN=C(NC)NCCO", "N-(2-hydroxyethyl)-N',N''-dimethylguanidine", id="hydroxy_prefix"),
-        pytest.param("CN=C(NC)NCC(=O)OC", "methyl [(N,N'-dimethylcarbamimidoyl)amino]acetate", id="ester_outranks_guanidine"),
+        pytest.param("CN=C(NC)NCCC(=O)OC", "methyl 3-[(N,N'-dimethylcarbamimidoyl)amino]propanoate", id="ester_outranks_guanidine"),
     ],
 )
 def test_guanidines_take_junior_groups_as_prefixes(smiles, expected):

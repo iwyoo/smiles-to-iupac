@@ -89,7 +89,7 @@ def test_amine_units_joined_through_nitrogen_to_a_heteroatom_linker(smiles, expe
         ("OC(=O)CNC(=O)NCC(O)=O", "2,2'-[carbonylbis(azanediyl)]diacetic acid"),
         ("O=C(O)CNC(=O)CCC(=O)NCC(=O)O", "2,2'-[(1,4-dioxobutane-1,4-diyl)bis(azanediyl)]diacetic acid"),
         ("OC(=O)c1ccccc1C(=O)CCC(=S)c1ccccc1C(=O)O", "2,2'-(1-oxo-4-sulfanylidenebutane-1,4-diyl)dibenzoic acid"),
-        ("O=C(N)C(=O)NCC(=O)O", "(oxamoylamino)acetic acid"),
+        ("O=C(N)C(=O)NCCC(=O)O", "3-(oxamoylamino)propanoic acid"),
     ],
 )
 def test_diacyl_linking_groups_and_oxamoylamino(smiles, expected):

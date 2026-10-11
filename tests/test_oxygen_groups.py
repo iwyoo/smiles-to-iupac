@@ -411,10 +411,10 @@ def test_esters_of_one_polyacid_cite_every_alkyl_group(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("CC(NCC(=O)OCc1ccccc1)C(=O)OCc1ccccc1", "benzyl N-[2-(benzyloxy)-2-oxoethyl]-alaninate", id="ester_on_substituent_acid"),
+        pytest.param("CC(NCC(=O)OCc1ccccc1)C(=O)OCc1ccccc1", "benzyl N-[2-(benzyloxy)-2-oxoethyl]alaninate", id="ester_on_substituent_acid"),
         pytest.param(
             "CC(C)CC(NCC(=O)NC(C)C(=O)OCc1ccccc1)C(=O)OCc1ccccc1",
-            "benzyl N-(2-{[1-(benzyloxy)-1-oxopropan-2-yl]amino}-2-oxoethyl)-leucinate",
+            "benzyl N-(2-{[1-(benzyloxy)-1-oxopropan-2-yl]amino}-2-oxoethyl)leucinate",
             id="ester_on_substituent_beyond_amide",
         ),
         pytest.param("O=C(OCc1ccccc1)CCC(=O)OCc1ccccc1", "dibenzyl butanedioate", id="both_esters_of_one_acid"),
