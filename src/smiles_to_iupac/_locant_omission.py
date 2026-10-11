@@ -2,7 +2,11 @@
 parent with one kind of substitutable hydrogen, all positions bearing the same substituent, or all hydrogens on one
 carbon. The decision depends only on the parent structure, never on its numbering."""
 
+from contextvars import ContextVar
+
 from rdkit import Chem
+
+CITE_SUBSTITUENT_LOCANTS = ContextVar("cite_substituent_locants", default=False)
 
 
 def _is_substitutable(mol, atom, suffix_atoms):
@@ -62,7 +66,7 @@ def omits_all_locants(mol, parent, grouped, suffix_atoms=(), single_kind=True, f
     principal characteristic groups on it; `free_atoms`: atoms the parent is attached to;
     `single_kind=False` limits the rule to full substitution (a ring carrying a suffix keeps its locants).
     """
-    if mol is None or not grouped:
+    if mol is None or not grouped or CITE_SUBSTITUENT_LOCANTS.get():
         return False
     parent = set(parent)
     suffix_atoms = set(suffix_atoms)
