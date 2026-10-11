@@ -96,7 +96,7 @@ _IMINE_CENTERS = {
 
 def _find_imine_center(mol):
     """(center, imino nitrogen) of a Group 15 atom carrying one =N-H or =N-R and otherwise carbon groups, else None."""
-    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _IMINE_CENTERS and a.GetDegree() > 1]
+    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _IMINE_CENTERS]
     if len(centers) != 1 or centers[0].IsInRing() or len(Chem.GetMolFrags(mol)) != 1:
         return None
     center = centers[0]
@@ -108,7 +108,7 @@ def _find_imine_center(mol):
     if len(imines) != 1 or imines[0].GetFormalCharge() or imines[0].IsInRing() or imines[0].GetDegree() > 2:
         return None
     others = [n for n in center.GetNeighbors() if n.GetIdx() != imines[0].GetIdx()]
-    if not others or any(n.GetAtomicNum() != 6 or n.GetFormalCharge() for n in others):
+    if any(n.GetAtomicNum() != 6 or n.GetFormalCharge() for n in others):
         return None
     if any(n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(imines[0].GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
            for n in imines[0].GetNeighbors() if n.GetIdx() != center.GetIdx()):

@@ -42,6 +42,9 @@ def _key(mol, atoms, attach):
     return Chem.MolToSmiles(unit, isomericSmiles=False)
 
 
+_DOUBLY_BONDED_PAIRS = (7, 14, 15, 32, 33, 50, 51, 82, 83)
+
+
 def _is_linker_atom(mol, atom):
     if atom.GetAtomicNum() not in _LINKER_ELEMENTS or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
         return False
@@ -55,7 +58,7 @@ def _is_linker_atom(mol, atom):
     )
     for bond in atom.GetBonds():
         other = bond.GetOtherAtom(atom)
-        azo = atom.GetAtomicNum() == 7 and other.GetAtomicNum() == 7 and bond.GetBondTypeAsDouble() == 2.0
+        azo = atom.GetAtomicNum() == other.GetAtomicNum() and atom.GetAtomicNum() in _DOUBLY_BONDED_PAIRS and bond.GetBondTypeAsDouble() == 2.0
         sulfonyl_oxygen = (
             atom.GetAtomicNum() == 16
             and bond.GetBondTypeAsDouble() == 2.0

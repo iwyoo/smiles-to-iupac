@@ -239,7 +239,7 @@ def _components(mol, linker_nodes, systems):
             single = order == 1
             if (
                 (za == 6 and zb == 6)
-                or (za == zb and za in _HOMONUCLEAR_RUNS and (single or (za == 7 and order == 2)))
+                or (za == zb and za in _HOMONUCLEAR_RUNS and (single or (za not in (8, 16, 34, 52) and order == 2)))
                 or any(a in run and b in run for run in alternating)
             ):
                 parent[find(a)] = find(b)

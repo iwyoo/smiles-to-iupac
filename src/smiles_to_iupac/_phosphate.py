@@ -240,7 +240,7 @@ def name_phosphate(mol) -> str:
     return f"{cation_name} {anion_name}" if cation_name else anion_name
 
 
-def format_ester_words(names) -> str:
+def format_ester_words(names, compound_names=frozenset()) -> str:
     """P-67.1.3.2's own worked examples confirm this ester word-citation
     style is NOT the same as the substituent-prefix-on-a-parent-hydride
     convention (`format_mononuclear_prefixes`'s P-16.5.1.3.1 rule, which
@@ -261,7 +261,7 @@ def format_ester_words(names) -> str:
     words = []
     for name in sorted(counts, key=alpha_sort_key):
         count = counts[name]
-        needs_enclosure = (name[0].isdigit() or name[0] == "(") and count > 1
+        needs_enclosure = (name[0].isdigit() or name[0] == "(" or name in compound_names) and count > 1
         group = enclose(name) if needs_enclosure else name
         prefix = multiplying_prefix(count, compound=needs_enclosure) if count > 1 else ""
         words.append(f"{prefix}{group}")
