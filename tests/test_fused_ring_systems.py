@@ -78,6 +78,28 @@ def test_indicated_hydrogen_at_lowest_position_before_added_hydrogen(smiles, exp
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("N=C1NC(=O)c2ccccc12", "3-imino-2,3-dihydro-1H-isoindol-1-one", id="imino_prefix_atom_is_cited_in_the_hydro_prefix"),
+        pytest.param("N=C1CC(=O)c2ccccc12", "3-imino-2,3-dihydro-1H-inden-1-one", id="imino_prefix_atom_beside_a_ketone_suffix"),
+        pytest.param(
+            "OC(=O)C12CCCCC1=CC=CC2=O",
+            "5-oxo-1,3,4,5-tetrahydronaphthalene-4a(2H)-carboxylic acid",
+            id="oxo_prefix_atom_with_a_suffix_on_a_fusion_atom",
+        ),
+        pytest.param(
+            "O=C1OC(=O)C2=CC3=C(C=C12)C(=S)SC3=S",
+            "5,7-bis(sulfanylidene)-5,7-dihydro-1H,3H-thieno[3,4-f][2]benzofuran-1,3-dione",
+            id="prefix_pair_beside_two_indicated_hydrogens",
+        ),
+    ],
+)
+def test_ring_atom_of_an_oxo_imino_or_sulfanylidene_prefix_is_a_saturated_position(smiles, expected):
+    # P-64.7.1, P-64.2.2.3, P-58.2, P-31.1.4.2.4, P-65.7.7.3
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("Cc1ccc2c(c1)c1ccccc1c1ccccc21", "2-methyltriphenylene", id="substituted_triphenylene_is_named"),
