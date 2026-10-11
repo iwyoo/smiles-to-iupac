@@ -7,10 +7,12 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._fused_numbering import _locant_key
 from ._fusion_components import _RETAINED_PREFIX, identify, skeleton
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
+from ._substituents import name_branch, prefix_multiplier
 
 _PRIMES = ("", "′", "″", "‴", "⁗")
 _DONORS = frozenset({"O", "S", "Se", "Te"})
@@ -29,6 +31,7 @@ class Ring:
     cite: bool
     compound: bool
     options: list
+    branches: tuple = ()
 
 
 @dataclass
@@ -41,9 +44,11 @@ class Placed:
 
 
 def ring_component(mol, kekule, graph, a, b, atoms):
-    """The component fused at the bond a-b, with the numberings that give its fusion atoms and its indicated hydrogen
-    the lowest locants; None when it cannot be named as one fusion component."""
-    members = sorted(atoms | {a, b})
+    """The component fused at the bond a-b, with the numberings that give its fusion atoms, its indicated hydrogen and its
+    substituents the lowest locants; None when it cannot be named as one fusion component. The acyclic atoms of the
+    group are substituents of the component, cited with its locants."""
+    ring_atoms = _fused_ring_atoms(mol, atoms, a, b)
+    members = sorted(ring_atoms | {a, b})
     index = {x: i for i, x in enumerate(members)}
     sub = skeleton(
         [mol.GetAtomWithIdx(x).GetSymbol() for x in members],
@@ -54,6 +59,9 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         return None
     if any(kekule.GetBondBetweenAtoms(x, n).GetBondType() == Chem.BondType.DOUBLE for x in (a, b) for n in graph[x] if n in atoms):
         return None
+    branches = _branches(mol, kekule, graph, ring_atoms, atoms - ring_atoms)
+    if branches is None:
+        return None
     try:
         components = identify(sub)
     except UnsupportedStructure:
@@ -61,25 +69,30 @@ def ring_component(mol, kekule, graph, a, b, atoms):
     if not components or len({c.bracketed_prefix() for c in components}) > 1:
         return None
     component = components[0]
+    carrying = {x for x, _, _ in branches}
+    if any(mol.GetAtomWithIdx(x).GetSymbol() in _DONORS for x in carrying):
+        return None
 
     def saturated(x):
         atom = mol.GetAtomWithIdx(x)
         return (
             atom.GetSymbol() not in _DONORS
-            and atom.GetTotalNumHs() > 0
+            and (atom.GetTotalNumHs() > 0 or x in carrying)
             and all(kekule.GetBondBetweenAtoms(x, n).GetBondType() != Chem.BondType.DOUBLE for n in graph[x] if n in index)
         )
 
     options = []
     for numbering in component.numberings:
         locant = {x: numbering[index[x]] for x in members}
-        positions = sorted((locant[x] for x in atoms if saturated(x)), key=_locant_key)
+        positions = sorted((locant[x] for x in ring_atoms if saturated(x)), key=_locant_key)
         odd = len(positions) % 2
         indicated, hydro = tuple(positions[:odd]), tuple(positions[odd:])
         key = (
             tuple(sorted(_locant_key(locant[x]) for x in (a, b))),
             tuple(_locant_key(p) for p in indicated),
             tuple(_locant_key(p) for p in hydro),
+            tuple(sorted(_locant_key(locant[x]) for x, _, _ in branches)),
+            tuple(sorted((alpha_sort_key(name), _locant_key(locant[x])) for x, name, _ in branches)),
         )
         options.append((key, (locant[a], locant[b], indicated, hydro, locant)))
     best = min(key for key, _ in options)
@@ -94,7 +107,53 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         compound=bool(component.hetero_text)
         or (kind and component.name not in _RETAINED_PREFIX and any(e != "C" for e in component.elements)),
         options=[option for key, option in options if key == best],
+        branches=tuple(branches),
     )
+
+
+def _fused_ring_atoms(mol, atoms, a, b):
+    """The atoms of the ring on the fusion bond and of the rings fused to it; a ring joined to them by a single bond or
+    a spiro atom belongs to a substituent."""
+    rings = [set(r) for r in mol.GetRingInfo().AtomRings() if set(r) <= atoms | {a, b}]
+    system = [r for r in rings if a in r and b in r]
+    grown = True
+    while grown:
+        grown = False
+        for r in rings:
+            if r not in system and any(len(r & s) >= 2 for s in system):
+                system.append(r)
+                grown = True
+    return set().union(*system) - {a, b} if system else set()
+
+
+def _branches(mol, kekule, graph, ring_atoms, loose):
+    """(ring atom, name, is compound) of every acyclic group on the ring atoms, None when a group cannot be cited."""
+    if not loose:
+        return []
+    adj = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    found, covered = [], set()
+    for x in sorted(ring_atoms):
+        for n in graph[x]:
+            if n in loose:
+                if kekule.GetBondBetweenAtoms(x, n).GetBondType() != Chem.BondType.SINGLE:
+                    return None
+                try:
+                    name, compound = name_branch(adj, n, x, halogens, frozenset(), mol=mol)
+                except UnsupportedStructure:
+                    return None
+                found.append((x, name, compound))
+                stack = [n]
+                while stack:
+                    node = stack.pop()
+                    if node not in covered:
+                        covered.add(node)
+                        stack.extend(m for m in graph[node] if m != x and m in loose)
+    if covered != set(loose) or any(
+        mol.GetAtomWithIdx(i).GetIsotope() or mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in loose
+    ):
+        return None
+    return found
 
 
 def layout(rings, numbering, edit):
@@ -132,6 +191,27 @@ def ring_key(groups):
 def ring_positions(groups):
     """The primed locant of every atom of the fused rings."""
     return {atom: f"{locant}{item.mark}" for group in groups for item in group for atom, locant in item.option[4].items() if atom not in (item.ring.a, item.ring.b)}
+
+
+def substituent_text(groups):
+    """The substituent prefixes of the placed rings with their primed locants, in alphanumerical order (P-14.5)."""
+    cited = {}
+    for members in groups:
+        for item in members:
+            for atom, name, compound in item.ring.branches:
+                entry = cited.setdefault(name, [compound, []])
+                entry[1].append(f"{item.option[4][atom]}{item.mark}")
+    parts = []
+    for name in sorted(cited, key=alpha_sort_key):
+        compound, locants = cited[name]
+        locants = sorted(locants, key=lambda l: _locant_key(l.rstrip("′″‴⁗")))
+        if len(locants) == 1:
+            text = enclose(name) if compound else name
+        else:
+            multiplier, enclosed = prefix_multiplier(len(locants), name, compound)
+            text = multiplier + (enclose(name) if enclosed else name)
+        parts.append(f"{','.join(locants)}-{text}")
+    return "-".join(parts)
 
 
 def ring_text(groups):

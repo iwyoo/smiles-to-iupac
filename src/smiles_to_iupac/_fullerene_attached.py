@@ -9,7 +9,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._fullerene_bridged import Bridges
-from ._fullerene_fused import layout, ring_component, ring_key, ring_positions, ring_text
+from ._fullerene_fused import layout, ring_component, ring_key, ring_positions, ring_text, substituent_text
 from ._fullerene_modified import modified_candidate
 
 _MAX_ATOMS = 160
@@ -125,7 +125,7 @@ def _compose(mol, graph, groups, bare):
         hydro, indicated, fusion = ring_text(groups_)
         bridge = bridged.assembled(position)[0][1] if bridged else ""
         joiner = "-" if bridge and fusion and fusion[0] in "[0123456789" else ""
-        return hydro, indicated, bridge + joiner + fusion
+        return hydro, indicated, bridge + joiner + fusion, substituent_text(groups_)
 
     found = modified_candidate(mol, cage, fusions, attach, rank, frozenset(bare))
     return None if found is None else Reading(found, render, rings, bridged)

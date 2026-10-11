@@ -390,7 +390,9 @@ def _text(reference, edit, numbering, fused=None):
     rest = "-".join(parts)
     if fused is None:
         return "-".join(([",".join(text for _, text in sorted(indicated))] if indicated else []) + parts) + stem
-    hydro, ring_indicated, prefix = fused(numbering, edit)
+    hydro, ring_indicated, prefix, substituents = fused(numbering, edit)
     indicated = sorted(indicated + ring_indicated)
     front = hydro + ("-" if hydro and indicated else "") + (",".join(text for _, text in indicated) + "-" if indicated else "")
-    return front + prefix + ("-" + rest if rest else "") + stem
+    after = front + prefix
+    joiner = "-" if substituents and after[:1].isdigit() else ""
+    return substituents + joiner + after + ("-" + rest if rest else "") + stem
