@@ -476,3 +476,33 @@ def test_nuclides_on_other_parent_hydrides(smiles, expected):
 )
 def test_nuclides_on_nitrogens_of_double_bonded_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.2.4, P-82.6.1.1, P-82.6.1.2: the nuclide descriptor of an acyl or sulfonyl halide is that of its acid
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[13C](=O)Cl", "(1-13C)acetyl chloride", id="nuclide_on_the_carbon_of_the_halide_group"),
+        pytest.param("ClC(=O)CC[13CH2]Cl", "4-chloro(4-13C)butanoyl chloride", id="nuclide_on_the_chain_of_a_substituted_acyl_halide"),
+        pytest.param("[2H]C([2H])([2H])C(=O)Cl", "(2H3)acetyl chloride", id="deuterium_on_the_only_hydrogen_bearing_atom_needs_no_locant"),
+        pytest.param("[2H]C([2H])CC(=O)Cl", "(3,3-2H2)propanoyl chloride", id="deuterium_beside_another_hydrogen_bearing_atom_keeps_its_locants"),
+        pytest.param("O=C(Cl)[13CH2]C(=O)Cl", "(2-13C)propanedioyl dichloride", id="several_halide_groups"),
+        pytest.param("[13CH3]S(=O)(=O)Cl", "(13C)methanesulfonyl chloride", id="sulfonyl_halide"),
+        pytest.param("ClC(=O)c1ccccc1[2H]", "(2-2H)benzoyl chloride", id="aroyl_halide"),
+    ],
+)
+def test_nuclides_on_acyl_and_sulfonyl_halides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.5, P-82.6.1.2: the cyano group has one carbon and one nitrogen, so its nuclides take no locant
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("N#[13C]CCC(=O)O", "3-(13C)cyanopropanoic acid", id="cyano_carbon_before_the_substituent_locant"),
+        pytest.param("N#[13C]CC(=O)OC", "methyl (13C)cyanoacetate", id="cyano_carbon_of_an_ester"),
+        pytest.param("[15N]#CCC(=O)O", "(15N)cyanoacetic acid", id="cyano_nitrogen"),
+    ],
+)
+def test_nuclides_on_the_cyano_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

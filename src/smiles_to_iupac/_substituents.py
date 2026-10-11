@@ -402,6 +402,9 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
         return text + name, False
+    if name == "cyano" and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
+        context["consumed"].update(labelled)
+        return descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity) + name, False
     if name == "carboxy" and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
         from ._polyfunctional import _modifications
         from ._isotope_labels import _nuclide_sort_key

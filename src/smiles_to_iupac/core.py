@@ -5,7 +5,7 @@ from rdkit import Chem, rdBase
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._adduct import has_adduct_shape, has_bare_inorganic_component, has_inorganic_component, name_adduct
 from ._acyclic import name_acyclic_alkane
-from ._acid_derivatives import name_acid_derivative, name_phosphorous_acid
+from ._acid_derivatives import has_isotope_acyl_halide_shape, name_acid_derivative, name_isotope_acyl_halide, name_phosphorous_acid
 from ._acid_salts import name_acid_salt
 from ._hetero_carboxylic import name_hetero_parent_acid
 from ._polycarbonic import name_polycarbonic
@@ -671,6 +671,7 @@ def _name_isotope_label(mol) -> str:
         (has_labelled_diazene, name_labelled_diazene),
         (has_labelled_hydrazone, name_labelled_hydrazone),
         (has_isotope_hydride_shape, name_isotope_hydride),
+        (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
         (has_isotope_alcohol_shape, name_isotope_alcohol),
         (has_isotope_ketone_shape, name_isotope_ketone),
         (has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid),
