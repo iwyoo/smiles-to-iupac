@@ -63,8 +63,8 @@ def _unit_systems(mol, graph, frees, within):
     from ._system_assembly import _systems
 
     systems = _systems(mol)
-    if frees:
-        arm = within if within is not None else _arm_atoms(graph, frees[0][0], frees[0][1])
+    arm = within if within is not None else _arm_atoms(graph, frees[0][0], frees[0][1]) if frees else None
+    if arm is not None:
         systems = [(rings, atoms) for rings, atoms in systems if set(atoms) <= arm]
     return systems
 

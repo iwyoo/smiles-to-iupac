@@ -281,6 +281,30 @@ def test_ring_assembly_beside_other_ring_systems(smiles, expected):
     "smiles,expected",
     [
         pytest.param(
+            "C(c1cc(nnc1)-c1cccnn1)c1ccnc(c1)-c1cccnc1",
+            "5-[([2,3'-bipyridin]-4-yl)methyl]-3,3'-bipyridazine",
+            id="assembly_of_rings_without_a_ring_specification",
+        ),
+        pytest.param(
+            "C(c1cc2ccccc2nc1-c1ccc2ccccc2n1)c1ccc(nc1)-c1ncc(cc1)-c1ccccn1",
+            "3-[([1²,2²:2⁵,3²-terpyridin]-1⁵-yl)methyl]-2,2'-biquinoline",
+            id="fused_pair_before_a_chain_of_three_rings",
+        ),
+        pytest.param(
+            "C(c1ccc(nc1)-c1ccccn1)c1ccc(cc1)-c1ccccc1",
+            "5-[([1,1'-biphenyl]-4-yl)methyl]-2,2'-bipyridine",
+            id="heterocyclic_assembly_before_a_carbocyclic_one",
+        ),
+    ],
+)
+def test_senior_ring_assembly_is_the_parent_beside_another_assembly(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
             "NC(=O)c1cccc(CN2CCCCC2)c1-c1ccccc1",
             "6-[(piperidin-1-yl)methyl][1,1'-biphenyl]-2-carboxamide",
             id="piperidine_substituent_beside_a_biphenyl_amide",
