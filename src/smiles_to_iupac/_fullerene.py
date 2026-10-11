@@ -175,12 +175,6 @@ _SILA_C60_SMILES = (
     "C%11[Si]9=C1%12)C5=C43)C8=C62"
 )
 
-_CYCLOPROPA_C60_SMILES = (
-    "C1C23C14C5=C6C7=C8C9=C1C%10=C%11C%12=C%13C%14=C%10C%10=C1C1=C%15C%16=C%17C%18="
-    "C%19C%20=C%21C%22=C%23C%24=C%25C%26=C(C7=C9C%11=C%26C%12=C%24C%22=C%13C%20=C%14"
-    "C%18=C%10%16)C7=C%25C9=C(C4=C76)C4=C2C(=C%17C3=C%15C5=C81)C%19=C%21C4=C%239"
-)
-
 # Reference structure for one of C84's 24 IPR isomers (isomer #24, D6h),
 # used only as a test fixture for `_fullerene_spiral.py`'s general spiral-
 # matching mechanism -- see that module's docstring. Taken from PubChem CID
@@ -197,7 +191,6 @@ _FULLERENE_NAMES = {
     Chem.CanonSmiles(_FULLERENE_C70_SMILES): "(C70-D5h(6))[5,6]fullerene",
     Chem.CanonSmiles(_FULLERENE_C76_SMILES): "(C76-D2)[5,6]fullerene",
     Chem.CanonSmiles(_SILA_C60_SMILES): "sila(C60-Ih)[5,6]fullerene",
-    Chem.CanonSmiles(_CYCLOPROPA_C60_SMILES): "3'H-cyclopropa[1,9](C60-Ih)[5,6]fullerene",
 }
 
 

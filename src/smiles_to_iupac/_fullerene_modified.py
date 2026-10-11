@@ -64,31 +64,58 @@ class _Edit:
     homo: list = field(default_factory=list)
     replaced: dict = field(default_factory=dict)
     saturated: list = field(default_factory=list)
+    fusions: list = field(default_factory=list)
 
     @property
     def cost(self):
         return len(self.deleted) + len(self.seco) + len(self.cyclo) + len(self.homo)
 
 
-def _skeleton(mol):
-    """(graph, hydrogens) of the heavy atoms when they can form a modified cage, else None."""
-    if len(Chem.GetMolFrags(mol)) != 1 or not 31 <= mol.GetNumAtoms() <= 90:
+@dataclass
+class Candidate:
+    """A numbered modified cage: `fusions` are (cage atom, cage atom, tag) of the rings fused to it."""
+
+    cost: int
+    key: tuple
+    reference: _Reference
+    edit: _Edit
+    numbering: dict
+
+    def text(self, fused=None):
+        return _text(self.reference, self.edit, self.numbering, fused)
+
+
+def _skeleton(mol, atoms=None, fusion_atoms=frozenset()):
+    """(graph, hydrogens) of the heavy atoms `atoms` when they can form a modified cage, else None. A fusion atom takes
+    the place of a hydrogen atom with the bond to its fused ring (P-27.6.1)."""
+    atoms = set(range(mol.GetNumAtoms())) if atoms is None else set(atoms)
+    graph = nx.Graph()
+    graph.add_nodes_from(atoms)
+    graph.add_edges_from(
+        (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
+        for b in mol.GetBonds()
+        if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms
+    )
+    if not 31 <= len(atoms) <= 90 or not nx.is_connected(graph):
         return None
-    ring_info = mol.GetRingInfo()
-    if ring_info.NumRings() < 10 or sum(1 for a in mol.GetAtoms() if not ring_info.NumAtomRings(a.GetIdx())) > _MAX_HOMO:
+    bridges = {frozenset(bridge) for bridge in nx.bridges(graph)}
+    if graph.number_of_edges() - len(atoms) + 1 < 10:
         return None
-    for atom in mol.GetAtoms():
+    if sum(all(frozenset((a, n)) in bridges for n in graph[a]) for a in atoms) > _MAX_HOMO:
+        return None
+    for a in atoms:
+        atom = mol.GetAtomWithIdx(a)
         if (
             atom.GetAtomicNum() != 6 and atom.GetAtomicNum() not in _REPLACEMENT_PREFIXES
             or atom.GetFormalCharge()
             or atom.GetNumRadicalElectrons()
             or atom.GetIsotope()
-            or atom.GetDegree() > 3
-            or any(b.GetBondTypeAsDouble() > 2.0 for b in atom.GetBonds())
+            or graph.degree(a) > 3
+            or any(b.GetBondTypeAsDouble() > 2.0 for b in atom.GetBonds() if b.GetOtherAtomIdx(a) in atoms)
         ):
             return None
-    graph = nx.Graph((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds())
-    return graph, {a.GetIdx(): a.GetTotalNumHs() for a in mol.GetAtoms()}
+    hydrogens = {a: 3 - graph.degree(a) if a in fusion_atoms else mol.GetAtomWithIdx(a).GetTotalNumHs() for a in atoms}
+    return graph, hydrogens
 
 
 def _embeddings(graph, reference, limit=_MAX_SOLUTIONS):
@@ -162,7 +189,15 @@ def name_modified_fullerene(mol):
     """Name of `mol` as a nor-, seco-, homo-, cyclo- or heteroatom-replaced C60-Ih or C70-D5h(6) fullerene, else None. A
     fragment keeps the fullerene name only with more than half of the atoms and a third of the rings of the cage
     (P-52.2.6.1)."""
-    skeleton = _skeleton(mol)
+    found = modified_candidate(mol)
+    return None if found is None else found.text()
+
+
+def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), ring_locants=None):
+    """The numbered cage of the lowest cost that the heavy atoms `atoms` form, with `fusions` (atom, atom, tag) as the
+    bonds that organic rings are fused to, else None. `ring_locants(numbering, edit)` ranks the numberings that tie on
+    the fusion locants by the locants of the fused rings."""
+    skeleton = _skeleton(mol, atoms, fusion_atoms)
     if skeleton is None:
         return None
     graph, hydrogens = skeleton
@@ -194,14 +229,14 @@ def name_modified_fullerene(mol):
                     attempts.append((deleted + homo_count, len(attempts), reference, homo, reduced, forced))
     best = None
     for lower, _, reference, homo, reduced, forced in sorted(attempts, key=lambda a: a[:2]):
-        if best is not None and lower > best[0]:
+        if best is not None and lower > best.cost:
             break
         deficiency = sum(3 - d for _, d in reduced.degree)
         deleted = reference.graph.number_of_nodes() - reduced.number_of_nodes()
         regions = None
         for cyclo_count in range(_MAX_CYCLO + 1):
             cleaved = max(0, -(-(deficiency + 2 * cyclo_count - 3 * deleted) // 2))
-            if best is not None and lower + cyclo_count + cleaved > best[0]:
+            if best is not None and lower + cyclo_count + cleaved > best.cost:
                 continue
             if cyclo_count and regions is None:
                 regions = _unembeddable_regions(reduced, reference)
@@ -209,18 +244,18 @@ def name_modified_fullerene(mol):
                 continue
             for rest in _cyclo_choices(reduced, forced, cyclo_count, regions or []):
                 for mapping in _embeddings(rest, reference):
-                    found = _edit(graph, hydrogens, element, reference, mapping, homo)
+                    found = _edit(graph, hydrogens, element, reference, mapping, homo, fusions)
                     if found is UNMODIFIED:
                         return None
                     if found is None:
                         continue
-                    candidate = _name(reference, *found)
-                    if candidate is not None and (best is None or candidate[:2] < best[:2]):
+                    candidate = _name(reference, *found, ring_locants)
+                    if candidate is not None and (best is None or (candidate.cost, candidate.key) < (best.cost, best.key)):
                         best = candidate
-    return None if best is None else best[2]
+    return best
 
 
-def _edit(graph, hydrogens, element, reference, mapping, homo):
+def _edit(graph, hydrogens, element, reference, mapping, homo, fusions=()):
     """(edit, number of intact cage rings) of an embedding, None when the hydrogens do not fit a name."""
     cage = reference.graph
     image = set(mapping.values())
@@ -243,7 +278,8 @@ def _edit(graph, hydrogens, element, reference, mapping, homo):
         edit.homo.append((bond, element[x]))
         if hydrogens[x]:
             edit.saturated.append(bond)
-    if not (edit.deleted or edit.seco or edit.cyclo or edit.homo or edit.replaced):
+    edit.fusions = [(mapping[a], mapping[b], tag) for a, b, tag in fusions]
+    if not (edit.deleted or edit.seco or edit.cyclo or edit.homo or edit.replaced or edit.fusions):
         return UNMODIFIED
     if sum(1 for s in edit.saturated if not isinstance(s, tuple)) > 1:
         return None
@@ -255,10 +291,11 @@ def _edit(graph, hydrogens, element, reference, mapping, homo):
     return edit, rings
 
 
-def _name(reference, edit, rings):
-    """(cost, key, name) under the numbering of the cage that gives the lowest locants: 'nor' first, then
-    'homo', then the 'seco' and 'cyclo' locants together and in the order of citation, then the replaced atoms and the
-    indicated hydrogen; None for a fragment that has too few atoms or rings to keep the fullerene name."""
+def _name(reference, edit, rings, ring_locants=None):
+    """The candidate under the numbering of the cage that gives the lowest locants: 'nor' first, then 'homo', then
+    the 'seco' and 'cyclo' locants together and in the order of citation, then the fusion locants, then the replaced
+    atoms and the indicated hydrogen; None for a fragment that has too few atoms or rings to keep the fullerene
+    name."""
     atoms = reference.graph.number_of_nodes() - len(edit.deleted)
     if atoms < reference.least_atoms or rings < reference.least_rings:
         return None
@@ -273,20 +310,24 @@ def _name(reference, edit, rings):
         seco = sorted(pair(bond) for bond in edit.seco)
         joined = sorted(n for p in cyclo + seco for n in p)
         cited = [n for p in cyclo + seco for n in p]
+        fused = sorted((tag[0], pair((first, second))) for first, second, tag in edit.fusions)
+        fused_joined = sorted(n for _, p in fused for n in p)
+        fused_cited = [n for _, p in fused for n in p]
         replaced = sorted(numbering[g] for g in edit.replaced)
         indicated = sorted(pair(s) + (1,) if isinstance(s, tuple) else (numbering[s], 0, 0) for s in edit.saturated)
-        key = (nor, homo, joined, cited, replaced, indicated)
+        ring_cited = ring_locants(numbering, edit) if ring_locants else ()
+        key = (nor, homo, joined, cited, fused_joined, fused_cited, ring_cited, replaced, indicated)
         if best is None or key < best[0]:
             best = (key, numbering)
     key, numbering = best
-    return edit.cost, key, _text(reference, edit, numbering)
+    return Candidate(edit.cost, key, reference, edit, numbering)
 
 
 def _plural(count, word):
     return (multiplying_prefix(count) if count > 1 else "") + word
 
 
-def _text(reference, edit, numbering):
+def _text(reference, edit, numbering, fused=None):
     def pair(bond):
         return tuple(sorted(numbering[g] for g in bond))
 
@@ -300,26 +341,31 @@ def _text(reference, edit, numbering):
     homo = sorted(pair(bond) for bond, _ in edit.homo)
     cyclo = sorted(pair(bond) for bond in edit.cyclo)
     seco = sorted(pair(bond) for bond in edit.seco)
+    stem = reference.stem
+    parts, indicated = [], []
     if sum(len(v) for v in replaced.values()) == 1 and reference.orbit_count == 1 and not (nor or homo or cyclo or seco or edit.saturated):
-        return _REPLACEMENT_PREFIXES[next(iter(replaced))] + reference.stem
-    parts = []
-    if edit.saturated:
-        texts = []
-        for s in sorted(edit.saturated, key=lambda s: pair(s) + (1,) if isinstance(s, tuple) else (numbering[s], 0, 0)):
+        stem = _REPLACEMENT_PREFIXES[next(iter(replaced))] + stem
+    else:
+        for s in edit.saturated:
             if isinstance(s, tuple):
                 low, high = pair(s)
-                texts.append(f"{low}aH" if low in replaced_homo else f"{low}({high})aH")
+                indicated.append(((low, 1, high), f"{low}aH" if low in replaced_homo else f"{low}({high})aH"))
             else:
-                texts.append(f"{numbering[s]}H")
-        parts.append(",".join(texts))
-    for z in sorted(replaced, key=_SENIORITY.get):
-        locants = sorted(replaced[z], key=lambda v: (int(v.rstrip("abc")), v))
-        parts.append(f"{','.join(locants)}-{_plural(len(locants), _REPLACEMENT_PREFIXES[z])}")
-    for pairs, word in ((cyclo, "cyclo"), (seco, "seco")):
-        if pairs:
-            parts.append(":".join(f"{a},{b}" for a, b in pairs) + "-" + _plural(len(pairs), word))
-    if homo:
-        parts.append(",".join(f"{low}({high})a" for low, high in homo) + "-" + _plural(len(homo), "homo"))
-    if nor:
-        parts.append(",".join(str(n) for n in nor) + "-" + _plural(len(nor), "nor"))
-    return "-".join(parts) + reference.stem
+                indicated.append(((numbering[s], 0, 0), f"{numbering[s]}H"))
+        for z in sorted(replaced, key=_SENIORITY.get):
+            locants = sorted(replaced[z], key=lambda v: (int(v.rstrip("abc")), v))
+            parts.append(f"{','.join(locants)}-{_plural(len(locants), _REPLACEMENT_PREFIXES[z])}")
+        for pairs, word in ((cyclo, "cyclo"), (seco, "seco")):
+            if pairs:
+                parts.append(":".join(f"{a},{b}" for a, b in pairs) + "-" + _plural(len(pairs), word))
+        if homo:
+            parts.append(",".join(f"{low}({high})a" for low, high in homo) + "-" + _plural(len(homo), "homo"))
+        if nor:
+            parts.append(",".join(str(n) for n in nor) + "-" + _plural(len(nor), "nor"))
+    rest = "-".join(parts)
+    if fused is None:
+        return "-".join(([",".join(text for _, text in sorted(indicated))] if indicated else []) + parts) + stem
+    hydro, ring_indicated, prefix = fused(numbering, edit)
+    indicated = sorted(indicated + ring_indicated)
+    front = hydro + ("-" if hydro and indicated else "") + (",".join(text for _, text in indicated) + "-" if indicated else "")
+    return front + prefix + ("-" + rest if rest else "") + stem
