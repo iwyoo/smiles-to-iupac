@@ -907,6 +907,15 @@ def _capacity(atom):
     return 1 if standard - degree - atom.GetTotalNumHs() == 1 and degree <= 2 else 0
 
 
+def _parent_capacity(atom):
+    """`_capacity` in the mancude parent, where a ring NH is the =N- of the unhydrogenated atom (quinoline, not 1H-quinoline)."""
+    capacity = _capacity(atom)
+    standard = _STANDARD_BONDING.get(atom.GetSymbol())
+    if capacity or standard is None or not atom.GetTotalNumHs() or atom.GetDegree() > 2:
+        return capacity
+    return 1 if standard - atom.GetDegree() == 1 else 0
+
+
 def _valence(atom):
     return int(round(sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs()))
 
@@ -1014,7 +1023,7 @@ def name_fused_ring_system(mol):
 def _is_mancude(mol):
     """True when the ring system carries the maximum number of noncumulative double bonds (P-25.7.1.1)."""
     kekule = _kekule(mol)
-    capacity = {a.GetIdx(): _capacity(a) for a in kekule.GetAtoms() if _capacity(a)}
+    capacity = {a.GetIdx(): _parent_capacity(a) for a in kekule.GetAtoms() if _parent_capacity(a)}
     graph = nx.Graph()
     for atom, cap in capacity.items():
         graph.add_nodes_from((atom, k) for k in range(cap))

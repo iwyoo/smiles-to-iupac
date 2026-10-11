@@ -41,7 +41,7 @@ def test_benzo_heterocycle_parents(smiles, expected):
     "smiles,expected",
     [
         ("O=C1NC(=O)c2cc3C(=O)NC(=O)c3cc12", "benzo[1,2-c:4,5-c']dipyrrole-1,3,5,7(2H,6H)-tetrone"),
-        ("C1=CC2=CC3=C(C=C2N1)C=CN3", "1H,5H-benzo[1,2-b:4,5-b']dipyrrole"),
+        ("C1=CC2=CC3=C(C=C2N1)C=CN3", "1,5-dihydrobenzo[1,2-b:4,5-b']dipyrrole"),
         (
             "O=C1[NH+](C)C(=O)c2cc3C(=O)[NH+](C)C(=O)c3cc12",
             "2,6-dimethyl-1,3,5,7-tetraoxo-5,7-dihydrobenzo[1,2-c:4,5-c']dipyrrole-2,6(1H,3H)-diium",
@@ -82,6 +82,8 @@ def test_indicated_hydrogen_at_lowest_position_before_added_hydrogen(smiles, exp
     [
         pytest.param("Cc1ccc2c(c1)c1ccccc1c1ccccc21", "2-methyltriphenylene", id="substituted_triphenylene_is_named"),
         pytest.param("C1CC=Cc2ccccc12", "1,2-dihydronaphthalene", id="dihydronaphthalene_itself_is_unaffected"),
+        pytest.param("C1C=Cc2cccnc2N1", "1,2-dihydro-1,8-naphthyridine", id="ring_nh_beside_a_saturated_carbon_is_hydro_not_paired_indicated_hydrogen"),
+        pytest.param("C1=CNC=C2C=CC=CC12", "2,4a-dihydroisoquinoline", id="ring_nh_and_a_fusion_carbon_hydro"),
         pytest.param("C1CC2CC1c1ccccc12", "1,2,3,4-tetrahydro-1,4-methanonaphthalene", id="fully_saturated_bridge_is_von_baeyer_not_fusion_name"),
         pytest.param("Cc1ccc2c(c1)C1C=CC2O1", "6-methyl-1,4-dihydro-1,4-epoxynaphthalene", id="substituted_epoxy_aromatic_ring_is_named"),
     ],
