@@ -95,7 +95,7 @@ def has_ammonium_shape(mol) -> bool:
     if nitrogen.GetTotalNumHs() != 4 - degree:
         return False
     return all(
-        neighbor.GetAtomicNum() == 6
+        neighbor.GetAtomicNum() in (6, 9, 17, 35, 53)
         and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble() == 1.0
         for neighbor in nitrogen.GetNeighbors()
     )
@@ -190,7 +190,9 @@ def name_ammonium(mol) -> str:
         # check the ylide's second charge center was silently dropped.
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
 
-    if any(_heteroatom_acyl(mol, n) for n in nitrogen.GetNeighbors()) and not nitrogen.IsInRing():
+    if (
+        any(_heteroatom_acyl(mol, n) or n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors()) and not nitrogen.IsInRing()
+    ):
         return onium_name(mol, nitrogen, "azanium")
 
     if any(atom.GetAtomicNum() == 6 and is_functional_carbon(mol, atom.GetIdx()) for atom in mol.GetAtoms()):

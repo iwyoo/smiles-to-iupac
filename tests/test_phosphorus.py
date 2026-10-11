@@ -184,15 +184,13 @@ def test_phosphonic_acids_joined_by_a_linker_are_multiplied(smiles, expected):
     [
         pytest.param("[PH4+]", "phosphanium", id="phosphanium"),
         pytest.param("C[P+](C)(C)C", "tetramethylphosphanium", id="tetramethylphosphanium"),
+        pytest.param("C[P+](C)(C)Cl", "chlorotri(methyl)phosphanium", id="halogen_on_the_centre"),
+        pytest.param("C[F+]Cl", "chloro(methyl)fluoranium", id="fluoranium"),
+        pytest.param("C[N+](C)(C)Cl", "chlorotri(methyl)azanium", id="halogen_on_an_ammonium_nitrogen"),
     ],
 )
 def test_phosphanium_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_halogen_on_a_quaternary_phosphonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[P+](C)(C)Cl")
 
 
 @pytest.mark.parametrize(

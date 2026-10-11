@@ -18,12 +18,12 @@ _ONIUM_STEMS = {7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium"
 _CHAIN_STEMS = {(7, 2): "hydrazin", (8, 2): "dioxidan", (7, 3): "triaz"}
 
 
-def _group(mol, graph, root, parent):
+def _group(mol, graph, root, parent, halogens=None):
     """(name, is_compound) of the group at `root` hanging off `parent`; a multiple bond to the parent is named from a
     carbon stand-in so that an ylidene or ylidyne group is not mistaken for a carbonyl-type group."""
     order = mol.GetBondBetweenAtoms(root, parent).GetBondTypeAsDouble()
     if order == 1.0:
-        return name_branch(graph, root, parent, {}, frozenset(), mol=mol)
+        return name_branch(graph, root, parent, halogens or {}, frozenset(), mol=mol)
     surrogate = Chem.RWMol(mol)
     atom = surrogate.GetAtomWithIdx(parent)
     atom.SetAtomicNum(6)
