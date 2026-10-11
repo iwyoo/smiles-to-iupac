@@ -890,6 +890,14 @@ def test_italic_locants_are_not_counted_in_alphanumerical_order(name, key):
 
 
 @pytest.mark.parametrize(
+    "smiles",
+    ["OC1CC([SiH](C)N)([SiH2]CN)CC1", "OC1CC([SiH2]CN)([SiH](C)N)CC1"],
+)
+def test_prefixes_with_identical_letters_are_ordered_by_their_marks(smiles):
+    assert smiles_to_iupac(smiles) == "3-[amino(methyl)silyl]-3-[(aminomethyl)silyl]cyclopentan-1-ol"
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         pytest.param(
