@@ -4229,14 +4229,18 @@ def _identical_group_units(mol, graph, group_atoms):
             if other in atoms or not atoms & group_atoms or not atoms - group_atoms:
                 continue
             canonical, _ = _unit_molecule(mol, atoms, root)
-            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical)))
-    for i, (bi, ai, si) in enumerate(sides):
-        for bj, aj, sj in sides[:i]:
+            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical), root))
+    plain = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=False)
+    chiral = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=True)
+    for i, (bi, ai, si, ri) in enumerate(sides):
+        for bj, aj, sj, rj in sides[:i]:
             if bi != bj and si == sj and not ai & aj:
                 if _unsymmetric_chalcogen_linker(mol, graph, ai, aj):
                     continue
+                if plain[ri] == plain[rj] and chiral[ri] != chiral[rj]:
+                    continue
                 # a multiplied parent must express every principal group (P-15.6.1.5)
-                units = ai | aj | set().union(*(ak for bk, ak, sk in sides if sk == si and not ak & (ai | aj)))
+                units = ai | aj | set().union(*(ak for bk, ak, sk, _ in sides if sk == si and not ak & (ai | aj)))
                 if group_atoms <= units:
                     return True
     return False
@@ -4427,15 +4431,14 @@ def _multiplicative_name(mol, stereo=None):
             continue
         if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] == "amine":
             continue
+        unit, attach = units[0]
+        try:
+            _, _, parts = _select(unit, attach)
+        except UnsupportedStructure:
+            continue
         stereo_text = ""
         if stereo:
             parts, stereo_text = _stereo_arms(mol, stereo, parts_atoms, units)
-        else:
-            unit, attach = units[0]
-            try:
-                _, _, parts = _select(unit, attach)
-            except UnsupportedStructure:
-                continue
         prefix, body, tail, locant = parts[:4]
         lead = ",".join(str(locant) + "'" * i for i in range(arms)) + "-" if locant is not None else ""
         text = prefix + body
@@ -4701,7 +4704,7 @@ def _unit_molecule(mol, atoms, attach, refill=False):
     root = editable.GetAtomWithIdx(attach)
     root.SetAtomMapNum(1)
     cut = sum(1 for n in root.GetNeighbors() if n.GetIdx() not in atoms)
-    if (root.GetIsAromatic() or refill) and cut:
+    if (root.GetIsAromatic() or root.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED or refill) and cut:
         root.SetNumExplicitHs(root.GetNumExplicitHs() + cut)
     for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
         editable.RemoveAtom(idx)

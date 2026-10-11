@@ -450,7 +450,7 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
         stem = alkane_name(length)[:-3]
         needs_a = (len(ene) >= 2) if ene else (len(yne) >= 2)
         name = f"{stem}{'a' if needs_a else ''}-{body}"
-    return Part(stereo_prefix + prefix + name, bool(prefix or stereo_prefix), True)
+    return Part(stereo_prefix + prefix + name, bool(prefix), True)
 
 
 def name_component(mol, kind, atoms, attachments, ctx, directed=None, first=None):
