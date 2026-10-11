@@ -7,6 +7,7 @@ from itertools import combinations
 
 from rdkit import Chem
 
+from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._diacyl_linker import acyl_part, diacyl_linker
 from ._hetero_prefixes import is_functional_carbon
@@ -791,6 +792,13 @@ def _chain_multiplicative_name(mol, stereo):
         if name is not None:
             return name
     found = _principal_atoms(mol)
+    heterone_oxygens = chalcogen_chain_oxygen_count(mol)
+    if heterone_oxygens:
+        # P-64.7.2: a heterone ranks with the ketones and the one holding more doubly bonded oxygen atoms is the parent
+        from ._polyfunctional import _SENIORITY
+
+        if found is None or _SENIORITY.index(found[0]) > _SENIORITY.index("ketone"):
+            return None
     if found is None:
         for arms in _rank_candidates(_amine_candidates(mol, graph), None):
             name = _attempt(mol, graph, stereo, arms, "amine")
@@ -837,6 +845,8 @@ def _chain_multiplicative_name(mol, stereo):
                 if h not in atoms:
                     target.setdefault(_key(mol, atoms, r), []).append((r, h, atoms))
     for arms in _rank_candidates(candidates, anchors, heads, mol):
+        if principal == "ketone" and heterone_oxygens > max(len(heads & atoms) for _, _, atoms in arms):
+            continue
         name = _attempt(mol, graph, stereo, arms)
         if name is not None:
             return name

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
+from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import UnsupportedStructure, specified_stereo_elements
 from ._diacyl_linker import acyl_part, diacyl_linker
 from ._formazan import FORMAZAN_SKELETON
@@ -197,6 +198,15 @@ def _class_gate(mol, groups, selected, systems, node_of):
     unit_atoms = set().union(*(u.atoms for u in selected))
     best_in = min((g.rank for g in groups if g.anchor in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
     best_out = min((g.rank for g in groups if g.anchor not in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
+    heterone_oxygens = chalcogen_chain_oxygen_count(mol)
+    if heterone_oxygens:
+        # P-64.7.2: a heterone ranks with the ketones and the one holding more doubly bonded oxygen atoms is the parent
+        if best_in is None or best_in > SUFFIX_RANKS["ketone"]:
+            return False
+        if best_in == SUFFIX_RANKS["ketone"] and heterone_oxygens > max(
+            sum(1 for g in groups if g.anchor in u.atoms and g.rank == best_in) for u in selected
+        ):
+            return False
     if best_in is not None:
         if best_out is None or best_out > best_in:
             return True

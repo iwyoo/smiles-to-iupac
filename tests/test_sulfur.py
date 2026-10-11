@@ -823,6 +823,42 @@ def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, exp
         pytest.param("CSS(C)(C)=S", "2,2,3-trimethyl-2λ6-trisulf-1-ene", id="chain_double_bond_locant_before_prefixes"),
         pytest.param("CS(=S)=S", "2-methyl-2λ6-trisulfa-1,2-diene", id="chain_cumulated_double_bonds"),
         pytest.param("CS(C)(=O)=S", "1,1-dimethyl-1λ6-disulfen-1-one", id="chain_double_bond_beside_heterone_oxygen"),
+        # P-64.7.2: the heterone is the parent when it holds more doubly bonded oxygen atoms than the ketone units
+        pytest.param(
+            "O=C1CCC(CC1)S(=O)(=O)S(=O)(=O)C1CCC(=O)CC1",
+            "1,2-bis(4-oxocyclohexyl)-1λ6,2λ6-disulfane-1,1,2,2-tetrone",
+            id="heterone_outranks_ring_ketone_units",
+        ),
+        pytest.param(
+            "C1CCCCC1S(=O)(=O)S(=O)(=O)C1CCCCC1",
+            "1,2-dicyclohexyl-1λ6,2λ6-disulfane-1,1,2,2-tetrone",
+            id="heterone_outranks_ring_units_without_a_group",
+        ),
+        pytest.param(
+            "OC1CCC(CC1)S(=O)(=O)S(=O)(=O)C1CCC(O)CC1",
+            "1,2-bis(4-hydroxycyclohexyl)-1λ6,2λ6-disulfane-1,1,2,2-tetrone",
+            id="heterone_outranks_hydroxy_units",
+        ),
+        pytest.param(
+            "O=C1CC(=O)CC(C1)S(=O)S(=O)C1CC(=O)CC(=O)C1",
+            "5,5'-(disulfinyl)di(cyclohexane-1,3-dione)",
+            id="equal_oxygen_count_leaves_the_ring_units_as_parent",
+        ),
+        pytest.param(
+            "CC(=O)CS(=O)(=O)S(=O)(=O)CC(C)=O",
+            "1,2-bis(2-oxopropyl)-1λ6,2λ6-disulfane-1,1,2,2-tetrone",
+            id="heterone_outranks_chain_ketone_arms",
+        ),
+        pytest.param(
+            "CCS(=O)(=O)S(=O)(=O)CC",
+            "1,2-diethyl-1λ6,2λ6-disulfane-1,1,2,2-tetrone",
+            id="heterone_outranks_chain_arms_without_a_group",
+        ),
+        pytest.param(
+            "OC(=O)CS(=O)(=O)S(=O)(=O)CC(O)=O",
+            "2,2'-(disulfonyl)diacetic acid",
+            id="carboxylic_acid_arms_outrank_the_heterone",
+        ),
     ],
 )
 def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
