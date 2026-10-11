@@ -208,6 +208,7 @@ from ._fullerene import (
     name_fullerene,
     require_defined_fullerene_numbering,
 )
+from ._fullerene_modified import name_modified_fullerene
 from ._fullerene_numbering import name_cage_parent
 from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
@@ -1347,6 +1348,9 @@ def _kekule_forms_without_fusion_name(mol):
 
 
 def _name_mol(mol) -> str:
+    modified_fullerene = name_modified_fullerene(mol)
+    if modified_fullerene is not None:
+        return modified_fullerene
     candidates = []
     token = PREFER_VON_BAEYER.set(True)
     try:
