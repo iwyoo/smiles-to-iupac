@@ -8,7 +8,7 @@ from itertools import product
 from ._free_valence import SUFFIX_OF_ORDER, valence_word
 from ._common import assembly_join, multiplied_word, ring_cycle, superscript_locant
 from ._multiplicative import _bare_key
-from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, monocycle_spec, numberings
+from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, numberings
 from ._multiplicative_text import CompositeLocant
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -73,7 +73,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free`
     = (root, coming_from) or a list of such pairs (within the atom set `within`); None when `mol` is not such
     an assembly."""
-    from ._polyfunctional import _require_mancude_system, _stereo_rank
+    from ._polyfunctional import _assembly_spec, _require_mancude_system, _stereo_rank
     from ._ring_diyl_numbering import SUFFIX_ATOMS, system_numberings
     from ._system_assembly import _fully_hydro, _hydro, _lit_hydrogens, _stem
 
@@ -89,7 +89,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         return None
     spec = None
     if not any(fused):
-        specs = [monocycle_spec(mol, r) for r in rings]
+        specs = [_assembly_spec(mol, graph, r) for r in rings]
         if any(s is None or s.kind == "pyrrole" for s in specs):
             return None
         if len({(s.kind, len(r)) for s, r in zip(specs, rings)}) != 1:
@@ -135,7 +135,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
                 finally:
                     SUFFIX_ATOMS.reset(token)
             if spec.hetero is not None:
-                return [(n, None) for n in numberings(monocycle_spec(mol, ring_atoms))]
+                return [(n, None) for n in numberings(_assembly_spec(mol, graph, ring_atoms))]
             cycle = ring_cycle(ring_graph, ring_atoms)
             found = []
             for start in attach:
@@ -253,15 +253,25 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
         return found[0] if found else None
     if len(rings) != 2:
         return None
-    from ._polyfunctional import _assembly_base, _assembly_numbering, _locant_order
+    from ._polyfunctional import (
+        _assembly_base,
+        _assembly_numbering,
+        _assembly_replacement,
+        _assembly_spec,
+        _locant_order,
+        _replacement_junction_ok,
+    )
 
-    specs = [monocycle_spec(mol, r) for r in rings]
+    specs = [_assembly_spec(mol, graph, r, True) for r in rings]
     if any(s is None or s.kind == "pyrrole" for s in specs) or specs[0].kind != specs[1].kind or len(rings[0]) != len(rings[1]):
         return None
-    if _bare_key(mol, set(rings[0])) != _bare_key(mol, set(rings[1])):
+    if specs[0].name or specs[1].name:
+        if specs[0].name != specs[1].name:
+            return None
+    elif not any(s.replaced for s in specs) and _bare_key(mol, set(rings[0])) != _bare_key(mol, set(rings[1])):
         return None
     joins = [(a, b) for a in rings[0] for b in rings[1] if mol.GetBondBetweenAtoms(a, b) is not None]
-    if len(joins) != 1 or mol.GetBondBetweenAtoms(*joins[0]).GetBondTypeAsDouble() != 1.0:
+    if len(joins) != 1 or mol.GetBondBetweenAtoms(*joins[0]).GetBondTypeAsDouble() != 1.0 or not _replacement_junction_ok(mol, specs, joins[0]):
         return None
     roots = [
         (r, n.GetIdx())
@@ -272,7 +282,8 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     marked = [f[0] for f in frees]
     cite_marked = sorted(marked, key=lambda a: orders[a]) if mixed else None
-    locants = _assembly_numbering(graph, rings, joins[0], marked, entries, specs, cite_marked)
+    locants = _assembly_numbering(graph, rings, joins[0], marked, entries, specs, cite_marked, mol)
+    replacement = _assembly_replacement(mol, specs, locants)
 
     def cite(locant):
         return f"{locant[1]}{chr(39) * locant[0]}"
@@ -292,8 +303,8 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
             group = [a for a in marked if orders[a] == order]
             spots = ",".join(cite(c) for c in sorted((locants[m] for m in group), key=_locant_order))
             pieces.append(f"{spots}-{valence_word(len(group), order)}")
-        core = f"[{base}]-" + "-".join(pieces)
+        core = f"{replacement}[{base}]-" + "-".join(pieces)
         return assembly_join(prefix, core)
     spots = ",".join(cite(c) for c in sorted((locants[m] for m in marked), key=_locant_order))
-    core = f"[{base}]-{spots}-{multiplied_word(len(frees), 'yl')}"
+    core = f"{replacement}[{base}]-{spots}-{multiplied_word(len(frees), 'yl')}"
     return assembly_join(prefix, core)
