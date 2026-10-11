@@ -217,6 +217,9 @@ def test_assembly_holding_the_principal_group_is_the_parent_beside_a_fused_ring_
         ("C1(SCCCCCCCCCCCC1)C1COCCCCCCCCCCC1", "3'-oxa-2-thia-1,1'-bi(cyclotetradecane)"),
         ("C1(SCCCCCCCCCC1)=C1SCCCCCCCCCC1", "2,2'-dithia-1,1'-bi(cyclododecylidene)"),
         ("O1C(C=CC1=O)=C1C(OC=C1)=O", "2'H,5H-[2,3'-bifuranylidene]-2',5-dione"),
+        # P-31.1.4.2.4, P-58.2: only the indicated hydrogens the mancude ring needs; the other saturated position is added hydrogen
+        ("O=C1C=CC(=C2CC=COC2=O)OC1", "2'H,4'H-[2,3'-bipyranylidene]-2',5(6H)-dione"),
+        ("O=C1CC=CC(=C2C(=O)C=COC2)O1", "2'H,4'H-[2,3'-bipyranylidene]-4',6(5H)-dione"),
     ],
 )
 def test_assembly_indicated_hydrogen_primes_after_the_number_and_replacement_prefixes(smiles, expected):

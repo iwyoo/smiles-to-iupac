@@ -1,6 +1,7 @@
 """Ring assemblies of two identical fused ring systems joined by one single bond (P-28.2.1, P-29.3.5):
 [1,1'-binaphthalene]-2,2'-diol, 2'H-1,2'-biindole-type names, [1,2'-binaphthalen]-4'-yl."""
 
+import itertools
 import re
 
 
@@ -116,6 +117,59 @@ def _lit(mol, numbering, positions, monocycles):
     return sorted(found)
 
 
+def _matching_size(nodes, edges):
+    if not nodes:
+        return 0
+    first = min(nodes)
+    best = _matching_size(nodes - {first}, edges)
+    for other in nodes:
+        if frozenset((first, other)) in edges:
+            best = max(best, 1 + _matching_size(nodes - {first, other}, edges))
+    return best
+
+
+def _ylidene_hydrogens(mol, numbering, junction, suffix_atoms):
+    """(indicated-hydrogen positions, {suffix position: added-hydrogen position}) of a monocycle joined by a double
+    bond, or None when the ring does not fit: only the hydrogens the mancude ring needs are indicated and the other
+    saturated position of a ring ketone is the added hydrogen of its suffix (P-31.1.4.2.4, P-58.2)."""
+    atom_of = {p: a for a, p in numbering.position_of.items()}
+    nodes = frozenset(
+        p for p, a in atom_of.items() if a != junction and mol.GetAtomWithIdx(a).GetAtomicNum() in (6, 7)
+    )
+    saturated = set()
+    for p in nodes:
+        atom = mol.GetAtomWithIdx(atom_of[p])
+        if atom.GetIsAromatic():
+            return None
+        if any(
+            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtomIdx(atom.GetIdx()) in numbering.position_of for b in atom.GetBonds()
+        ):
+            continue
+        if atom.GetTotalNumHs() == 0 and atom_of[p] not in suffix_atoms:
+            return None
+        saturated.add(p)
+    edges = {
+        frozenset((p, q))
+        for p in nodes
+        for q in nodes
+        if p < q and mol.GetBondBetweenAtoms(atom_of[p], atom_of[q]) is not None
+    }
+    needed = len(nodes) - 2 * _matching_size(nodes, edges)
+    best = None
+    for chosen in itertools.combinations(sorted(saturated), needed):
+        if 2 * _matching_size(nodes - set(chosen), edges) != len(nodes) - needed:
+            continue
+        rest = saturated - set(chosen)
+        oxo = [p for p in rest if atom_of[p] in suffix_atoms]
+        extra = [p for p in rest if p not in oxo]
+        if len(rest) > 2 or len(oxo) != len(extra):
+            continue
+        key = (chosen, tuple(extra))
+        if best is None or key < best[0]:
+            best = (key, list(chosen), dict(zip(oxo, extra)))
+    return None if best is None else best[1:]
+
+
 def _skeleton_key(mol, atoms):
     """Canonical SMILES of the ring system alone, every bond single and every atom saturated, so that the same parent
     hydride in different hydrogenation states compares equal."""
@@ -208,6 +262,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         and (r, n.GetIdx()) not in frees
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
+    suffix_atoms = {o[1] for o in occurrences}
     best = None
     for unprimed in (0, 1):
         for first in numbered[unprimed]:
@@ -226,11 +281,18 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
                 locants.update({a: (1, p) for a, p in second.position_of.items()})
                 if any(a not in locants for a in marked + [r for r, _, _ in entries] + list(join)):
                     continue
-                ih = sorted(
-                    [(0, p) for p in _lit(mol, first, added_first, monocycles)]
-                    + [(1, p) for p in _lit(mol, second, added_second, monocycles)],
-                    key=_order,
-                )
+                ih, added = [], {}
+                for n, numbering, extra in ((0, first, added_first), (1, second, added_second)):
+                    found = (
+                        _ylidene_hydrogens(mol, numbering, next(a for a in join if a in numbering.position_of), suffix_atoms)
+                        if monocycles and ylidene
+                        else None
+                    )
+                    if found is None:
+                        found = _lit(mol, numbering, extra, monocycles), {}
+                    ih += [(n, p) for p in found[0]]
+                    added.update({(n, p): (n, q) for p, q in found[1].items()})
+                ih.sort(key=_order)
                 members = (atoms_a, atoms_b)
                 junction = (locants[join[0 if join[0] in members[unprimed] else 1]][1], locants[join[1 if join[0] in members[unprimed] else 0]][1])
                 ih_key = tuple(_order(x) for x in ih)
@@ -240,15 +302,18 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
                     junction,
                     (marked_key, ih_key) if frees and free_ylidene else (ih_key, marked_key),
                     hydro_key,
+                    tuple(sorted((_order(loc), _order(extra)) for loc, extra in added.items())),
                     tuple(sorted(_order(locants[r]) for r, _, _ in entries)),
                     tuple(loc for loc, _ in sorted(((_order(locants[r]), name) for r, name, _ in entries), key=lambda e: (e[1], e[0]))),
                     _isotope_key({a: _order(loc) for a, loc in locants.items()}, locants),
                 )
                 if best is None or key < best[0]:
-                    best = (key, locants, stem_first, ih, unprimed, (hydro_first, hydro_second), _fully_hydro(first) and _fully_hydro(second))
+                    best = (
+                        key, locants, stem_first, ih, unprimed, (hydro_first, hydro_second), _fully_hydro(first) and _fully_hydro(second), added
+                    )
     if best is None:
         raise UnsupportedStructure("this ring assembly of fused systems needs hydro or added hydrogen, not supported yet")
-    _, locants, stem, ih, unprimed, hydro, fully_hydro = best
+    _, locants, stem, ih, unprimed, hydro, fully_hydro, added = best
     grouped = {}
     for r, name, compound in entries:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(_cite(locants[r]))
@@ -294,7 +359,10 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         from ._polyfunctional import _RING_SUFFIX
 
         word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
-        spots_text = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _order(locants[o[1]])))
+        spots_text = ",".join(
+            _cite(locants[o[1]]) + (f"({_primed(added[locants[o[1]]][1], added[locants[o[1]]][0])}H)" if locants[o[1]] in added else "")
+            for o in sorted(occurrences, key=lambda o: _order(locants[o[1]]))
+        )
         core = f"{ih_text}[{base(word[0] in 'aeiouy')}]-{spots_text}-{word}"
     name = assembly_join(prefix, core)
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core)))
