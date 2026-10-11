@@ -1088,6 +1088,13 @@ def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expe
         pytest.param("CC=NN(C)C(N)=N", "2-ethylidene-1-methylhydrazine-1-carboximidamide", id="aminoguanidine_hydrazone_with_a_substituent"),
         pytest.param("CNC(=N)NN", "N-methylhydrazinecarboximidamide", id="substituent_on_the_amidine_amino_nitrogen"),
         pytest.param("CN=C(N)NN", "N'-methylhydrazinecarboximidamide", id="substituent_on_the_amidine_imino_nitrogen"),
+        # P-66.4.1.4.1, P-66.4.1.4.2: several amidines on a hydrazine; N and N' carry the position of the group, geminal groups continue N'', N'''
+        pytest.param("NC(=N)NNC(=N)N", "hydrazine-1,2-dicarboximidamide", id="amidine_on_each_hydrazine_nitrogen"),
+        pytest.param("CCNC(=N)NN(C)C(N)=N", "N2-ethyl-1-methylhydrazine-1,2-dicarboximidamide", id="hydrazine_substituent_fixes_the_numbering"),
+        pytest.param("CN=C(N)NNC(N)=N", "N'1-methylhydrazine-1,2-dicarboximidamide", id="imino_nitrogen_of_a_group_by_position"),
+        pytest.param("CC=NN(C(N)=N)C(N)=N", "2-ethylidenehydrazine-1,1-dicarboximidamide", id="geminal_groups_with_a_hydrazone"),
+        pytest.param("CCN=C(N)N(N)C(=N)N(C)C", "N'''1-ethyl-N1,N1-dimethylhydrazine-1,1-dicarboximidamide", id="geminal_more_substituted_group_unprimed"),
+        pytest.param("CNC(=N)NN(C(N)=N)C(N)=N", "N2-methylhydrazine-1,1,2-tricarboximidamide", id="geminal_pair_and_a_single_group"),
     ],
 )
 def test_hydrazide_semicarbazone_and_guanidine_n_substituents(smiles, expected):
