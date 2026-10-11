@@ -11,6 +11,7 @@ from ._common import UnsupportedStructure
 from ._fullerene_bridged import Bridges
 from ._fullerene_fused import layout, ring_component, ring_key, ring_positions, ring_text, substituent_text
 from ._fullerene_modified import modified_candidate
+from ._pin import mark
 
 _MAX_ATOMS = 160
 _MAX_GROUP = 40
@@ -28,7 +29,10 @@ class Reading:
     bridged: object
 
     def text(self):
-        return self.found.text(self.render)
+        name = self.found.text(self.render)
+        if any(ring.derived for ring in self.rings):
+            return mark(name, "the Blue Book prints no prefix form for a bridged alicyclic ring system fused to a fullerene (P-27.6.1)")
+        return name
 
     def locants(self):
         """Every atom-to-locant map of the numberings that tie: cage atoms, homo atoms and the primed ring atoms."""

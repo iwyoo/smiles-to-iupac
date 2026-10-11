@@ -1280,12 +1280,26 @@ _CYCLOPROPANE, _OXIRENE, _DIOXOLE = "C1[Xe:1][Xe:2]1", "O1[Xe:1][Xe:2]1", "C1O[X
         pytest.param({"attached": [((1, 9), "C1(C)[Xe:1][Xe:2]1")]}, "3′-methyl-3′H-cyclopropa[1,9](C60-Ih)[5,6]fullerene", id="substituent_on_a_hydrocarbon_ring"),
         pytest.param({"attached": [((1, 9), "CC1(C)O[Xe:1][Xe:2]O1")]}, "2′,2′-dimethyl-2′H-[1,3]dioxolo[4′,5′:1,9](C60-Ih)[5,6]fullerene", id="two_substituents_on_one_position"),
         pytest.param({"attached": [((1, 9), "ClC1=CS[Xe:2][Xe:1]1")]}, "4′-chlorothieno[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="lowest_locant_among_the_numberings_of_the_ring"),
+        # P-27.6.1, P-25.3.1.3: an alicyclic bridged ring system stays saturated and is cited by its von Baeyer name ending in 'ano'
+        pytest.param({"attached": [((1, 9), "[Xe:1]1[Xe:2]C2CCC1C2")]}, "bicyclo[2.2.1]heptano[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="bridged_alicyclic_ring_system"),
+        pytest.param({"attached": [((1, 9), "[Xe:1]1[Xe:2]C2CCC1O2")]}, "7-oxabicyclo[2.2.1]heptano[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="bridged_ring_system_with_a_replacement_prefix"),
+        pytest.param({"attached": [((1, 9), "[Xe:1]1[Xe:2]C2C=CC1C2")]}, "bicyclo[2.2.1]hept-2-eno[5′,6′:1,9](C60-Ih)[5,6]fullerene", id="double_bond_numbered_before_the_fusion_locants"),
+        pytest.param(
+            {"attached": [((1, 9), "[Xe:1]1[Xe:2]C2CCC1O2"), ((2, 12), "[Xe:1]1[Xe:2]C2CCC1C2")]},
+            "bicyclo[2.2.1]heptano[2′,3′:1,9]-7-oxabicyclo[2.2.1]heptano[2″,3″:2,12](C60-Ih)[5,6]fullerene",
+            id="prefixes_in_alphanumerical_order_ignoring_locants",
+        ),
     ],
 )
 def test_fullerenes_with_fused_rings(operations, expected):
     operations = dict(operations)
     cage = _FULLERENE_C70_SMILES if operations.pop("cage", 60) == 70 else _FULLERENE_C60_SMILES
     assert smiles_to_iupac(_modified_fullerene(cage, **operations)) == expected
+
+
+def test_bridged_alicyclic_ring_on_a_fullerene_has_no_book_prefix_form():
+    with pytest.warns(NonPreferredNameWarning, match="P-27.6.1"):
+        smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, attached=[((1, 9), "[Xe:1]1[Xe:2]C2CCC1C2")]))
 
 
 _ETHANO, _ETHENO, _EPOXY = "[Xe:1]CC[Xe:2]", "[Xe:1]C=C[Xe:2]", "[Xe:1]O[Xe:2]"

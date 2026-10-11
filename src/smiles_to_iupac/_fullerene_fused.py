@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
-from ._fused_numbering import _locant_key
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, unsaturation_suffix
+from ._fused_numbering import HETERO_RANK, _locant_key
 from ._fusion_components import _RETAINED_PREFIX, identify, skeleton
 from ._fusion_name import fused_prefix_data
 from ._multiplicative_text import enclose
@@ -34,6 +34,7 @@ class Ring:
     compound: bool
     options: list
     branches: tuple = ()
+    derived: bool = False
 
 
 @dataclass
@@ -68,6 +69,7 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         components = identify(sub)
     except UnsupportedStructure:
         components = []
+    leading, texts = None, None
     if components:
         if len({c.bracketed_prefix() for c in components}) > 1:
             return None
@@ -83,7 +85,11 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         try:
             bracketed, numberings = fused_prefix_data(sub)
         except UnsupportedStructure:
-            return None
+            bridged = _bridged_alicyclic(mol, kekule, sub, members, index)
+            if bridged is None:
+                return None
+            numberings, leading, texts = bridged
+            bracketed = texts[0]
         prefix, cite, compound = re.sub(r"\[[^\]]*\]", "", bracketed), True, True
     carrying = {x for x, _, _ in branches}
     if any(mol.GetAtomWithIdx(x).GetSymbol() in _DONORS for x in carrying):
@@ -98,12 +104,13 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         )
 
     options = []
-    for numbering in numberings:
+    for number, numbering in enumerate(numberings):
         locant = {x: numbering[index[x]] for x in members}
-        positions = sorted((locant[x] for x in ring_atoms if saturated(x)), key=_locant_key)
+        positions = [] if texts else sorted((locant[x] for x in ring_atoms if saturated(x)), key=_locant_key)
         odd = len(positions) % 2
         indicated, hydro = tuple(positions[:odd]), tuple(positions[odd:])
         key = (
+            leading[number] if texts else (),
             tuple(sorted(_locant_key(locant[x]) for x in (a, b))),
             tuple(_locant_key(p) for p in indicated),
             tuple(_locant_key(p) for p in hydro),
@@ -112,6 +119,9 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         )
         options.append((key, (locant[a], locant[b], indicated, hydro, locant)))
     best = min(key for key, _ in options)
+    if texts:
+        bracketed = texts[next(number for number, (key, _) in enumerate(options) if key == best)]
+        prefix = re.sub(r"[^A-Za-z]", "", bracketed)
     return Ring(
         a=a,
         b=b,
@@ -122,7 +132,37 @@ def ring_component(mol, kekule, graph, a, b, atoms):
         compound=compound,
         options=[option for key, option in options if key == best],
         branches=tuple(branches),
+        derived=bool(texts),
     )
+
+
+def _bridged_alicyclic(mol, kekule, sub, members, index):
+    """(numberings, ranking keys, prefix texts) of a bridged alicyclic ring system: its von Baeyer name with 'ane' changed
+    to 'ano', heteroatoms as 'a' prefixes, in its own numbering with the heteroatoms lowest (P-27.6.1, P-23, P-25.3.1.3);
+    None when it has none."""
+    from ._spiro_union import _replacement_prefixes, _von_baeyer, _von_baeyer_ene
+
+    if sub.GetRingInfo().NumRings() < 2:
+        return None
+    try:
+        stem, numberings = _von_baeyer(sub)
+        hetero = [x for x in members if mol.GetAtomWithIdx(x).GetAtomicNum() != 6]
+        keys, texts = [], []
+        for numbering in numberings:
+            locant = {x: numbering[index[x]] for x in members}
+            ene = _von_baeyer_ene(kekule, sub, members, numbering)
+            if ene:
+                body, needs_a = unsaturation_suffix(ene, ())
+                name = f"{stem[:-3]}{'a' if needs_a else ''}-{body}"
+            else:
+                name = stem
+            replaced = _replacement_prefixes(mol, hetero, locant) if hetero else ""
+            ranked = sorted((HETERO_RANK[mol.GetAtomWithIdx(x).GetSymbol()], _locant_key(locant[x])) for x in hetero)
+            keys.append((tuple(sorted(k for _, k in ranked)), tuple(k for _, k in ranked), tuple(ene)))
+            texts.append(replaced + name[:-1] + "o")
+    except UnsupportedStructure:
+        return None
+    return numberings, keys, texts
 
 
 def _fused_ring_atoms(mol, atoms, a, b):
@@ -250,4 +290,4 @@ def ring_text(groups):
     if hydro:
         locants = [text for _, text in sorted(hydro)]
         hydro_text = ",".join(locants) + "-" + (multiplying_prefix(len(locants)) if len(locants) > 1 else "") + "hydro"
-    return hydro_text, indicated, "".join(texts)
+    return hydro_text, indicated, "".join(("-" if i and text[0].isdigit() else "") + text for i, text in enumerate(texts))
