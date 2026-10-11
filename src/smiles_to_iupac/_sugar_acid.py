@@ -435,7 +435,7 @@ def substituted_chain_name(mol, bridges=()):
             aldose = None
         if aldose is None or not aldose.endswith("ose"):
             continue
-        entries, esters, bridged = {}, {}, []
+        entries, esters, bridged, amino = {}, {}, [], []
         failed = False
         for position, index in enumerate(order, start=1):
             dkind, x, root = decorations[index]
@@ -460,6 +460,7 @@ def substituted_chain_name(mol, bridges=()):
                 name, compound = cited_group(mol, graph, x, chain[index])
                 entries.setdefault((name, name, "", compound), []).append(position)
                 entries.setdefault(("deoxy", "deoxy", "", False), []).append(position)
+                amino.append((position, name, compound, (mol, graph, x, chain[index])))
             elif dkind == "X":
                 text = _HALOGENS[mol.GetAtomWithIdx(x).GetAtomicNum()]
                 entries.setdefault((text, text, "", False), []).append(position)
@@ -480,22 +481,32 @@ def substituted_chain_name(mol, bridges=()):
             bridged.append(ends)
         if failed:
             continue
-        candidates.append((aldose, entries, esters, bridged))
+        candidates.append((aldose, entries, esters, bridged, amino))
     if not candidates:
         return None
     from ._common import alpha_sort_key
 
     def rank(item):
-        aldose, entries, esters, bridged = item
+        aldose, entries, esters, bridged, _ = item
         locants = sorted([p for ps in [*entries.values(), *esters.values()] for p in ps] + [p for ends in bridged for p in ends])
         first = min(entries, key=lambda key: alpha_sort_key(key[0])) if entries else None
         return (aldose[2:], aldose[0] != "D", -len(locants), locants, min(entries[first]) if first else 0)
 
     if kind == "alditol":
-        for aldose, entries, esters, bridged in candidates:
+        for aldose, entries, esters, bridged, amino in candidates:
+            if len(amino) == 1 and amino[0][0] == 2 and not esters and not bridged and aldose in _AMINO_ALDITOLS:
+                from ._sugar_substituted import glycosamine_name
+
+                deoxy = ("deoxy", "deoxy", "", False)
+                retained = glycosamine_name(aldose, entries.get(deoxy, []), amino[0][3])
+                if retained is not None and len(entries) == 2:
+                    prefix = "".join(text + "-" for _, text in sorted(retained[1], key=lambda item: (alpha_sort_key(item[0]), item[1])))
+                    return prefix + retained[0][: -len("e")] + "itol"
+    if kind == "alditol":
+        for aldose, entries, esters, bridged, _ in candidates:
             if not esters and not bridged and list(entries) == [("deoxy", "deoxy", "", False)] and entries[("deoxy", "deoxy", "", False)] == [len(chain)] and aldose in _RETAINED_ALDITOLS:
                 return _RETAINED_ALDITOLS[aldose]
-    aldose, entries, esters, bridged = min(candidates, key=rank)
+    aldose, entries, esters, bridged, _ = min(candidates, key=rank)
     ending = _suffixes(kind)
     stem = aldose[: -len("ose")]
     cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
@@ -511,6 +522,9 @@ def substituted_chain_name(mol, bridges=()):
             words = words.split("-", 1)[1]
         name = f"{name} {words}"
     return name
+
+
+_AMINO_ALDITOLS = {"D-glucose", "D-galactose"}
 
 
 def has_substituted_chain_shape(mol) -> bool:

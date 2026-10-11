@@ -24,6 +24,14 @@ _ELEMENTS = {6, 7, 8, 9, 15, 16, 17, 34, 35, 52, 53}
 _CHALCOGEN_WORDS = {16: "thio", 34: "seleno", 52: "telluro"}
 _PREFIX = {pattern: ("glycero" if stem == "glyceraldehyde" else stem[:-2]) for pattern, stem in _D_ALDOSE_PATTERNS.items()}
 _SIX_DEOXY = {("D", "glucose"): "quinovose", ("L", "galactose"): "fucose", ("L", "mannose"): "rhamnose"}
+# P-102.5.4.1.1: 2-amino-2-deoxy aldoses (and, for the amine of the alditol, P-102.5.6.5.4) keep the glycosamine names
+_GLYCOSAMINE = {
+    ("D-glucose", (2,)): "D-glucosamine",
+    ("D-galactose", (2,)): "D-galactosamine",
+    ("D-mannose", (2,)): "D-mannosamine",
+    ("D-galactose", (2, 6)): "D-fucosamine",
+    ("D-quinovose", (2,)): "D-quinovosamine",
+}
 
 
 class _Skeleton:
@@ -346,6 +354,25 @@ def _plain_group(mol, graph, root, origin):
     return True
 
 
+def glycosamine_name(core, deoxy_locants, amino):
+    """The retained glycosamine name for the aldose `core` with deoxy positions `deoxy_locants` and a 2-amino group, and
+    the N prefixes of that amino group (P-102.5.6.4): (name, [(alphabetical key, 'N-acetyl'), ...]) or None. `amino` =
+    (mol, graph, nitrogen, carbon)."""
+    from ._substituents import format_substituent_prefixes
+
+    name = _GLYCOSAMINE.get((core, tuple(sorted(deoxy_locants))))
+    if name is None:
+        return None
+    mol, graph, nitrogen, carbon = amino
+    grouped = {}
+    for root in graph[nitrogen]:
+        if root != carbon:
+            group, compound = cited_group(mol, graph, root, nitrogen)
+            grouped.setdefault(group, {"locants": [], "compound": compound})["locants"].append("N")
+    prefixes = [(group, format_substituent_prefixes({group: info})) for group, info in grouped.items()]
+    return name, prefixes
+
+
 def _enclose(name, compound):
     return f"({name})" if compound and not name.startswith("(") else name
 
@@ -417,7 +444,7 @@ def _substituted_sugar_name(mol, bridges=()):
         if found is None:
             return None
         core, dropped = found
-        entries, esters = {}, {}
+        entries, esters, amino = {}, {}, []
         aglycone = None
         for carbon, (kind, x, root) in decorations.items():
             position = skeleton.position(carbon)
@@ -438,6 +465,7 @@ def _substituted_sugar_name(mol, bridges=()):
                 name, compound = cited_group(mol, graph, x, carbon)
                 entries.setdefault((name, name, "", compound), []).append(position)
                 entries.setdefault(("deoxy", "deoxy", "", False), []).append(position)
+                amino.append((position, name, compound, (mol, graph, x, carbon)))
             elif kind == "X":
                 text = _HALOGENS[mol.GetAtomWithIdx(x).GetAtomicNum()]
                 entries.setdefault((text, text, "", False), []).append(position)
@@ -473,7 +501,14 @@ def _substituted_sugar_name(mol, bridges=()):
             entries.setdefault((ring_replacement, ring_replacement, "", False), []).append(skeleton.closing)
     except UnsupportedStructure:
         return None
-    cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
+    extra = []
+    if len(amino) == 1 and amino[0][0] == 2 and not skeleton.ring and not skeleton.ketose and not bridges and anomeric_kind == "OH":
+        retained = glycosamine_name(core, entries.get(("deoxy", "deoxy", "", False), []), amino[0][3])
+        if retained is not None:
+            core, extra = retained[0], retained[1]
+            del entries[(amino[0][1], amino[0][1], "", amino[0][2])]
+            del entries[("deoxy", "deoxy", "", False)]
+    cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()] + extra
     for first, second in bridges:
         if first not in skeleton.carbons or second not in skeleton.carbons:
             return None
