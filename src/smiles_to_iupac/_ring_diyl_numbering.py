@@ -787,7 +787,7 @@ def _vb_text(parent, ene_citations, hetero_prefix="", yne_citations=()):
         if ene_citations or yne_citations:
             body, needs_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
             stem = parent[:-3] + ("a" if needs_a else "") + "-" + body
-        return _tail(hetero_prefix + stem, locants, valence, suffix, omit_locant=False)
+        return _tail(hetero_prefix + stem, locants, valence, suffix)
 
     return text
 

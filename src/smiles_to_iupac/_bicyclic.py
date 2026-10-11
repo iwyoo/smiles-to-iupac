@@ -55,6 +55,7 @@ UnsupportedStructure.
 
 from itertools import permutations
 
+from ._locant_omission import omits_all_locants
 from ._common import (
     ENE_BOND_ORDER,
     YNE_BOND_ORDER,
@@ -176,7 +177,7 @@ def iter_bicyclic_numberings(core):
             yield [start] + main_ring_first + [other] + list(reversed(main_ring_second)) + main_bridge
 
 
-def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix=""):
+def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix="", omits=None):
     """`suffix_locant`: like `heteroatom_locant` (same tie-break rank,
     ahead of substituent locants) but for a characteristic-group suffix
     (e.g. a von Baeyer alcohol's -OH, `_alcohol.py`'s `_name_von_baeyer_
@@ -186,7 +187,7 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
     priority when both are given is left unresolved."""
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    prefix = format_substituent_prefixes(grouped, omit_all=bool(omits and omits(grouped))) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"
     name = prefix + nondetachable_prefix + parent
@@ -263,7 +264,7 @@ def name_bicycloalkane(mol, core) -> str:
     best_name = None
     for full_order in iter_bicyclic_numberings(core):
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
-        key = _candidate_key(parent, substituents)
+        key = _candidate_key(parent, substituents, omits=lambda grouped, order=full_order: omits_all_locants(mol, order, grouped))
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]
 

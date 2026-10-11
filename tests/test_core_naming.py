@@ -712,14 +712,29 @@ def test_mononuclear_and_single_site_parents_enclose_later_prefixes_and_drop_ste
     "smiles, expected",
     [
         ("C12C3C4C5C3C1C5C24", "cubane"),
-        ("OC(=O)C12C3C4C1C5C2C3C45", "cubane-1-carboxylic acid"),
-        ("CC12C3C4C1C5C2C3C45", "1-methylcubane"),
-        ("OC12C3C4C1C5C2C3C45", "cuban-1-ol"),
-        ("Cl[C]12C3C4C1C5C2C3C45", "1-chlorocubane"),
+        ("OC(=O)C12C3C4C1C5C2C3C45", "cubanecarboxylic acid"),
+        ("CC12C3C4C1C5C2C3C45", "methylcubane"),
+        ("OC12C3C4C1C5C2C3C45", "cubanol"),
+        ("Cl[C]12C3C4C1C5C2C3C45", "chlorocubane"),
         ("C12CC3CC(CC(C1)C3)C2", "adamantane"),
     ],
 )
 def test_retained_cage_names_cubane_and_adamantane(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("ClC1CC12CC2", "chlorospiro[2.2]pentane"),
+        ("OC1CC12CC2", "spiro[2.2]pentanol"),
+        ("ClC12C3(Cl)C4(Cl)C1(Cl)C5(Cl)C2(Cl)C3(Cl)C45Cl", "octachlorocubane"),
+        ("CC12C3C4C1C5C2C3C45C", "1,4-dimethylcubane"),
+        ("ClC1C2CC3CC1CC(C2)C3", "2-chloroadamantane"),
+        ("ClC1CC2CCC1C2", "2-chlorobicyclo[2.2.1]heptane"),
+    ],
+)
+def test_von_baeyer_and_spiro_parents_omit_locants_only_for_one_kind_of_hydrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

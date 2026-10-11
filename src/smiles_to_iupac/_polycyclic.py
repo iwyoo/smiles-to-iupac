@@ -86,6 +86,7 @@ Flagship validation cases:
 
 from itertools import combinations, permutations, product
 
+from ._locant_omission import omits_all_locants
 from ._common import (
     ENE_BOND_ORDER,
     YNE_BOND_ORDER,
@@ -436,7 +437,7 @@ def iter_polycyclic_candidates(core, ring_count):
 
 
 
-def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix=""):
+def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix="", omits=None):
     """`heteroatom_locant`/`nondetachable_prefix`: shared with
     `_von_baeyer_heteroatom.py`'s polycyclic (ring_count>=3) case, mirroring
     `_bicyclic._candidate_key`'s same parameters -- see that function's
@@ -450,7 +451,7 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
     never coexist here."""
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    prefix = format_substituent_prefixes(grouped, omit_all=bool(omits and omits(grouped))) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"
     name = prefix + nondetachable_prefix + parent
@@ -526,7 +527,9 @@ def name_polycycloalkane(mol, core, ring_count) -> str:
     best_name = None
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
-        key = outer_key + _candidate_key(parent, substituents)
+        key = outer_key + _candidate_key(
+            parent, substituents, omits=lambda grouped, order=full_order: omits_all_locants(mol, order, grouped)
+        )
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]
 
