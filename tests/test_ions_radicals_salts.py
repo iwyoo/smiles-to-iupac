@@ -1365,6 +1365,8 @@ def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
         pytest.param("[SiH2]C[SiH2]", "[(ylosilyl)methyl]silyl", id="centres_on_separate_parents"),
         pytest.param("[CH3][Al][O][Al][CH3]", "1,3-dimethyldialuminoxane-1,3-diyl", id="two_centres_on_an_alternating_chain"),
         pytest.param("C[Al](C)S[Al]C", "1,3,3-trimethyldialuminathianyl", id="one_centre_on_a_chain_bridged_by_sulfur"),
+        pytest.param("[CH3][Tl][CH3]", "dimethylthallanyl", id="thallium_with_two_bonds_has_a_radical_centre"),
+        pytest.param("Cl[Tl]", "chlorothallanylidene", id="thallium_with_one_bond_has_two_radical_centres"),
     ],
 )
 def test_radicals_on_heteroatom_parents(smiles, expected):

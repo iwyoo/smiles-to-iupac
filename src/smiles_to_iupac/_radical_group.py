@@ -203,6 +203,7 @@ def _name_multivalent_centre(mol, centre):
     target.SetNumExplicitHs(centre.GetTotalNumHs() + extra)
     monovalent = capped.GetMol()
     Chem.SanitizeMol(monovalent)
+    monovalent.GetAtomWithIdx(centre.GetIdx()).SetNumRadicalElectrons(1)
     name = _name_radical_group(monovalent)
     if not name.endswith("yl"):
         raise UnsupportedStructure("the monovalent radical name does not end in 'yl'")
