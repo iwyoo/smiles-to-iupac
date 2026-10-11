@@ -17,7 +17,7 @@ _MAX_VALENCE = {**{n: 3 for n in GROUP_13_STEMS}, **{n: 4 for n in GROUP_14_STEM
 
 
 def has_metal_pair_shape(mol) -> bool:
-    return sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() in _STEMS) >= 2
+    return sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() in _STEMS and not a.IsInRing()) >= 2
 
 
 def _group_stem(atomic_num: int) -> str:

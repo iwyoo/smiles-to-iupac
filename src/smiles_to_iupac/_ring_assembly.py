@@ -94,6 +94,8 @@ this module's own primed-locant one.
 from rdkit import Chem
 
 from ._common import (
+    UnsupportedStructure,
+    _STANDARD_BONDING,
     adjacency,
     group_substituents,
     halogen_substituents,
@@ -102,6 +104,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
+from ._ring_diyl_numbering import _hetero_monocycle
 from ._ring_assembly_chain import (
     _NON_NH_ROLE_SEQUENCES,
     _hetero_ring_alignments,
@@ -181,6 +184,42 @@ def _replacement_ring_kind(mol, ring, attach_atom):
     return "saturated", len(ring)
 
 
+_SATURATED_HETEROCYCLE = "saturated heterocycle"
+_HETEROCYCLE_MAXIMUM_SIZE = 10
+
+
+def _saturated_heteroring_kind(mol, graph, ring):
+    """(_SATURATED_HETEROCYCLE, parent hydride name) for a saturated monocycle of at most ten members with at least
+    one heteroatom of standard bonding number, named as in P-22.2.2 (P-28.4.1: assemblies of identical heterocycles
+    take the parent hydride names), else None."""
+    atoms = [mol.GetAtomWithIdx(i) for i in ring]
+    if len(ring) > _HETEROCYCLE_MAXIMUM_SIZE or all(a.GetAtomicNum() == 6 for a in atoms):
+        return None
+    ring_set = set(ring)
+    for atom in atoms:
+        if atom.GetIsAromatic() or atom.GetFormalCharge() or atom.GetIsotope():
+            return None
+        if atom.GetAtomicNum() != 6 and atom.GetTotalValence() != _STANDARD_BONDING.get(atom.GetSymbol()):
+            return None
+    if any(
+        b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds() if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
+    ):
+        return None
+    try:
+        _, numberings = _hetero_monocycle(mol, ring_cycle(graph, list(ring)), None)
+    except UnsupportedStructure:
+        return None
+    names = {numbering[1] for numbering in numberings}
+    return (_SATURATED_HETEROCYCLE, names.pop()) if len(names) == 1 else None
+
+
+def _saturated_heteroring_numberings(mol, graph, ring_atoms, prime):
+    suffix = "'" if prime else ""
+    _, numberings = _hetero_monocycle(mol, ring_cycle(graph, list(ring_atoms)), None)
+    for position_of, *_ in numberings:
+        yield {atom: f"{position}{suffix}" for atom, position in position_of.items()}
+
+
 def find_ring_assembly_core(mol):
     """Return (ring0_atoms, ring1_atoms, attach0, attach1, kind) if `mol` is
     exactly two disjoint identical-kind rings (`_ring_kind`'s own
@@ -229,6 +268,9 @@ def find_ring_assembly_core(mol):
         kind0, hydro_ring = saturated_counterpart_kind(mol, graph, atom_rings[0]), 0
     elif kind1 is None and kind0 is not None and kind0[0] in _NON_NH_ROLE_SEQUENCES:
         kind1, hydro_ring = saturated_counterpart_kind(mol, graph, atom_rings[1]), 1
+    if kind0 is None and kind1 is None:
+        kind0 = _saturated_heteroring_kind(mol, graph, atom_rings[0])
+        kind1 = _saturated_heteroring_kind(mol, graph, atom_rings[1])
     if kind0 is None or kind0 != kind1:
         return None
 
@@ -250,11 +292,12 @@ def _hetero_numberings_from_attachment(mol, graph, ring_atoms, parent_name, prim
         yield {atom: f"{position}{suffix}" for atom, position in alignment.items()}
 
 
-def _carbon_skeleton(mol):
-    """`mol` with every ring atom that a skeletal replacement prefix will name turned into carbon."""
+def _carbon_skeleton(mol, every_heteroatom=False):
+    """`mol` with every ring atom that a skeletal replacement prefix (or, with `every_heteroatom`, a ring parent name)
+    will name turned into carbon."""
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
-        if atom.GetAtomicNum() in _REPLACEMENT_ELEMENTS and atom.IsInRing():
+        if (every_heteroatom and atom.GetAtomicNum() != 6 or atom.GetAtomicNum() in _REPLACEMENT_ELEMENTS) and atom.IsInRing():
             atom.SetAtomicNum(6)
             atom.SetNoImplicit(False)
             atom.SetNumExplicitHs(0)
@@ -316,14 +359,14 @@ def _candidate_key(
     # own behavior; for a heteroaromatic parent whose numbering is fixed by
     # role sequence instead, it's the deciding factor (confirmed by
     # `2,2'-bipyridine`, not `6,2'-bipyridine` or `6,6'-bipyridine`).
-    attach_pair = tuple(sorted((locants[attach_a], locants[attach_b])))
+    attach_pair = tuple(sorted((locants[attach_a], locants[attach_b]), key=hydro_sort_key))
     replaced = _replacement_text(mol, locants) if ring_word.startswith("bi(cyclo") and len(ring_atoms) // 2 >= _REPLACEMENT_MINIMUM_SIZE else ((), "")
     # P-28.2.3: indicated hydrogen, if any, is "placed... at the front of
     # the name of the assembly" -- ahead of the substituent prefix too,
     # not folded next to the ring word the way a single ring's own "nH-"
     # sits (see module docstring).
     name = f"{indicated_hydrogen_prefix}{prefix}{replaced[1]}{hydro_prefix(hydro)}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
-    return attach_pair, replaced[0], tuple(hydro_sort_key(p) for p in hydro), locant_set, citation_locants, name
+    return tuple(hydro_sort_key(p) for p in attach_pair), replaced[0], tuple(hydro_sort_key(p) for p in hydro), locant_set, citation_locants, name
 
 
 def name_ring_assembly(mol, core) -> str:
@@ -338,6 +381,11 @@ def name_ring_assembly(mol, core) -> str:
         numberings = lambda graph, ring_atoms_i, attach_i, prime: _hetero_numberings_from_attachment(
             mol, graph, ring_atoms_i, parent_name, prime
         )
+    elif parent_name == _SATURATED_HETEROCYCLE:
+        validate_atoms_and_bonds(_carbon_skeleton(mol, every_heteroatom=True))
+        stem = ring_size
+        ring_word = f"bi({stem})" if stem[0].isdigit() else f"bi{stem}"
+        numberings = lambda graph, ring_atoms_i, attach_i, prime: _saturated_heteroring_numberings(mol, graph, ring_atoms_i, prime)
     else:
         validate_atoms_and_bonds(_carbon_skeleton(mol))
         if parent_name == "aromatic":

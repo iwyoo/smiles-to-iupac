@@ -323,3 +323,24 @@ def test_senior_ring_assembly_is_the_parent_beside_another_assembly(smiles, expe
 )
 def test_assembly_with_a_principal_group_keeps_other_rings_as_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[Sb]1(CCCCC1)[Sb]1CCCCC1", "1,1'-bistibinane", id="stibinane_joined_through_the_group_15_atoms"),
+        pytest.param("P1(CCCCC1)P1CCCCC1", "1,1'-biphosphinane", id="phosphinane_joined_through_the_ring_atoms"),
+        pytest.param("N1(CCCCC1)N1CCCCC1", "1,1'-bipiperidine", id="retained_ring_name_is_kept"),
+        pytest.param("[SiH]1(CCCC1)[SiH]1CCCC1", "1,1'-bisilolane", id="silicon_ring_assembly"),
+        pytest.param("C1COC(O1)C1OCCO1", "2,2'-bi(1,3-dioxolane)", id="ring_name_with_heteroatom_locants_is_enclosed"),
+        pytest.param("C1CCNCC1C1CCCCN1", "2,3'-bipiperidine", id="carbon_junction_with_lowest_locant_on_the_unprimed_ring"),
+        pytest.param(
+            "Cl[Sb]1CCCCC1[Sb]1CCCCC1C",
+            "1'-chloro-2-methyl-1,2'-bistibinane",
+            id="substituents_follow_the_junction_locants",
+        ),
+        pytest.param("[Sb]1(CCCCC1)[Sb]1CCCC1", "1-(stibolan-1-yl)stibinane", id="different_rings_are_not_an_assembly"),
+    ],
+)
+def test_assembly_of_saturated_heteromonocycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

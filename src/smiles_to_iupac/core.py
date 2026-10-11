@@ -1371,6 +1371,12 @@ def _name_mol(mol) -> str:
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
     # single-metal hydride dispatches below, which reject a second metal.
     if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol) and not has_radical_shape(mol):
+        # P-28.4.1: two identical rings joined by a bond are an assembly even when the joined atoms are Group 13-15.
+        if mol.GetRingInfo().NumRings() == 2 and (ring_assembly_core := find_ring_assembly_core(mol)) is not None:
+            try:
+                return name_ring_assembly(mol, ring_assembly_core)
+            except UnsupportedStructure:
+                pass
         return name_metal_pair(mol)
     if has_inorganic_acid_derivative_shape(mol):
         try:
