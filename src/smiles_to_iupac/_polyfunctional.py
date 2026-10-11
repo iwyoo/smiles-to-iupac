@@ -2179,36 +2179,48 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
     finally:
         IMINE_PARENT.reset(imine_token)
         IDE_EXTRA.reset(token)
-    if len(ide_extra) > 1 and not ring_groups:
-        anions = _carbanion_parent(mol, graph, halogens, aromatic_atoms, ide_extra, groups, attach, n_names, stereo)
-        if anions is not None and _prefer_anion_parent(best[1], anions[1]):
+    if ide_extra:
+        anions = _carbanion_parent(mol, graph, halogens, aromatic_atoms, ide_extra, attach, n_names, stereo)
+        if anions is not None and _prefer_anion_parent(mol, best, anions):
             return anions
     return best
 
 
-def _carbanion_parent(mol, graph, halogens, aromatic_atoms, centres, groups, attach, n_names, stereo):
-    """The parent chain named by its carbanide centres alone, the anionic acid groups being prefixes (P-72.7b)."""
-    ide_groups = {"ide": {idx: {idx} for idx in centres}}
+def _carbanion_parent(mol, graph, halogens, aromatic_atoms, centres, attach, n_names, stereo):
+    """The parent named by its carbanide centres alone, the anionic acid groups being prefixes (P-72.7b)."""
+    ide_groups = {"ide": {idx: {idx} for idx in centres if not mol.GetAtomWithIdx(idx).IsInRing()}}
+    ide_rings = [("ide", idx, {idx}) for idx, weight in centres.items() if mol.GetAtomWithIdx(idx).IsInRing() for _ in range(weight)]
     token = IDE_EXTRA.set({})
     try:
-        return _select_with_principal(mol, graph, halogens, aromatic_atoms, ide_groups, [], "ide", attach, n_names, stereo)
+        return _select_with_principal(
+            mol, graph, halogens, aromatic_atoms, {k: v for k, v in ide_groups.items() if v}, ide_rings, "ide", attach, n_names, stereo
+        )
     except UnsupportedStructure:
         return None
     finally:
         IDE_EXTRA.reset(token)
 
 
-_IDE_COUNT = re.compile(r"-(\d+(?:,\d+)*)-(?:di|tri|tetra)?ide$")
-_ID_COUNT = re.compile(r"-(\d+(?:,\d+)*)-(?:di|tri|tetra)?id-")
+def _anionic_centres(result):
+    return -result[0][0] if isinstance(result[0][0], int) else None
 
 
-def _prefer_anion_parent(acid_name, anion_name):
-    """P-72.7: with as many anionic centres in the parent, the parent with more 'ide' centres is senior."""
-    anion = _IDE_COUNT.search(anion_name)
-    centre = _ID_COUNT.search(acid_name)
-    if anion is None or centre is None:
+def _ide_centres_in_parent(mol, result):
+    placed = result[2][4] if isinstance(result[2], tuple) and len(result[2]) > 4 and isinstance(result[2][4], dict) else {}
+    return sum(
+        anion_weight(atom) for i in placed if (atom := mol.GetAtomWithIdx(i)).HasProp(ANION_PROP) and atom.GetAtomicNum() == 6
+    )
+
+
+def _prefer_anion_parent(mol, group_parent, ide_parent):
+    """P-72.7: the parent with more anionic centres, suffixes included, is senior (a); then the one with more 'ide'
+    centres (b)."""
+    group_total, ide_total = _anionic_centres(group_parent), _anionic_centres(ide_parent)
+    if group_total is None or ide_total is None:
         return False
-    return len(anion.group(1).split(",")) > len(centre.group(1).split(","))
+    if ide_total != group_total:
+        return ide_total > group_total
+    return _ide_centres_in_parent(mol, ide_parent) > _ide_centres_in_parent(mol, group_parent)
 
 
 def _diamidide_alternatives(mol, groups, ring_groups):

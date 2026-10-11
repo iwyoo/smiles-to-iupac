@@ -443,8 +443,9 @@ def _evaluate_skeleton(
                 tuple(sorted(position_of[a] for a, _ in key_centers if a in position_of)),
                 tuple(sorted(position_of[a] for a, word in key_centers if word == "uide" and a in position_of)),
             )
+        leading = (free, center_key) if centers and suffix in SUFFIX_OF_ORDER.values() else (center_key, free)
         key = (
-            numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, numbering.lam_key, acid_key,
+            numbering.pre_key, *leading, cite, numbering.unsat_key, locant_set, citation, numbering.lam_key, acid_key,
             stereo_key, _isotope_key(position_of, skeleton), _n_locant_key(n_names, position_of),
         )
         candidates.append((key, numbering, grouped, free, ring_stereo, side))
@@ -460,7 +461,11 @@ def _evaluate_skeleton(
         if parent is None:
             return None
     if centers:
-        parent = _with_anion_centers(parent, [(position_of[a], word) for a, word in centers])
+        if re.fullmatch(r"(?:\d+(?:,\d+)*-)?phenyl(?:ene)?", parent):
+            parent = f"benzene-{_locs(free)}-{_yl(valence)}"
+        elif re.fullmatch(r"cyclo[a-z]+yl", parent):
+            parent = f"{parent[:-2]}an-{free[0]}-yl"
+        parent = _with_anion_centers(parent, [(position_of[a], word) for a, word in centers], suffix)
     if n_names:
         from ._polyfunctional import _with_n_names
 
@@ -524,25 +529,30 @@ def _marked_centers(mol, atoms):
     return found
 
 
-def _with_anion_centers(parent, located):
-    """Cite 'ide'/'uide' centers (as 'id'/'uid') before the free-valence suffix (P-72.6.3)."""
+def _with_anion_centers(parent, located, suffix="yl"):
+    """Cite 'ide'/'uide' centers (as 'id'/'uid' before a vowel) before the free-valence suffix (P-72.6.3) or the
+    suffix of a characteristic group on the same parent hydride (P-72.5.3)."""
     words = {word for _, word in located}
     if len(words) != 1:
         raise UnsupportedStructure("ide and uide centers inside one substituent group are not supported yet")
     locants = sorted(loc for loc, _ in located)
     word = words.pop()
     count = len(locants)
-    text = f"{','.join(str(x) for x in locants)}-{_COUNT_PREFIX[count]}{word[:-1]}"
+    sites = ",".join(str(x) for x in locants)
     if parent.endswith("ium"):
-        return f"{parent}-{','.join(str(x) for x in locants)}-{_COUNT_PREFIX[count]}{word}"
-    match = re.search(r"(-\d+(?:,\d+)*-)?(?:di|tri)?(?:yl|ylidene|ylidyne)$", parent)
+        return f"{parent}-{sites}-{_COUNT_PREFIX[count]}{word}"
+    if suffix in SUFFIX_OF_ORDER.values():
+        match = re.search(r"(-\d+(?:,\d+)*-)?(?:di|tri)?(?:yl|ylidene|ylidyne)$", parent)
+        ending = word[:-1]
+    else:
+        match = re.search(rf"(-\d+(?:,\d+)*-)(?:di|tri|tetra|penta|hexa)?{re.escape(suffix)}$", parent)
+        ending = word[:-1] if suffix[0] in "aeiouy" else word
     if match is None:
         raise UnsupportedStructure("this substituent group cannot carry an anionic center yet")
-    start = match.start()
-    base = parent[:start]
+    base = parent[: match.start()]
     if base.endswith("e"):
         base = base[:-1]
-    return base + "-" + text + match.group(0)
+    return f"{base}-{sites}-{_COUNT_PREFIX[count]}{ending}{match.group(0)}"
 
 
 _COUNT_PREFIX = {1: "", 2: "di", 3: "tri"}

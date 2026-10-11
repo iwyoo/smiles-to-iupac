@@ -204,7 +204,7 @@ def _is_nitro_nitrogen(atom):
     return atom.GetAtomicNum() == 7 and any(n.GetFormalCharge() < 0 for n in atom.GetNeighbors())
 
 
-_CARBANIDE_PARENT = re.compile(r"-\d+(?:,\d+)*-(?:di|tri|tetra)?ide$")
+_CARBANIDE_PARENT = re.compile(r"(?:-\d+(?:,\d+)*-(?:di|tri|tetra)?|an(?:e(?:di|tri|tetra))?)ide$")
 _THIOIC_TAIL = re.compile(r"((?:di|tri|tetra)?(?:carbo)?)thioic acid$")
 _ANION_TOKEN = re.compile(r"(?:ide|ate|ite)(?![a-z])|ato|ido|idyl|uid-|id-|ide-")
 _MULTIPLE_ANION = re.compile(r"(?:di|tri|tetra|bis|tris|tetrakis)\(?[A-Za-z-]*(?:ide|uide|ate|ite)")

@@ -334,6 +334,8 @@ def _name_polyradical(mol):
     name = name_anion(anionic)
     for ending in ("diide", "triide", "tetraide"):
         if name.endswith(ending) and "-" in name[: -len(ending)]:
+            if re.search(r"-u?ide?-", name[: -len(ending)]):
+                break
             return name[: -len("ide")] + "yl"
     raise UnsupportedStructure("the polyradical is not named as a polyanion parent")
 
