@@ -214,13 +214,29 @@ def name_fullerene(mol) -> str:
     return match_c84_isomer(mol)
 
 
-def is_fullerene_cage(mol, atoms) -> bool:
-    """`atoms` form a closed carbon cage of twelve five-membered rings and only five- or six-membered rings."""
+def is_fullerene_cage(mol, atoms, ring_sizes=(5, 6)) -> bool:
+    """`atoms` form a closed carbon cage of twelve five-membered rings and otherwise only rings of `ring_sizes`."""
     atoms = set(atoms)
     if len(atoms) < 20 or any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in atoms):
         return False
     rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= atoms]
-    return sum(len(r) == 5 for r in rings) == 12 and all(len(r) in (5, 6) for r in rings)
+    return sum(len(r) == 5 for r in rings) == 12 and all(len(r) in ring_sizes for r in rings)
+
+
+def has_unnamed_fullerene_like_cage(mol) -> bool:
+    """A cage of twelve pentagons and otherwise hexagons or heptagons (a fullerene or a homofullerene) that no fullerene
+    name covers, which no ring system name can describe either (Fu-3.1)."""
+    rings = mol.GetRingInfo().AtomRings()
+    if sum(len(r) == 5 for r in rings) < 12:
+        return False
+    systems = []
+    for ring in rings:
+        joined = [s for s in systems if s & set(ring)]
+        systems = [s for s in systems if s not in joined] + [set(ring).union(*joined)]
+    for cage in systems:
+        if is_fullerene_cage(mol, cage, (5, 6, 7)):
+            return not has_fullerene_name(mol) and numbered_cage_stem(mol, cage) is None
+    return False
 
 
 def has_substituted_fullerene_cage(mol) -> bool:

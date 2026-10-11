@@ -205,6 +205,7 @@ from ._hetero_prefixes import _has_senior_principal_group
 from ._fullerene import (
     has_fullerene_name,
     has_substituted_fullerene_cage,
+    has_unnamed_fullerene_like_cage,
     name_fullerene,
     require_defined_fullerene_numbering,
 )
@@ -1226,7 +1227,7 @@ def _name_hydride_onium(mol):
 def _run_fallbacks(smiles, original):
     mol = _parse_smiles(smiles)
     key = Chem.MolToSmiles(mol)
-    if key in _FALLBACKS_RUNNING:
+    if key in _FALLBACKS_RUNNING or has_unnamed_fullerene_like_cage(mol):
         raise original
     _FALLBACKS_RUNNING.add(key)
     try:
@@ -1351,6 +1352,8 @@ def _name_mol(mol) -> str:
     modified_fullerene = name_modified_fullerene(mol)
     if modified_fullerene is not None:
         return modified_fullerene
+    if has_unnamed_fullerene_like_cage(mol):
+        raise UnsupportedStructure("this fullerene-like cage has no fullerene name (Fu-3.1)")
     candidates = []
     token = PREFER_VON_BAEYER.set(True)
     try:

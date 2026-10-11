@@ -107,6 +107,9 @@ from ._substituents import format_substituent_prefixes, substituents_for_ring
 from ._unsaturated import _unsaturation_suffix_from_citations
 
 
+_MAX_BRANCH_ATOMS = 12  # the bridge enumeration is exponential: about 3 s at 12 branch atoms, 26 s at 14
+
+
 def _strip_leaves(graph):
     """Repeatedly remove degree-<=1 atoms; what remains is the 2-connected
     ring-system core (see `_bicyclic.py`'s identical helper)."""
@@ -187,7 +190,7 @@ def find_polycyclic_core(mol, ring_count):
     if edge_count - vertices + 1 != ring_count:
         return None
     branch_atoms = {atom for atom, neighbors in core.items() if len(neighbors) >= 3}
-    if not branch_atoms or _has_cut_atom(core):
+    if not branch_atoms or len(branch_atoms) > _MAX_BRANCH_ATOMS or _has_cut_atom(core):
         return None
 
     half_walks = []
