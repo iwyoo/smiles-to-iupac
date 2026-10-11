@@ -1173,6 +1173,7 @@ def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted
         pytest.param({"cleaved": ((1, 9),)}, "1,9-seco(C60-Ih)[5,6]fullerene", id="seco"),
         pytest.param({"cleaved": ((1, 9), (2, 3), (10, 11))}, "1,9:2,3:10,11-triseco(C60-Ih)[5,6]fullerene", id="several_seco_pairs"),
         pytest.param({"inserted": ((1, 9),)}, "1(9)aH-1(9)a-homo(C60-Ih)[5,6]fullerene", id="homo"),
+        pytest.param({"inserted": ((1, 9), (2, 3))}, "1(2)aH,3(15)aH-1(2)a,3(15)a-dihomo(C60-Ih)[5,6]fullerene", id="two_homo_atoms_each_with_indicated_hydrogen"),
         pytest.param({"deleted": (1,), "formed": ((2, 9),), "saturated": (2,)}, "2H-2,9-cyclo-1-nor(C60-Ih)[5,6]fullerene", id="cyclo_with_nor"),
         pytest.param({"replaced": {1: 7}, "saturated": (2,)}, "2H-1-aza(C60-Ih)[5,6]fullerene", id="trivalent_heteroatom_gives_indicated_hydrogen"),
         pytest.param({"replaced": {1: 7, 2: 7}}, "1,2-diaza(C60-Ih)[5,6]fullerene", id="two_replacements"),

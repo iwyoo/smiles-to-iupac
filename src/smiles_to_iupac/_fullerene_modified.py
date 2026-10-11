@@ -26,6 +26,7 @@ _REPLACEMENT_PREFIXES = {
     14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "aluma", 31: "galla", 49: "indiga", 81: "thalla",
 }
 _SENIORITY = {z: rank for rank, z in enumerate(_REPLACEMENT_PREFIXES)}
+UNMODIFIED = object()
 
 
 class _Reference:
@@ -37,6 +38,9 @@ class _Reference:
         self.graph = _cage_graph(mol, range(mol.GetNumAtoms()))
         self.adjacent = {a: frozenset(self.graph[a]) for a in self.graph}
         self.faces = [tuple(face) for face in _Cage(self.graph).faces]
+        self.signatures = {
+            (sum(len(f) == 5 for f in self.faces if a in f), sum(len(f) == 6 for f in self.faces if a in f)) for a in self.graph
+        }
         self.numberings = fullerene_numberings(self.graph)
         base = self.numberings[0]
         inverse = [{locant: atom for atom, locant in numbering.items()} for numbering in self.numberings]
@@ -87,8 +91,8 @@ def _skeleton(mol):
     return graph, {a.GetIdx(): a.GetTotalNumHs() for a in mol.GetAtoms()}
 
 
-def _embeddings(graph, reference):
-    """Injective maps of `graph` into the cage in which every bond of `graph` is a cage bond."""
+def _embeddings(graph, reference, limit=_MAX_SOLUTIONS):
+    """Up to `limit` injective maps of `graph` into the cage in which every bond of `graph` is a cage bond."""
     if graph.number_of_nodes() > reference.graph.number_of_nodes() or not nx.is_connected(graph):
         return []
     seed = max(graph, key=lambda a: (graph.degree(a), -a))
@@ -101,7 +105,7 @@ def _embeddings(graph, reference):
     found, placed, taken = [], {}, set()
 
     def extend(i):
-        if len(found) >= _MAX_SOLUTIONS:
+        if len(found) >= limit:
             return
         if i == len(order):
             found.append(dict(placed))
@@ -124,11 +128,32 @@ def _embeddings(graph, reference):
     return found
 
 
-def _cyclo_choices(graph, forced, count):
-    """The connected graphs left when `count` bonds that are not `forced` are taken out of `graph`."""
-    for removed in combinations([e for e in graph.edges if frozenset(e) not in forced], count):
+def _unembeddable_regions(graph, reference):
+    """The bond sets around an atom whose small rings no atom of the cage has (a ring of three or four atoms, two
+    five-membered rings or three six-membered rings at an atom of C60). A bond formed by 'cyclo' lies in each of them."""
+    faces = [cycle for cycle in nx.minimum_cycle_basis(graph) if len(cycle) <= 6]
+    regions = [_ring_bonds(cycle) for cycle in faces if len(cycle) < 5]
+    for atom in graph:
+        at = [cycle for cycle in faces if atom in cycle and len(cycle) >= 5]
+        counts = (sum(len(c) == 5 for c in at), sum(len(c) == 6 for c in at))
+        if not any(counts[0] <= pentagons and counts[1] <= hexagons for pentagons, hexagons in reference.signatures):
+            regions.append(frozenset().union(*(_ring_bonds(cycle) for cycle in at)))
+    return regions
+
+
+def _ring_bonds(cycle):
+    return frozenset(frozenset(pair) for pair in zip(cycle, cycle[1:] + cycle[:1]))
+
+
+def _cyclo_choices(graph, forced, count, regions):
+    """The connected graphs left when `count` bonds that are not `forced` and lie in every unembeddable region are taken
+    out of `graph`."""
+    bonds = [frozenset(bond) for bond in graph.edges if frozenset(bond) not in forced]
+    for removed in combinations(bonds, count):
+        if any(region.isdisjoint(removed) for region in regions):
+            continue
         rest = graph.copy()
-        rest.remove_edges_from(removed)
+        rest.remove_edges_from(tuple(bond) for bond in removed)
         if nx.is_connected(rest):
             yield rest
 
@@ -144,8 +169,6 @@ def name_modified_fullerene(mol):
     element = {a: mol.GetAtomWithIdx(a).GetAtomicNum() for a in graph}
     if any(element[a] == 6 and graph.degree(a) + hydrogens[a] not in (3, 4) for a in graph):
         return None
-    if sum(1 for a in graph if hydrogens[a] and (graph.degree(a) + hydrogens[a] == 4 or element[a] != 6)) > 1:
-        return None
     homo_candidates = [
         x for x in graph
         if graph.degree(x) == 2
@@ -153,6 +176,9 @@ def name_modified_fullerene(mol):
         and all(graph.degree(n) == 3 for n in graph[x])
         and (hydrogens[x] == 2 or element[x] != 6)
     ]
+    saturated = [a for a in graph if hydrogens[a] and (graph.degree(a) + hydrogens[a] == 4 or element[a] != 6)]
+    if len(saturated) > 1 + len(set(saturated) & set(homo_candidates)):
+        return None
     attempts = []
     for homo_count in range(min(_MAX_HOMO, len(homo_candidates)) + 1):
         for homo in combinations(homo_candidates, homo_count):
@@ -172,13 +198,20 @@ def name_modified_fullerene(mol):
             break
         deficiency = sum(3 - d for _, d in reduced.degree)
         deleted = reference.graph.number_of_nodes() - reduced.number_of_nodes()
+        regions = None
         for cyclo_count in range(_MAX_CYCLO + 1):
             cleaved = max(0, -(-(deficiency + 2 * cyclo_count - 3 * deleted) // 2))
             if best is not None and lower + cyclo_count + cleaved > best[0]:
                 continue
-            for rest in _cyclo_choices(reduced, forced, cyclo_count):
+            if cyclo_count and regions is None:
+                regions = _unembeddable_regions(reduced, reference)
+            if cyclo_count > 1 and not regions:
+                continue
+            for rest in _cyclo_choices(reduced, forced, cyclo_count, regions or []):
                 for mapping in _embeddings(rest, reference):
                     found = _edit(graph, hydrogens, element, reference, mapping, homo)
+                    if found is UNMODIFIED:
+                        return None
                     if found is None:
                         continue
                     candidate = _name(reference, *found)
@@ -210,7 +243,9 @@ def _edit(graph, hydrogens, element, reference, mapping, homo):
         edit.homo.append((bond, element[x]))
         if hydrogens[x]:
             edit.saturated.append(bond)
-    if len(edit.saturated) > 1 or not (edit.deleted or edit.seco or edit.cyclo or edit.homo or edit.replaced):
+    if not (edit.deleted or edit.seco or edit.cyclo or edit.homo or edit.replaced):
+        return UNMODIFIED
+    if sum(1 for s in edit.saturated if not isinstance(s, tuple)) > 1:
         return None
     cut = {frozenset(bond) for bond in edit.seco} | bridged
     rings = sum(
@@ -270,7 +305,7 @@ def _text(reference, edit, numbering):
     parts = []
     if edit.saturated:
         texts = []
-        for s in edit.saturated:
+        for s in sorted(edit.saturated, key=lambda s: pair(s) + (1,) if isinstance(s, tuple) else (numbering[s], 0, 0)):
             if isinstance(s, tuple):
                 low, high = pair(s)
                 texts.append(f"{low}aH" if low in replaced_homo else f"{low}({high})aH")
