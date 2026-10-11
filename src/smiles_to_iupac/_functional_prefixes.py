@@ -122,10 +122,14 @@ def _acyl_prefix(mol, subtree, root, parent):
         raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
+    from ._substituents import ISOTOPE_LABELS
+
     token = SYSTEMATIC_ACID_PROBE.set(True)
+    labels_token = ISOTOPE_LABELS.set(None)
     try:
         probe = smiles_to_iupac(Chem.MolToSmiles(sub))
     finally:
+        ISOTOPE_LABELS.reset(labels_token)
         SYSTEMATIC_ACID_PROBE.reset(token)
     name = acyl_name(probe)
     _cite_stereo_of_acyl(mol, sub, sorted(subtree))
