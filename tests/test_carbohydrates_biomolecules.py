@@ -390,6 +390,9 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
         pytest.param("C([C@H]([C@H](CC=O)O)O)O", "2-deoxy-D-erythro-pentose", id="deoxy_removes_a_centre_systematic_prefix"),
         pytest.param("C([C@H]([C@H]([C@@H](CC=O)O)O)O)O", "2-deoxy-D-arabino-hexose", id="deoxy_open_chain_hexose"),
         pytest.param("C([C@@H]1[C@H](CC(O1)O)O)O", "2-deoxy-D-erythro-pentofuranose", id="furanose_with_unspecified_anomeric_carbon"),
+        pytest.param(
+            "O=C1C[C@@H](O)[C@@H](CO)O1", "(4R,5R)-4-hydroxy-5-(hydroxymethyl)oxolan-2-one", id="carbonyl_on_the_anomeric_carbon_is_a_lactone"
+        ),
         pytest.param("C[C@H]1[C@@H]([C@H]([C@H]([C@@H](O1)O)O)O)O", "α-L-rhamnopyranose", id="six_deoxy_retained_names"),
         pytest.param("C([C@@H]1[C@H]([C@@H]([C@H]([C@@H](O1)O)N)O)O)O", "2-amino-2-deoxy-β-D-glucopyranose", id="amino_deoxy_pair"),
         pytest.param("CC(=O)N[C@@H]1[C@H]([C@@H]([C@H](O[C@H]1O)CO)O)O", "2-acetamido-2-deoxy-β-D-glucopyranose", id="substituted_amino_group"),
