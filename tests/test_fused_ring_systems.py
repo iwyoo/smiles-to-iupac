@@ -70,6 +70,7 @@ def test_multiparent_name_beats_retained_benzoazole_fusion_name(smiles, expected
         ("O=C1NC(=O)C2CCCCC12", "hexahydro-1H-isoindole-1,3(2H)-dione"),
         ("O=C1C(=O)Cc2c1c1ccccc1cc2", "1H-cyclopenta[a]naphthalene-1,2(3H)-dione"),
         ("O=C1C(=O)Cc2c1ccc1ccccc21", "1H-cyclopenta[a]naphthalene-2,3-dione"),
+        ("O=C1SC(=S)c2ccccc12", "3-sulfanylidene-2-benzothiophen-1-one"),
     ],
 )
 def test_indicated_hydrogen_at_lowest_position_before_added_hydrogen(smiles, expected):
