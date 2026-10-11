@@ -81,6 +81,14 @@ def _nitrile_carbons(mol, order):
     return found
 
 
+def chalcogen_chain_oxygen_count(mol) -> int:
+    """The doubly bonded oxygen atoms on an acyclic chalcogen chain of the molecule, 0 when there is no such chain."""
+    order = _chain(mol)
+    if order is None or any(mol.GetAtomWithIdx(i).IsInRing() for i in order):
+        return 0
+    return sum(len(_terminal_oxygens(mol.GetAtomWithIdx(i))) for i in order)
+
+
 def has_chalcogen_chain_heterone_shape(mol) -> bool:
     order = _chain(mol)
     if order is None:
