@@ -1061,6 +1061,8 @@ def test_ring__thiol_and_related(smiles, expected):
         ("OC(=S)c1ccccc1", "benzenecarbothioic O-acid"),
         ("CS(=O)(=O)OO", "methanesulfonoperoxoic acid"),
         ("CS(=NO)(=O)O", "N-hydroxymethanesulfonimidic acid"),
+        ("ON=C(O)CCC(O)=NO", "N1,N4-dihydroxybutanediimidic acid"),
+        ("CN=C(O)c1ccc(cc1)C(O)=NC", "N1,N4-dimethylbenzene-1,4-dicarboximidic acid"),
         ("OC(=O)c1ccccc1S(=O)(=O)OC", "2-(methoxysulfonyl)benzoic acid"),
         ("CCCS(=O)(=O)c1ccccc1", "(propane-1-sulfonyl)benzene"),
     ],

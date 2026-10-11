@@ -5316,29 +5316,27 @@ def _ring_prefix_text(entries, locants, n_names, group_count=2):
 
 
 def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
-    """N-prefix names when the single imidic or hydrazonic acid group carries substituents on its =N atom."""
+    """N-prefix names of the imidic or hydrazonic acid groups that carry substituents on their =N atom; with several
+    groups each is located by the position of its attachment (P-16.9.2: 'N1,N4-dihydroxybutanediimidic acid')."""
     carbon_centre = spec_from_key(cls).center == "C"
-    centers = [
-        carbon if carbon_centre else next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
-        for carbon, owned in groups.get(cls, {}).items()
-    ]
+    members = {}
+    for carbon, owned in groups.get(cls, {}).items():
+        centre = carbon if carbon_centre else next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
+        members[centre] = (carbon, owned)
     for group_cls, ring_atom, owned in ring_groups:
         if group_cls == cls:
-            centers.append(
-                next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in ((6,) if carbon_centre else (6, 16, 34, 52)))
-            )
-    found = [acid_group_at(mol, c) for c in dict.fromkeys(centers)]
-    centers = list(dict.fromkeys(centers))
-    substituted = [g for g in found if g is not None and g.n_substituents]
-    if not substituted:
-        return []
-    if len(centers) != 1:
-        raise UnsupportedStructure("several imidic acid groups with N-substitution are not handled by the chain engine")
-    group = substituted[0]
-    return [
-        name_branch(graph, n, group.n_atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-        for n in group.n_substituents
-    ]
+            centre = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in ((6,) if carbon_centre else (6, 16, 34, 52)))
+            members[centre] = (ring_atom, owned)
+    entries = []
+    for centre, (anchor, owned) in members.items():
+        group = acid_group_at(mol, centre)
+        if group is None or not group.n_substituents:
+            continue
+        located = ("N", anchor, centre, tuple(a for a in graph[centre] if a not in owned)) if len(members) > 1 else "N"
+        for n in group.n_substituents:
+            name, compound = name_branch(graph, n, group.n_atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            entries.append((name, compound, located))
+    return entries
 
 
 def _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
