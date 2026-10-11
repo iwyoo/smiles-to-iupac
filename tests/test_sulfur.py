@@ -1137,6 +1137,7 @@ def test_amino_prefix_with_a_sulfonyl_group_on_the_nitrogen(smiles, expected):
         pytest.param("N=S(=N)(c1ccccc1)c1ccccc1", "diphenyl-\u03bb6-sulfanediimine", id="sulfonediimine_with_sulfur_groups_only"),
         pytest.param("CN=S=NCC", "ethyl(methyl)-\u03bb4-sulfanediimine", id="sulfur_diimide_without_locants"),
         pytest.param("N=S(=N)=N", "\u03bb6-sulfanetriimine", id="sulfur_triimide"),
+        pytest.param("C[S@](=O)(=N)c1ccccc1", "(R)-imino(methyl)(phenyl)-\u03bb6-sulfanone", id="stereogenic_sulfur_of_a_sulfoximide"),
     ],
 )
 def test_sulfimides_sulfoximides_and_sulfur_imides_on_the_lambda_sulfane_parent(smiles, expected):
