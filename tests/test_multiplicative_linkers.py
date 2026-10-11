@@ -270,6 +270,22 @@ def test_functionalized_units(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("O=C1CCCN1CN1CCCC1=O", "1,1'-methylenedi(pyrrolidin-2-one)", id="saturated_lactam_units"),
+        pytest.param("O=C(N1C=CC=CC1=O)N1C=CC=CC1=O", "1,1'-carbonyldi(pyridin-2(1H)-one)", id="mancude_lactam_units_with_added_hydrogen"),
+        pytest.param("S=C(N1C=CC=CC1=O)N1C=CC=CC1=O", "1,1'-carbonothioyldi(pyridin-2(1H)-one)", id="thione_linker_between_ring_ketones_is_carbonothioyl"),
+        pytest.param("O=c1ccc2ccccc2n1Cn1c(=O)ccc2ccccc21", "1,1'-methylenedi(quinolin-2(1H)-one)", id="fused_lactam_units"),
+        pytest.param("O=C1CCN(C(=O)N2CCC(=O)C2)C1", "1,1'-carbonyldi(pyrrolidin-3-one)", id="saturated_heterocycle_unit_without_a_monocycle_spec"),
+        pytest.param("OC(=O)C1CCCN1C(=O)N1CCCC1C(=O)O", "1,1'-carbonyldi(pyrrolidine-2-carboxylic acid)", id="acid_suffix_outranks_the_hidden_amide_linker"),
+        pytest.param("S=C(c1ccc(C(=O)O)cc1)c1ccc(C(=O)O)cc1", "4,4'-carbonothioyldibenzoic acid", id="thione_linker_between_acid_units"),
+    ],
+)
+def test_units_that_are_ring_pseudoketones_and_chalcogen_carbonyl_linkers(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("OC(=O)c1ccc(N(c2ccc(C(=O)O)cc2)c2ccc(C(=O)O)cc2)cc1", "4,4',4''-nitrilotribenzoic acid"),
     ],
 )

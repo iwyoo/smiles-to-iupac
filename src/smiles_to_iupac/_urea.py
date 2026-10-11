@@ -75,6 +75,8 @@ def _urea_core(mol, atomic_num=8):
             continue
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
             continue
+        if all(n.IsInRing() for n in nitrogens):
+            continue
         if any(
             b.GetBondTypeAsDouble() != 1.0 and not (b.GetBeginAtomIdx() == atom.GetIdx() or b.GetEndAtomIdx() == atom.GetIdx())
             for n in nitrogens

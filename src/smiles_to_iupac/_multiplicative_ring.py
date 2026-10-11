@@ -425,7 +425,25 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
     return name, substituted
 
 
-def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=None):
+def ring_pseudoketone_oxygens(mol, ring_atoms):
+    """The oxygens of ring carbonyls bonded to a skeletal heteroatom (lactams, lactones: pseudoketones, P-64.1.2.1(a)),
+    whose names carry added hydrogen that the monocycle namer does not cite."""
+    found = set()
+    for a in ring_atoms:
+        atom = mol.GetAtomWithIdx(a)
+        if atom.GetAtomicNum() != 6 or not any(n.GetIdx() in ring_atoms and n.GetAtomicNum() != 6 for n in atom.GetNeighbors()):
+            continue
+        found.update(
+            n.GetIdx()
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() == 8
+            and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(a, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        )
+    return found
+
+
+def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=None, substituted=None):
     """UnitText for a fused/bridged/spiro ring system with substituents and suffix groups: the unit is named with an
     iodo prefix at the junction, which is then read off and removed (the junction takes the lowest locant left
     after the principal groups, P-15.3.1.3)."""
@@ -446,8 +464,10 @@ def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=
     if before.endswith("-") and match.group(2) == "" and after[:1].isalpha():
         before = before[:-1]
     text = before + after
-    parent = bare_polycyclic_unit(mol, ring_atoms, junction, name_function).text
-    return UnitText(text, match.group(1), not text.startswith(parent), True)
+    if substituted is None:
+        parent = bare_polycyclic_unit(mol, ring_atoms, junction, name_function).text
+        substituted = not text.startswith(parent[:-1] if parent.endswith("e") else parent)
+    return UnitText(text, match.group(1), substituted, True)
 
 
 def bare_polycyclic_unit(mol, atoms, junction, name_function=None):

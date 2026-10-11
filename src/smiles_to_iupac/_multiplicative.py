@@ -22,6 +22,7 @@ from ._multiplicative_ring import (
     bare_polycyclic_unit,
     name_monocyclic_unit,
     principal_rank_of,
+    ring_pseudoketone_oxygens,
     spec_of,
     substituted_polycyclic_unit,
 )
@@ -327,8 +328,16 @@ def _arm_chain(mol, center, edges, comp_of, first_edge, junction_atoms):
 
 def _unit_text(mol, unit, groups, name_function):
     ring_count = sum(1 for ring in mol.GetRingInfo().AtomRings() if set(ring) <= unit.ring_atoms)
-    if ring_count == 1 and unit.atoms == unit.ring_atoms and spec_of(mol, unit.ring_atoms) is None:
-        return bare_polycyclic_unit(mol, unit.ring_atoms, unit.junction, name_function)
+    oxygens = ring_pseudoketone_oxygens(mol, unit.ring_atoms)
+    if oxygens:
+        extra = unit.atoms - unit.ring_atoms - oxygens
+        return substituted_polycyclic_unit(
+            mol, unit.ring_atoms, unit.atoms, unit.junction, name_function, substituted=bool(extra)
+        )
+    if ring_count == 1 and spec_of(mol, unit.ring_atoms) is None:
+        if unit.atoms == unit.ring_atoms:
+            return bare_polycyclic_unit(mol, unit.ring_atoms, unit.junction, name_function)
+        return substituted_polycyclic_unit(mol, unit.ring_atoms, unit.atoms, unit.junction, name_function)
     if ring_count == 1:
         return name_monocyclic_unit(mol, unit.ring_atoms, unit.junction, unit.linker_atom, groups, unit.atoms, name_function)
     if unit.atoms != unit.ring_atoms:
