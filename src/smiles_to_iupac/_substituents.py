@@ -416,6 +416,11 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         text = _labelled_carbamimidoyl(mol, root, coming_from, labelled, capacity)
         context["consumed"].update(labelled)
         return text + name, True
+    if set(labelled) == {root} and mol is not None and _carbonyl_carbon(mol, root) and (name == "benzoyl" or name.endswith("carbonyl")):
+        # P-82.6.3.2: the carbonyl carbon is not numbered in the retained name, so the systematic name cites it
+        context["consumed"].add(root)
+        stem = "benzene" if name == "benzoyl" else name[: -len("carbonyl")]
+        return stem + descriptor(labelled, {root: 1}, True, capacity=capacity) + "carbonyl", True
     if name == "benzyl" and set(labelled) == {root}:
         context["consumed"].add(root)
         return "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
@@ -460,6 +465,13 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     context["consumed"].update(labelled)
     text = descriptor(labelled, positions, omit, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
     return name[:stem_index] + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
+
+
+def _carbonyl_carbon(mol, atom):
+    return mol.GetAtomWithIdx(atom).GetAtomicNum() == 6 and any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in mol.GetAtomWithIdx(atom).GetNeighbors()
+    )
 
 
 def _labelled_carbamimidoyl(mol, root, coming_from, labelled, capacity):
