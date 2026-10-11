@@ -1108,3 +1108,39 @@ def test_indicated_hydrogen_and_halogen_atoms_of_nonstandard_bonding_in_rings(sm
 )
 def test_amino_prefix_with_a_sulfonyl_group_on_the_nitrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CCS(CC)=Nc1ccccc1", "S,S-diethyl-N-phenyl-\u03bb4-sulfanimine", id="sulfimide_cites_s_and_n_locants"),
+        pytest.param("C[Se](C)=Nc1ccccc1", "Se,Se-dimethyl-N-phenyl-\u03bb4-selanimine", id="selenium_analogue_cites_its_symbol"),
+        pytest.param("O=S=Nc1ccccc1", "(phenylimino)-\u03bb4-sulfanone", id="sulfinylamine"),
+        pytest.param("CN=S(=O)=O", "(methylimino)-\u03bb6-sulfanedione", id="sulfonylamine"),
+        pytest.param("CS(C)(=O)=Nc1ccccc1", "dimethyl(phenylimino)-\u03bb6-sulfanone", id="sulfoximide"),
+        pytest.param("N=S(=N)(c1ccccc1)c1ccccc1", "diphenyl-\u03bb6-sulfanediimine", id="sulfonediimine_with_sulfur_groups_only"),
+        pytest.param("CN=S=NCC", "ethyl(methyl)-\u03bb4-sulfanediimine", id="sulfur_diimide_without_locants"),
+        pytest.param("N=S(=N)=N", "\u03bb6-sulfanetriimine", id="sulfur_triimide"),
+    ],
+)
+def test_sulfimides_sulfoximides_and_sulfur_imides_on_the_lambda_sulfane_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "c1ccccc1S(=O)(=O)N=S(c1ccccc1)c1ccccc1",
+            "N-(diphenyl-\u03bb4-sulfanylidene)benzenesulfonamide",
+            id="sulfimide_under_a_sulfonamide",
+        ),
+        pytest.param(
+            "CS(C)(=O)=NS(=O)(=O)c1ccccc1",
+            "N-[dimethyl(oxo)-\u03bb6-sulfanylidene]benzenesulfonamide",
+            id="sulfoximide_under_a_sulfonamide",
+        ),
+    ],
+)
+def test_chalcogen_imide_cited_as_a_ylidene_prefix_beside_a_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
