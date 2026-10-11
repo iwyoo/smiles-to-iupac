@@ -5227,7 +5227,7 @@ def _amidine_nitrogens(mol, atom):
     imino, amino = imino[0], amino[0]
     if any(n.GetFormalCharge() or n.IsInRing() or n.GetIsAromatic() for n in (imino, amino)):
         return None
-    for nitrogen, allowed in ((imino, (6, 8, 9, 17, 35, 53)), (amino, (6, 9, 17, 35, 53))):
+    for nitrogen, allowed in ((imino, (6, 8, 9, 17, 35, 53)), (amino, (6, 8, 9, 17, 35, 53))):
         for n in nitrogen.GetNeighbors():
             if n.GetIdx() == carbon:
                 continue
