@@ -2,6 +2,8 @@
 bonded to the rest through two atoms only; a group bonded to two adjacent cage atoms is a fused ring, any other group is a
 bridge of the cage with its fused rings. The cage that remains is numbered as a modified fullerene."""
 
+from dataclasses import dataclass
+
 import networkx as nx
 from rdkit import Chem
 
@@ -16,6 +18,29 @@ _MAX_ROUNDS = 6
 _MIN_CAGE_CARBONS = 24
 
 
+@dataclass
+class Reading:
+    """A modified cage with the rings fused to it and the bridges it carries."""
+
+    found: object
+    render: object
+    rings: list
+    bridged: object
+
+    def text(self):
+        return self.found.text(self.render)
+
+    def locants(self):
+        """Every atom-to-locant map of the numberings that tie: cage atoms, homo atoms and the primed ring atoms."""
+        found = []
+        for candidate in self.found.ties:
+            for numbering in candidate.numberings:
+                locant_of = candidate.atom_locants(numbering)
+                locant_of.update(ring_positions(layout(self.rings, numbering, candidate.edit)))
+                found.append(locant_of)
+        return found
+
+
 def name_fullerene_derivative(mol):
     """Name of `mol` as a modified fullerene, with the rings fused to it and the bridges it carries, else None. A cage
     that needs 'cyclo' or 'seco' only to take in the atoms of a ring or bridge is named with it as prefix instead."""
@@ -23,7 +48,8 @@ def name_fullerene_derivative(mol):
     if plain is not None and not (plain.edit.seco or plain.edit.cyclo):
         return plain.text()
     try:
-        attached = _attached_name(mol)
+        reading = attached_reading(mol)
+        attached = None if reading is None else reading.text()
     except UnsupportedStructure:
         attached = None
     if attached is not None:
@@ -31,26 +57,32 @@ def name_fullerene_derivative(mol):
     return None if plain is None else plain.text()
 
 
-def _attached_name(mol):
+def attached_reading(mol, atoms=None, bare=frozenset()):
+    """The `Reading` of the heavy atoms `atoms` (all by default) whose rings and bridges are groups outside the cage; the
+    `bare` atoms are spiro atoms, judged as if their other bonds were hydrogen atoms."""
     ring_info = mol.GetRingInfo()
     if mol.GetNumAtoms() > _MAX_ATOMS or ring_info.NumRings() < 11 or sum(len(r) == 5 for r in ring_info.AtomRings()) < 5:
         return None
     if sum(a.GetAtomicNum() == 6 and a.GetDegree() >= 3 and not a.GetTotalNumHs() for a in mol.GetAtoms()) < _MIN_CAGE_CARBONS:
         return None
-    graph = nx.Graph((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds())
+    graph = nx.Graph(
+        (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
+        for b in mol.GetBonds()
+        if atoms is None or (b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms)
+    )
     tried = []
     for adjacent_only in (False, True):
         groups = _peel(graph, adjacent_only)
         if not groups or {g[2] for g in groups} in tried:
             continue
         tried.append({g[2] for g in groups})
-        named = _compose(mol, graph, groups)
-        if named is not None:
-            return named
+        reading = _compose(mol, graph, groups, bare)
+        if reading is not None:
+            return reading
     return None
 
 
-def _compose(mol, graph, groups):
+def _compose(mol, graph, groups, bare):
     cage = set(graph) - set().union(*(atoms for _, _, atoms in groups))
     if len(cage) < _MIN_CAGE_CARBONS or not all(_attaches_once(mol, graph, x, groups) for x in cage if any(n not in cage for n in graph[x])):
         return None
@@ -95,8 +127,8 @@ def _compose(mol, graph, groups):
         joiner = "-" if bridge and fusion and fusion[0] in "[0123456789" else ""
         return hydro, indicated, bridge + joiner + fusion
 
-    found = modified_candidate(mol, cage, fusions, attach, rank)
-    return None if found is None else found.text(render)
+    found = modified_candidate(mol, cage, fusions, attach, rank, frozenset(bare))
+    return None if found is None else Reading(found, render, rings, bridged)
 
 
 def _attaches_once(mol, graph, x, groups):

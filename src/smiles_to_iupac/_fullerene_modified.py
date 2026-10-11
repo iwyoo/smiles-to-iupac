@@ -66,6 +66,7 @@ class _Edit:
     saturated: list = field(default_factory=list)
     fusions: list = field(default_factory=list)
     mapping: dict = field(default_factory=dict)
+    homo_atoms: list = field(default_factory=list)
 
     @property
     def cost(self):
@@ -81,14 +82,24 @@ class Candidate:
     reference: _Reference
     edit: _Edit
     numbering: dict
+    numberings: list = field(default_factory=list)
+    ties: list = field(default_factory=list)
 
     def text(self, fused=None):
         return _text(self.reference, self.edit, self.numbering, fused)
 
+    def atom_locants(self, numbering):
+        """The locant of every atom of the cage under `numbering`; a homo atom takes the lower locant of its bond and 'a'."""
+        locant_of = {a: str(numbering[g]) for a, g in self.edit.mapping.items()}
+        for x, (g, h) in self.edit.homo_atoms:
+            locant_of[x] = f"{min(numbering[g], numbering[h])}a"
+        return locant_of
 
-def _skeleton(mol, atoms=None, fusion_atoms=frozenset()):
+
+def _skeleton(mol, atoms=None, fusion_atoms=frozenset(), bare=frozenset()):
     """(graph, hydrogens) of the heavy atoms `atoms` when they can form a modified cage, else None. A fusion atom takes
-    the place of a hydrogen atom with the bond to its fused ring (P-27.6.1)."""
+    the place of a hydrogen atom with the bond to its fused ring (P-27.6.1); a `bare` atom is judged as if the bonds
+    left out of `atoms` were hydrogen atoms (a spiro atom, P-27.6.3)."""
     atoms = set(range(mol.GetNumAtoms())) if atoms is None else set(atoms)
     graph = nx.Graph()
     graph.add_nodes_from(atoms)
@@ -115,7 +126,10 @@ def _skeleton(mol, atoms=None, fusion_atoms=frozenset()):
             or any(b.GetBondTypeAsDouble() > 2.0 for b in atom.GetBonds() if b.GetOtherAtomIdx(a) in atoms)
         ):
             return None
-    hydrogens = {a: 3 - graph.degree(a) if a in fusion_atoms else mol.GetAtomWithIdx(a).GetTotalNumHs() for a in atoms}
+    hydrogens = {
+        a: 3 - graph.degree(a) if a in fusion_atoms else 4 - graph.degree(a) if a in bare else mol.GetAtomWithIdx(a).GetTotalNumHs()
+        for a in atoms
+    }
     return graph, hydrogens
 
 
@@ -194,11 +208,11 @@ def name_modified_fullerene(mol):
     return None if found is None else found.text()
 
 
-def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), extra_key=None):
+def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), extra_key=None, bare=frozenset()):
     """The numbered cage of the lowest cost that the heavy atoms `atoms` form, with `fusions` (atom, atom, (kind, label,
     index)) as the atom pairs that rings are fused to (kind 0) or bridges are attached to (kind 1), else None.
     `extra_key(numbering, edit)` ranks the numberings that tie on all other locants."""
-    skeleton = _skeleton(mol, atoms, fusion_atoms)
+    skeleton = _skeleton(mol, atoms, fusion_atoms, bare)
     if skeleton is None:
         return None
     graph, hydrogens = skeleton
@@ -228,7 +242,7 @@ def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), ex
                 deleted = reference.graph.number_of_nodes() - reduced.number_of_nodes()
                 if deleted >= 0 and reduced.number_of_nodes() >= reference.least_atoms:
                     attempts.append((deleted + homo_count, len(attempts), reference, homo, reduced, forced))
-    best = None
+    best, ties = None, []
     for lower, _, reference, homo, reduced, forced in sorted(attempts, key=lambda a: a[:2]):
         if best is not None and lower > best.cost:
             break
@@ -245,18 +259,24 @@ def modified_candidate(mol, atoms=None, fusions=(), fusion_atoms=frozenset(), ex
                 continue
             for rest in _cyclo_choices(reduced, forced, cyclo_count, regions or []):
                 for mapping in _embeddings(rest, reference):
-                    found = _edit(graph, hydrogens, element, reference, mapping, homo, fusions)
+                    found = _edit(graph, hydrogens, element, reference, mapping, homo, fusions, bare)
                     if found is UNMODIFIED:
                         return None
                     if found is None:
                         continue
                     candidate = _name(reference, *found, extra_key)
-                    if candidate is not None and (best is None or (candidate.cost, candidate.key) < (best.cost, best.key)):
-                        best = candidate
+                    if candidate is None:
+                        continue
+                    if best is None or (candidate.cost, candidate.key) < (best.cost, best.key):
+                        best, ties = candidate, [candidate]
+                    elif (candidate.cost, candidate.key) == (best.cost, best.key):
+                        ties.append(candidate)
+    if best is not None:
+        best.ties = ties
     return best
 
 
-def _edit(graph, hydrogens, element, reference, mapping, homo, fusions=()):
+def _edit(graph, hydrogens, element, reference, mapping, homo, fusions=(), bare=frozenset()):
     """(edit, number of intact cage rings) of an embedding, None when the hydrogens do not fit a name."""
     cage = reference.graph
     image = set(mapping.values())
@@ -277,7 +297,8 @@ def _edit(graph, hydrogens, element, reference, mapping, homo, fusions=()):
             edit.saturated.append(g)
     for x, bond in homo_bonds.items():
         edit.homo.append((bond, element[x]))
-        if hydrogens[x]:
+        edit.homo_atoms.append((x, bond))
+        if hydrogens[x] and x not in bare:
             edit.saturated.append(bond)
     edit.fusions = [(mapping[a], mapping[b], tag) for a, b, tag in fusions]
     edit.mapping = dict(mapping)
@@ -320,9 +341,11 @@ def _name(reference, edit, rings, extra_key=None):
         attached = extra_key(numbering, edit) if extra_key else ()
         key = (nor, homo, joined, cited, fused_joined, fused_cited, attached, replaced, indicated)
         if best is None or key < best[0]:
-            best = (key, numbering)
+            best, tied = (key, numbering), [numbering]
+        elif key == best[0]:
+            tied.append(numbering)
     key, numbering = best
-    return Candidate(edit.cost, key, reference, edit, numbering)
+    return Candidate(edit.cost, key, reference, edit, numbering, tied)
 
 
 def _plural(count, word):

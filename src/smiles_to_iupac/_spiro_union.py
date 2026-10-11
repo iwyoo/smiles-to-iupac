@@ -13,7 +13,8 @@ from rdkit import Chem
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, ring_cycle
 from ._fused_numbering import HETERO_RANK
-from ._fusion_name import Context, fusion_name, system_numbering_options
+from ._fullerene_spiro import fullerene_component
+from ._fusion_name import _MAX_RINGS_IN_SYSTEM, Context, fusion_name, system_numbering_options
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._numerals import alkane_name
 from ._ring_diyl_numbering import _MANCUDE_RETAINED, _RANK, _hantzsch_widman, _saturated_name, _with_hetero_locants
@@ -260,6 +261,9 @@ def _adamantane_component(mol, comp, atoms, orders, spiro_atoms):
 
 
 def _component(mol, comp, force_replacement, spiro_atoms=frozenset()):
+    fullerene = fullerene_component(mol, comp, spiro_atoms)
+    if fullerene is not None:
+        return fullerene
     sub, atoms = _skeleton(mol, comp)
     replacement = mancude = False
     if comp["rings"] == 1:
@@ -274,6 +278,8 @@ def _component(mol, comp, force_replacement, spiro_atoms=frozenset()):
         numberings = [(n, _von_baeyer_ene(mol, sub, atoms, n)) for n in orders]
     elif force_replacement:
         raise UnsupportedStructure("a fused component beside a skeletal replacement spiro heteroatom is not supported yet")
+    elif comp["rings"] > _MAX_RINGS_IN_SYSTEM:
+        raise UnsupportedStructure("a spiro component with more rings than a fused ring system can have")
     else:
         name, root = fusion_name(sub)
         numberings = [(n, ()) for n in system_numbering_options(Context(sub), name, root)]
@@ -365,7 +371,7 @@ def _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds):
 
 
 def _name_key(name):
-    stripped = re.sub(r"-[\d,]+-", "", re.sub(r"^\[?\d+(?:,\d+)*\]?-?", "", name))
+    stripped = re.sub(r"-[\d,]+-", "", re.sub(r"^\[[^\[\]]+\]-?|^\[?\d+(?:,\d+)*\]?-?", "", name))
     lead = re.match(r"\[?(\d+(?:,\d+)*)\]?", name)
     locants = tuple(sorted(int(x) for x in lead.group(1).split(","))) if lead and re.match(r"\[?\d", name) else ()
     descriptor = re.search(r"cyclo\[([\d.^,]+)\]", name)
