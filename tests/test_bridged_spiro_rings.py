@@ -788,6 +788,15 @@ def test_fullerene_derivative_outside_the_numbered_cages_stops():
         smiles_to_iupac(_fullerene_derivative(_FULLERENE_C76_SMILES, {1: _ACETIC, 2: None}, numbered=False))
 
 
+def test_caged_polycycle_beyond_a_von_baeyer_or_bridged_fused_search_is_refused():
+    homo_dihydro_c60 = (
+        "C1C2c3c4c5c6c7c8c(c9c%10c2c2c3c3c%11c4c4c5c5c7c7c%12c8c8c9c9c%10c%10c2c2c3c3c%11c%11c4c4c5c7c5c7c%12c8c8c9c9c%10"
+        "c2c2c3c3c%11c4c5c4c7c8c9c2c34)C16"
+    )
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(homo_dihydro_c60)
+
+
 def test_fullerene_with_characteristic_group_is_named_as_the_parent_with_added_hydrogen():
     # P-6 (P-58.2): the principal characteristic group takes the added hydrogen, not hydro prefixes
     assert smiles_to_iupac(_fullerene_derivative(_FULLERENE_C60_SMILES, {1: "O", 9: None})) == (

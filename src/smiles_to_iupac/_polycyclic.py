@@ -162,6 +162,10 @@ def _has_cut_atom(core):
     return False
 
 
+# The bridge walk is exponential in the branch atoms; larger cages (fullerenes) would run for minutes.
+MAX_RING_COUNT = 14
+
+
 def find_polycyclic_core(mol, ring_count):
     """Return (branch_atoms, bridges) if `mol`'s carbon skeleton, after
     stripping acyclic branches, reduces to exactly `2*(ring_count-1)` branch
@@ -178,6 +182,8 @@ def find_polycyclic_core(mol, ring_count):
     Mirrors `_bicyclic.find_bicyclic_core`'s leaf-stripping + cyclomatic-
     number approach rather than trusting RDKit's `NumRings()` (see that
     function's docstring for why)."""
+    if ring_count > MAX_RING_COUNT:
+        return None
     graph = adjacency(mol)
     core = _strip_leaves(graph)
     if not core:

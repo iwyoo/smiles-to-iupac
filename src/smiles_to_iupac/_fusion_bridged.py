@@ -12,13 +12,14 @@ from rdkit import Chem, rdBase
 from ._common import UnsupportedStructure
 from ._fused_numbering import HETERO_RANK, FusedSystem, _locant_key
 from ._fusion_components import A_PREFIX, identify, skeleton
-from ._fusion_name import Context, _fusion_name_core, system_numbering_options
+from ._fusion_name import _MAX_RINGS_IN_SYSTEM, Context, _fusion_name_core, system_numbering_options
 from ._numerals import alkane_name, numerical_term
 
 _MAX_CYCLE = 12
 _MAX_STATES = 6000
 _MAX_CLUSTER = 14
 _MAX_PARTS = 4
+_MAX_RINGS = _MAX_RINGS_IN_SYSTEM + _MAX_PARTS
 _MAX_DECOMPOSITIONS = 200
 _PHANE_NODES = 6
 _NO_KEY = (-1, "", 0)
@@ -653,6 +654,9 @@ def bridged_parents(mol, atoms):
     atoms included (P-25.5.1.2)."""
     if any(mol.GetAtomWithIdx(a).GetFormalCharge() or mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in atoms):
         raise UnsupportedStructure("a charged or radical ring atom in a bridged fused system")
+    bonds = sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms)
+    if bonds - len(atoms) + 1 > _MAX_RINGS:
+        raise UnsupportedStructure("a ring system with more rings than a fused system and its bridges can have")
     aromatic = Chem.Mol(mol)
     mol = _kekule(aromatic)
     graph, valid = _candidates(mol, atoms)
