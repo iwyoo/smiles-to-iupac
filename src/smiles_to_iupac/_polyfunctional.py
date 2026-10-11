@@ -66,12 +66,12 @@ from ._multiplicative_ring import (
     spec_of,
 )
 from ._fused_numbering import HETERO_RANK as _HETERO_RANK
-from ._ring_diyl_numbering import _exocyclic_oxo
+from ._ring_diyl_numbering import OMIT_SUFFIX_LOCANT, _exocyclic_oxo
 from ._ring_system_seniority import ring_seniority_key
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import SULFONYL_CENTRES, SULFONYL_GROUP_NAMES, carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
 from ._retained_acids import retained_chain_acid, single_site_prefixes
-from ._locant_omission import omits_all_locants
+from ._locant_omission import omits_all_locants, omits_group_locants
 from ._substituents import format_substituent_prefixes, name_branch
 
 _AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
@@ -3605,7 +3605,11 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     on_system = [o for o in occurrences if o[1] in atoms]
     attach = [o[1] for o in on_system]
     blocked = set().union(*(o[2] for o in on_system))
-    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal], n_names=n_names)
+    token = OMIT_SUFFIX_LOCANT.set(omits_group_locants(mol, atoms, len(attach)))
+    try:
+        found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal], n_names=n_names)
+    finally:
+        OMIT_SUFFIX_LOCANT.reset(token)
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
     from ._diester_ring_diyl import PARENT_START
@@ -3772,7 +3776,11 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
         count == 1
         and not entries
         and not FORCE_LOCANTS.get()
-        and (spec.kind == "cycloalkane" or (spec.kind == "benzene" and (suffix_name not in _RETAINED_BENZENE or NO_RETAINED_BENZENE.get())))
+        and (
+            spec.kind == "cycloalkane"
+            or (spec.kind == "benzene" and (suffix_name not in _RETAINED_BENZENE or NO_RETAINED_BENZENE.get()))
+            or (spec.kind != "benzene" and omits_group_locants(mol, ring, 1))
+        )
     ):
         word = _SUFFIX_WORDS[suffix_name]
         stem = spec.parent[:-1] if word[0] in "aeiouy" else spec.parent
