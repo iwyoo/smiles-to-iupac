@@ -1739,7 +1739,8 @@ def _name_labelled(mol, labels, finish=None):
             )
         if finish is not None:
             name = finish(name, parts[4])
-        prefix = _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"])
+        owned = set().union(*_principal_owned(mol)[1]) if stereo else frozenset()
+        prefix = _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"], suffix=owned)
         return name if prefix and name.startswith(prefix) else prefix + name
     finally:
         BRANCH_STEREO.reset(token)
@@ -1908,9 +1909,10 @@ def _bond_locant(first, second):
     return min(first, second)
 
 
-def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
+def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset(), suffix=frozenset()):
     """[(locant, code)] for the stereo elements found on the parent, plus
-    whether every element was placed (on the parent or inside a substituent)."""
+    whether every element was placed (on the parent or inside a substituent). A double bond inside the atoms of the
+    principal suffix group, whose carbon the parent does not number, takes no locant (P-93.4.2.1.3)."""
     entries, complete = [], True
     for kind, where, code in stereo or []:
         if kind == "isotope":
@@ -1932,11 +1934,13 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
                     # P-93.4.2.1, P-93.5.1.4.2.1: the configuration of a double bond to an ylidene group takes the locant
                     # of the parent atom
                     entries.append((position_of[inside[0]], code))
+                elif a in suffix and b in suffix:
+                    entries.append(("", code))
                 else:
                     complete = False
             else:
                 entries.append((_bond_locant(position_of[a], position_of[b]), code))
-    return sorted(entries), complete
+    return sorted(entries, key=lambda entry: (entry[0] == "", entry)), complete
 
 
 def _stereo_rank(stereo, position_of, ring_parent=False):
@@ -2049,10 +2053,10 @@ def _nuclide_precedence(marked, position_of):
     return tuple(tuple(sorted(located[key])) for key in sorted(located))
 
 
-def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
+def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset(), suffix=frozenset()):
     if not stereo:
         return ""
-    entries, complete = _stereo_entries(stereo, position_of, ring_parent, used)
+    entries, complete = _stereo_entries(stereo, position_of, ring_parent, used, suffix)
     if not complete:
         raise UnsupportedStructure("stereodescriptors outside the parent are not supported by the chain engine yet")
     if not entries:
