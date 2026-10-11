@@ -66,7 +66,7 @@ def _guanidine_core(mol):
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
             continue
-        if atom.GetFormalCharge() != 0 or atom.GetIsAromatic():
+        if atom.GetFormalCharge() != 0 or atom.GetIsAromatic() or atom.IsInRing():
             continue
         nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
         if len(nitrogens) != 3:

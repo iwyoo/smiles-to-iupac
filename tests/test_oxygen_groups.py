@@ -738,6 +738,18 @@ def test_five_membered_1_3_ring_ketone_cases(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=C1N(CC)N1C", "1-ethyl-2-methyldiaziridin-3-one", id="urea_core"),
+        pytest.param("S=C1N(CC)N1C", "1-ethyl-2-methyldiaziridine-3-thione", id="chalcogenourea_core"),
+        pytest.param("N=C1NN1", "diaziridin-3-imine", id="guanidine_core"),
+    ],
+)
+def test_carbon_closed_to_two_bonded_nitrogens_is_a_ring_not_a_urea_or_guanidine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("O=C1CCNN1", "pyrazolidin-3-one"),
