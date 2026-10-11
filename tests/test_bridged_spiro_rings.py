@@ -1130,9 +1130,10 @@ def test_senior_spiro_and_von_baeyer_system(senior, junior):
     assert _senior_to(senior, junior)
 
 
-def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted=(), replaced=None, saturated=(), inserted_element=6):
+def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted=(), replaced=None, saturated=(), inserted_element=6, fused=()):
     """The cage at systematic locants with atoms `deleted`, bonds `cleaved`, bonds `formed`, atoms `inserted` into bonds
-    and atoms `replaced` ({locant: atomic number}); the atoms at `saturated` locants carry the extra hydrogen."""
+    and atoms `replaced` ({locant: atomic number}); the atoms at `saturated` locants carry the extra hydrogen. `fused` are
+    (locant, locant, ring SMILES) of rings sharing that cage bond, written with [Xe:1] and [Xe:2] for its two atoms."""
     import networkx as nx
     from smiles_to_iupac._fullerene_numbering import fullerene_numberings
 
@@ -1149,10 +1150,13 @@ def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted
         bonds |= {frozenset((pair[0], name)), frozenset((pair[1], name))}
     nodes += inserted_names
     replaced = replaced or {}
-    pi = [n for n in nodes if n not in inserted_names and replaced.get(n, 6) in (6, 14) and n not in saturated]
+    fusion_bonds = {frozenset(ring[:2]) for ring in fused}
+    cage_degree = {n: sum(1 for b in bonds if n in b) for n in nodes}
+    sp3 = {n for ring in fused for n in ring[:2] if cage_degree[n] == 3}
+    pi = [n for n in nodes if n not in inserted_names and replaced.get(n, 6) in (6, 14) and n not in set(saturated) | sp3]
     pi_graph = nx.Graph()
     pi_graph.add_nodes_from(pi)
-    pi_graph.add_edges_from(tuple(b) for b in bonds if b <= set(pi))
+    pi_graph.add_edges_from(tuple(b) for b in bonds if b <= set(pi) and b not in fusion_bonds)
     double = {frozenset(pair) for pair in nx.max_weight_matching(pi_graph, maxcardinality=True)}
     mol = Chem.RWMol()
     index = {}
@@ -1168,7 +1172,22 @@ def _modified_fullerene(cage_smiles, deleted=(), cleaved=(), formed=(), inserted
         if n in inserted_names:
             atom.SetNumExplicitHs({6: 2, 7: 1, 8: 0}[inserted_element])
         elif atom.GetAtomicNum() in (6, 14):
-            atom.SetNumExplicitHs((4 if n in saturated else 3) - degree[n])
+            atom.SetNumExplicitHs(max(0, (4 if n in saturated else 3) - degree[n] - (n in {m for ring in fused for m in ring[:2]})))
+    for first, second, ring_smiles in fused:
+        ring = Chem.MolFromSmiles(ring_smiles)
+        placed = {}
+        for ring_atom in ring.GetAtoms():
+            if ring_atom.GetAtomicNum() == 54:
+                placed[ring_atom.GetIdx()] = index[first if ring_atom.GetAtomMapNum() == 1 else second]
+            else:
+                added = Chem.Atom(ring_atom.GetAtomicNum())
+                added.SetNoImplicit(True)
+                added.SetNumExplicitHs(ring_atom.GetTotalNumHs())
+                placed[ring_atom.GetIdx()] = mol.AddAtom(added)
+        for ring_bond in ring.GetBonds():
+            u, v = ring_bond.GetBeginAtomIdx(), ring_bond.GetEndAtomIdx()
+            if not (ring.GetAtomWithIdx(u).GetAtomicNum() == 54 and ring.GetAtomWithIdx(v).GetAtomicNum() == 54):
+                mol.AddBond(placed[u], placed[v], ring_bond.GetBondType())
     result = mol.GetMol()
     Chem.SanitizeMol(result)
     return Chem.MolToSmiles(result)
@@ -1203,3 +1222,59 @@ def test_structurally_modified_and_replaced_fullerenes(operations, expected):
     operations = dict(operations)
     cage = _FULLERENE_C70_SMILES if operations.pop("cage", 60) == 70 else _FULLERENE_C60_SMILES
     assert smiles_to_iupac(_modified_fullerene(cage, **operations)) == expected
+
+
+_CYCLOPROPANE, _OXIRENE, _DIOXOLE = "C1[Xe:1][Xe:2]1", "O1[Xe:1][Xe:2]1", "C1O[Xe:1][Xe:2]O1"
+
+
+@pytest.mark.parametrize(
+    "operations,expected",
+    [
+        # P-27.6.1: every bond of a cage is named by its lowest locants, here a bond that is not numbered 1,9
+        pytest.param({"fused": [(3, 15, _CYCLOPROPANE)]}, "3′H-cyclopropa[1,9](C60-Ih)[5,6]fullerene", id="hydrocarbon_ring_omits_its_locants"),
+        pytest.param({"fused": [(1, 9, _DIOXOLE)]}, "2′H-[1,3]dioxolo[4′,5′:1,9](C60-Ih)[5,6]fullerene", id="heterocycle_cites_primed_locants"),
+        pytest.param(
+            {"fused": [(1, 9, _OXIRENE), (2, 12, _OXIRENE), (7, 8, _OXIRENE)]},
+            "tris(oxireno)[2′,3′:1,9;2″,3″:2,12;2‴,3‴:7,8](C60-Ih)[5,6]fullerene",
+            id="identical_rings_in_the_order_of_the_lower_fullerene_locant",
+        ),
+        pytest.param(
+            {"fused": [(7, 22, _CYCLOPROPANE), (33, 34, _CYCLOPROPANE), (46, 47, _CYCLOPROPANE)], "cage": 70},
+            "3′H,3″H,3‴H-tricyclopropa[7,22:33,34:46,47](C70-D5h(6))[5,6]fullerene",
+            id="hydrocarbon_rings_separated_by_colons",
+        ),
+        pytest.param(
+            {"fused": [(2, 12, _OXIRENE), (1, 9, _CYCLOPROPANE)]},
+            "3′H-cyclopropa[1,9]oxireno[2″,3″:2,12](C60-Ih)[5,6]fullerene",
+            id="different_rings_primed_in_alphanumerical_order",
+        ),
+        pytest.param(
+            {"fused": [(8, 25, "C1=CS[Xe:2][Xe:1]1")], "cage": 70},
+            "thieno[3′,2′:8,25](C70-D5h(6))[5,6]fullerene",
+            id="ring_locants_follow_the_direction_of_the_fullerene_locants",
+        ),
+        pytest.param({"fused": [(1, 9, "C1CC[Xe:1][Xe:2]1")]}, "4′,5′-dihydro-3′H-cyclopenta[1,9](C60-Ih)[5,6]fullerene", id="hydro_prefixes_with_indicated_hydrogen"),
+        pytest.param({"fused": [(1, 9, "C1C=CC[Xe:1][Xe:2]1")]}, "3′,6′-dihydrobenzo[1,9](C60-Ih)[5,6]fullerene", id="hydro_prefixes_without_indicated_hydrogen"),
+        pytest.param({"fused": [(1, 9, "C1=C2C=CC=CC2=C[Xe:1][Xe:2]1")]}, "naphtho[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="ring_system_of_two_rings"),
+        pytest.param({"fused": [(1, 9, "N1[Xe:2][Xe:1]C2=CC=CC=C12")]}, "1′H-indolo[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="heterocyclic_ring_system"),
+        pytest.param(
+            {"deleted": (1, 2, 3, 4, 5, 6, 9, 12, 15, 18), "fused": [(7, 8, "C1C=C[Xe:1][Xe:2]1")]},
+            "3′H-cyclopenta[7,8]-1,2,3,4,5,6,9,12,15,18-decanor(C60-Ih)[5,6]fullerene",
+            id="ring_on_a_nor_fragment_instead_of_cyclo_and_seco",
+        ),
+        pytest.param(
+            {"deleted": (1,), "saturated": (2,), "fused": [(7, 8, _CYCLOPROPANE)]},
+            "2H,3′H-cyclopropa[7,8]-1-nor(C60-Ih)[5,6]fullerene",
+            id="indicated_hydrogen_of_the_cage_and_of_the_ring",
+        ),
+    ],
+)
+def test_fullerenes_with_fused_rings(operations, expected):
+    operations = dict(operations)
+    cage = _FULLERENE_C70_SMILES if operations.pop("cage", 60) == 70 else _FULLERENE_C60_SMILES
+    assert smiles_to_iupac(_modified_fullerene(cage, **operations)) == expected
+
+
+def test_fused_ring_with_a_substituent_is_not_named():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, fused=[(1, 9, "C1(C)[Xe:1][Xe:2]1")]))
