@@ -522,9 +522,12 @@ def _parse_smiles(smiles):
         return kekule
     if mol is not None:
         for atom in mol.GetAtoms():
-            # RDKit knows only the thallium(I) valence, so the standard TlH3 of P-68.1.1.1 looks like a radical
+            # RDKit knows only the thallium(I) valence, so the standard TlH3 of P-68.1.1.1 looks like a radical and a
+            # thallium atom with one or two bonds looks saturated
             if atom.GetAtomicNum() == 81 and atom.GetNumRadicalElectrons() and atom.GetTotalValence() == 3:
                 atom.SetNumRadicalElectrons(0)
+            elif atom.GetAtomicNum() == 81 and atom.GetDegree() and not atom.GetFormalCharge() and atom.GetTotalValence() < 3:
+                atom.SetNumRadicalElectrons(3 - atom.GetTotalValence())
         if any(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms()):
             return mol
         return _neutral_group15_oxides(mol)
