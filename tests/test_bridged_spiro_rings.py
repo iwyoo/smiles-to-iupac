@@ -806,6 +806,17 @@ def test_principal_groups_on_hetero_bridged_and_spiro_systems(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("CC(C)(C)C1CCCC12CC2", "4-tert-butylspiro[2.4]heptane", id="spiro"),
+        pytest.param("CC(C)(C)C1CC2CCC1N2", "2-tert-butyl-7-azabicyclo[2.2.1]heptane", id="hetero_bridged"),
+    ],
+)
+def test_tert_butyl_substituent_on_spiro_and_hetero_bridged_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("C=C1CC2CCC1C2", "2-methylidenebicyclo[2.2.1]heptane"),
         ("CC=C1CC2CC1C=C2", "5-ethylidenebicyclo[2.2.1]hept-2-ene"),
         ("C=C1CC2CC3CC1CC2C3", "5-methylidenetricyclo[4.3.1.0^3,8]decane"),
