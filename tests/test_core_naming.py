@@ -825,6 +825,9 @@ def test_stereodescriptors_cited_by_the_ring_parent_are_not_repeated():
         pytest.param("C[C@H](O)C(=O)NC(=O)c1ccccc1", "N-[(2S)-2-hydroxypropanoyl]benzamide", id="diacylamine"),
         pytest.param("C[C@@H](O)C(=O)NNC(=O)c1ccccc1", "N'-[(2R)-2-hydroxypropanoyl]benzohydrazide", id="diacylhydrazine"),
         pytest.param("CC(C)(C)S[C@H]1CCN[C@@H]1C(=O)O", "(3S)-3-(tert-butylsulfanyl)-L-proline", id="proline_with_sulfur_on_c3"),
+        pytest.param("C[C@@]1(O)CCN[C@@H]1C(=O)O", "(3R)-3-hydroxy-3-methyl-L-proline", id="proline_with_a_quaternary_stereocentre_on_c3"),
+        pytest.param("C[C@]1(O)CCN[C@@H]1C(=O)OC", "methyl (3S)-3-hydroxy-3-methyl-L-prolinate", id="ester_with_a_quaternary_stereocentre"),
+        pytest.param("C[C@H](O)[C@H]1CCN[C@@H]1C(=O)O", "(2S,3S)-3-[(1S)-1-hydroxyethyl]pyrrolidine-2-carboxylic acid", id="stereocentre_inside_a_substituent"),
     ],
 )
 def test_stereo_of_acyl_groups_and_proline_substituents_is_cited(smiles, expected):

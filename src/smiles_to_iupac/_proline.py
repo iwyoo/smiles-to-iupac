@@ -86,6 +86,8 @@ def _match(mol):
         for n in graph[ring_carbon]:
             if n not in ring_set:
                 substituents.append((locant_of[ring_carbon], ring_carbon, n))
+    if any(atom not in ring_set for atom, _ in specified_stereocenters(mol) or ()):
+        return None
     covered = set(ring_set) | acid
     for _, site, root in substituents:
         stack = [root]
@@ -122,6 +124,9 @@ def _alpha_descriptor(mol, alpha_carbon, substituents):
     editable.GetAtomWithIdx(alpha_carbon).SetIntProp("_alpha", 1)
     for index in sorted(removed, reverse=True):
         editable.RemoveAtom(index)
+    for atom in editable.GetAtoms():
+        if not atom.HasProp("_alpha"):
+            atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     parent = editable.GetMol()
     Chem.SanitizeMol(parent)
     assign_cip_labels(parent)
