@@ -147,9 +147,9 @@ def _is_group_anion(atom):
 def _is_ammonium_prefix(atom):
     """An acyclic onium centre that an alcoholate or thiolate parent cites as an 'azaniumyl', 'sulfaniumyl' or similar
     prefix (P-74.1.3)."""
-    from ._hetero_prefixes import _ONIUM_PREFIX_STEMS
+    from ._hetero_prefixes import _ONIUM_PREFIX_STEMS, is_diazonium_nitrogen
 
-    return (
+    return is_diazonium_nitrogen(atom) or (
         (atom.GetAtomicNum() == 7 or atom.GetAtomicNum() in _ONIUM_PREFIX_STEMS)
         and atom.GetFormalCharge() == 1
         and not atom.IsInRing()
