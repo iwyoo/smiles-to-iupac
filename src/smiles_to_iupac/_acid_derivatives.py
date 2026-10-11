@@ -1249,6 +1249,54 @@ def name_acyl_halide(mol, links):
     return f"{acyl_name(acid_text)} {_class_words(mol, halides)}"
 
 
+_LEADING_HYDROGEN_NUCLIDES = re.compile(r"^\((?:[\d,]+-)?(\d+H)(\d*)\)")
+
+
+def has_isotope_acyl_halide_shape(mol):
+    """A single acyl or sulfonyl halide group whose isotopic labels all sit on carbon or hydrogen atoms."""
+    if not any(a.GetIsotope() for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) != 1:
+        return False
+    if any(a.GetIsotope() and a.GetAtomicNum() not in (1, 6) for a in mol.GetAtoms()):
+        return False
+    links, acid = find_links(_without_nuclides(mol))
+    return bool(links) and not acid and all(l.kind == "halide" for l in links)
+
+
+def _without_nuclides(mol):
+    plain = Chem.RWMol(mol)
+    for atom in plain.GetAtoms():
+        atom.SetIsotope(0)
+    return plain.GetMol()
+
+
+def name_isotope_acyl_halide(mol):
+    """P-82.2.1, P-82.6.1.1: the nuclide descriptor of an acyl halide is that of its acid, whose hydroxy group stands for the
+    halogen; deuterium on the only hydrogen-bearing atom needs no locant, because the acid's O-H is not there."""
+    from .core import _require_isotopes_cited, smiles_to_iupac
+
+    links, _ = find_links(_without_nuclides(mol))
+    editable = Chem.RWMol(mol)
+    for l in links:
+        atom = editable.GetAtomWithIdx(l.far)
+        atom.SetAtomicNum(8)
+        atom.SetNumExplicitHs(1)
+        atom.SetNoImplicit(True)
+    acid = editable.GetMol()
+    Chem.SanitizeMol(acid)
+    name = f"{acyl_name(smiles_to_iupac(Chem.MolToSmiles(acid)))} {_class_words(mol, links)}"
+    hydrogen_bearing = {
+        (a.GetIdx() if a.GetAtomicNum() != 1 else a.GetNeighbors()[0].GetIdx())
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 1 or a.GetTotalNumHs()
+    }
+    found = _LEADING_HYDROGEN_NUCLIDES.match(name)
+    only_hydrogen = all(a.GetAtomicNum() == 1 for a in mol.GetAtoms() if a.GetIsotope())
+    if found and only_hydrogen and len(hydrogen_bearing) == 1:
+        name = f"({found.group(1)}{found.group(2)})" + name[found.end():]
+    _require_isotopes_cited(mol, name)
+    return name
+
+
 _OXOACID_STEMS = {5: ("boron", "borin"), 15: ("phosphon", "phosphin"), 33: ("arson", "arsin"), 51: ("stibon", "stibin")}
 
 
