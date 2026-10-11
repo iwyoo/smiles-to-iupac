@@ -313,6 +313,9 @@ def _decompositions(mol, graph, fused, cluster, cache, fused_rings):
                 valence = sum(o for _, _, o in fused_bonds[i]) + (0 if roles[i] else sum(o for _, o in links[i]))
                 parts.append(Part(c, cache[c], roles[i], int(valence), fused_bonds[i]))
             found.append(parts)
+    # P-25.4.1.9: an unbranched bridge chain is one (polyvalent) bridge; only what a larger bridge cannot express is dependent
+    if cache.get(frozenset(cluster)) is not None and any(len(parts) == 1 for parts in found):
+        found = [parts for parts in found if len(parts) == 1]
     if not found:
         raise UnsupportedStructure("this bridge system has no bridge reading")
     return found
@@ -671,45 +674,45 @@ def bridged_parents(mol, atoms):
         key=lambda item: (-len(item[0]), -len(item[1][0]), hetero_count(item[1][0])),
     )
 
-    def collect(replacing):
-        ranked = []
-        for _, group in groupby(states, key=lambda item: (-len(item[0]), -len(item[1][0]), hetero_count(item[1][0]))):
-            for state, (order, sk) in group:
-                if replacing and not hetero_count(order):
-                    continue
-                fused = set(order)
-                fused_rings = [{order[i] for i in ring} for ring in sk.GetRingInfo().AtomRings()]
-                clusters = list(nx.connected_components(graph.subgraph(set(graph.nodes) - fused)))
-                kekule = _kekule(aromatic, [(b, f) for c in clusters for b in c for f in graph[b] if f in fused]) or mol
-                if replacing:
-                    kekule = _carbonized(kekule, atoms)
-                    sk = skeleton(["C"] * sk.GetNumAtoms(), [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in sk.GetBonds()])
-                try:
-                    readings = [_decompositions(kekule, graph, fused, c, cache, fused_rings) for c in clusters]
-                    name, numberings, root = _fused_parent(order, sk)
-                except UnsupportedStructure:
-                    continue
-                senior = root.comp.senior_key if hasattr(root, "comp") else ()
-                for combo in list(product(*readings))[:_MAX_DECOMPOSITIONS]:
-                    parts = sum(combo, [])
-                    ranked.append(((-len(state), -len(order), hetero_count(order), senior) + _metrics(parts), order, name, numberings, parts, kekule))
-            if ranked:
-                break
-        return ranked
+    def attempt(state, order, sk, replacing):
+        fused = set(order)
+        fused_rings = [{order[i] for i in ring} for ring in sk.GetRingInfo().AtomRings()]
+        clusters = list(nx.connected_components(graph.subgraph(set(graph.nodes) - fused)))
+        kekule = _kekule(aromatic, [(b, f) for c in clusters for b in c for f in graph[b] if f in fused]) or mol
+        hetero = None
+        if replacing:
+            hetero = {a: mol.GetAtomWithIdx(a).GetSymbol() for a in atoms if mol.GetAtomWithIdx(a).GetSymbol() != "C"}
+            if any(s not in A_PREFIX or mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(s) for a, s in hetero.items()):
+                return []
+            kekule = _carbonized(kekule, atoms)
+            sk = skeleton(["C"] * sk.GetNumAtoms(), [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in sk.GetBonds()])
+        try:
+            readings = [_decompositions(kekule, graph, fused, c, cache, fused_rings) for c in clusters]
+            name, numberings, root = _fused_parent(order, sk)
+        except UnsupportedStructure:
+            return []
+        senior = root.comp.senior_key if hasattr(root, "comp") else ()
+        in_fused = {a: s for a, s in (hetero or {}).items() if a in fused}
+        placed = min(_replacement_prefix(in_fused, {order[i]: loc for i, loc in local.items()})[0] for local in numberings)
+        return [
+            ((-len(state), -len(order), hetero_count(order), senior, placed) + _metrics(parts), order, name, numberings, parts, kekule, hetero)
+            for parts in (sum(combo, []) for combo in list(product(*readings))[:_MAX_DECOMPOSITIONS])
+        ]
 
-    replacing = False
-    ranked = collect(False)
-    if not ranked:
-        replacing = True
-        ranked = collect(True)
+    ranked = []
+    for _, group in groupby(states, key=lambda item: (-len(item[0]), -len(item[1][0]), hetero_count(item[1][0]))):
+        for state, (order, sk) in group:
+            found = attempt(state, order, sk, False)
+            if not found and hetero_count(order):
+                found = attempt(state, order, sk, True)
+            ranked.extend(found)
+        if ranked:
+            break
     if not ranked:
         raise UnsupportedStructure("this ring system has no fused ring system with bridges")
-    hetero = {a: mol.GetAtomWithIdx(a).GetSymbol() for a in atoms if mol.GetAtomWithIdx(a).GetSymbol() != "C"} if replacing else None
-    if hetero and any(s not in A_PREFIX or mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(s) for a, s in hetero.items()):
-        raise UnsupportedStructure("a heteroatom without a skeletal replacement prefix or of nonstandard bonding number")
     ranked.sort(key=lambda r: r[0])
     out = []
-    for rank, order, name, numberings, parts, kekule in ranked:
+    for rank, order, name, numberings, parts, kekule, hetero in ranked:
         if rank != ranked[0][0]:
             break
         try:
@@ -794,6 +797,7 @@ def _assemble(mol, atoms, fused, order, fused_name, numbering, parts, hetero=Non
                 # P-25.4.3.1 alphabetical order; the P-25.4.5.1 example cites diepoxy before benzeno, against that rule
                 entries.sort(key=lambda e: (e[3].independent, _citation_name(e[0]), tuple(_locant_key(str(l)) for l in e[1])))
                 key = (
+                    _replacement_prefix({a: s for a, s in (hetero or {}).items() if a in numbering}, numbering)[0],
                     tuple(sorted(_locant_key(str(l)) for e in entries for l in e[1])),
                     tuple(tuple(_locant_key(str(l)) for l in e[1]) for e in entries),
                 )
