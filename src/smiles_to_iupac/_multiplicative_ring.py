@@ -96,9 +96,14 @@ class RingSpec:
     kind: str
     hetero: object
     multiple: tuple = ()
+    name: str = ""
+    fixed: tuple = ()
+    replaced: bool = False
 
     @property
     def parent(self):
+        if self.name:
+            return self.name
         if self.kind == "benzene":
             return "benzene"
         if self.kind in ("cycloalkane", "cycloalkene"):
@@ -186,6 +191,8 @@ def monocycle_spec(mol, ring_atoms):
 
 
 def numberings(spec):
+    if spec.fixed:
+        return [dict(option) for option in spec.fixed]
     n = len(spec.cycle)
     result = []
     for start in range(n):

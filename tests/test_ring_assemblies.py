@@ -344,3 +344,30 @@ def test_assembly_with_a_principal_group_keeps_other_rings_as_substituents(smile
 )
 def test_assembly_of_saturated_heteromonocycles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC1CCCCN1C1CCCCN1", "[1,2'-bipiperidin]-2-ol", id="suffix_on_the_ring_joined_through_its_heteroatom"),
+        pytest.param("OC1COC(CO1)C1COCCO1", "[2,2'-bi(1,4-dioxan)]-5-ol", id="ring_name_with_locants_is_enclosed_before_a_suffix"),
+        pytest.param("O=C1CCCCN1C1CCCCN1", "[1,2'-bipiperidin]-2-one", id="oxo_on_one_ring_only"),
+        pytest.param("OC(=O)CC1CCN(CC1)C1CCNCC1", "([1,4'-bipiperidin]-4-yl)acetic acid", id="assembly_group"),
+        pytest.param(
+            "CC(=O)NC1CCNCC1C1CCNCC1NC(C)=O", "N,N'-([3,4'-bipiperidin]-3',4-diyl)diacetamide", id="assembly_linker"
+        ),
+        pytest.param("OC1CCN(CC1)C1CCN(CC1)C1CCNCC1", "[1¹,2⁴:2¹,3⁴-terpiperidin]-1⁴-ol", id="chain_of_three_rings"),
+        pytest.param(
+            "OC1COCCCCCCCCCCC1C1CNCCCCCCCCCCC1",
+            "4'-oxa-3-aza[1,1'-bi(cyclotetradecan)]-2'-ol",
+            id="replacement_prefixes_of_a_large_ring_assembly_before_the_bracket",
+        ),
+        pytest.param(
+            "OC(=O)CC1COCCCCCCCCCCC1C1COCCCCCCCCCCC1",
+            "(3,4'-dioxa[1,1'-bi(cyclotetradecan)]-2'-yl)acetic acid",
+            id="replacement_prefixes_inside_an_assembly_group",
+        ),
+    ],
+)
+def test_assembly_of_saturated_heteromonocycles_as_parent_group_and_linker(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -49,6 +49,7 @@ from ._multiplicative import _bare_key
 from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
 from ._multiplicative_ring import (
     NO_RETAINED_BENZENE,
+    RingSpec,
     _RETAINED_BENZENE,
     _SUFFIX_WORDS,
     _citation_key,
@@ -2989,15 +2990,39 @@ def _locant_order(locant):
     return locant[1], locant[0]
 
 
-def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None):
+def _replacement_locants(mol, locants):
+    """(sort key, text) of the skeletal replacement prefixes of a cycloalkane assembly numbering (P-28.4.2)."""
+    from ._ring_assembly import _replacement_text
+
+    return _replacement_text(mol, {atom: f"{number}{chr(39) * prime}" for atom, (prime, number) in locants.items()})
+
+
+def _assembly_replacement(mol, specs, locants, bracketed=True):
+    """The skeletal replacement prefixes written ahead of the assembly name: '3,3'-dioxa-1,1'-bi(...)', or directly
+    before the bracket of '3,3'-dioxa[1,1'-bi(...)]-2-ol' (P-28.4.1, P-28.4.2)."""
+    if not any(sp.replaced for sp in specs):
+        return ""
+    text = _replacement_locants(mol, locants)[1]
+    return text.rstrip("-") if bracketed else text
+
+
+def _replacement_junction_ok(mol, specs, join):
+    """A replacement prefix names a skeletal atom of the hydrocarbon assembly, which the junction atoms must be part of
+    as carbon (P-28.4.1)."""
+    return not any(sp.replaced for sp in specs) or all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in join)
+
+
+def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None, mol=None):
     """Atom -> (prime count, locant) for the best numbering of two directly
     joined identical rings. Benzene and cycloalkane rings number from the
     junction (1 and 1'); heteroaromatic rings keep their fixed numbering and
-    the junction takes the lowest locants, then the marked atoms (principal
-    groups or a free valence), then the substituents."""
+    the junction takes the lowest locants, then the replacement heteroatoms of
+    a large ring, the marked atoms (principal groups or a free valence), then
+    the substituents."""
     from ._diester_ring_diyl import _isotope_key
 
     hetero = bool(specs) and specs[0].hetero is not None
+    replaced = bool(specs) and mol is not None and any(sp.replaced for sp in specs)
     cycles = [ring_cycle(graph, rings[0]), ring_cycle(graph, rings[1])]
 
     def orientations(index):
@@ -3022,6 +3047,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                     ene = tuple(sorted(_locant_order(loc) for loc in _assembly_multiple_locants(specs, locants)[0] + _assembly_multiple_locants(specs, locants)[1]))
                 key = (
                     (locants[join[unprimed]][1], locants[join[1 - unprimed]][1]),
+                    _replacement_locants(mol, locants)[0] if replaced else (),
                     tuple(sorted(_locant_order(locants[a]) for a in marked)),
                     tuple(_locant_order(locants[a]) for a in cite_marked) if cite_marked else (),
                     ene,
@@ -3072,6 +3098,8 @@ def _compatible_assembly_rings(mol, rings, specs):
         return False
     if {sp.kind for sp in specs} <= {"cycloalkane", "cycloalkene"}:
         return True
+    if specs[0].name or specs[1].name:
+        return specs[0].name == specs[1].name
     return specs[0].kind == specs[1].kind and _bare_key(mol, set(rings[0])) == _bare_key(mol, set(rings[1]))
 
 
@@ -3097,7 +3125,29 @@ def _assembly_base(specs, locants, join, elide, ylidene=False):
         return f"{spots}-bi({spec.parent[:-3]}ylidene)"
     parent = spec.parent
     stem = parent[:-1] if elide and parent.endswith("e") else parent
-    return f"{spots}-bi({stem})" if spec.hetero is None else f"{spots}-bi{stem}"
+    marked = spec.hetero is None or re.search(r"[\d\[-]", stem)
+    return f"{spots}-bi({stem})" if marked else f"{spots}-bi{stem}"
+
+
+def _assembly_spec(mol, graph, ring, replaceable=False):
+    """The component of a ring assembly: a benzene, cycloalkane or heteroaromatic ring, or a saturated heteromonocycle
+    named as its parent hydride (P-28.4.1) with the numberings of that name; with `replaceable`, a ring of more than ten
+    members whose heteroatoms are cited as skeletal replacement prefixes of the cycloalkane assembly (P-28.4.1)."""
+    spec = spec_of(mol, ring)
+    if spec is not None:
+        return spec
+    from ._ring_assembly import _replacement_ring_kind, _saturated_heteroring_kind
+    from ._ring_diyl_numbering import _hetero_monocycle
+
+    found = _saturated_heteroring_kind(mol, graph, ring)
+    if found is None:
+        if replaceable and _replacement_ring_kind(mol, ring) is not None:
+            return RingSpec(ring_cycle(graph, list(ring)), "cycloalkane", None, replaced=True)
+        return None
+    cycle = ring_cycle(graph, list(ring))
+    options = tuple(position_of for position_of, *_ in _hetero_monocycle(mol, cycle, None)[1])
+    hetero = next(a for a in cycle if mol.GetAtomWithIdx(a).GetAtomicNum() != 6)
+    return RingSpec(cycle, found[0], hetero, name=found[1], fixed=options)
 
 
 def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms):
@@ -3127,8 +3177,8 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     joins = [(a, b) for a in own for b in other if mol.GetBondBetweenAtoms(a, b) is not None]
     if len(joins) != 1:
         return None
-    specs = [spec_of(mol, r) for r in (own, other)]
-    if not _compatible_assembly_rings(mol, (own, other), specs):
+    specs = [_assembly_spec(mol, graph, r, True) for r in (own, other)]
+    if not _compatible_assembly_rings(mol, (own, other), specs) or not _replacement_junction_ok(mol, specs, joins[0]):
         return None
     ylidene = _junction_is_ylidene(mol, joins[0], specs)
     if ylidene is None:
@@ -3142,7 +3192,7 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     rings = [own, other]
-    locants = _assembly_numbering(graph, rings, joins[0], [root], entries, specs)
+    locants = _assembly_numbering(graph, rings, joins[0], [root], entries, specs, mol=mol)
     grouped = {}
     for r, name, compound in entries:
         spot = locants[r]
@@ -3154,7 +3204,7 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     base = _assembly_base(specs, locants, joins[0], elide=not ending, ylidene=ylidene)
     spot = locants[root]
     enes = f"{ending[:-1]}-" if ending else ""
-    core = f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl" if not ending else f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
+    core = _assembly_replacement(mol, specs, locants) + f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
     return (assembly_join(prefix, core)), True
 
 
@@ -3178,7 +3228,7 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     all_rings = [list(r) for r in ring_info.AtomRings()]
     if len(all_rings) < 2 or any(ring_info.NumAtomRings(a) != 1 for r in all_rings for a in r):
         return None
-    ring_specs = [spec_of(mol, r) for r in all_rings]
+    ring_specs = [_assembly_spec(mol, graph, r, True) for r in all_rings]
     if len(all_rings) > 2 and any(sp is not None and sp.kind == "cycloalkene" for sp in ring_specs):
         return None
     if not occurrences and not all(
@@ -3191,7 +3241,7 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
             found = _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, [first, second])
             if found is None:
                 continue
-            ylidene = _junction_is_ylidene(mol, found[2], [spec_of(mol, first), spec_of(mol, second)])
+            ylidene = _junction_is_ylidene(mol, found[2], [_assembly_spec(mol, graph, first, True), _assembly_spec(mol, graph, second, True)])
             # P-28.2.2: a double-bond junction is a two-ring assembly only; the pair holding the double bond has the
             # parent's multiple bond, so it ranks first
             key = (-found[0], not ylidene, ring_seniority_key(mol, set(first) | set(second), assembly=True), found[1][1])
@@ -3213,7 +3263,7 @@ def _assembly_beside_systems(mol, graph, halogens, aromatic_atoms, stereo):
             found = _pair_assembly(mol, graph, halogens, aromatic_atoms, None, [], [first, second])
             if found is None:
                 continue
-            ylidene = _junction_is_ylidene(mol, found[2], [spec_of(mol, first), spec_of(mol, second)])
+            ylidene = _junction_is_ylidene(mol, found[2], [_assembly_spec(mol, graph, first, True), _assembly_spec(mol, graph, second, True)])
             atoms = set(first) | set(second)
             named.add(frozenset(atoms))
             key = (not ylidene, ring_seniority_key(mol, atoms, assembly=True), found[1][1])
@@ -3284,11 +3334,11 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         return None
     if occurrences and any(o[1] not in set(rings[0]) | set(rings[1]) for o in occurrences):
         return None
-    specs = [spec_of(mol, r) for r in rings]
+    specs = [_assembly_spec(mol, graph, r, True) for r in rings]
     if not _compatible_assembly_rings(mol, rings, specs):
         return None
     joins = [(a, b) for a in rings[0] for b in rings[1] if mol.GetBondBetweenAtoms(a, b) is not None]
-    if len(joins) != 1:
+    if len(joins) != 1 or not _replacement_junction_ok(mol, specs, joins[0]):
         return None
     ylidene = _junction_is_ylidene(mol, joins[0], specs)
     if ylidene is None:
@@ -3302,7 +3352,7 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         if n.GetIdx() not in ring_atoms and n.GetIdx() not in owned
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
-    locants = _assembly_numbering(graph, rings, joins[0], [o[1] for o in occurrences], entries, specs)
+    locants = _assembly_numbering(graph, rings, joins[0], [o[1] for o in occurrences], entries, specs, mol=mol)
 
     def cite(locant):
         return f"{locant[1]}{chr(39) * locant[0]}"
@@ -3315,16 +3365,16 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     count = len(occurrences)
     ending = _assembly_unsaturation(specs, locants)
+    replacement = _assembly_replacement(mol, specs, locants, bool(principal) or bool(ending))
     if principal is None:
         core = _assembly_base(specs, locants, joins[0], elide=False, ylidene=ylidene)
-        if ending:
-            core = f"[{core}]-{ending}"
+        core = f"{replacement}[{core}]-{ending}" if ending else replacement + core
     else:
         word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
         base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy" and not ending, ylidene=ylidene)
         spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _locant_order(locants[o[1]])))
         enes = f"{ending[:-1] if word[0] in 'aeiouy' else ending}-" if ending else ""
-        core = f"[{base}]-{enes}{spots}-{word}"
+        core = f"{replacement}[{base}]-{enes}{spots}-{word}"
     name = assembly_join(prefix, core)
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core))), joins[0]
 

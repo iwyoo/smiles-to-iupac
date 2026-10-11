@@ -166,11 +166,11 @@ _REPLACEMENT_ORDER = (8, 16, 34, 52, 7)
 _REPLACEMENT_MINIMUM_SIZE = 11
 
 
-def _replacement_ring_kind(mol, ring, attach_atom):
+def _replacement_ring_kind(mol, ring, attach_atom=None):
     """("saturated", n) for a saturated monocycle of more than ten members whose heteroatoms are O, S, Se, Te or NH and
     whose junction atom is carbon: the cycloalkane assembly takes the skeletal replacement prefixes (P-28.4.2)."""
     atoms = [mol.GetAtomWithIdx(i) for i in ring]
-    if len(ring) < _REPLACEMENT_MINIMUM_SIZE or mol.GetAtomWithIdx(attach_atom).GetAtomicNum() != 6:
+    if len(ring) < _REPLACEMENT_MINIMUM_SIZE or (attach_atom is not None and mol.GetAtomWithIdx(attach_atom).GetAtomicNum() != 6):
         return None
     if any(a.GetIsAromatic() or a.GetAtomicNum() not in {6, *_REPLACEMENT_ELEMENTS} for a in atoms):
         return None
