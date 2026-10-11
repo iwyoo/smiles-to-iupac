@@ -659,21 +659,8 @@ def _name_acyclic_hydrazide(
         if chain[0] != hydrazide_carbon:
             chain = list(reversed(chain))
         if chain_length == 1:
-            # P-66.3.1.2.1: the mononuclear case's retained name
-            # ('formohydrazide') is itself the PIN; there's no room on a
-            # single carbon for any substituent. Unlike the dinuclear case
-            # below, a substituent on either nitrogen also breaks the
-            # retained name itself (PubChem switches to 'formamide' +
-            # amino-substituent naming for `O=CN(C)N`/`O=CNNC`, a
-            # different naming paradigm this module doesn't attempt), so
-            # N-substitution is out of scope here specifically.
-            if n_entries:
-                raise UnsupportedStructure(
-                    "an N-/N'-substituted formohydrazide is not supported "
-                    "yet (the retained name itself doesn't survive "
-                    "substitution here, unlike the dinuclear case)"
-                )
-            return "formohydrazide"
+            # P-66.3.1.2.1: 'formohydrazide' is substituted like formamide, N-/N'- prefixes only.
+            return format_substituent_prefixes(_with_n_entries({}, n_entries)) + "formohydrazide"
         # P-66.3.1.2.1: the dinuclear case's retained name
         # ('acetohydrazide') is the PIN, with any substituent on its
         # terminal carbon cited as an ordinary prefix (e.g.
