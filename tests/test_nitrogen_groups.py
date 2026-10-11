@@ -704,6 +704,21 @@ def test_branched_symmetric_imide_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)CCN(C(C)=O)C(C)=O", "3-(N-acetylacetamido)propanoic acid", id="diacylamino_prefix"),
+        pytest.param(
+            "OC(=O)CCN(S(C)(=O)=O)S(C)(=O)=O",
+            "3-[N-(methanesulfonyl)methanesulfonamido]propanoic acid",
+            id="disulfonylamino_prefix",
+        ),
+    ],
+)
+def test_diacylamino_prefix_is_the_n_acylamido_of_the_senior_acyl(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_n_substituted_cyclic_imide_named_via_ketone_module():
     assert smiles_to_iupac("CN1C(=O)CCC1=O") == "1-methylpyrrolidine-2,5-dione"
 
