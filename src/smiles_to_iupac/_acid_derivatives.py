@@ -13,6 +13,7 @@ from rdkit.Chem import rdCIPLabeler
 from ._acid_lexicon import CHALCOGENS
 from ._carbonic_family import pseudohalide_at
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._substituents import BRANCH_STEREO, name_branch
@@ -808,7 +809,12 @@ def _component_acid(mol, atoms, centers):
         if atom.GetAtomicNum() in (15, 16):
             # the descriptor of a stereogenic acid centre is cited in front of the anion, not inside the acid name
             atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
-    return _free_acid_name(acid)
+    # P-14.3.4.1 lists no anhydride, so the substituent locants of the acid piece stay cited
+    token = CITE_SUBSTITUENT_LOCANTS.set(True)
+    try:
+        return _free_acid_name(acid)
+    finally:
+        CITE_SUBSTITUENT_LOCANTS.reset(token)
 
 
 def _bridged_components(mol, links):
