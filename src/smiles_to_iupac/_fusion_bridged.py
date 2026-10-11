@@ -3,6 +3,7 @@ polyvalent, composite, with ring and fused-ring units), named with the bridge pr
 the attachment locants of the bridges, and the bridge atoms numbered on from the fused system (P-25.4.3-5)."""
 
 import re
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from itertools import groupby, product
 
@@ -21,7 +22,7 @@ _MAX_CLUSTER = 14
 _MAX_PARTS = 4
 _MAX_RINGS = _MAX_RINGS_IN_SYSTEM + _MAX_PARTS
 _MAX_DECOMPOSITIONS = 200
-_PHANE_NODES = 6
+PHANE_NODES = ContextVar("phane_nodes", default=6)
 _NO_KEY = (-1, "", 0)
 _HETERO_WORDS = {"S": "sulfano", "Se": "selano", "Te": "tellano", "Si": "silano", "P": "phosphano", "B": "borano", "Sn": "stannano"}
 _HYDRIDES = {
@@ -243,7 +244,7 @@ def _units_of(mol, graph, comp):
             units.append({"kind": "chain" if symbol == "C" else "hetero", "atoms": [payload], "symbol": symbol})
     ring_units = sum(1 for u in units if u["kind"] == "ring")
     chain_atoms = sum(len(u["atoms"]) for u in units if u["kind"] != "ring")
-    if ring_units and chain_atoms + ring_units + 1 >= _PHANE_NODES:
+    if ring_units and chain_atoms + ring_units + 1 >= PHANE_NODES.get():
         raise UnsupportedStructure("a bridge that makes a cyclophane (P-52.2.5.1)")
     return units
 
