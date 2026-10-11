@@ -470,6 +470,20 @@ def _is_aromatic_ring_without_double_bonds(mol):
     )
 
 
+def _is_carbocycle_with_exocyclic_double_bond_perceived_aromatic(mol):
+    """RDKit counts one electron for a ring carbon with an exocyclic C=C, so a quinodimethane looks like benzene; a
+    benzene ring has no exocyclic double bond (P-29.3.4.2)."""
+    rings = [r for r in mol.GetRingInfo().AtomRings() if all(mol.GetAtomWithIdx(a).GetIsAromatic() and mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in r)]
+    return any(
+        b.GetBondType() == Chem.BondType.DOUBLE
+        and not b.IsInRing()
+        and any(b.GetBeginAtomIdx() in r or b.GetEndAtomIdx() in r for r in rings)
+        and b.GetBeginAtom().GetAtomicNum() == 6
+        and b.GetEndAtom().GetAtomicNum() == 6
+        for b in mol.GetBonds()
+    )
+
+
 def _is_aromatic_ring_with_triple_bond(mol):
     return any(b.GetBondType() == Chem.BondType.TRIPLE and b.IsInRing() and b.GetIsAromatic() for b in mol.GetBonds())
 
@@ -519,6 +533,7 @@ def _parse_smiles_unannotated(smiles):
         _is_nonbenzene_monocyclic_annulene(mol)
         or _is_aromatic_ring_without_double_bonds(mol)
         or _is_aromatic_ring_with_triple_bond(mol)
+        or _is_carbocycle_with_exocyclic_double_bond_perceived_aromatic(mol)
     ):
         # P-54.2: only benzene is named as an aromatic ring; larger annulenes take ene/yne endings, and
         # RDKit's aromatic perception would drop their E/Z bond stereo. A ring of NH-type atoms with no double
