@@ -6,6 +6,7 @@ first), single and homonuclear heteroatom groups, and ring components.
 from dataclasses import dataclass
 
 from ._acid_lexicon import SULFONYL_CENTRES, acyl_suffix, make_spec
+from ._acid_prefixes import acyl_stem
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
@@ -16,6 +17,7 @@ from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
+_CHALCOGEN_SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _TERMINAL_DOUBLE_WORDS = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
 _OXOACID_LINKER = {15: ("phosphoryl", "phosphonoyl"), 33: ("arsoryl", "arsonoyl"), 51: ("stiboryl", "stibonoyl")}
 _SUBSTITUTABLE_WORDS = {
@@ -324,8 +326,12 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
         pend = _pendants(mol, atoms, pairs)
         if len(pend) == 1:
             o = mol.GetAtomWithIdx(pend[0][1])
-            if o.GetAtomicNum() == 8 and o.GetDegree() == 1 and mol.GetBondBetweenAtoms(atoms[0], o.GetIdx()).GetBondTypeAsDouble() == 2:
-                return Part("carbonyl", False, False)
+            if (
+                o.GetAtomicNum() in _CHALCOGEN_SYMBOL
+                and o.GetDegree() == 1
+                and mol.GetBondBetweenAtoms(atoms[0], o.GetIdx()).GetBondTypeAsDouble() == 2
+            ):
+                return Part(acyl_stem(_CHALCOGEN_SYMBOL[o.GetAtomicNum()]), False, False)
     universe = _carbon_closure(mol, atoms)
     adj = {a: [n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in universe] for a in universe}
     free_atoms = [a for a, _, _ in attachments]

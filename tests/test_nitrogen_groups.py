@@ -1373,6 +1373,18 @@ def test_n_acyl_groups_on_mancude_and_fused_ring_nitrogens_are_pseudoketones(smi
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("O=C(n1ccnc1)N1CCCC1", "(1H-imidazol-1-yl)(pyrrolidin-1-yl)methanone", id="carbonyl_between_two_ring_nitrogens_is_a_methanone"),
+        pytest.param("S=C(n1cncc1)n1cncc1", "di(1H-imidazol-1-yl)methanethione", id="thiocarbonyl_between_two_ring_nitrogens_is_a_methanethione"),
+        pytest.param("O=C1C=CC=CN1C(=O)N1CCCC1", "1-(pyrrolidine-1-carbonyl)pyridin-2(1H)-one", id="ring_ketone_beside_a_hidden_amide_pair_takes_the_ring_as_parent"),
+    ],
+)
+def test_carbonyl_and_thiocarbonyl_between_ring_nitrogens_are_not_ureas(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("N#CCc1ccccc1", "phenylacetonitrile"),
         ("OCC=O", "hydroxyacetaldehyde"),
         ("C1OC1c1ccccc1", "phenyloxirane"),

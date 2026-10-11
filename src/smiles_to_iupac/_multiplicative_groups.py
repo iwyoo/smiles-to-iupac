@@ -52,6 +52,8 @@ _CLASS_PATTERNS = [
     ("nitrile", "[CX2]#[NX1]", 0),
     ("aldehyde", "[CX3H1](=O)[#6]", 0),
     ("ketone", "[#6][CX3](=O)[#6]", 1),
+    ("ketone", "[#6X3;R;$([#6]@[#7,#8,#16,#34,#52])]=O", 0),
+    ("ketone", "[CX3;!R;$(C-[#7;R])]=O", 0),
     ("alcohol", f"[OX2H1;!R]{_NOT_CARBONYL}", 0),
     ("thiol", f"[SX2H1;!R]{_NOT_CARBONYL}", 0),
     ("hydroperoxide", "[OX2H1][OX2;!R][#6]", 0),
@@ -75,6 +77,7 @@ _JUNIOR_PATTERNS = [
 _CLASS_QUERIES = [(name, Chem.MolFromSmarts(smarts), anchor) for name, smarts, anchor in _CLASS_PATTERNS]
 _JUNIOR_QUERIES = [Chem.MolFromSmarts(smarts) for smarts in _JUNIOR_PATTERNS]
 _THIOKETONE_QUERY = Chem.MolFromSmarts("[#6][CX3](=[SX1,SeX1,TeX1])[#6]")
+_HIDDEN_THIOAMIDE_QUERY = Chem.MolFromSmarts("[CX3;!R;$(C-[#7;R])]=[SX1,SeX1,TeX1]")
 
 
 @dataclass(frozen=True)
@@ -184,11 +187,13 @@ def classify(mol):
             else:
                 ring_atom = None
             group_atoms = frozenset(match)
-            if name == "ketone":
+            if name == "ketone" and len(match) == 4:
                 group_atoms = frozenset({match[1], match[2]})
             groups.append(Group(name, SUFFIX_RANKS[name], anchor_atom, group_atoms, ring_atom))
             covered.update(group_atoms)
     junior = _JUNIOR_QUERIES + [_THIOKETONE_QUERY] if any(g.rank < SUFFIX_RANKS["ketone"] for g in groups) else _JUNIOR_QUERIES
+    if any(g.rank <= SUFFIX_RANKS["ketone"] for g in groups):
+        junior = junior + [_HIDDEN_THIOAMIDE_QUERY]
     for query in junior:
         for match in mol.GetSubstructMatches(query):
             covered.update(match)

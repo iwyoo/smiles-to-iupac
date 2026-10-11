@@ -570,6 +570,8 @@ def _chalcogen_amide_group(mol, atom, chalcogen, z):
     if any(mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
         return None
     ring_nitrogens = [n for n in nitrogens if n.IsInRing()]
+    if len(ring_nitrogens) == 2 and not rest and all(_ring_nitrogen_acyl(mol, n, carbon) for n in ring_nitrogens):
+        return _CHALCOGEN_KETONE_CLASS[z], {chalcogen}
     if len(nitrogens) == 2 and len(ring_nitrogens) == 1 and not rest:
         other = next(n for n in nitrogens if not n.IsInRing())
         if _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, carbon):
@@ -775,6 +777,9 @@ def _group_of(mol, carbon):
         if hetero and all(_acyl_diazene_nitrogen(mol, h, carbon) for h in hetero):
             return "ketone", {oxygens[0]}
         ring_nitrogens = [h for h in hetero if h.IsInRing() and h.GetAtomicNum() == 7]
+        if len(ring_nitrogens) == 2 and len(hetero) == 2 and not carbon_neighbors:
+            if all(_ring_nitrogen_acyl(mol, h, carbon) for h in ring_nitrogens):
+                return "ketone", {oxygens[0]}
         if len(hetero) == 2 and len(ring_nitrogens) == 1:
             other = next(h for h in hetero if h.GetIdx() != ring_nitrogens[0].GetIdx())
             if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
@@ -4917,6 +4922,14 @@ def _nitrogen_acyl(mol, carbon):
     )
 
 
+def _ring_nitrogen_pair(mol, carbon):
+    """Whether the carbonyl `carbon` is bonded to two ring nitrogens and nothing else: a pseudoketone with two hidden
+    amide nitrogens (P-64.3.2, P-66.1.3)."""
+    atom = mol.GetAtomWithIdx(carbon)
+    others = [n for n in atom.GetNeighbors() if mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0]
+    return len(others) == 2 and all(n.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, n, carbon) for n in others)
+
+
 def _is_ester_like(mol, carbon):
     atom = mol.GetAtomWithIdx(carbon)
     if not _double_oxygens(mol, carbon):
@@ -4926,7 +4939,11 @@ def _is_ester_like(mol, carbon):
         and not _diacyl_chalcogen_chain(mol, carbon, n)
         and not (_acyloxy_amine_oxygen(mol, n, carbon) and any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()))
         and not _acyloxy_lambda_centre_oxygen(n, carbon)
-        and not (n.GetAtomicNum() == 7 and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors())) and _ring_nitrogen_acyl(mol, n, carbon))
+        and not (
+            n.GetAtomicNum() == 7
+            and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()) or _ring_nitrogen_pair(mol, carbon))
+            and _ring_nitrogen_acyl(mol, n, carbon)
+        )
         and not (n.GetAtomicNum() == 8 and _terminal_heteroatom(mol, n.GetIdx(), 1))
         and not (n.GetAtomicNum() == 7 and _terminal_heteroatom(mol, n.GetIdx(), 2))
         and not (n.GetAtomicNum() == 7 and _acyl_diazene_nitrogen(mol, n, carbon))
