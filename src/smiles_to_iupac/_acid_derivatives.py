@@ -928,6 +928,17 @@ def _acid_group_count(mol, atoms, centers):
     return hydroxy + len(centers)
 
 
+def _mononuclear_noncarbon_center(mol, centers):
+    return len(set(centers)) == 1 and mol.GetAtomWithIdx(centers[0]).GetAtomicNum() != 6
+
+
+def _alphabetical_acid_words(counts, class_word):
+    """P-67.1.3.3: the acids of an anhydride of a mononuclear noncarbon oxoacid are cited alphabetically; one kind of
+    acyl group is cited once, mixed kinds keep their multipliers so that the name stays unambiguous."""
+    cited = [_multiplied_word(w, counts[w]) for w in sorted(counts, key=alpha_sort_key)]
+    return f"{' '.join(cited)} {class_word}"
+
+
 def name_anhydride(mol, links):
     _reject_unsupported(mol)
     links = _senior_bridge_links(mol, links)
@@ -989,6 +1000,9 @@ def name_anhydride(mol, links):
             groups.setdefault(word_of[leaf], []).append(str(locants.get(hub_center, "")))
         if not carbon_hub and len(groups) > 1 and len(set(centers[hub])) > 1:
             raise UnsupportedStructure("different acyl groups on the acid centres of a hub need centre locants")
+        if _mononuclear_noncarbon_center(mol, centers[hub]):
+            counts = {w: len(g) if len(groups) > 1 else 1 for w, g in groups.items()}
+            return _alphabetical_acid_words({**counts, word_of[hub]: 1}, class_word)
         cited = []
         for leaf_word in sorted(groups, key=alpha_sort_key):
             group = sorted(groups[leaf_word], key=lambda t: (len(t), t))
@@ -1001,6 +1015,8 @@ def name_anhydride(mol, links):
         order.append(next(n for n in adjacency_of[order[-1]] if n not in order))
     if len(order) == 3:
         w = [word_of[i] for i in order]
+        if _mononuclear_noncarbon_center(mol, centers[order[1]]):
+            return _alphabetical_acid_words(dict.fromkeys(w, 1), class_word)
         if w[0] == w[2]:
             return f"{_multiplied_word(w[0], 2)} {w[1]} {class_word}"
         return f"{' '.join(w)} {class_word}"
