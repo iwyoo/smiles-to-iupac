@@ -97,6 +97,7 @@ def test_aromatic_aminide_is_and_related(smiles, expected):
         pytest.param("CC(=O)OCC[N+](C)(C)C", "2-(acetyloxy)-N,N,N-trimethylethan-1-aminium", id="acyloxy_prefix_on_aminium"),
         pytest.param("CCOS(=O)(=O)CC[N+](C)(C)C", "2-(ethoxysulfonyl)-N,N,N-trimethylethan-1-aminium", id="sulfonate_ester_prefix_on_aminium"),
         pytest.param("CC(=O)OCC[n+]1ccccc1", "1-[2-(acetyloxy)ethyl]pyridin-1-ium", id="acyloxy_prefix_on_ring_cation"),
+        pytest.param("COCC[n+]1cccc(CC)c1", "3-ethyl-1-(2-methoxyethyl)pyridin-1-ium", id="ether_in_the_substituent_of_a_ring_cation"),
         pytest.param("CCOS(=O)(=O)CC[NH+]1CCCCC1", "1-[2-(ethoxysulfonyl)ethyl]piperidin-1-ium", id="sulfonate_ester_prefix_on_saturated_ring_cation"),
         pytest.param("CCOC(=O)CC[NH+]1CCCC1", "1-(3-ethoxy-3-oxopropyl)pyrrolidin-1-ium", id="ester_carbon_in_chain_on_saturated_ring_cation"),
         pytest.param("C[N+](C)(C)c1ccc(C(=O)O)cc1", "4-carboxy-N,N,N-trimethylanilinium", id="aryl_ammonium_with_acid"),
