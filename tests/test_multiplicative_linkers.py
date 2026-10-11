@@ -300,6 +300,9 @@ def test_central_group_forms(smiles, expected):
     "smiles,expected",
     [
         ("Oc1ccc(OCC(C)COc2ccc(O)cc2)cc1", "4,4'-[(2-methylpropane-1,3-diyl)bis(oxy)]diphenol"),
+        ("O=CCCCCOCCCCC=O", "5,5'-oxydi(pentanal)"),
+        ("OC(=O)CCCCCCOCCCCCCC(O)=O", "7,7'-oxydi(heptanoic acid)"),
+        ("O=CCCCOCCCC=O", "4,4'-oxydibutanal"),
         (
             "Oc1ccc(CCCCCCCCCCCCCCOCCCCCCCCCCCCCCc2ccc(O)cc2)cc1",
             "4,4'-[oxydi(tetradecane-14,1-diyl)]diphenol",

@@ -56,7 +56,10 @@ def primed_locants(locant, count):
     return ",".join(str(locant) + "'" * i for i in range(count))
 
 
-_NUMERIC_STEMS = ("dec", "undec", "dodec", "tridec", "tetradec", "pentadec", "hexadec", "heptadec", "octadec", "nonadec", "icos")
+_NUMERIC_STEMS = (
+    "pentan", "hexan", "heptan", "octan", "nonan",
+    "dec", "undec", "dodec", "tridec", "tetradec", "pentadec", "hexadec", "heptadec", "octadec", "nonadec", "icos",
+)
 
 
 def needs_enclosing(text):
