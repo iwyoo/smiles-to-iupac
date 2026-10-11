@@ -61,11 +61,7 @@ def _dianion_name(mol):
     return name[: -len("ic acid")] + "ate"
 
 
-def name_polycarbonic(mol):
-    if len(Chem.GetMolFrags(mol)) != 1:
-        raise UnsupportedStructure("several fragments")
-    if any(a.GetFormalCharge() for a in mol.GetAtoms()):
-        return _dianion_name(mol)
+def _chain_setup(mol):
     centers = [a.GetIdx() for a in mol.GetAtoms() if _carbonic_center(mol, a.GetIdx())]
     if len(centers) < 2:
         raise UnsupportedStructure("fewer than two carbonic units")
@@ -94,12 +90,40 @@ def name_polycarbonic(mol):
     ends = [c for c in centers if degree[c] == 1]
     if len(ends) != 2 or any(d > 2 for d in degree.values()):
         raise UnsupportedStructure("a branched polycarbonic acid is not named by P-65.2.3")
-    n = len(centers)
+    return graph, bridges, ends, len(centers)
+
+
+def _walk(bridges, start, n):
+    order = [start]
+    while len(order) < n:
+        order.append(next(m for pair in bridges if order[-1] in pair for m in pair if m != order[-1] and m not in order))
+    return order
+
+
+def end_numberings(mol):
+    """P-65.2.3.1: the chain orders of a di- to tetracarbonic acid that give the replacement prefixes the lowest
+    locants, as [(order, locant of each carbonic carbon)]; the carbons sit at the odd positions."""
+    graph, bridges, ends, n = _chain_setup(mol)
+    if n > 4:
+        raise UnsupportedStructure("five or more carbonic units are named by skeletal replacement")
+    keyed = []
+    for start in ends:
+        order = _walk(bridges, start, n)
+        replaced = _replacements(mol, graph, order, bridges)
+        keyed.append((tuple(sorted(loc for loc, _ in replaced)), order))
+    lowest = min(key for key, _ in keyed)
+    return [(order, {c: 2 * i + 1 for i, c in enumerate(order)}) for key, order in keyed if key == lowest]
+
+
+def name_polycarbonic(mol):
+    if len(Chem.GetMolFrags(mol)) != 1:
+        raise UnsupportedStructure("several fragments")
+    if any(a.GetFormalCharge() for a in mol.GetAtoms()):
+        return _dianion_name(mol)
+    graph, bridges, ends, n = _chain_setup(mol)
     best = None
     for start in ends:
-        order = [start]
-        while len(order) < n:
-            order.append(next(m for pair in bridges if order[-1] in pair for m in pair if m != order[-1] and m not in order))
+        order = _walk(bridges, start, n)
         try:
             replaced = _replacements(mol, graph, order, bridges)
         except UnsupportedStructure:
