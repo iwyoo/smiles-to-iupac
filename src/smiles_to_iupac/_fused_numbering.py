@@ -6,7 +6,7 @@ P-25.3.3.2-3 break the remaining ties."""
 import math
 from collections import defaultdict
 from fractions import Fraction
-from itertools import product
+from functools import lru_cache
 
 from rdkit import Chem
 
@@ -23,12 +23,13 @@ _HOUSE = {
 }
 
 
+@lru_cache(maxsize=None)
 def _shape_tables(n):
     if n in _HOUSE:
         up = _HOUSE[n]
         down = [(-up[(-k) % n]) % 1 for k in range(n)]
-        return [up, down]
-    return [[Fraction(-k, n) % 1 for k in range(n)]]
+        return (up, down)
+    return ([Fraction(-k, n) % 1 for k in range(n)],)
 
 
 class FusedSystem:
@@ -55,6 +56,7 @@ class FusedSystem:
                     raise UnsupportedStructure("two rings sharing more than one bond are not ortho-fused")
                 self.adj[i][j] = bond
                 self.adj[j][i] = bond
+        self._edge_indexes = {}
         self._orient(rings)
         self._periphery()
 
@@ -119,16 +121,74 @@ class FusedSystem:
         self.interior = sorted(a for a in counts if a not in set(cycle))
 
     def edge_index(self, ring, bond):
-        cyc = self.rings[ring]
-        n = len(cyc)
-        return next(k for k in range(n) if frozenset((cyc[k], cyc[(k + 1) % n])) == bond)
+        key = (ring, bond)
+        if key not in self._edge_indexes:
+            cyc = self.rings[ring]
+            n = len(cyc)
+            self._edge_indexes[key] = next(k for k in range(n) if frozenset((cyc[k], cyc[(k + 1) % n])) == bond)
+        return self._edge_indexes[key]
+
+
+def _fill_normals(system, parent, root, r, pick, normals, cache):
+    size = len(system.rings[r])
+    if r == root:
+        p_edge = 0
+        p_normal = Fraction(0)
+    else:
+        p = parent[r]
+        bond = system.adj[r][p]
+        p_edge = system.edge_index(r, bond)
+        p_normal = (normals[(p, system.edge_index(p, bond))] + Fraction(1, 2)) % 1
+    key = (r, pick, p_normal)
+    values = cache.get(key)
+    if values is None:
+        variant, role = pick
+        table = _shape_tables(size)[variant]
+        values = cache[key] = [(p_normal + table[(e - p_edge + role) % size] - table[role]) % 1 for e in range(size)]
+    for e, value in enumerate(values):
+        normals[(r, e)] = value
+
+
+def _opposed(system, i, j, bond, normals):
+    return (normals[(i, system.edge_index(i, bond))] - normals[(j, system.edge_index(j, bond))] - Fraction(1, 2)) % 1 == 0
+
+
+def _distinct_picks(system, order, choices, parent, root, cache, agreeing):
+    """The role picks of the full product, in its order, with roles that give a ring the same edge normals drawn once;
+    `agreeing` keeps those whose rings agree on every shared bond (a ring of more than seven atoms is placed after
+    the picks and so is left unchecked here)."""
+    rings = system.rings
+    earlier = [
+        [(x, system.adj[r][x]) for x in system.adj[r] if x in order[:idx] and len(rings[r]) <= 7 and len(rings[x]) <= 7]
+        for idx, r in enumerate(order)
+    ]
+    normals = {}
+    pick = []
+
+    def extend(idx):
+        if idx == len(order):
+            yield tuple(pick)
+            return
+        r = order[idx]
+        drawn_shapes = set()
+        for choice in choices[idx]:
+            _fill_normals(system, parent, root, r, choice, normals, cache)
+            shape = tuple(normals[(r, e)] for e in range(len(rings[r])))
+            if shape in drawn_shapes:
+                continue
+            drawn_shapes.add(shape)
+            if not agreeing or all(_opposed(system, r, x, bond, normals) for x, bond in earlier[idx]):
+                pick.append(choice)
+                yield from extend(idx + 1)
+                pick.pop()
+
+    yield from extend(0)
 
 
 def _layouts(system):
     """Every drawing of the ring system: per ring the shape role choices, giving ring centres and the normal of
     each ring edge. Yields (centres, normals)."""
     rings = system.rings
-    n = len(rings)
     parent = {j: i for i, j in system.tree}
     root = system.root
     order = [root] + [j for _, j in system.tree]
@@ -140,25 +200,25 @@ def _layouts(system):
             choices.append([(t, j) for t in range(len(tables)) for j in range(size)])
         else:
             choices.append([(0, 0)])
+    cache = {}
+    drawn = _draw(system, order, parent, root, _distinct_picks(system, order, choices, parent, root, cache, True), True, cache)
+    if not drawn:
+        picks = _distinct_picks(system, order, choices, parent, root, cache, False)
+        drawn = _draw(system, order, parent, root, picks, False, cache)
+    for centres, normals in drawn:
+        yield centres, normals
+
+
+def _draw(system, order, parent, root, picks, consistent_only, cache):
+    rings = system.rings
+    n = len(rings)
     seen = set()
     found = []
-    for pick in product(*choices):
+    for pick in picks:
         centres = {root: (0.0, 0.0)}
         normals = {}
         for idx, r in enumerate(order):
-            size = len(rings[r])
-            variant, role = pick[idx]
-            table = _shape_tables(size)[variant]
-            if r == root:
-                p_edge = 0
-                p_normal = Fraction(0)
-            else:
-                p = parent[r]
-                bond = system.adj[r][p]
-                p_edge = system.edge_index(r, bond)
-                p_normal = (normals[(p, system.edge_index(p, bond))] + Fraction(1, 2)) % 1
-            for e in range(size):
-                normals[(r, e)] = (p_normal + table[(e - p_edge + role) % size] - table[role]) % 1
+            _fill_normals(system, parent, root, r, pick[idx], normals, cache)
             for child in system.adj[r]:
                 if parent.get(child) == r:
                     bond = system.adj[r][child]
@@ -184,15 +244,11 @@ def _layouts(system):
         if key in seen:
             continue
         seen.add(key)
-        consistent = all(
-            (normals[(i, system.edge_index(i, bond))] - normals[(j, system.edge_index(j, bond))] - Fraction(1, 2)) % 1 == 0
-            for i in system.adj
-            for j, bond in system.adj[i].items()
-        )
-        found.append((consistent, centres, normals))
+        consistent = all(_opposed(system, i, j, bond, normals) for i in system.adj for j, bond in system.adj[i].items())
+        if consistent or not consistent_only:
+            found.append((consistent, centres, normals))
     drawn = [d for d in found if d[0]] or found
-    for _, centres, normals in drawn:
-        yield centres, normals
+    return [(centres, normals) for _, centres, normals in drawn]
 
 
 def _weights(delta):
