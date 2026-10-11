@@ -634,7 +634,8 @@ def skeletal_substituent(mol, graph, root, coming_from):
     """The skeletal replacement group entered at carbon `root` when its principal substituent chain carries four or
     more heterounits (P-46.0, P-46.1): the chain with the most heteroatoms, then the longest, then the first of the
     criteria (a)-(m) that decides; None when no such chain exists."""
-    if mol.GetAtomWithIdx(root).GetAtomicNum() != 6 or mol.GetAtomWithIdx(root).IsInRing():
+    root_atom = mol.GetAtomWithIdx(root)
+    if root_atom.IsInRing() or (root_atom.GetAtomicNum() != 6 and not _chain_heteroatom(root_atom)):
         return None
     arm = {root}
     stack = [root]
