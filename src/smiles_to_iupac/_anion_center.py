@@ -224,7 +224,8 @@ def _name_skeletal_anion(mol, centers):
 
     if any(a.GetAtomicNum() not in _PARENTS and a.GetAtomicNum() != 6 for a in centers):
         raise UnsupportedStructure("this skeletal anionic atom is not supported yet")
-    kinds = {a.GetIdx(): _center_kind(a, _standard(a), preferred="ide") for a in centers}
+    preferred = "uide" if len(centers) == 1 else "ide"
+    kinds = {a.GetIdx(): _center_kind(a, _standard(a), preferred) for a in centers}
     words = {kind for kind, _ in kinds.values()}
     lams = {i: lam for i, (_, lam) in kinds.items()}
     mixed = len(words) == 2

@@ -669,7 +669,8 @@ def test_p72_anion_prefixes_and_acid_variants(smiles, expected):
 _P72_COVERAGE = [
     ("F[Te-2](F)(F)(F)(F)(F)(F)F", "octafluoro-λ6-tellanediuide"),
     ("C1CCCC[SH3-]C[SH3-]1", "1λ6,3λ6-dithiocane-1,3-diide"),
-    ("C1CC[SH3-]CC1", "1λ6-thian-1-ide"),
+    ("C1CC[SH3-]CC1", "1λ4-thian-1-uide"),
+    ("[PH2-]12(CCCCC1)CCCCC2", "6λ5-phosphaspiro[5.5]undecan-6-uide"),
     ("[O-]P(=O)([O-])c1ccc(cc1)C(=O)[O-]", "4-phosphonatobenzoate"),
     ("[O-][As](=O)([O-])c1ccc(cc1)C(=O)[O-]", "4-arsonatobenzoate"),
     ("[O-]C(=O)c1ccc(cc1)CC[CH2-]", "4-(propan-1-id-3-yl)benzoate"),
