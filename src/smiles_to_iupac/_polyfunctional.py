@@ -2095,6 +2095,8 @@ def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset(), suf
         raise UnsupportedStructure("stereodescriptors outside the parent are not supported by the chain engine yet")
     if not entries:
         return ""
+    if len(entries) == 1 and entries[0][1].startswith("("):
+        return f"{entries[0][1]}-"
     if len(position_of) == 1 and len(entries) == 1:
         # P-93.5: the one skeletal atom of a mononuclear parent needs no locant
         return f"({entries[0][1]})-"
@@ -2914,7 +2916,7 @@ def _fused_plain_parent(mol, graph, rings):
 
 _DESCRIPTOR = (
     r"(?:\d+[a-z]*['\u2032]*(?:\(\d+[a-z]*['\u2032]*\))?)?"
-    r"(?:[RSEZrsMPmp]|seqCis|seqTrans|\((?:TBPY-5|OC-6)-\d+['\u2032]*(?:-[AC])?\))"
+    r"(?:[RSEZrsMPmp]|seqCis|seqTrans|\((?:TBPY-5|OC-6|SPY-5|SS-4)-\d+['\u2032]*(?:-[AC])?\))"
 )
 _ALL_DESCRIPTORS = re.compile(rf"[(\[]{_DESCRIPTOR}(?:,{_DESCRIPTOR})*[)\]]-")
 
