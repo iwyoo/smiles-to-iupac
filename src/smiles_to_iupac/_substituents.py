@@ -428,10 +428,11 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         raise UnsupportedStructure("an isotopically modified substituent other than a plain alkyl group is not supported yet")
     if mol.GetAtomWithIdx(root).IsInRing():
         positions = _phenyl_label_positions(mol, root, labelled, name, coming_from)
-        if positions is None:
-            raise UnsupportedStructure("an isotopically modified ring substituent other than phenyl or cycloalkyl is not supported yet")
-        stem_index = name.rfind(_ring_group_stem(mol, root)[0])
-        omit = _fully_modified(labelled, positions, capacity, {a for a in positions if a != root})
+        if positions is not None:
+            stem_index = name.rfind(_ring_group_stem(mol, root)[0])
+            omit = _fully_modified(labelled, positions, capacity, {a for a in positions if a != root})
+        else:
+            positions, stem_index, omit = _ring_system_label_positions(mol, graph, root, coming_from, labelled, name, capacity)
     else:
         named = {**{a: "x" for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}, **(halogens or {})}
         chain, _, _, _ = _select_winning_structure(graph, root, coming_from, named, mol, aromatic_atoms, unsaturated)
@@ -443,9 +444,11 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         if stem_index < 0:
             raise UnsupportedStructure("the principal chain of this substituent name is not delimited")
         omit = len(chain) == 1 or _fully_modified(labelled, positions, capacity, set(chain))
+    from ._polyfunctional import _sole_heteroatoms
+
     context["consumed"].update(labelled)
-    text = descriptor(labelled, positions, omit, capacity=capacity)
-    return name[:stem_index] + text + name[stem_index:], compound
+    text = descriptor(labelled, positions, omit, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
+    return name[:stem_index] + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
 
 
 _CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
@@ -539,6 +542,22 @@ def _phenyl_label_positions(mol, root, labelled, name="phenyl", coming_from=None
         if not options:
             return None
     return min(options, key=lambda option: sorted(option[a] for a in labelled))
+
+
+def _ring_system_label_positions(mol, graph, root, coming_from, labelled, name, capacity):
+    """(positions, offset of the ring parent in `name`, locants omitted) for a ring group numbered by its ring system:
+    the free valence, then the substituents, then the modified atoms take the lowest locants (P-82.5.2)."""
+    from ._diester_ring_diyl import ring_substituent_numbering
+
+    found = ring_substituent_numbering(mol, graph, root, coming_from)
+    if found is None or found[0] != name or any(a not in found[1] for a in labelled):
+        raise UnsupportedStructure("an isotopically modified ring substituent of this kind is not supported yet")
+    _, positions, offset, system = found
+    expected = {
+        a for a in system
+        if a != root and (mol.GetAtomWithIdx(a).GetTotalNumHs() or any(n not in system for n in graph[a]))
+    }
+    return positions, offset, _fully_modified(labelled, positions, capacity, expected)
 
 
 def _hydrogen_capacity(context, atoms):
