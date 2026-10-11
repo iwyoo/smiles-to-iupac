@@ -715,6 +715,8 @@ _P72_COVERAGE = [
     ("C1=Cc2ccccc2[PH]1", "1H-phosphindole"),
     ("C1C=C2C=CC=CC2=P1", "2H-phosphindole"),
     ("CO[B-]1(C)C=C(C)c2ccccc12", "1-methoxy-1,3-dimethyl-1H-1-benzoborol-1-uide"),
+    ("C=[B-]1Cc2ccccc2C1", "2-methylidene-1,3-dihydro-2H-2-benzoborol-2-uide"),
+    ("C=[B-]1C=CC=C1", "1-methylidene-1H-borol-1-uide"),
     ("C[B-]1(C)C=C2C=C[CH-]C2=C1", "2,2-dimethyl-2,4-dihydrocyclopenta[c]borol-4-id-2-uide"),
     ("CN1[C-2]C=CC=Cc2ccccc12", "1-methyl-1-benzazocine-2,2(1H)-diide"),
     ("C[N-]c1ccccc1", "N-methylbenzenaminide"),

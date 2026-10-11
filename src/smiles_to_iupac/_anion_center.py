@@ -9,7 +9,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import GROUP_13, UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _PARENTS = {
@@ -204,8 +204,14 @@ def _center_kind(center, standard, preferred):
     n_ide, n_uide = bonds + charge, bonds - charge
     if n_ide == standard:
         return "ide", None
-    if n_uide == standard and n_ide > standard and any(b.GetBondTypeAsDouble() > 1.0 for b in center.GetBonds()):
-        # P-72.2.1: a centre with a multiple bond (oxo(phenyl)-λ4-sulfanide) is the hydron-loss anion of a λ-hydride
+    if (
+        n_uide == standard
+        and n_ide > standard
+        and center.GetAtomicNum() not in GROUP_13
+        and any(b.GetBondTypeAsDouble() > 1.0 for b in center.GetBonds())
+    ):
+        # P-72.2.1: a centre with a multiple bond (oxo(phenyl)-λ4-sulfanide) is the hydron-loss anion of a λ-hydride;
+        # a group 13 centre is a hydride adduct, as in 2H-2-benzoborol-2-uid-2-ylidene (P-72.6.3)
         return "ide", n_ide
     if n_uide == standard:
         return "uide", None

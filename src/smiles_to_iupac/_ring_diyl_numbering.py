@@ -14,6 +14,7 @@ from rdkit import Chem
 from ._free_valence import valence_word
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
 from ._common import (
+    GROUP_13,
     UnsupportedStructure,
     nonstandard_bonding,
     ring_bond_locants,
@@ -402,7 +403,13 @@ def _hetero_monocycle(mol, ring_order, attached):
             exocyclic_double = (
                 n.GetIdx() not in ring_set and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
             )
-            if exocyclic_double and (aromatic or ring_double) and a.GetAtomicNum() != 6 and a.GetIdx() not in heterones:
+            if (
+                exocyclic_double
+                and (aromatic or ring_double)
+                and a.GetAtomicNum() != 6
+                and a.GetAtomicNum() not in GROUP_13
+                and a.GetIdx() not in heterones
+            ):
                 raise UnsupportedStructure("a ring atom with an exocyclic double bond is not supported as a diyl yet")
     if not aromatic and any(
         b.GetBondTypeAsDouble() not in (1.0, 2.0, 3.0)
