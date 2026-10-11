@@ -99,6 +99,11 @@ def ester_anion(mol, oxygen, acyl):
     from .core import smiles_to_iupac
 
     atom = mol.GetAtomWithIdx(acyl)
+    if atom.GetAtomicNum() == 7:
+        others = [n for n in atom.GetNeighbors() if n.GetIdx() != oxygen]
+        if sorted(n.GetFormalCharge() for n in others) == [-1, 0] and atom.GetFormalCharge() == 1:
+            return "nitrate"
+        return "nitrite" if len(others) == 1 and others[0].GetFormalCharge() == 0 and not atom.GetFormalCharge() else None
     if atom.GetAtomicNum() in (15, 16):
         neighbors = [n for n in atom.GetNeighbors() if n.GetIdx() != oxygen]
         if atom.GetDegree() == 4 and all(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in neighbors):
