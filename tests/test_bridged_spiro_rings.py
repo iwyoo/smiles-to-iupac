@@ -1262,6 +1262,9 @@ _CYCLOPROPANE, _OXIRENE, _DIOXOLE = "C1[Xe:1][Xe:2]1", "O1[Xe:1][Xe:2]1", "C1O[X
         pytest.param({"attached": [((1, 9), "C1C=CC[Xe:1][Xe:2]1")]}, "3′,6′-dihydrobenzo[1,9](C60-Ih)[5,6]fullerene", id="hydro_prefixes_without_indicated_hydrogen"),
         pytest.param({"attached": [((1, 9), "C1=C2C=CC=CC2=C[Xe:1][Xe:2]1")]}, "naphtho[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="ring_system_of_two_rings"),
         pytest.param({"attached": [((1, 9), "N1[Xe:2][Xe:1]C2=CC=CC=C12")]}, "1′H-indolo[2′,3′:1,9](C60-Ih)[5,6]fullerene", id="heterocyclic_ring_system"),
+        # P-27.6.1: a ring system with no single fusion component name keeps its own fusion name and numbering as one prefix
+        pytest.param({"attached": [((1, 9), "O1[Xe:1][Xe:2]c2c1ccc1ccccc21")]}, "naphtho[2,1-b]furo[1′,2′:1,9](C60-Ih)[5,6]fullerene", id="composite_ring_system_is_one_prefix"),
+        pytest.param({"attached": [((1, 9), "C1[Xe:1][Xe:2]c2c1ccc1ccccc21")]}, "3′H-cyclopenta[a]naphtho[1′,2′:1,9](C60-Ih)[5,6]fullerene", id="indicated_hydrogen_in_the_numbering_of_the_whole_system"),
         pytest.param(
             {"deleted": (1, 2, 3, 4, 5, 6, 9, 12, 15, 18), "attached": [((7, 8), "C1C=C[Xe:1][Xe:2]1")]},
             "3′H-cyclopenta[7,8]-1,2,3,4,5,6,9,12,15,18-decanor(C60-Ih)[5,6]fullerene",

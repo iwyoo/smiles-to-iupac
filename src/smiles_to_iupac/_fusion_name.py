@@ -984,6 +984,21 @@ def fused_parent_data(mol):
     return name, system_numbering_options(ctx, name, root), _indicated_hydrogen_atoms(kekule), lam, delta
 
 
+def fused_prefix_data(mol):
+    """(fusion prefix of the whole ring system `mol`, numbering options): its name with the parent component in prefix
+    form, as a ring system fused to a fullerene is cited with its own numbering (P-27.6.1)."""
+    ctx = Context(mol)
+    if ctx.n < 2:
+        raise UnsupportedStructure("a single ring is not a fused ring system")
+    name, root = fusion_name(mol)
+    if isinstance(root, _ReplacementRoot):
+        raise UnsupportedStructure("a skeletal replacement name has no fusion prefix form")
+    parent = _parent_name(root, True)
+    if not name.endswith(parent):
+        raise UnsupportedStructure("the parent component of this fusion name is not a single component")
+    return name[: -len(parent)] + root.comp.bracketed_prefix(), system_numbering_options(ctx, name, root)
+
+
 def marked_name(name, numbering, indicated, lam, delta, stem=None):
     """Parent name with its indicated-hydrogen, lambda and delta locants; a lambda or delta mark joins the leading
     heteroatom locant of the fusion name when that locant is cited there (P-25.6)."""
