@@ -180,12 +180,14 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
                 whole = "diazene" if double else "hydrazine"
                 if double and not pend:
                     return Part("diazenediyl", False, False)
-            elif z == 7 and any(
+            elif len(atoms) == 2 and mol.GetBondBetweenAtoms(*atoms).GetBondTypeAsDouble() == 2 and not pend:
+                return Part("di" + _CHAIN_STEMS[z][:-3] + "enediyl", False, False)
+            elif any(
                 mol.GetBondBetweenAtoms(a, b) is not None and mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1
                 for a in atoms
                 for b in atoms
             ):
-                raise UnsupportedStructure("an unsaturated nitrogen chain longer than two atoms is not supported as a linker")
+                raise UnsupportedStructure("an unsaturated heteroatom chain other than a doubly bonded pair is not supported as a linker")
             return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z], directed, whole)
         word = _homo_run_word(z, len(atoms))
         if word is None or pend or len(attachments) != 2 or any(mol.GetAtomWithIdx(a).GetAtomicNum() != z for a in atoms):

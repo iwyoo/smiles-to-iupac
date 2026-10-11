@@ -1685,6 +1685,8 @@ def test_formazan_substituent_groups_and_linkers_are_retained_prefixes(smiles, e
         ("C1CCC(CC1)N=C=NC1CCCCC1", "dicyclohexylmethanediimine"),
         ("CN=C=NCC", "N'-ethyl-N-methylmethanediimine"),
         ("CP=N", "1-methylphosphanimine"),
+        ("CN=P", "N-methylphosphanimine"),
+        ("N=[AsH]", "arsanimine"),
         ("C[Si](C)=Nc1ccccc1", "1,1-dimethyl-N-phenylsilanimine"),
         ("S1C(CCC1)=N", "thiolan-2-imine"),
         ("CN=C1C=CC(C2=CC=CC=C12)=NC", "N1,N4-dimethylnaphthalene-1,4-diimine"),

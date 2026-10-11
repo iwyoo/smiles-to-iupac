@@ -414,6 +414,17 @@ def test_diazenediyl_linker_cites_no_locants():
     assert smiles_to_iupac(_ARYL_ACID + "N=N" + _ACID_ARYL) == "4,4'-diazenediyldibenzoic acid"
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Oc1ccc(cc1)[As]=[As]c1ccc(O)cc1", "4,4'-diarsenediyldiphenol", id="ring_units"),
+        pytest.param("OC(=O)CCP=PCCC(O)=O", "3,3'-diphosphenediyldipropanoic acid", id="chain_units"),
+    ],
+)
+def test_doubly_bonded_group_15_pair_is_a_diylene_linker_without_locants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_hydrazine_and_diazene_without_a_principal_group_are_the_parent():
     assert smiles_to_iupac("c1ccccc1NNc1ccccc1") == "1,2-diphenylhydrazine"
     assert smiles_to_iupac("c1ccccc1N=Nc1ccccc1") == "diphenyldiazene"

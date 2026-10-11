@@ -48,6 +48,16 @@ from ._substituents import name_branch
 
 _CARBON = 6
 _OXYGEN = 8
+_ESTER_METALS = (33, 51, 83)
+
+
+def _is_oxo_of_metal(oxygen):
+    """A terminal =O on an arsenic, antimony or bismuth atom, the oxo prefix of 'oxobismuthanyl' (P-68.3.3)."""
+    if oxygen.GetDegree() != 1:
+        return False
+    (neighbor,) = oxygen.GetNeighbors()
+    bond = oxygen.GetOwningMol().GetBondBetweenAtoms(oxygen.GetIdx(), neighbor.GetIdx())
+    return neighbor.GetAtomicNum() in _ESTER_METALS and bond.GetBondTypeAsDouble() == 2.0
 
 
 def _carbonic_acid_carbons(mol):
@@ -106,9 +116,9 @@ def name_carbonic_acid(mol) -> str:
             continue
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == _CARBON:
+        if atom.GetAtomicNum() == _CARBON or _is_oxo_of_metal(atom):
             continue
-        if atom.GetAtomicNum() not in (1, *HALOGEN_PREFIXES):
+        if atom.GetAtomicNum() not in (1, *HALOGEN_PREFIXES, *_ESTER_METALS):
             raise UnsupportedStructure(
                 "heteroatoms other than the carbonic acid's own carbon/"
                 "oxygens and a halogen substituent are not supported yet"
@@ -116,7 +126,7 @@ def name_carbonic_acid(mol) -> str:
 
     group_oxygens = {n.GetIdx() for n in carbon.GetNeighbors() if n.GetAtomicNum() == _OXYGEN}
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() == _OXYGEN and atom.GetIdx() not in group_oxygens:
+        if atom.GetAtomicNum() == _OXYGEN and atom.GetIdx() not in group_oxygens and not _is_oxo_of_metal(atom):
             raise UnsupportedStructure(
                 "an oxygen atom not part of the carbonic acid's own "
                 "O=C(OR)(OR') group is out of scope for this module"
@@ -141,11 +151,14 @@ def name_carbonic_acid(mol) -> str:
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
     ester_names = []
+    compound_names = set()
     for ester_oxygen_idx in ester_oxygens:
         (root,) = [n for n in graph[ester_oxygen_idx] if n != carbon.GetIdx()]
-        name, _ = name_branch(graph, root, ester_oxygen_idx, halogens, aromatic_atoms, mol=mol)
+        name, compound = name_branch(graph, root, ester_oxygen_idx, halogens, aromatic_atoms, mol=mol)
         ester_names.append(name)
+        if compound and mol.GetAtomWithIdx(root).GetAtomicNum() in _ESTER_METALS:
+            compound_names.add(name)
 
     if hydroxyl_oxygens:
-        return f"{format_ester_words(ester_names)} hydrogen carbonate"
-    return format_ester_words(ester_names) + " carbonate"
+        return f"{format_ester_words(ester_names, compound_names)} hydrogen carbonate"
+    return format_ester_words(ester_names, compound_names) + " carbonate"
