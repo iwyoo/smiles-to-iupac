@@ -7,6 +7,7 @@ principal group, and the neutral suffix is then swapped for its anion form.
 """
 
 import contextlib
+import contextvars
 import re
 
 from rdkit import Chem
@@ -14,6 +15,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, specified_stereo_elements
 
 ANION_PROP = "_anion"
+HYDRO_PREFIXED_CENTRE = contextvars.ContextVar("hydro_prefixed_centre", default=False)
 
 _CHALCOGENS = {8, 16, 34, 52}
 _MULTIPLIED = {"di": "bis", "tri": "tris", "tetra": "tetrakis", "penta": "pentakis", "hexa": "hexakis"}
@@ -303,7 +305,7 @@ def _name_substitutive(mol):
     if chalco is not None and _THIOIC_TAIL.search(name):
         return _THIOIC_TAIL.sub(lambda m: f"{m.group(1)}{chalco}ate", name)
     if not any(a.HasProp(ANION_PROP) and a.GetAtomicNum() != 6 for a in neutral.GetAtoms()):
-        return _added_hydrogen(name)
+        return name if HYDRO_PREFIXED_CENTRE.get() else _added_hydrogen(name)
     if any(a.HasProp(ANION_PROP) and anion_weight(a) == 2 for a in neutral.GetAtoms()):
         return _swap_aminediide(name)
     if _CARBANIDE_PARENT.search(name) and any(a.HasProp(ANION_PROP) and a.GetAtomicNum() == 6 for a in neutral.GetAtoms()):

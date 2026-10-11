@@ -962,6 +962,13 @@ def _chalcogen_heterones(mol, skeleton_atoms):
     }
 
 
+def _single_hydrogen_removed(mol, idx):
+    """A ring CH position that loses one hydrogen: the mancude parent hydride has the hydrogen an 'ide' or 'ylium'
+    removes, so no added hydrogen is cited (P-72.2.2.1.1, P-73.2.2.1.2)."""
+    atom = mol.GetAtomWithIdx(idx)
+    return atom.GetDegree() == 2 and atom.HasProp("_anion") and atom.GetProp("_anion") == "1"
+
+
 def _fused_mancude(mol, skeleton_atoms):
     oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
     heterones = _chalcogen_heterones(mol, skeleton_atoms) & SUFFIX_ATOMS.get()
@@ -973,7 +980,13 @@ def _fused_mancude(mol, skeleton_atoms):
         for a in _sp3_ring_atoms(mol, skeleton_atoms) | oxo_all
         if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND or a in halogens
     }
-    sp3 |= {a for a in ANION_SUFFIX.get() if a in skeleton_atoms and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
+    sp3 |= {
+        a
+        for a in ANION_SUFFIX.get()
+        if a in skeleton_atoms
+        and mol.GetAtomWithIdx(a).GetAtomicNum() == 6
+        and not (_single_hydrogen_removed(mol, a) and mol.GetAtomWithIdx(a).GetTotalNumHs() == 1)
+    }
     sp3 |= heterones
     fusion_hetero = {a for a in skeleton_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and ring_info.NumAtomRings(a) > 1}
     suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
@@ -1025,6 +1038,8 @@ def _fused_mancude(mol, skeleton_atoms):
             accommodated |= (oxo_all - suffix_atoms) & saturated
         if ANION_SUFFIX.get():
             centers = ANION_SUFFIX.get() & saturated
+            if not accommodated:
+                centers = {a for a in centers if not _single_hydrogen_removed(mol, a)}
             accommodated = set() if saturated <= ANION_SUFFIX.get() else set(accommodated) | centers
         split = _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, accommodated, ih_count)
         if split is None:

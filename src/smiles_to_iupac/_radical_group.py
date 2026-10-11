@@ -371,7 +371,7 @@ def has_group_cation_shape(mol) -> bool:
 def name_group_cation(mol) -> str:
     """A carbenium centre on a skeleton with other groups (P-73.2.2.1): the carbanion name of the same skeleton
     with 'ide' read as 'ylium', every other group a prefix."""
-    from ._anion import name_anion
+    from ._anion import HYDRO_PREFIXED_CENTRE, name_anion
 
     centre = _group_cation_centre(mol)
     if centre is None or specified_stereo_elements(mol):
@@ -383,7 +383,11 @@ def name_group_cation(mol) -> str:
     anionic.GetAtomWithIdx(centre.GetIdx()).SetFormalCharge(-1)
     anionic = anionic.GetMol()
     Chem.SanitizeMol(anionic)
-    name = name_anion(anionic)
+    token = HYDRO_PREFIXED_CENTRE.set(True)
+    try:
+        name = name_anion(anionic)
+    finally:
+        HYDRO_PREFIXED_CENTRE.reset(token)
     if re.search(r"\d+H\)-ide$", name):
         if centre.GetDegree() == 2:
             raise UnsupportedStructure("an added-hydrogen anion name does not carry over to an aryl cation")
