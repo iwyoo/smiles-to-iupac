@@ -46,6 +46,20 @@ def test_phenoxide_unsaturated_ring_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("COC(=O)CC[O-].[Na+]", "sodium 2-(methoxycarbonyl)ethan-1-olate", id="alkoxycarbonyl_prefix_on_olate"),
+        pytest.param("CC(=O)OCC[O-].[Na+]", "sodium 2-(acetyloxy)ethan-1-olate", id="acyloxy_prefix_on_olate"),
+        pytest.param("COC(=O)C(C)[S-].[K+]", "potassium 1-(methoxycarbonyl)ethane-1-thiolate", id="ester_prefix_on_thiolate"),
+        pytest.param("C[C@H]([O-])C(=O)OC.[Na+]", "sodium (1S)-1-(methoxycarbonyl)ethan-1-olate", id="ester_prefix_with_stereodescriptor"),
+        pytest.param("COC(=O)CC[N-]C.[Na+]", "sodium 2-(methoxycarbonyl)-N-methylethan-1-aminide", id="ester_prefix_on_secondary_aminide"),
+    ],
+)
+def test_anion_outranks_ester(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_phenyl_chain_alkoxide():
     assert smiles_to_iupac("c1ccccc1CC[O-]") == "2-phenylethan-1-olate"
     assert smiles_to_iupac("c1ccccc1CCC[O-]") == "3-phenylpropan-1-olate"
@@ -1668,11 +1682,7 @@ def test_lactim_and_hydro_ring_anions_take_the_olate_suffix(smiles, expected):
 
 
 def test_a_phenolate_ester_never_loses_its_charge():
-    try:
-        name = smiles_to_iupac("CC(=O)Oc1ccc([O-])cc1")
-    except NotImplementedError:
-        return
-    assert "olate" in name or "oxido" in name
+    assert smiles_to_iupac("CC(=O)Oc1ccc([O-])cc1") == "4-(acetyloxy)phenoxide"
 
 
 # P-73.6, P-74.1.3: the anion is the parent of a zwitterion and cites the diazonium group as a prefix
