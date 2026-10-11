@@ -76,14 +76,14 @@ def require_plain_chalcogen_kids(mol, z, kids):
                 raise UnsupportedStructure("an acyl, carbamoyl or cyano group on selenium/tellurium is not a selanyl prefix")
 
 
-CATION_PARENT = contextvars.ContextVar("cation_parent", default=False)
+SENIOR_PARENT = contextvars.ContextVar("senior_parent", default=False)
 
 
 def _has_senior_principal_group(mol):
     """A principal group senior to the hetero-hetero connection (hydroxylamine, hydrazine, peroxide classes) is
-    present, so that connection is expressed as a prefix (P-41, P-29.4.1); a cationic parent outranks every group."""
+    present, so that connection is expressed as a prefix (P-41, P-29.4.1); a cationic or radical parent outranks every group."""
     return (
-        CATION_PARENT.get()
+        SENIOR_PARENT.get()
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_SULFONYL)
         or mol.HasSubstructMatch(AMINE_PATTERN)
@@ -536,8 +536,8 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
         ):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
         organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
-    elif len(run) == 2 and _on_carbon(graph, mol, first, second) and not any(
-        mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL
+    elif len(run) == 2 and _on_carbon(graph, mol, first, second) and not (
+        SENIOR_PARENT.get() or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
     ):
         raise UnsupportedStructure("a peroxol or its chalcogen analogue outranks an amine as the principal group")
     runs = [[atom.GetAtomicNum(), 0] for atom in atoms[:1]]
@@ -1884,8 +1884,8 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     bonding = atom.GetTotalValence()
     if bonding > valence and ((bonding - valence) % 2 or bonding > valence + 4):
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
-    if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others) and not any(
-        mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON
+    if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others) and not (
+        SENIOR_PARENT.get() or any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON)
     ):
         raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
     if atom.GetAtomicNum() == 5:

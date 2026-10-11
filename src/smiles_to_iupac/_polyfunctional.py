@@ -37,7 +37,7 @@ from ._numerals import multiplying_prefix
 from ._chalcogenourea import is_oxo_nitrogen
 from ._functional_prefixes import is_nitro_nitrogen
 from ._hetero_prefixes import (
-    CATION_PARENT,
+    SENIOR_PARENT,
     EXTENDED_PREFIXES,
     IMINE_PARENT,
     LAMBDA_CENTRE_STEMS,
@@ -1169,7 +1169,7 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
         name, placed = _bare_ring_name(base, center)
         return _attach(name, placed, center, kind)
     token = RING_CENTER.set(True)
-    cation_token = CATION_PARENT.set(True)
+    cation_token = SENIOR_PARENT.set(True)
     try:
         if probe is None:
             return _name_labelled(base, labels or {}, lambda name, placed: _attach(name, placed, center, kind))
@@ -1183,7 +1183,7 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
 
         return _name_labelled(marked, labels or {}, attach_marked)
     finally:
-        CATION_PARENT.reset(cation_token)
+        SENIOR_PARENT.reset(cation_token)
         RING_CENTER.reset(token)
 
 

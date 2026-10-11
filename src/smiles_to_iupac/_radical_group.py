@@ -7,7 +7,14 @@ import re
 from rdkit import Chem
 
 from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
-from ._hetero_prefixes import DIPOLAR_GROUPS, EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, PEROXY_PREFIXES, is_functional_carbon
+from ._hetero_prefixes import (
+    DIPOLAR_GROUPS,
+    EXTENDED_PREFIXES,
+    MONONUCLEAR_HYDRIDES,
+    PEROXY_PREFIXES,
+    SENIOR_PARENT,
+    is_functional_carbon,
+)
 from ._numerals import alkyl_name
 from ._radical_hydryl import hydryl_radical_name
 from ._radical_poly import polyradical_name
@@ -125,9 +132,11 @@ def has_radical_group_shape(mol) -> bool:
 
 def name_radical_group(mol) -> str:
     token = DIPOLAR_GROUPS.set(True)
+    senior = SENIOR_PARENT.set(True)
     try:
         return _name_radical_group(mol)
     finally:
+        SENIOR_PARENT.reset(senior)
         DIPOLAR_GROUPS.reset(token)
 
 
