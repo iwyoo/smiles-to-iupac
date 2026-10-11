@@ -679,6 +679,8 @@ def test_locants_without_information_are_omitted(smiles, expected):
         ("C(C)(C)(C)C1=C(C=CC=C1)C(C)(C)C", "1,2-di-tert-butylbenzene"),
         ("SC(CC(=O)O)CS", "3,4-bis(sulfanyl)butanoic acid"),
         ("S(S)C=1C=C(C(=O)N)C=CC1SS", "3,4-bis(disulfanyl)benzamide"),
+        ("OC(P)P", "bis(phosphanyl)methanol"),
+        ("OC(C)([PH4])[PH4]", "1,1-bis(λ5-phosphanyl)ethan-1-ol"),
         ("CC(CC)N(C(C)(CC)O)C(C)CC", "2-[di(butan-2-yl)amino]butan-2-ol"),
         (
             "C12CC(CC(CC1)C2)C2=CC=CC1=CC3=CC=CC(=C3C=C21)C2CC1CCC(C2)C1",
