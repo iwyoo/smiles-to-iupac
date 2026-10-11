@@ -1172,3 +1172,18 @@ def test_chalcogen_imide_cited_as_a_ylidene_prefix_beside_a_senior_group(smiles,
 )
 def test_multiplier_of_identical_substituted_sulfur_ester_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-65.2.1.2, P-65.6.3.3.7.2.1, P-77.3.1: the anion of an organyl ester of a thiocarbonic acid is the ester name without 'hydrogen'
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CCOC(=S)[S-].[K+]", "potassium O-ethyl carbonodithioate", id="xanthate_salt"),
+        pytest.param("CCOC(=S)[S-]", "O-ethyl carbonodithioate", id="lone_xanthate_anion"),
+        pytest.param("CCSC(=S)[S-].[K+]", "potassium ethyl carbonotrithioate", id="trithiocarbonate_monoester"),
+        pytest.param("CCSC(=O)[O-].[K+]", "potassium S-ethyl carbonothioate", id="s_ester_with_the_anion_on_oxygen"),
+        pytest.param("CCOC(=O)[S-].[Na+]", "sodium O-ethyl carbonothioate", id="tautomer_of_the_o_ester"),
+    ],
+)
+def test_anions_and_salts_of_thiocarbonic_acid_esters(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
