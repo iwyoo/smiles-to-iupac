@@ -578,6 +578,19 @@ def ring_substituent_name(mol, graph, root, parent):
     return name, any(ch.isdigit() or ch in "(-" for ch in name)
 
 
+def ring_substituent_numbering(mol, graph, root, parent):
+    """(group name, {atom: locant}, offset of the parent name inside the group name, ring system atoms) of the ring
+    system entered at `root`, numbered as `ring_substituent_name` numbers it; None when it has no plain group name."""
+    rings, atoms = _system_of(mol, root)
+    suffix = suffix_of(mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble())
+    if suffix is None or any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
+        return None
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    if found is None or found[3]:
+        return None
+    return re.sub(r"(cyclo[a-z]+?)an-1-(yl|ylidene|ylidyne)$", r"\1\2", found[1]), found[2], PARENT_START.get(), atoms
+
+
 def _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order):
     """A ring-nitrogen cation as a substituent group (P-75.4, P-73.1.1.2): the neutral analogue's group name with the
     'ium' suffix cited before the free-valence suffix, as in 'pyridin-1-ium-4-yl'."""

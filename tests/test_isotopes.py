@@ -246,6 +246,15 @@ def test_isotope_on_characteristic_group_atom(smiles, expected):
         pytest.param("OC(=O)c1ccc(cc1)C([2H])([2H])C([2H])([2H])[2H]", "4-(2H5)ethylbenzoic acid", id="every_position_of_a_substituent_modified"),
         pytest.param("OC(=O)CCc1c([2H])cccc1", "3-(2-2H)phenylpropanoic acid", id="labelled_phenyl_group"),
         pytest.param("OC(=O)CCc1c([2H])c([2H])c([2H])c([2H])c1[2H]", "3-(2H5)phenylpropanoic acid", id="fully_labelled_phenyl_group"),
+        pytest.param("c1cnccc1C1SCC[14CH2]1", "4-[(3-14C)thiolan-2-yl]pyridine", id="labelled_heterocyclic_group"),
+        pytest.param("OC(=O)Cc1c(Cl)ccc2c1cccc2[2H]", "[2-chloro(5-2H)naphthalen-1-yl]acetic acid", id="labelled_fused_group_after_its_prefixes"),
+        pytest.param("OC(=O)Cc1cc[15n]cc1[2H]", "[(3-2H,15N)pyridin-4-yl]acetic acid", id="sole_ring_heteroatom_takes_no_locant"),
+        pytest.param("OC(=O)Cc1cc2cc([2H])ccc2[nH]1", "[(5-2H)-1H-indol-2-yl]acetic acid", id="hyphen_before_indicated_hydrogen_of_a_group"),
+        pytest.param(
+            "[2H]c1c([2H])c([2H])c(Cc2ccccn2)c2c([2H])c([2H])c([2H])c([2H])c12",
+            "2-{[(2H7)naphthalen-1-yl]methyl}pyridine",
+            id="every_position_of_a_fused_group_modified",
+        ),
         pytest.param("OC(=O)c1ccc(cc1)O[2H]", "4-(2H)hydroxybenzoic acid", id="deuterated_hydroxy_takes_no_subscript"),
         pytest.param("OC(=O)c1ccc(cc1)N([2H])[2H]", "4-(2H2)aminobenzoic acid", id="deuterated_amino_counts_its_atoms"),
     ],
@@ -359,6 +368,7 @@ def test_ring_with_more_or_heavier_nuclides_is_the_parent(smiles, expected):
         ("[2H]c1cccc(Cc2ccc[13cH]c2[2H])[13cH]1", "1-[(3-13C,2-2H)phenylmethyl](2-13C,3-2H)benzene"),
         ("c1c[14cH][13cH]c(Cc2ccc[13cH][14cH]2)c1", "1-[(2-13C,3-14C)phenylmethyl](3-13C,2-14C)benzene"),
         ("c1ccc(Cc2ccc[14cH][13cH]2)[14cH][13cH]1", "1-[(2-13C,3-14C)phenylmethyl](3-13C,2-14C)benzene"),
+        ("[2H]c1cc(Cc2cccc([2H])n2)ccn1", "4-{[(6-2H)pyridin-2-yl]methyl}(2-2H)pyridine"),
     ],
 )
 def test_ring_with_lower_locants_for_the_nuclides_is_the_parent(smiles, expected):
@@ -375,6 +385,7 @@ def test_ring_with_lower_locants_for_the_nuclides_is_the_parent(smiles, expected
         ("OC(=O)c1ccc(cc1)-c1ccccc1[2H]", "(2'-2H)[1,1'-biphenyl]-4-carboxylic acid"),
         ("[2H]c1ccc2ccccc2c1-c1ccc2ccccc2c1", "(2-2H)-1,2'-binaphthalene"),
         ("C(c1ccc2ccccc2c1)c1ccc2cc([2H])ccc2c1", "2-[(naphthalen-2-yl)methyl](6-2H)naphthalene"),
+        ("[2H]c1cc2ccccc2cc1Cc1cccc2cccc([2H])c12", "2-{[(8-2H)naphthalen-1-yl]methyl}(3-2H)naphthalene"),
     ],
 )
 def test_isotopic_modification_of_ring_assemblies_and_fused_parent_choice(smiles, expected):

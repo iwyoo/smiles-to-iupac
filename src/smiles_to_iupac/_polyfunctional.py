@@ -1625,7 +1625,7 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
     if in_parent or front:
         bare = len(parts[4]) == 1 or _locants_omitted(mol, in_parent, parts)
         capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
-        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity, _sole_heteroatoms(mol, in_parent, parts)))
+        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity, _sole_heteroatoms(mol, in_parent, parts[4])))
     return name
 
 
@@ -1675,15 +1675,19 @@ def _carbon_group_label(mol, rest, reselect):
     return name[: -len(tail)] + multiplying_prefix(count) + "[" + text + word + "]", parts, None
 
 
+def _isotope_entries(labels):
+    return [
+        ("isotope", atom, "|".join(filter(None, [entry["skeleton"], *(n for n, c in entry["H"].items() for _ in range(c))])))
+        for atom, entry in labels.items()
+    ]
+
+
 def _name_labelled(mol, labels, finish=None):
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
     mol = _demote_junior_groups(mol, labels)
 
-    stereo = _check_scope(mol) + [
-        ("isotope", atom, "|".join(filter(None, [entry["skeleton"], *(n for n, c in entry["H"].items() for _ in range(c))])))
-        for atom, entry in labels.items()
-    ]
+    stereo = _check_scope(mol) + _isotope_entries(labels)
     context = {
         "atoms": {where: code for kind, where, code in stereo if kind == "atom"},
         "bonds": {where: code for kind, where, code in stereo if kind == "bond"},
@@ -1815,10 +1819,10 @@ def _capacity(mol, atom):
     return target.GetIntProp("_capacity") if target.HasProp("_capacity") else target.GetTotalNumHs()
 
 
-def _sole_heteroatoms(mol, in_parent, parts):
+def _sole_heteroatoms(mol, in_parent, positions):
     """Nuclides of a heteroatom that is the only atom of its element in the parent, so its locant is implied."""
     counts = {}
-    for a in parts[4]:
+    for a in positions:
         number = mol.GetAtomWithIdx(a).GetAtomicNum()
         counts[number] = counts.get(number, 0) + 1
     return frozenset(
@@ -2818,8 +2822,9 @@ _ALL_DESCRIPTORS = re.compile(r"\((?:\d+[a-z]*['\u2032]*)?[RSEZrs](?:,(?:\d+[a-z
 
 
 def _configuration_senior_system(mol, graph, tied):
-    """The numbered parent among equally senior ring systems that differ only in configuration: Z before E and R before
-    S (P-44.4.1.12.1, P-44.4.1.12.2, P-45.6.2); identical configurations need a multiplicative or assembly name."""
+    """The numbered parent among equally senior ring systems that differ only in isotopic modification or configuration:
+    the lowest locants for the modified atoms (P-44.4.1.11.4-6), then Z before E and R before S (P-44.4.1.12.1,
+    P-44.4.1.12.2, P-45.6.2); identical ones need a multiplicative or assembly name."""
     from ._diester_ring_diyl import evaluate_skeleton
 
     candidates = []
@@ -2830,6 +2835,13 @@ def _configuration_senior_system(mol, graph, tied):
         if found is None:
             raise UnsupportedStructure("this fused ring system has no supported numbering")
         candidates.append(found)
+    from ._substituents import ISOTOPE_LABELS
+
+    entries = _isotope_entries((ISOTOPE_LABELS.get() or {}).get("labels", {}))
+    ranks = [_isotope_locant_rank(entries, c[2]) for c in candidates]
+    candidates = [c for c, rank in zip(candidates, ranks) if rank == min(ranks)]
+    if len(candidates) == 1:
+        return candidates[0]
     if len({_ALL_DESCRIPTORS.sub("", c[1]) for c in candidates}) > 1 or len({c[0] for c in candidates}) == 1:
         raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
     return min(candidates, key=lambda c: c[0])
