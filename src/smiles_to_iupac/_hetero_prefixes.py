@@ -1502,7 +1502,7 @@ def _anionic_chain_prefix(graph, root, coming_from, mol):
     from ._polyfunctional import _arm_atoms, _select, _unit_molecule
 
     atoms = _arm_atoms(graph, root, coming_from)
-    unit, attach = _unit_molecule(mol, atoms, root)
+    unit, attach = _unit_molecule(mol, atoms, root, refill=mol.GetAtomWithIdx(root).HasProp("_anion"))
     _, _, parts = _select(unit, attach)
     prefix, body, tail, locant = parts[:4]
     if not body.endswith("ide"):
