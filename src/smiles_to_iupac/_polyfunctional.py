@@ -3163,8 +3163,9 @@ def _assembly_spec(mol, graph, ring, replaceable=False):
 
 def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms, place=None):
     """(name, True) of a substituent group made of two identical directly
-    joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise. `place`, a dict, receives the locant of
-    every ring atom of the group and the offset of the assembly name inside the group name."""
+    joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise. For a group of fused, chained or von
+    Baeyer components `place`, a dict, receives the locant of every ring atom and the offset of the assembly name in the
+    group name, so that an isotopic descriptor can be cited in front of it."""
     from ._system_assembly import system_assembly
 
     fused = system_assembly(
@@ -3226,10 +3227,26 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     spot = locants[root]
     enes = f"{ending[:-1]}-" if ending else ""
     core = _assembly_replacement(mol, specs, locants) + f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
-    name = assembly_join(prefix, core)
-    if place is not None:
-        place.update(locants={a: PrimedLocant(*loc) for a, loc in locants.items()}, start=len(name) - len(core), atoms=ring_atoms)
-    return name, True
+    core = _assembly_group_label(mol, graph, ring_atoms, root, locants, core)
+    return (assembly_join(prefix, core)), True
+
+
+def _assembly_group_label(mol, graph, ring_atoms, root, locants, core):
+    """`core` with the isotopic descriptor of the modified ring atoms in front of the assembly name (P-82.2.1, P-82.5.2)."""
+    from ._isotope_labels import descriptor
+    from ._multiplicative_text import PrimedLocant
+    from ._substituents import ISOTOPE_LABELS, _fully_modified, _hydrogen_capacity
+
+    context = ISOTOPE_LABELS.get()
+    labelled = {a: e for a, e in (context["labels"] if context else {}).items() if a in ring_atoms and a not in context["consumed"]}
+    if not labelled:
+        return core
+    positions = {a: PrimedLocant(*locants[a]) for a in ring_atoms}
+    capacity = _hydrogen_capacity(context, labelled)
+    expected = {a for a in ring_atoms if a != root and (mol.GetAtomWithIdx(a).GetTotalNumHs() or any(n not in ring_atoms for n in graph[a]))}
+    omit = _fully_modified(labelled, positions, capacity, expected)
+    context["consumed"].update(labelled)
+    return descriptor(labelled, positions, omit, capacity=capacity) + core
 
 
 def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo):

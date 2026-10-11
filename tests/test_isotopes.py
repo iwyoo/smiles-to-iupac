@@ -385,6 +385,8 @@ def test_ring_with_lower_locants_for_the_nuclides_is_the_parent(smiles, expected
         ("c1ccc(cc1)-c1ccccc1[2H]", "(2-2H)-1,1'-biphenyl"),
         ("[2H]c1ccc(cc1)-c1ccc([2H])cc1", "(4,4'-2H2)-1,1'-biphenyl"),
         ("OC(=O)c1ccc(cc1)-c1ccccc1[2H]", "(2'-2H)[1,1'-biphenyl]-4-carboxylic acid"),
+        ("OC(=O)Cc1cccc(-c2ccc([2H])cc2)c1", "[(4'-2H)[1,1'-biphenyl]-3-yl]acetic acid"),
+        ("OC(=O)Cc1ccccc1-c1c(Cl)cccc1[2H]", "[2'-chloro(6'-2H)[1,1'-biphenyl]-2-yl]acetic acid"),
         ("[2H]c1ccc2ccccc2c1-c1ccc2ccccc2c1", "(2-2H)-1,2'-binaphthalene"),
         ("C(c1ccc2ccccc2c1)c1ccc2cc([2H])ccc2c1", "2-[(naphthalen-2-yl)methyl](6-2H)naphthalene"),
         ("[2H]c1cc2ccccc2cc1Cc1cccc2cccc([2H])c12", "2-{[(8-2H)naphthalen-1-yl]methyl}(3-2H)naphthalene"),
@@ -397,13 +399,11 @@ def test_isotopic_modification_of_ring_assemblies_and_fused_parent_choice(smiles
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("OC(=O)Cc1ccccc1-c1ccccc1[2H]", "[(2'-2H)[1,1'-biphenyl]-2-yl]acetic acid", id="two_rings"),
-        pytest.param("OC(=O)Cc1cccc(-c2ccc([2H])cc2)c1", "[(4'-2H)[1,1'-biphenyl]-3-yl]acetic acid", id="locant_of_the_modified_ring"),
         pytest.param("OC(=O)Cc1ccccc1-c1ccccc1-c1ccccc1[2H]", "[(3²-2H)[1¹,2¹:2²,3¹-terphenyl]-1²-yl]acetic acid", id="chain_of_rings"),
         pytest.param("OC(=O)Cc1ccc2ccccc2c1-c1ccc2ccccc2c1[2H]", "[(1'-2H)[1,2'-binaphthalen]-2-yl]acetic acid", id="fused_components"),
     ],
 )
-def test_isotopic_modification_of_a_ring_assembly_substituent_group(smiles, expected):
+def test_isotopic_modification_of_chained_and_fused_ring_assembly_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
