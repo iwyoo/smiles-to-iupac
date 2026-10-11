@@ -593,6 +593,8 @@ def test_substituted_amino_acids(smiles, expected):
         ),
         pytest.param("C[C@H](N)C(=O)[O-]", "L-alaninate", id="anion"),
         pytest.param("[NH3+]CC(=O)O", "glycinium", id="cation"),
+        pytest.param("NCC(=O)Cl", "glycyl chloride", id="acyl_halide"),
+        pytest.param("C[C@H](N)C(=O)Br", "L-alanyl bromide", id="acyl_halide_with_the_configuration_descriptor"),
         pytest.param("N[C@@H](CCC(=O)[O-])C(=O)[O-]", "L-glutamate", id="diacid_dianion"),
     ],
 )
