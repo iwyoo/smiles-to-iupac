@@ -115,12 +115,14 @@ def _onium_center(mol):
     if any(b.GetBondTypeAsDouble() > (3.0 if triple_allowed else 2.0) for b in atom.GetBonds()):
         return None
     if atom.GetAtomicNum() in (7, 8, 16):
-        if any(n.GetAtomicNum() not in (6, 9, 17, 35, 53) for n in atom.GetNeighbors()):
+        oxygen_allowed = (6, 8, 9, 17, 35, 53) if atom.GetAtomicNum() in (7, 16) else (6, 9, 17, 35, 53)
+        if any(n.GetAtomicNum() not in oxygen_allowed for n in atom.GetNeighbors()):
             return None
     elif any(n.GetAtomicNum() not in _ONIUM_NEIGHBOURS or n.GetAtomicNum() == atom.GetAtomicNum() for n in atom.GetNeighbors()):
         return None
     if atom.GetAtomicNum() == 7 and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds()):
-        return None
+        if any(n.GetAtomicNum() == 6 for n in atom.GetNeighbors()):
+            return None
     if any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms() if a.GetIdx() != atom.GetIdx()):
         return None
     return atom

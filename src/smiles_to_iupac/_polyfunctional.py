@@ -1288,6 +1288,18 @@ def _azoxy_charged_atoms(mol):
     return atoms
 
 
+def _plain_oxy_group(mol, atom):
+    """A hydroxy or alkoxy group: an oxygen with a hydrogen or one non-functional carbon."""
+    if atom.GetAtomicNum() != 8 or atom.GetFormalCharge() or atom.IsInRing():
+        return False
+    if atom.GetDegree() == 1:
+        return atom.GetTotalNumHs() == 1
+    carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
+    return atom.GetDegree() == 2 and len(carbons) == 1 and not (
+        is_functional_carbon(mol, carbons[0].GetIdx()) or _double_oxygens(mol, carbons[0].GetIdx())
+    )
+
+
 def _aminium_base(mol, ignore=frozenset()):
     """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
     (a cation outranks every acid, P-41), else None; the charges of an azoxy group are not ammonium charges."""
@@ -1301,11 +1313,12 @@ def _aminium_base(mol, ignore=frozenset()):
             or nitrogen.IsInRing()
             or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
             or any(
-                n.GetAtomicNum() != 6
+                (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n))
                 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
                 or _double_oxygens(mol, n.GetIdx())
                 for n in nitrogen.GetNeighbors()
             )
+            or not any(n.GetAtomicNum() == 6 for n in nitrogen.GetNeighbors())
         ):
             return None
     if all(n.GetTotalNumHs() == 0 for n in charged):
