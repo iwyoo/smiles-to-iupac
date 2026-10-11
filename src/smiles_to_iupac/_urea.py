@@ -61,7 +61,7 @@ def _urea_core(mol, atomic_num=8):
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
             continue
-        if atom.GetFormalCharge() != 0 or atom.GetIsAromatic():
+        if atom.GetFormalCharge() != 0 or atom.GetIsAromatic() or atom.IsInRing():
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == atomic_num]

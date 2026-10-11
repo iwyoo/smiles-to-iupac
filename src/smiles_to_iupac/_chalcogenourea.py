@@ -188,7 +188,7 @@ class Chalcogenourea:
         for atom in mol.GetAtoms():
             if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
                 continue
-            if atom.GetFormalCharge() != 0 or atom.GetIsAromatic():
+            if atom.GetFormalCharge() != 0 or atom.GetIsAromatic() or atom.IsInRing():
                 continue
             neighbors = atom.GetNeighbors()
             chalcogens = [n for n in neighbors if n.GetAtomicNum() == self.atomic_num]
