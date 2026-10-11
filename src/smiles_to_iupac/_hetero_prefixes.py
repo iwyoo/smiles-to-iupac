@@ -47,6 +47,15 @@ _SENIOR_TO_SELENOL = [
     )
 ]
 AMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
+_SENIOR_SULFONYL = [
+    Chem.MolFromSmarts(smarts)
+    for smarts in (
+        "[#16X4,#16X3;!R](=O)[OX2H1]",
+        "[#16X4,#16X3;!R](=O)[OX2][#6]",
+        "[#16X4,#16X3;!R](=O)[#7]",
+        "[#16X4,#16X3;!R](=O)[F,Cl,Br,I]",
+    )
+]
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
 
 
@@ -76,6 +85,7 @@ def _has_senior_principal_group(mol):
     return (
         CATION_PARENT.get()
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
+        or any(mol.HasSubstructMatch(query) for query in _SENIOR_SULFONYL)
         or mol.HasSubstructMatch(AMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
     )
@@ -1700,20 +1710,60 @@ def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol
     stem, standard = LAMBDA_CENTRE_STEMS[atom.GetAtomicNum()]
     bonding = atom.GetTotalValence()
     others = [n for n in graph[root] if n != coming_from]
+    ylidene = atom.GetAtomicNum() in (16, 34, 52) and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0
+    multiple = [n for n in others if mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0]
     if (
         bonding <= standard
         or (bonding - standard) % 2
         or atom.GetFormalCharge()
         or atom.GetIsotope()
         or atom.GetNumRadicalElectrons()
-        or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
+        or (mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0 and not ylidene)
+        or any(not ylidene or mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 2.0 or not _oxo_or_imino(mol, root, n) for n in multiple)
     ):
         return None
     if bonding > standard and not _has_senior_principal_group(mol):
         raise UnsupportedStructure("a λ-bonded centre outranks the carbon parent unless a senior group is present")
-    entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
+    entries = [
+        _oxo_or_imino_prefix(graph, mol, root, n, halogens, aromatic_atoms)
+        if n in multiple
+        else name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol)
+        for n in others
+    ]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
-    return (prefix + "-" if prefix else "") + f"λ{bonding}-{stem}", True
+    ending = stem[:-2] + "ylidene" if ylidene else stem
+    return (prefix + "-" if prefix else "") + f"λ{bonding}-{ending}", True
+
+
+def _oxo_or_imino(mol, centre, n):
+    """A terminal =O, =S, =Se, =Te or an =N-H / =N-organyl group on a lambda-bonded chalcogen centre."""
+    atom = mol.GetAtomWithIdx(n)
+    if atom.GetFormalCharge() or atom.GetIsotope():
+        return False
+    if atom.GetAtomicNum() in (8, 16, 34, 52):
+        return atom.GetDegree() == 1
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetDegree() <= 2
+        and all(
+            b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6
+            for b in atom.GetBonds()
+            if b.GetOtherAtom(atom).GetIdx() != centre
+        )
+    )
+
+
+def _oxo_or_imino_prefix(graph, mol, centre, n, halogens, aromatic_atoms):
+    from ._substituents import name_branch
+
+    atom = mol.GetAtomWithIdx(n)
+    if atom.GetAtomicNum() != 7:
+        return {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}[atom.GetAtomicNum()], False
+    roots = [m for m in graph[n] if m != centre]
+    if not roots:
+        return "imino", False
+    name, compound = name_branch(graph, roots[0], n, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+    return _enclose(name, compound) + "imino", True
 
 
 def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):

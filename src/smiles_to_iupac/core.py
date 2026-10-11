@@ -146,6 +146,7 @@ from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
 from ._metal_pair import has_metal_pair_shape, name_metal_pair
 from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
+from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._group13_hydride import (
     has_group13_hydride_shape,
@@ -813,6 +814,8 @@ def _name_unabridged_body(smiles: str) -> str:
             cage = name_alternating_cage(parsed)
             if cage is not None:
                 return cage
+        if parsed is not None and has_chalcogen_imide_shape(parsed):
+            return name_chalcogen_imide(parsed)
         if parsed is not None and has_nonstandard_hydride_shape(parsed):
             return name_nonstandard_hydride(parsed)
         if parsed is not None and has_sphingoid_shape(parsed):

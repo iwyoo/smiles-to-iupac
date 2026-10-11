@@ -40,6 +40,7 @@ from ._hetero_prefixes import (
     IMINE_PARENT,
     LAMBDA_CENTRE_STEMS,
     MONONUCLEAR_HYDRIDES,
+    _oxo_or_imino,
     azoxy_atoms,
     is_functional_carbon,
     is_halogen_oxo_part,
@@ -364,8 +365,32 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         )
         or _hydride_group_on_nitrogen(mol, n, nitrogen, len(others))
         or _ring_nitrogen_substituent(mol, n, nitrogen)
+        or _chalcogen_ylidene_on(mol, n, nitrogen)
         for n in others
     )
+
+
+def _chalcogen_ylidene_on(mol, atom, nitrogen):
+    """The lambda4- or lambda6-chalcogen centre of an N-ylidene group on an amide nitrogen, carrying carbon groups, oxo
+    and imino groups only (P-68.4.3.3, P-68.4.3.4)."""
+    if (
+        atom.GetAtomicNum() not in (16, 34, 52)
+        or atom.IsInRing()
+        or atom.GetFormalCharge()
+        or atom.GetTotalValence() not in (4, 6)
+        or mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 2.0
+    ):
+        return False
+    for bond in atom.GetBonds():
+        other = bond.GetOtherAtom(atom)
+        if other.GetIdx() == nitrogen.GetIdx():
+            continue
+        if bond.GetBondTypeAsDouble() == 2.0:
+            if not _oxo_or_imino(mol, atom.GetIdx(), other.GetIdx()):
+                return False
+        elif other.GetAtomicNum() != 6 or bond.GetBondTypeAsDouble() != 1.0 or is_functional_carbon(mol, other.GetIdx()):
+            return False
+    return True
 
 
 def _ring_nitrogen_substituent(mol, atom, nitrogen):
