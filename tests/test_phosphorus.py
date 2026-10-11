@@ -282,6 +282,9 @@ def test_free_mononuclear_oxoacids(smiles, expected):
         ("CN(C)P(=O)(C)C", "N,N,P,P-tetramethylphosphinic amide"),
         ("CNP(=O)(NC)c1ccccc1", "N,N'-dimethyl-P-phenylphosphonic diamide"),
         ("CN(C)P(=S)(N(C)C)c1ccccc1", "N,N,N',N'-tetramethyl-P-phenylphosphonothioic diamide"),
+        ("C[N](=O)(Cl)Cl", "methylazonic dichloride"),
+        ("CN(C)(=O)O", "dimethylazinic acid"),
+        ("OC(=O)c1ccc(cc1)N(=O)(O)O", "4-azonobenzoic acid"),
     ],
 )
 def test_group_15_acids_halides_and_amides(smiles, expected):

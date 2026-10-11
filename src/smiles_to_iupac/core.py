@@ -325,6 +325,7 @@ from ._sulfite import has_sulfite_shape, name_sulfite
 from ._phosphonic_acid import has_phosphonic_acid_shape, name_phosphonic_acid
 from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphorus_acid_derivative import has_phosphorus_acid_derivative_shape, name_phosphorus_acid_derivative
+from ._azonic_acid import has_azonic_acid_shape, name_azonic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._ring_diyl_numbering import bridged_ring_system_name, is_hydro_fusion_system
 from ._hydroperoxide import has_chalcogen_peroxol_shape, has_hydroperoxide_shape, name_hydroperoxide
@@ -1653,6 +1654,7 @@ def _name_mol(mol) -> str:
         # routed here for the same reason.
         (has_phosphinic_acid_shape, name_phosphinic_acid),
         (has_phosphorus_acid_derivative_shape, name_phosphorus_acid_derivative),
+        (has_azonic_acid_shape, name_azonic_acid),
         # Diphosphoric acid (P-67.2.1's own preselected dinuclear-acid name)
         # has each phosphorus individually shaped like a phosphate ester (the
         # other phosphorus group standing in as the "R" of a P-O-R ester

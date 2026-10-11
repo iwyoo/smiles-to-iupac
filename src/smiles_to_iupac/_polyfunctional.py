@@ -44,6 +44,7 @@ from ._hetero_prefixes import (
     azoxy_atoms,
     is_functional_carbon,
     is_halogen_oxo_part,
+    azono_ligands,
 )
 from ._multiplicative import _bare_key
 from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
@@ -4583,6 +4584,9 @@ def _is_nitro_part(atom):
             for n in atom.GetNeighbors()
         ):
             return True
+    if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1 and atom.GetDegree() == 4:
+        mol = atom.GetOwningMol()
+        return azono_ligands(mol, atom.GetIdx(), [n.GetIdx() for n in atom.GetNeighbors()])
     if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1:
         oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
         return (
