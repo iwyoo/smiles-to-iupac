@@ -11,7 +11,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import STEREO_OVERRIDE, UnsupportedStructure
 
 _ATOM = re.compile(r"\[[^\]]+\]|Cl|Br|[BCNOPSFIbcnops]")
 _ENE_LOCANTS = re.compile(r"-(\d+(?:,\d+)*)-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?en(?=[a-z-]|$)")
@@ -35,10 +35,18 @@ class _Graph:
             self.bond[(index, parent)] = _FLIP.get(kind, kind)
         return index
 
+    def close(self, opener, closer, kind, label):
+        self.order[opener][self.order[opener].index(label)] = closer
+        self.order[closer].append(opener)
+        self.bond[(opener, closer)] = kind
+        self.bond[(closer, opener)] = _FLIP.get(kind, kind)
 
-def _parse(smiles):
-    """The atoms of an acyclic SMILES string with their neighbors in written order; None otherwise."""
+
+def _parse(smiles, rings=False):
+    """The atoms of a SMILES string with their neighbors in written order, a ring closure standing at its digit; None
+    for a ring closure unless `rings`, and for a disconnected string."""
     graph, stack, previous, kind, i = _Graph(), [], None, "-", 0
+    opened = {}
     while i < len(smiles):
         c = smiles[i]
         if c in "-=#$:/\\":
@@ -50,6 +58,15 @@ def _parse(smiles):
         elif c == ")":
             previous = stack.pop()
             i += 1
+        elif (c.isdigit() or c == "%") and rings and previous is not None:
+            label, i = (smiles[i : i + 3], i + 3) if c == "%" else (c, i + 1)
+            if label in opened:
+                opener, opener_kind = opened.pop(label)
+                graph.close(opener, previous, kind if kind != "-" else opener_kind, label)
+            else:
+                opened[label] = (previous, kind)
+                graph.order[previous].append(label)
+            kind = "-"
         elif c.isdigit() or c in "%.":
             return None
         else:
@@ -59,7 +76,7 @@ def _parse(smiles):
             previous = graph.add(match.group(0), previous, kind)
             kind = "-"
             i = match.end()
-    return graph
+    return None if opened else graph
 
 
 def _double_neighbors(graph, atom, excluded):
@@ -203,3 +220,97 @@ def cite_axial_stereo(smiles, name):
         raise UnsupportedStructure("more than one cumulene axis")
     double_bonds, descriptor = axes[0]
     return _merge(name, f"{_cumulated_start(name, double_bonds)}{descriptor}")
+
+
+_AXIS_FROM_CENTRE = {"R": "M", "S": "P", "r": "m", "s": "p"}
+
+
+def annotate_ring_allene_stereo(mol, smiles):
+    """Writes the descriptors of an allene that has one ring atom as terminal on the atoms of `mol` (property
+    `_StereoOverride`), since RDKit drops the allene mark: M/P on the ring terminal when its two ring ligands differ
+    in rank, and when they tie (the ring is symmetric about the axis, so the ring centres and the axis are
+    pseudoasymmetric together) the m/p of the axis and the r/s of the centres (P-93.5.1.4.2.2)."""
+    if "@AL" not in smiles or not any(c.isdigit() for c in smiles):
+        return
+    graph = _parse(smiles, rings=True)
+    if graph is None or len(graph.text) != mol.GetNumAtoms():
+        return
+    ranks = _ranks(smiles)
+    for centre, text in enumerate(graph.text):
+        tag = re.search(r"@AL([12])", text)
+        if tag is None or len(graph.order[centre]) != 2:
+            continue
+        first, second = (_chain(graph, centre, side) for side in graph.order[centre])
+        if len(first) != 2 or len(second) != 2:
+            continue
+        terminals = (first[-1], second[-1])
+        in_ring = [mol.GetAtomWithIdx(t).IsInRing() for t in terminals]
+        if sum(in_ring) != 1:
+            continue
+        try:
+            written = [_ligands(graph, t, mol.GetAtomWithIdx(t).GetTotalNumHs()) for t in terminals]
+        except UnsupportedStructure:
+            continue
+        ranked = [_by_priority(ligands, ranks) for ligands in written]
+        ring_side = in_ring.index(True)
+        if ranked[1 - ring_side] is None:
+            continue
+        if ranked[ring_side] is not None:
+            swaps = sum(w != list(o) for w, o in zip(written, ranked))
+            code = "P" if (tag.group(1) == "1") != bool(swaps % 2) else "M"
+            mol.GetAtomWithIdx(terminals[ring_side]).SetProp(STEREO_OVERRIDE, code)
+            continue
+        labels = _pseudoasymmetric_labels(smiles, mol, centre, terminals, written, ring_side, tag.group(1))
+        for atom_index, label in labels.items():
+            mol.GetAtomWithIdx(atom_index).SetProp(STEREO_OVERRIDE, label)
+
+
+def _pseudoasymmetric_labels(smiles, mol, centre, terminals, written, ring_side, tag):
+    """{atom: label} of the molecule whose allene is replaced by the tetrahedral atom with the same four ligands and
+    the same handedness (an allene is an elongated tetrahedron); the label of that atom is the descriptor of the
+    axis. The two ring ligands of the ring terminal tie, so only the stereogenic units decide their order."""
+    from ._common import assign_cip_labels
+    from ._spiro_stereo import _parity
+
+    raw = Chem.MolFromSmiles(smiles, sanitize=False)
+    if raw is None or raw.GetNumAtoms() != mol.GetNumAtoms():
+        return {}
+    ring, far = terminals[ring_side], terminals[1 - ring_side]
+    editable = Chem.RWMol(raw)
+    for atom in editable.GetAtoms():
+        atom.SetIntProp("_orig", atom.GetIdx())
+    for ligand in written[1 - ring_side]:
+        if ligand == "H":
+            hydrogen = editable.AddAtom(Chem.Atom(1))
+            editable.GetAtomWithIdx(hydrogen).SetIntProp("_orig", -1)
+            editable.AddBond(ring, hydrogen, Chem.BondType.SINGLE)
+        else:
+            editable.AddBond(ring, ligand, Chem.BondType.SINGLE)
+    for index in sorted((centre, far), reverse=True):
+        editable.RemoveAtom(index)
+    new_of = {a.GetIntProp("_orig"): a.GetIdx() for a in editable.GetAtoms()}
+    hydrogen = new_of.get(-1)
+    desired = [hydrogen if x == "H" else new_of[x] for x in written[0] + written[1]]
+    merged = editable.GetAtomWithIdx(new_of[ring])
+    merged.SetNoImplicit(True)
+    merged.SetNumExplicitHs(0)
+    actual = [n.GetIdx() for n in merged.GetNeighbors()]
+    if sorted(actual) != sorted(desired):
+        return {}
+    anticlockwise = (tag == "1") != bool(_parity(actual, desired))
+    merged.SetChiralTag(Chem.ChiralType.CHI_TETRAHEDRAL_CCW if anticlockwise else Chem.ChiralType.CHI_TETRAHEDRAL_CW)
+    surrogate = editable.GetMol()
+    try:
+        Chem.SanitizeMol(surrogate)
+        surrogate = Chem.RemoveHs(surrogate)
+        Chem.AssignStereochemistry(surrogate, cleanIt=True, force=True)
+        assign_cip_labels(surrogate)
+    except (ValueError, RuntimeError):
+        return {}
+    labels = {}
+    for atom in surrogate.GetAtoms():
+        if atom.HasProp("_CIPCode"):
+            origin = atom.GetIntProp("_orig")
+            code = atom.GetProp("_CIPCode")
+            labels[origin] = _AXIS_FROM_CENTRE.get(code, code) if origin == ring else code
+    return labels

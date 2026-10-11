@@ -136,7 +136,7 @@ def _acyl_prefix(mol, subtree, root, parent):
 def _cite_stereo_of_acyl(mol, sub, kept):
     """The descriptors the acid name of an acyl group carries are those of the whole molecule when each carbon centre
     keeps its CIP label in the cut-out acid; they are then cited with the acyl prefix."""
-    from rdkit.Chem import rdCIPLabeler
+    from ._common import assign_cip_labels
 
     from ._substituents import BRANCH_STEREO
 
@@ -147,7 +147,7 @@ def _cite_stereo_of_acyl(mol, sub, kept):
     atoms = {a: code for a, code in context["atoms"].items() if a in in_acyl and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
     if not atoms:
         return
-    rdCIPLabeler.AssignCIPLabels(sub)
+    assign_cip_labels(sub)
     for atom, code in atoms.items():
         cut = sub.GetAtomWithIdx(in_acyl[atom])
         if not cut.HasProp("_CIPCode") or cut.GetProp("_CIPCode") != code:

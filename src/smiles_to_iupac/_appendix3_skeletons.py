@@ -12,8 +12,8 @@ from collections import Counter
 from itertools import product
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._appendix3_groups import SENIORITY, branch_counts, classify, reject_exotic
 from ._appendix3_naming import N_CLASSES, Choice, assemble, n_roots
 from ._appendix3_stereo import ParentStereo, describe, deviations
@@ -570,7 +570,7 @@ def appendix3_central_group(mol, graph):
 
 def _fragment(mol, branch, attached_to):
     labelled = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(labelled)
+    assign_cip_labels(labelled)
     keep = sorted(branch | set(attached_to))
     editable = Chem.RWMol(labelled)
     for index in sorted((a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in keep), reverse=True):

@@ -78,12 +78,12 @@ _PATTERNS = {
 
 def _l_face():
     """Face value of hydroxy 1 for clockwise numbering, calibrated on 1L-1,2/3,5-cyclohexanetetrol = (1R,2R,3R,5R) (P-104.2.3)."""
-    from rdkit.Chem import rdCIPLabeler
+    from ._common import assign_cip_labels
     from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers
 
     ring_locants = [1, 2, 4, 6, 7, 9]
     for isomer in EnumerateStereoisomers(Chem.MolFromSmiles("OC1C(O)C(O)CC(O)C1")):
-        rdCIPLabeler.AssignCIPLabels(isomer)
+        assign_cip_labels(isomer)
         if all(isomer.GetAtomWithIdx(i).GetProp("_CIPCode") == "R" for i in (1, 2, 4, 7)):
             explicit = Chem.AddHs(isomer)
             return _face(explicit, ring_locants[-1], 1, ring_locants[1], 0)

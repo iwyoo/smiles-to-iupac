@@ -811,9 +811,22 @@ def test_saturated_fused_systems_use_hydro_prefixes(smiles, expected):
         ("C[C@H]1CCCN(C)C1", "(3S)-1,3-dimethylpiperidine"),
         ("C/C=C1\\C/C(=C/C)CC1", "(1Z,3E)-1,3-diethylidenecyclopentane"),
         ("C/C=C1\\CCCCC1C", "(1E)-1-ethylidene-2-methylcyclohexane"),
+        ("C/C=C1\\CCCC[C@H]1O", "(1R,2E)-2-ethylidenecyclohexan-1-ol"),
     ],
 )
 def test_ring_stereodescriptors_are_cited_once(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O/N=C1/CC[C@@H](C)CC1", "(1seqCis,4R)-N-hydroxy-4-methylcyclohexan-1-imine", id="seqcis"),
+        pytest.param("O/N=C1/CC[C@H](C)CC1", "(1seqTrans,4S)-N-hydroxy-4-methylcyclohexan-1-imine", id="seqtrans"),
+        pytest.param("C/C=C1/C[C@H](C)C[C@@H](C)C1", "(3R,5R)-1-ethylidene-3,5-dimethylcyclohexane", id="ring_paths_alike"),
+    ],
+)
+def test_exocyclic_double_bond_with_ring_paths_differing_by_configuration(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

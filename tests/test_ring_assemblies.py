@@ -200,6 +200,10 @@ def test_three_rings_with_a_double_bond_junction_name_a_two_ring_assembly_with_r
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_double_bond_between_assembly_components_is_cited_with_both_locants():
+    assert smiles_to_iupac("CC[C@H]1CC/C(CC1)=C1\\CC[C@@H](CC)CC1") == "[1(1')E,4s,4's]-4,4'-diethyl-1,1'-bi(cyclohexylidene)"
+
+
 def test_assembly_holding_the_principal_group_is_the_parent_beside_a_fused_ring_substituent():
     assert smiles_to_iupac("OC1CCCCN1C1CCCCN1c1ccc2ccccc2c1") == "1'-(naphthalen-2-yl)[1,2'-bipiperidin]-2-ol"
 

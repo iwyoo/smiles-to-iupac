@@ -9,8 +9,8 @@ import itertools
 import re
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._nucleoside import _NUCLEOSIDE_SMILES
 from ._numerals import numerical_term
@@ -240,7 +240,7 @@ def _cip_data(mol):
         for a in ranked.GetAtoms()
     }
     labelled = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(labelled)
+    assign_cip_labels(labelled)
     atoms = {
         a.GetIdx(): a.GetProp("_CIPCode")
         for a in labelled.GetAtoms()

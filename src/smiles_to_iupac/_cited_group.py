@@ -1,8 +1,8 @@
 """A substituent group named with the CIP descriptors of its own stereo elements cited inside the name."""
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, halogen_substituents
 
 
@@ -22,7 +22,7 @@ def cited_group(mol, graph, root, from_atom):
 
     inside = subtree(graph, root, from_atom)
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     atoms = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")}
     bonds = {
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")

@@ -29,7 +29,7 @@ from ._locant_omission import omits_all_locants
 from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
 from ._substituents import cite_heteroatom_double_bonds, format_substituent_prefixes, name_branch
 
-_DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3, "Z": 0, "E": 1}
+_DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3, "Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "M": 0, "P": 1, "m": 2, "p": 3}
 PARENT_START = contextvars.ContextVar("parent_start", default=0)
 
 
@@ -422,8 +422,16 @@ def _evaluate_skeleton(
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         free = tuple(sorted(position_of[a] for a in attach))
         cite = tuple(position_of[a] for a in sorted(attach, key=lambda a: (orders[a], position_of[a]))) if mixed else ()
-        ring_stereo = [(a, c) for a, c in stereo_all if _within(a, skeleton)]
-        if any(_used_key(a) not in stereo_context["used"] for a, _ in stereo_all if not _within(a, skeleton)):
+        ring_stereo = [
+            (a, c)
+            for a, c in stereo_all
+            if _within(a, skeleton) or (_ends_on(a, skeleton) and _used_key(a) not in stereo_context["used"])
+        ]
+        if any(
+            _used_key(a) not in stereo_context["used"]
+            for a, _ in stereo_all
+            if not _within(a, skeleton) and not _ends_on(a, skeleton)
+        ):
             raise UnsupportedStructure("a stereocenter on a substituent is not supported yet")
         acid_key = anion_locant_key(anions, [position_of[a] for a in attach]) if anions else ()
         stereo_key = tuple(
@@ -484,10 +492,15 @@ def _within(element, skeleton):
     return set(element) <= skeleton if isinstance(element, tuple) else element in skeleton
 
 
+def _ends_on(element, skeleton):
+    """A double bond from a skeleton atom to an atom outside it, as to an ylidene group (P-93.5.1.4.2)."""
+    return isinstance(element, tuple) and len(set(element) & skeleton) == 1
+
+
 def _stereo_locant(element, position_of):
-    """Locant of a stereo element of the skeleton: the atom's, or for a ring double bond its lower end."""
+    """Locant of a stereo element of the skeleton: the atom's, or for a double bond its lower end inside the skeleton."""
     if isinstance(element, tuple):
-        return min(position_of[a] for a in element)
+        return min(position_of[a] for a in element if a in position_of)
     return position_of[element]
 
 

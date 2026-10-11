@@ -43,8 +43,8 @@ import itertools
 from contextvars import ContextVar
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, find_primary_amines
 
 SYSTEMATIC_ACID_PROBE = ContextVar("SYSTEMATIC_ACID_PROBE", default=False)
@@ -173,7 +173,7 @@ def _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms):
             "tetrahedral stereocenter (with no unspecified one alongside "
             "it, outside the recognized side chain) is not supported yet"
         )
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     for element in specified:
         if element.centeredOn == alpha_carbon:
             return mol.GetAtomWithIdx(alpha_carbon).GetPropsAsDict().get("_CIPCode")
@@ -427,7 +427,7 @@ def _phosphoryl_group_name(mol, graph, oxygen, phosphorus, side_chain_atoms):
     from ._substituents import BRANCH_STEREO
 
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     atoms = {
         a.GetIdx(): a.GetProp("_CIPCode")
         for a in probe.GetAtoms()
@@ -493,7 +493,7 @@ def _substituent_prefixes(mol, graph, substituents):
                 inside.add(node)
                 stack.extend(n for n in graph[node] if n != site and n not in inside)
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     atoms = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")}
     bonds = {
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")

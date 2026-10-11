@@ -108,9 +108,7 @@ def name_cycloalkane(mol) -> str:
                 "ring itself is not supported yet (see P-92)"
             )
 
-    if branch_stereo is None and any(
-        e.specified == Chem.StereoSpecified.Specified for e in Chem.FindPotentialStereo(mol)
-    ):
+    if branch_stereo is None and stereo is not None:
         raise UnsupportedStructure("ring stereocenters are cited by CIP descriptors, which the general ring namer assigns")
 
     best_key = None

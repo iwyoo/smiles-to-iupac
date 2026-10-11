@@ -355,7 +355,7 @@ def _search(mol, free_atom, free_order, ignore):
     return fused
 
 
-_CODE_RANK = {"Z": 0, "E": 1, "R": 0, "S": 1, "r": 0, "s": 1}
+_CODE_RANK = {"Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "R": 0, "S": 1, "r": 0, "s": 1, "M": 0, "P": 1, "m": 0, "p": 1}
 
 
 def _hetero_key(entries):

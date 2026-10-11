@@ -57,12 +57,12 @@ def _rank(mol, graph, root, nitrogen):
 def donor_names(mol, graph, donors, halogens, aromatic):
     """{root: name} of the acyl donor groups, each cited with the descriptors of its own stereo elements; raises
     UnsupportedStructure when one of them is left uncited."""
-    from rdkit.Chem import rdCIPLabeler
+    from ._common import assign_cip_labels
 
     from ._substituents import BRANCH_STEREO
 
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     names = {}
     for root, nitrogen in donors:
         side = _side(graph, root, nitrogen)

@@ -8,8 +8,9 @@ from collections import Counter
 
 import numpy as np
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdCIPLabeler
+from rdkit.Chem import AllChem
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
 from ._numerals import multiplying_prefix
 from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
@@ -562,7 +563,7 @@ def _double_bond_descriptors(mol, position_of):
             continue
         if bond.GetStereo() in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY):
             continue
-        rdCIPLabeler.AssignCIPLabels(mol)
+        assign_cip_labels(mol)
         if not bond.HasProp("_CIPCode"):
             raise UnsupportedStructure("a steroid chain double bond has no E/Z label")
         low = min(position_of[a], position_of[b])
@@ -571,7 +572,7 @@ def _double_bond_descriptors(mol, position_of):
 
 
 def _cip_label(mol, atom):
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     center = mol.GetAtomWithIdx(atom)
     if not center.HasProp("_CIPCode") or center.GetProp("_CIPCode") not in ("R", "S"):
         raise UnsupportedStructure("a steroid chain centre has no CIP R/S label")

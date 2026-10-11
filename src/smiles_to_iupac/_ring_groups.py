@@ -4,8 +4,8 @@ cited as suffixes in that seniority order and the rest as prefixes).
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -150,7 +150,7 @@ def _branch_with_stereo(mol, graph, n, ring_atom):
     if not specified:
         return name, compound
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     cited = []
     for i in specified:
         atom = probe.GetAtomWithIdx(i)
