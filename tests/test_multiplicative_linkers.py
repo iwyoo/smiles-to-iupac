@@ -594,3 +594,14 @@ def test_multiplicative_linker_locants_enclosure_and_multiplying_prefix(smiles, 
 )
 def test_parent_choice_beside_identical_hydrides_acyl_diazenes_and_heterounits(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Oc1ccc(cc1)[Se]O[Se]c1ccc(O)cc1", "4,4'-diselenoxanediyldiphenol", id="alternating_chalcogen_linker"),
+        pytest.param("c1ccccc1OSOc1ccccc1", "1,1'-[sulfanediylbis(oxy)]dibenzene", id="senior_ends_keep_the_central_atom"),
+    ],
+)
+def test_alternating_chalcogen_chains_are_divalent_parent_hydride_linkers(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

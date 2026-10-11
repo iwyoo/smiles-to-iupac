@@ -15,7 +15,7 @@ from ._common import UnsupportedStructure, specified_stereo_elements
 from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
-from ._multiplicative_linker import DecompositionRejected, name_component
+from ._multiplicative_linker import DecompositionRejected, alternating_chalcogen_runs, name_component
 from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
 from ._multiplicative_ring import (
     bare_polycyclic_unit,
@@ -227,6 +227,7 @@ def _components(mol, linker_nodes, systems):
     for a in atoms:
         parent[a] = a
     atom_set = set(atoms)
+    alternating = alternating_chalcogen_runs(mol, atom_set)
     for a in atoms:
         za = mol.GetAtomWithIdx(a).GetAtomicNum()
         for n in mol.GetAtomWithIdx(a).GetNeighbors():
@@ -236,7 +237,11 @@ def _components(mol, linker_nodes, systems):
             zb = n.GetAtomicNum()
             order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
             single = order == 1
-            if (za == 6 and zb == 6) or (za == zb and za in _HOMONUCLEAR_RUNS and (single or (za == 7 and order == 2))):
+            if (
+                (za == 6 and zb == 6)
+                or (za == zb and za in _HOMONUCLEAR_RUNS and (single or (za == 7 and order == 2)))
+                or any(a in run and b in run for run in alternating)
+            ):
                 parent[find(a)] = find(b)
     comps = {}
     for a in atoms:

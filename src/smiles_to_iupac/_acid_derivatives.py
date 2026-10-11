@@ -892,7 +892,11 @@ def _multiplied_word(word, count):
 def _component_word(name):
     """The acid word of an anhydride component; a component that is itself an ester is cited whole in parentheses
     (P-67.1.3.3), as in '(methyl dihydrogen phosphate)'."""
-    return acid_word(name) if _ACID_ENDING.search(name) else f"({name})"
+    if _ACID_ENDING.search(name):
+        return acid_word(name)
+    if " " not in name:
+        raise UnsupportedStructure("an anhydride component is an acid or an ester")
+    return f"({name})"
 
 
 _CHALCOGEN_SENIORITY = ("O", "S", "Se", "Te")

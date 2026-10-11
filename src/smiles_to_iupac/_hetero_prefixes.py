@@ -58,6 +58,8 @@ def require_plain_chalcogen_kids(mol, z, kids):
             atom = mol.GetAtomWithIdx(kid)
             if atom.GetAtomicNum() in (14, 32, 50, 82) or (atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() <= 2):
                 continue
+            if atom.GetAtomicNum() == 8 and atom.GetDegree() <= 2 and _dichalcogenide_only(mol):
+                continue
             if atom.GetAtomicNum() != 6 or any(
                 b.GetBondTypeAsDouble() >= 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52)
                 for b in atom.GetBonds()
@@ -80,24 +82,36 @@ def _has_senior_principal_group(mol):
 
 
 def _dichalcogenide_only(mol):
-    """Every contiguous run of chalcogen atoms is a pair joining two carbon groups (a disulfide, diselenide, ditelluride or a
-    mixed S-O, Se-S pair): two contiguous chalcogens are a prefix on a carbon parent, only three or more form a parent
-    hydride of their own (P-68.4.1.1, P-63.3.2)."""
+    """Every contiguous run of chalcogen atoms joins two carbon groups and is a prefix on a carbon parent: a pair, or a
+    heterogeneous run of three or more atoms (P-68.4.2.4); three or more identical atoms form a parent hydride of their own
+    (P-68.4.1.1)."""
     hosts = (6, 5, 13, 14, 31, 32, 49, 50, 81, 82)
     if any(a.GetAtomicNum() not in (1, 8, 9, 17, 35, 53, 16, 34, 52, *hosts) for a in mol.GetAtoms()):
         return False
-    pairs = 0
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (8, 16, 34, 52):
+    chalcogens = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in _CHAIN_ELEMENTS}
+    seen, runs = set(), 0
+    for start in chalcogens:
+        if start in seen or not any(n.GetIdx() in chalcogens for n in mol.GetAtomWithIdx(start).GetNeighbors()):
             continue
-        partners = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in (8, 16, 34, 52)]
-        if not partners:
-            continue
-        carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in hosts]
-        if atom.GetDegree() != 2 or len(partners) != 1 or len(carbons) != 1 or partners[0].GetDegree() != 2:
+        run, stack = {start}, [start]
+        while stack:
+            for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+                if n.GetIdx() in chalcogens and n.GetIdx() not in run:
+                    run.add(n.GetIdx())
+                    stack.append(n.GetIdx())
+        seen |= run
+        atoms = [mol.GetAtomWithIdx(i) for i in run]
+        ends = [a for a in atoms if sum(n.GetIdx() in run for n in a.GetNeighbors()) == 1]
+        if (
+            len(ends) != 2
+            or any(a.GetDegree() != 2 or a.IsInRing() for a in atoms)
+            or any(sum(n.GetIdx() in run for n in a.GetNeighbors()) > 2 for a in atoms)
+            or any(not any(n.GetAtomicNum() in hosts for n in e.GetNeighbors()) for e in ends)
+            or (len(run) >= 3 and len({a.GetAtomicNum() for a in atoms}) == 1)
+        ):
             return False
-        pairs += 1
-    return pairs > 0
+        runs += 1
+    return runs > 0
 
 
 def _chain_prefix_allowed(mol):
@@ -500,7 +514,7 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
         raise UnsupportedStructure("a peroxol or its chalcogen analogue outranks an amine as the principal group")
     runs = [[atom.GetAtomicNum(), 0] for atom in atoms[:1]]
     for atom in atoms[1:]:
-        if atom.GetAtomicNum() == runs[-1][0] and (atom.GetAtomicNum() == 8 or len(set(a.GetAtomicNum() for a in atoms)) == 1):
+        if atom.GetAtomicNum() == runs[-1][0]:
             runs[-1][1] += 1
         else:
             runs.append([atom.GetAtomicNum(), 1])

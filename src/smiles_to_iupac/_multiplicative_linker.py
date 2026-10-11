@@ -123,10 +123,55 @@ def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None,
     return Part(prefix + body, bool(prefix), True)
 
 
+_CHALCOGEN_ORDER = (8, 16, 34, 52)
+
+
+def _alternating_elements(mol, atoms):
+    """(terminal element, inner element, terminal count) when `atoms` are the unbranched a[ba]n stretch of two chalcogens with
+    the senior one inside (dithioxane, diselenoxane; P-21.2.3.1), else None."""
+    elements = [mol.GetAtomWithIdx(a).GetAtomicNum() for a in atoms]
+    kinds = sorted(set(elements), key=_CHALCOGEN_ORDER.index) if set(elements) <= set(_CHALCOGEN_ORDER) else []
+    if len(kinds) != 2 or len(atoms) % 2 == 0:
+        return None
+    inner, terminal = kinds
+    if elements.count(terminal) != elements.count(inner) + 1:
+        return None
+    if any(mol.GetAtomWithIdx(a).GetDegree() > 2 for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == inner):
+        return None
+    return terminal, inner, elements.count(terminal)
+
+
+def alternating_chalcogen_runs(mol, atom_set):
+    """The sets of atoms of `atom_set` that form a whole a[ba]n chain of single chalcogen atoms."""
+    runs, seen = [], set()
+    for start in sorted(atom_set):
+        if start in seen or mol.GetAtomWithIdx(start).GetAtomicNum() not in _CHALCOGEN_ORDER:
+            continue
+        run, stack = {start}, [start]
+        while stack:
+            for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+                idx = n.GetIdx()
+                if idx in atom_set and idx not in run and n.GetAtomicNum() in _CHALCOGEN_ORDER:
+                    run.add(idx)
+                    stack.append(idx)
+        seen |= run
+        if len(run) >= 3 and _alternating_elements(mol, sorted(run)) is not None and all(
+            mol.GetAtomWithIdx(a).GetDegree() == 2 and not mol.GetAtomWithIdx(a).IsInRing() for a in run
+        ):
+            runs.append(run)
+    return runs
+
+
 def _hetero_part(mol, atoms, attachments, ctx, directed=None):
     pairs = {(a, b) for a, b, _ in attachments}
     pend = _pendants(mol, atoms, pairs)
     z = mol.GetAtomWithIdx(atoms[0]).GetAtomicNum()
+    if len(atoms) >= 3 and not pend and len(attachments) == 2:
+        found = _alternating_elements(mol, atoms)
+        if found is not None:
+            from ._hydride_chain import _alternating_parent
+
+            return Part(_alternating_parent(*found) + "diyl", False, False)
     if len(atoms) >= 2:
         if z in _CHAIN_STEMS and len(attachments) == 2 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == z for a in atoms):
             whole = None
