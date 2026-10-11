@@ -244,8 +244,9 @@ def find_links(mol):
     return links, acid
 
 
-def _acid_name(mol, keep, caps):
-    """Name of the free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`."""
+def _capped_acid(mol, keep, caps):
+    """The free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`, and the index
+    of each kept atom in it."""
     editable = Chem.RWMol(mol)
     for idx in caps:
         atom = editable.GetAtomWithIdx(idx)
@@ -255,6 +256,12 @@ def _acid_name(mol, keep, caps):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
+    return acid, {idx: i for i, idx in enumerate(sorted(keep))}
+
+
+def _acid_name(mol, keep, caps):
+    """Name of the free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`."""
+    acid, _ = _capped_acid(mol, keep, caps)
     for atom in acid.GetAtoms():
         if atom.GetAtomicNum() in (15, 16):
             # the descriptor of a stereogenic acid centre is cited in front of the anion, not inside the acid name
@@ -328,7 +335,7 @@ def name_phosphorous_acid(mol):
     return name
 
 
-_ACID_ENDING = re.compile(r"(?: (?:[A-Za-z]+(?:,[A-Za-z]+)*)-acid| acid)(\)?)$")
+_ACID_ENDING = re.compile(r"(?: (?:[A-Za-z]+\d*(?:,[A-Za-z]+\d*)*)-acid| acid)(\)?)$")
 
 
 def anion_name(acid_name):
@@ -434,7 +441,7 @@ def _multiplied(entries):
             text = f"{multiplier}{enclose(name)}" if compound else f"{multiplier}{name}"
         else:
             text = enclose(name) if compound and any(letters) else name
-        parts.append((f"{','.join(sorted(letters, key=lambda t: (len(t), t)))}-" if any(letters) else "") + text)
+        parts.append((f"{','.join(sorted(letters, key=lambda t: (len(t.split('-')[0]), t)))}-" if any(letters) else "") + text)
     return " ".join(parts)
 
 
@@ -704,20 +711,28 @@ def name_ester(mol, links):
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element of the organyl part is not cited by any supported name")
-    free_centers = [
-        a
+    free_slots = [
+        (a, n.GetIdx())
         for a in acid_atoms
         for n in mol.GetAtomWithIdx(a).GetNeighbors()
         if n.GetAtomicNum() in _SYMBOL and n.GetDegree() == 1 and n.GetTotalNumHs() == 1 and _center(mol, a) is not None
     ]
+    free_centers = [center for center, _ in free_slots]
     free = len(free_centers)
-    cited = _ester_locants(mol, acid_atoms, per_link, free_centers) if (len(named) > 1 or free) and len(chosen) + free > 1 else None
-    if cited is None:
-        cited = _diphosphate_locants(mol, acid_atoms, per_link, free_centers)
+    hydrogen_positions = None
+    polycarbonic = _polycarbonic_locants(mol, acid_atoms, per_link, free_slots) if len(chosen) + free > 1 else None
+    if polycarbonic is not None:
+        cited, hydrogen_positions = polycarbonic
+    else:
+        cited = _ester_locants(mol, acid_atoms, per_link, free_centers) if (len(named) > 1 or free) and len(chosen) + free > 1 else None
+        if cited is None:
+            cited = _diphosphate_locants(mol, acid_atoms, per_link, free_centers)
     entries = [
         (name, compound, count, cited[name] if cited else letters) for name, (count, compound, letters) in named.items()
     ]
     hydrogen = "" if free == 0 else multiplying_prefix(free) + "hydrogen " if free > 1 else "hydrogen "
+    if hydrogen_positions:
+        hydrogen = f"{','.join(hydrogen_positions)}-{hydrogen}"
     return _multiplied(entries) + " " + hydrogen + anion
 
 
@@ -743,6 +758,33 @@ def _ester_locants(mol, acid_atoms, per_link, free_centers):
     for l, name in per_link:
         cited.setdefault(name, []).append(str(locants[l.center]))
     return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in cited.items()}
+
+
+def _polycarbonic_locants(mol, acid_atoms, per_link, free):
+    """P-65.6.3.3.7.2.1: ({organyl name: positions}, positions of the hydrogen atoms) for an ester of a di- to
+    tetracarbonic acid, each position a locant of the acid chain followed by the element symbol when the carbonic unit
+    carries more than one chalcogen ('1-S-methyl'); (None, None) when every free position is equivalent; None when the
+    acid is not a polycarbonic acid."""
+    from ._polycarbonic import end_numberings
+
+    acid, index = _capped_acid(mol, acid_atoms, [l.chain[-1] for l, _ in per_link])
+    try:
+        numberings = end_numberings(acid)
+    except UnsupportedStructure:
+        return None
+    slots = [(l.center, l.chain[-1], l, name) for l, name in per_link]
+    slots += [(center, oxygen, Link("ester", center, (oxygen,), -1), "") for center, oxygen in free]
+    ranks = Chem.CanonicalRankAtoms(acid, breakTies=False)
+    if len({ranks[index[oxygen]] for _, oxygen, _, _ in slots}) < 2:
+        return None, None
+    slots.sort(key=lambda slot: (not slot[3], alpha_sort_key(slot[3])))
+    best = min(tuple(locants[index[center]] for center, _, _, _ in slots) for _, locants in numberings)
+    cited, hydrogen = {}, []
+    for locant, (_, _, link, name) in zip(best, slots):
+        symbol = _letters(mol, link)
+        position = f"{locant}-{symbol}" if symbol else str(locant)
+        (cited.setdefault(name, []) if name else hydrogen).append(position)
+    return cited, hydrogen
 
 
 def _diphosphate_locants(mol, acid_atoms, per_link, free_centers):
