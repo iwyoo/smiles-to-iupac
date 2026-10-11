@@ -34,7 +34,7 @@ _NUCLIDE = r"(?:[\d,]+-)?\d+[A-Z][a-z]?\d*"
 _LEADING_LOCANTS_RE = re.compile(rf"^\x01?(?:[\d,\-]+(?:\((?!{_NUCLIDE}(?:,{_NUCLIDE})*\)[A-Za-z]))?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 _LEADING_ISOTOPE_RE = re.compile(rf"^\x01?\({_NUCLIDE}(?:,{_NUCLIDE})*\)(?=[A-Za-z])")
-_LEADING_STEREO_RE = re.compile(r"^\([\dRSEZrsez,' ]+\)-")
+_LEADING_STEREO_RE = re.compile(r"^[(\[](?:[\dRSEZrsezMPmp,' ()]|seqCis|seqTrans)+[)\]]-")
 _LEADING_ANOMER_RE = re.compile(r"^[αβ]-[DL]-")
 
 
@@ -1212,7 +1212,7 @@ def citation_order_key(name: str):
     return alpha_sort_key(name), not _LEADING_ISOTOPE_RE.match(name), _descriptor_precedence(name)
 
 
-_DESCRIPTOR_PRECEDENCE = {"Z": 0, "E": 1, "R": 2, "S": 3, "r": 4, "s": 5}
+_DESCRIPTOR_PRECEDENCE = {"Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "R": 2, "S": 3, "r": 4, "s": 5, "M": 2, "P": 3, "m": 4, "p": 5}
 
 
 def _descriptor_precedence(name: str):
@@ -1220,7 +1220,7 @@ def _descriptor_precedence(name: str):
     match = _LEADING_STEREO_RE.match(_LEADING_ISOTOPE_RE.sub("", name))
     if match is None:
         return ()
-    return tuple(_DESCRIPTOR_PRECEDENCE[c] for c in match.group() if c in _DESCRIPTOR_PRECEDENCE)
+    return tuple(_DESCRIPTOR_PRECEDENCE[c] for c in re.findall(r"seqCis|seqTrans|[A-Za-z]", match.group()) if c in _DESCRIPTOR_PRECEDENCE)
 
 
 def substituent_locant_set_and_citation(grouped):
@@ -1483,6 +1483,19 @@ def ring_bond_locants(position_of, bonds, ring_size):
     return sorted(ene), sorted(yne)
 
 
+STEREO_OVERRIDE = "_StereoOverride"
+_ENANTIOMORPHIC_BOND_CODE = {"z": "seqCis", "e": "seqTrans"}
+
+
+def assign_cip_labels(mol):
+    """`rdCIPLabeler.AssignCIPLabels` with the lowercase double-bond labels written as the descriptors of
+    enantiomorphic double bonds, seqCis and seqTrans (P-92.1.1, P-93.5.1.4.2.2)."""
+    rdCIPLabeler.AssignCIPLabels(mol)
+    for bond in mol.GetBonds():
+        if bond.HasProp("_CIPCode") and bond.GetProp("_CIPCode") in _ENANTIOMORPHIC_BOND_CODE:
+            bond.SetProp("_CIPCode", _ENANTIOMORPHIC_BOND_CODE[bond.GetProp("_CIPCode")])
+
+
 def specified_stereocenters(mol):
     """Scan `mol` for stereo elements (RDKit's `Chem.FindPotentialStereo`).
     If there are none at all, or every one present is left unspecified
@@ -1510,7 +1523,8 @@ def specified_stereocenters(mol):
     scope)."""
     elements = Chem.FindPotentialStereo(mol)
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
-    if not specified:
+    overridden = [a.GetIdx() for a in mol.GetAtoms() if a.HasProp(STEREO_OVERRIDE)]
+    if not specified and not overridden:
         return None
     if any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified):
         raise UnsupportedStructure(
@@ -1520,11 +1534,13 @@ def specified_stereocenters(mol):
             "unspecified one, or any C=C/C#N double-bond E/Z stereo -- see "
             "P-92/P-93)"
         )
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     labels = []
     for element in specified:
         atom_idx = element.centeredOn
         atom = mol.GetAtomWithIdx(atom_idx)
+        if atom.HasProp(STEREO_OVERRIDE):
+            continue
         if not atom.HasProp("_CIPCode"):
             raise UnsupportedStructure(
                 "could not determine a CIP R/S label for this stereocenter"
@@ -1533,7 +1549,7 @@ def specified_stereocenters(mol):
         if code not in ("R", "S", "r", "s"):
             raise UnsupportedStructure("could not determine a CIP R/S/r/s label for this stereocenter")
         labels.append((atom_idx, code))
-    return labels
+    return labels + [(idx, mol.GetAtomWithIdx(idx).GetProp(STEREO_OVERRIDE)) for idx in overridden]
 
 
 def stereo_locants_prefix(stereo, position_of):
@@ -1606,14 +1622,14 @@ def specified_double_bond_stereo(mol):
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return None
-    if any(e.type != Chem.StereoType.Bond_Double for e in specified):
+    if any(e.type != Chem.StereoType.Bond_Double for e in specified) or any(a.HasProp(STEREO_OVERRIDE) for a in mol.GetAtoms()):
         raise UnsupportedStructure(
             "stereochemistry beyond one or more specified C=C double-bond "
             "E/Z elements (with no unspecified one alongside them) is not "
             "supported yet (a specified element mixed with an unspecified "
             "one, or a tetrahedral stereocenter -- see P-92/P-93)"
         )
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     labels = []
     for element in specified:
         bond_idx = element.centeredOn
@@ -1657,11 +1673,14 @@ def specified_stereo_elements(mol):
     label RDKit couldn't determine."""
     elements = Chem.FindPotentialStereo(mol)
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
-    if not specified:
+    overridden = [a.GetIdx() for a in mol.GetAtoms() if a.HasProp(STEREO_OVERRIDE)]
+    if not specified and not overridden:
         return None
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     labels = []
     for element in specified:
+        if element.type == Chem.StereoType.Atom_Tetrahedral and mol.GetAtomWithIdx(element.centeredOn).HasProp(STEREO_OVERRIDE):
+            continue
         if element.type == Chem.StereoType.Atom_Tetrahedral:
             atom = mol.GetAtomWithIdx(element.centeredOn)
             if not atom.HasProp("_CIPCode"):
@@ -1675,9 +1694,9 @@ def specified_stereo_elements(mol):
         elif element.type == Chem.StereoType.Bond_Double:
             bond = mol.GetBondWithIdx(element.centeredOn)
             if not bond.HasProp("_CIPCode"):
-                raise UnsupportedStructure(
-                    "could not determine a CIP E/Z label for this double bond"
-                )
+                if bond.IsInRing() or not (bond.GetBeginAtom().IsInRing() or bond.GetEndAtom().IsInRing()):
+                    raise UnsupportedStructure("could not determine a CIP E/Z label for this double bond")
+                continue
             labels.append(("bond", element.centeredOn, bond.GetProp("_CIPCode")))
         else:
             raise UnsupportedStructure(
@@ -1685,6 +1704,7 @@ def specified_stereo_elements(mol):
                 "C=C double-bond E/Z element is not supported yet (see "
                 "P-92/P-93)"
             )
+    labels += [("atom", idx, mol.GetAtomWithIdx(idx).GetProp(STEREO_OVERRIDE)) for idx in overridden]
     return labels
 
 
@@ -1699,7 +1719,7 @@ def stereo_locant_rank(mol, stereo, position_of):
         else:
             bond = mol.GetBondWithIdx(idx)
             labels.append((min(position_of.get(bond.GetBeginAtomIdx(), 0), position_of.get(bond.GetEndAtomIdx(), 0)), code))
-    return tuple(tuple(sorted(loc for loc, code in labels if code in wanted)) for wanted in (("Z",), ("R", "r")))
+    return tuple(tuple(sorted(loc for loc, code in labels if code in wanted)) for wanted in (("Z", "seqCis"), ("R", "r", "M", "m")))
 
 
 _SUPERSCRIPT_CHARS = str.maketrans("0123456789abcdefgh", "⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ")

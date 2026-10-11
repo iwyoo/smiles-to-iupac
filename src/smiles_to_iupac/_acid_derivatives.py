@@ -8,8 +8,8 @@ import re
 from dataclasses import dataclass
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._acid_lexicon import CHALCOGENS
 from ._carbonic_family import pseudohalide_at
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
@@ -394,7 +394,7 @@ def _fragments(mol, cut_bonds):
 
 def _stereo_context(mol, removed):
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     return {
         "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in removed and a.HasProp("_CIPCode")},
         "bonds": {

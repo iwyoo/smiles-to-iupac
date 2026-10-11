@@ -70,8 +70,9 @@ either still resolves correctly.
 """
 
 from rdkit import Chem
-from rdkit.Chem import BondType, RWMol, rdCIPLabeler
+from rdkit.Chem import BondType, RWMol
 
+from ._common import assign_cip_labels
 from ._parent_hydride_stripping import strip_substituents
 from ._polycyclic_suffix import _suffixed_parent
 
@@ -247,7 +248,7 @@ def _natural_cip_by_locant(name):
         if entry_name != name or "@" not in smiles:
             continue
         mol = Chem.MolFromSmiles(smiles)
-        rdCIPLabeler.AssignCIPLabels(mol)
+        assign_cip_labels(mol)
         locant_map = _locant_map(name, mol)
         codes = {}
         for locant in _ALPHA_BETA_NATURAL_LABEL:
@@ -282,7 +283,7 @@ def _alpha_beta_stereo_prefix(name, mol):
         return ""
     if not any(atom.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for atom in mol.GetAtoms()):
         return ""
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     locant_map = _locant_map(name, mol)
     parts = []
     for locant, natural_cip in sorted(natural.items()):

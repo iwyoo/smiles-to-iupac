@@ -91,6 +91,17 @@ class PrimedLocant:
         return f"{self.number}{chr(39) * self.primes}"
 
 
+class JunctionBondLocant(PrimedLocant):
+    """Locant of a double bond joining two components of an assembly, cited as 1(1′) (P-93.5.1.4.2.2)."""
+
+    def __init__(self, first, second):
+        super().__init__(first.primes, first.number)
+        self.second = second
+
+    def __str__(self):
+        return f"{PrimedLocant.__str__(self)}({self.second})"
+
+
 class CompositeLocant:
     """A composite locant of an assembly of three or more rings: ring number and position, cited with the position raised (1⁴)."""
 

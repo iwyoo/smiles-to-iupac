@@ -26,7 +26,7 @@ from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._peptide import has_peptide_shape, name_peptide
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
-from ._axial_stereo import cite_axial_stereo
+from ._axial_stereo import annotate_ring_allene_stereo, cite_axial_stereo
 from ._ring_diyl_numbering import SYSTEMATIC_FUSION
 from ._spiro_stereo import cite_spiro_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
@@ -177,7 +177,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import CITE_SKELETAL_LAMBDA, UnsupportedStructure, alphanumerical_name_key, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, STEREO_OVERRIDE, UnsupportedStructure, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -507,6 +507,13 @@ _C_GLYCOSYL = Chem.MolFromSmarts("[c]-[C]1O[C]([CH2][OX2])[C]([OX2])[C]([OX2])[C
 
 
 def _parse_smiles(smiles):
+    mol = _parse_smiles_unannotated(smiles)
+    if mol is not None:
+        annotate_ring_allene_stereo(mol, smiles)
+    return mol
+
+
+def _parse_smiles_unannotated(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is not None and (
         _is_nonbenzene_monocyclic_annulene(mol)
@@ -989,6 +996,8 @@ def _name_unabridged_body(smiles: str) -> str:
                 raise
         if hydro_fusion and re.search(r"cyclo\[", name):
             name = _hydro_fusion_name(parsed) or name
+        if parsed is not None and _override_count(parsed) > len(_OVERRIDE_TOKENS.findall(name)):
+            raise UnsupportedStructure("the allene stereochemistry of this structure is not cited by any supported name")
         if parsed is not None and _has_specified_stereo(parsed):
             tokens = bool(_STEREO_TOKENS.search(name) or _STEREO_IN_RETAINED_NAME.search(name))
             if tokens and not _cites_every_double_bond(parsed, name):
@@ -1065,11 +1074,14 @@ def _protonated_name(mol):
 
 _HYDRO_FUSION_RUNNING = set()
 _STEREO_TOKENS = re.compile(
-    r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[RSEZ](?=[,)])|(?<=[\d'a⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[rs](?=[,)])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
+    r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[RSEZ]|seqCis|seqTrans)(?=[,)\]])|(?<=[\d'a⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[rs](?=[,)\]])|(?<=['\d]\))[EZ](?=[,\]])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
 )
 
 
-_DESCRIPTOR_GROUP = re.compile(r"\((?:\d+[a-z]?[\u2032']*)?[RSEZrs](?:,(?:\d+[a-z]?[\u2032']*)?[RSEZrs])*\)-")
+_DESCRIPTOR_GROUP = re.compile(
+    r"[(\[](?:\d+[a-z]?[\u2032']*(?:\(\d+[\u2032']*\))?)?(?:[RSEZrsMPmp]|seqCis|seqTrans)"
+    r"(?:,(?:\d+[a-z]?[\u2032']*(?:\(\d+[\u2032']*\))?)?(?:[RSEZrsMPmp]|seqCis|seqTrans))*[)\]]-"
+)
 def _same_enclosing_marks(text):
     """Dropping a descriptor group from a bracketed prefix lowers its enclosing marks (P-16.5.4.1.1)."""
     return text.translate(str.maketrans("[]{}", "()()"))
@@ -1078,8 +1090,15 @@ def _same_enclosing_marks(text):
 _STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
 
 
-_CENTER_CODE = re.compile(r"(?<=[\d'a-z\u00b2\u00b3\u00b9\u2070-\u209f\u1d43-\u1d4a])[RSrs](?=[,)])|\((?:R|S)\)")
+_CENTER_CODE = re.compile(r"(?<=[\d'a-z\u00b2\u00b3\u00b9\u2070-\u209f\u1d43-\u1d4a])[RSrs](?=[,)\]])|\((?:R|S)\)")
 _CODE_WORDS = re.compile(r"bis[{\[(]|tris|tetrakis|\b[DL]-|[\u03b1\u03b2\u03be]|\brel-|\brac-|ose\b|inositol|ent-|\b(?:cis|trans)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-")
+
+
+_OVERRIDE_TOKENS = re.compile(r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[RSrsMPmp](?=[,)\]])|\([RSMP]\)")
+
+
+def _override_count(mol) -> int:
+    return sum(1 for a in mol.GetAtoms() if a.HasProp(STEREO_OVERRIDE))
 
 
 def _cites_every_tetrahedral_center(mol, name) -> bool:
@@ -1104,12 +1123,16 @@ def _cites_every_stereo_element(mol, name) -> bool:
 def _cites_every_double_bond(mol, name) -> bool:
     if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)\(", name):
         return True
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
     bonds = sum(
         1
-        for s in Chem.FindPotentialStereo(mol)
-        if s.type == Chem.StereoType.Bond_Double and s.specified == Chem.StereoSpecified.Specified
+        for s in Chem.FindPotentialStereo(probe)
+        if s.type == Chem.StereoType.Bond_Double
+        and s.specified == Chem.StereoSpecified.Specified
+        and probe.GetBondWithIdx(s.centeredOn).HasProp("_CIPCode")
     )
-    return len(re.findall(r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[EZ](?=[,)])|\([EZ]\)", name)) >= bonds
+    return len(re.findall(r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[EZ]|seqCis|seqTrans)(?=[,)\]])|(?<=['\d]\))[EZ](?=[,\]])|\([EZ]\)", name)) >= bonds
 
 
 def _has_specified_stereo(mol) -> bool:

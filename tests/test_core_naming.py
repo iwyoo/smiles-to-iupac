@@ -49,6 +49,8 @@ def test_chalcone(smiles, expected):
         pytest.param("C/C=C=C=C/C", "(2E)-hexa-2,3,4-triene", id="odd_cumulene_trans"),
         pytest.param("C/C=C=C=C\\C", "(2Z)-hexa-2,3,4-triene", id="odd_cumulene_cis"),
         pytest.param("CC=C=CC", "penta-2,3-diene", id="unspecified_allene_stays_bare"),
+        pytest.param("CC=[C@AL1]=C1CCCC(C)C1", "(3P)-1-methyl-3-(prop-1-en-1-ylidene)cyclohexane", id="ring_terminal_with_ligands_of_different_rank"),
+        pytest.param("CC=[C@AL2]=C1CC[C@H](CC)CC1", "(1s,4p)-1-ethyl-4-(prop-1-en-1-ylidene)cyclohexane", id="ring_terminal_pseudoasymmetric_with_a_ring_centre"),
         pytest.param("Cl[C@H]1C[C@]2(C1)C[C@@H](Cl)C2", "(2R,4S,6R)-2,6-dichlorospiro[3.3]heptane", id="spiro_atom_descriptor"),
     ],
 )

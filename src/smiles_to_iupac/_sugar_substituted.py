@@ -8,8 +8,8 @@ retained stem. Esters follow the sugar name as separate words, all other substit
 """
 
 from rdkit import Chem, rdBase
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._carbohydrate import _D_2_KETOSE_PATTERNS, _D_ALDOSE_PATTERNS, _FLIP_CIP
 from ._cited_group import cited_group, subtree
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, numerical_term
@@ -268,7 +268,7 @@ def _restore(mol, graph, skeleton, decorations):
 
 
 def _labels(restored, skeleton, atom_of):
-    rdCIPLabeler.AssignCIPLabels(restored)
+    assign_cip_labels(restored)
 
     def label(position):
         index = atom_of.get(skeleton.carbons[position - 1])

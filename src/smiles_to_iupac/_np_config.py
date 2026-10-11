@@ -3,8 +3,8 @@
 from dataclasses import dataclass, field
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure
 from ._np_core import FACES, center_signature, exo_faces, ez_relation, loc_key, parent_h, with_bonds
 
@@ -84,7 +84,7 @@ def configuration(cand, view):
     ]
     if not (specified & mapped) and not bond_stereo:
         return config
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     for bond in bond_stereo:
         if _implied_bond(cand, view, bond, image):
             continue

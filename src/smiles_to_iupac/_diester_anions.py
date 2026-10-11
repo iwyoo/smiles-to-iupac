@@ -6,8 +6,8 @@ alphanumerically with locants when needed. Used by `_diester_acyloxy.py` and `_d
 import re
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -82,7 +82,7 @@ def cip_labels(mol, side, chain_double_bonds=False):
             "stereochemistry beyond fully specified tetrahedral stereocenters and ring double bonds is not supported "
             "on the polyol side"
         )
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     pseudo = _pseudoasymmetric_in_group(mol, side)
     labels = []
     for element in specified:
@@ -138,7 +138,7 @@ def _pseudoasymmetric_in_group(mol, side):
         Chem.SanitizeMol(group)
     except Chem.rdchem.MolSanitizeException:
         return {}
-    rdCIPLabeler.AssignCIPLabels(group)
+    assign_cip_labels(group)
     return {
         old: group.GetAtomWithIdx(new_of[old]).GetProp("_CIPCode")
         for old in side

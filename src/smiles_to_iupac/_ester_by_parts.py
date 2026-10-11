@@ -6,8 +6,8 @@ works as an ester acyl part.
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._substituents import BRANCH_STEREO, name_branch
@@ -252,7 +252,7 @@ def _name_ester_parts(mol, labels) -> str:
     anion = _anion_name(smiles_to_iupac(Chem.MolToSmiles(acid)))
 
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     context = {
         "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in removed and a.HasProp("_CIPCode")},
         "bonds": {

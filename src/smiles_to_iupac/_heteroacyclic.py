@@ -7,8 +7,8 @@ group, give '3,6,9,12-tetraoxatetradecanedioic acid'.
 import itertools
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import (
     adjacency,
     group_substituents,
@@ -379,7 +379,7 @@ def name_heteroacyclic(mol):
         )
     }
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     atom_codes = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")}
     bond_codes = {
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")

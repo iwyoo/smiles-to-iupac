@@ -15,9 +15,10 @@ A molecule is compared with it centre by centre and only what differs is cited:
 from dataclasses import dataclass, field
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler, rdDepictor
+from rdkit.Chem import rdDepictor
 from rdkit.Geometry import Point3D
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure
 
 _TAGS = (Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW)
@@ -196,7 +197,7 @@ def describe(mol, skeleton, mapping, sort_key, parent):
     label_of = {atom: label for label, atom in mapping.items()}
     labelled = Chem.Mol(mol)
     if not mol.HasProp("cip_assigned"):
-        rdCIPLabeler.AssignCIPLabels(labelled)
+        assign_cip_labels(labelled)
     molh = Chem.AddHs(mol)
     result = StereoResult()
     marks, rs, bonds, chain_marks = [], [], [], []

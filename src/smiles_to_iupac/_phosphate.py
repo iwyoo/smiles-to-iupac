@@ -48,10 +48,10 @@ phosphite ester case (no P=O, P(III) instead of P(V)) via
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
 from collections import Counter
 
+from ._common import assign_cip_labels
 from ._multiplicative_text import enclose
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
@@ -211,7 +211,7 @@ def name_phosphate(mol) -> str:
         roots.append((root, oxygen_idx))
 
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     context = {
         "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")},
         "bonds": {(b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")},

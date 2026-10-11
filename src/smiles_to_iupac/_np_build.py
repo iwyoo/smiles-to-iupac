@@ -5,8 +5,8 @@ from collections import Counter
 from dataclasses import dataclass
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
 from ._np_chain import chain_template
 from ._np_config import configuration
@@ -446,7 +446,7 @@ def _add_spiro_center(config, cand, view, spiro, comp, final, parent_prime):
     if view.mol.GetAtomWithIdx(atom).GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED:
         label = "ξ"
     else:
-        rdCIPLabeler.AssignCIPLabels(view.mol)
+        assign_cip_labels(view.mol)
         label = view.mol.GetAtomWithIdx(atom).GetProp("_CIPCode")
     config.side.append((loc_key(cited), f"{cited}{label}"))
 

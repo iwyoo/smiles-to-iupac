@@ -5,8 +5,8 @@ prefixes, ionic suffixes (-ium/-ide) and ring stereodescriptors (P-93).
 import re
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure
 from ._numerals import multiplying_prefix
 
@@ -87,7 +87,7 @@ def ring_stereo(mol, ring_atoms, locant):
     ring = set(ring_atoms)
     branches = _branch_atoms(mol, ring)
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     labels = []
     for atom in probe.GetAtoms():
         if atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED:

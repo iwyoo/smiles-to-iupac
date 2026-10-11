@@ -7,8 +7,8 @@ is cited as substituent groups: the alkyl group of the ester before the word, th
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._multiplicative_text import enclose
 from ._substituents import BRANCH_STEREO, format_mononuclear_prefixes, name_branch
@@ -73,7 +73,7 @@ def name_carbamate_ester(mol) -> str:
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     codes = (
         {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")},
         {(b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")},

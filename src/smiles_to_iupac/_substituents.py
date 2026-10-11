@@ -8,8 +8,8 @@ import contextvars
 import re
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._multiplicative_text import enclose, nesting_text
 from ._free_valence import SUFFIX_OF_ORDER
 from ._common import (
@@ -1153,7 +1153,7 @@ def cited_branch_stereo(mol, graph, blocked, roots):
             inside.add(a)
             stack.extend(n for n in graph[a] if n not in blocked and n not in inside)
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     context = {
         "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")},
         "bonds": {
@@ -1219,7 +1219,7 @@ def _ylidene_to_heteroatom(a, b, positions):
 
 
 def _branch_stereo_rank(entries):
-    return tuple(0 if code in "RZr" else 1 for _, code in entries)
+    return tuple(0 if code in ("R", "Z", "r", "seqCis", "M", "m") else 1 for _, code in entries)
 
 
 def _branch_stereo_prefix(entries, single_atom=False):

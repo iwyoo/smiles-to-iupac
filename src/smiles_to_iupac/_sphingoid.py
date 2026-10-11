@@ -7,8 +7,8 @@ named systematically. Other chain lengths and other diastereoisomers are named s
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._substituents import BRANCH_STEREO, is_plain_stem_prefix, name_branch
@@ -117,7 +117,7 @@ def _name(mol):
         elif order != 1.0:
             return None
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     if (
         probe.GetAtomWithIdx(c2).GetPropsAsDict().get("_CIPCode") != "S"
         or probe.GetAtomWithIdx(c3).GetPropsAsDict().get("_CIPCode") != "R"

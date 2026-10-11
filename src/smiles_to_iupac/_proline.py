@@ -23,8 +23,8 @@ the alpha centre keeps D or L (P-103.1.3.2.1, P-103.2.3).
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._carboxylic_acid_amine import _find_carboxylic_acid_carbon
 from ._common import adjacency, specified_stereocenters
 
@@ -124,7 +124,7 @@ def _alpha_descriptor(mol, alpha_carbon, substituents):
         editable.RemoveAtom(index)
     parent = editable.GetMol()
     Chem.SanitizeMol(parent)
-    rdCIPLabeler.AssignCIPLabels(parent)
+    assign_cip_labels(parent)
     atom = next(a for a in parent.GetAtoms() if a.HasProp("_alpha"))
     return _ALPHA_TO_LD[atom.GetProp("_CIPCode")]
 

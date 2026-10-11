@@ -88,8 +88,8 @@ function's own docstring for why a plain pyranose collides with it),
 unchanged.
 """
 
-from rdkit.Chem import rdCIPLabeler
 
+from ._common import assign_cip_labels
 from ._common import adjacency, ordered_chain
 
 # D-series CIP pattern (C-2 .. C-(n-1), in that order, counted from the
@@ -193,7 +193,7 @@ def _cip_pattern(mol, atom_indices):
     """`(cip, ...)` for `atom_indices`, in order, or None if any of them
     is left unspecified. Shared by the aldose and ketose backbones below
     -- each just picks a different slice of its own chain."""
-    rdCIPLabeler.AssignCIPLabels(mol)
+    assign_cip_labels(mol)
     pattern = []
     for atom_idx in atom_indices:
         atom = mol.GetAtomWithIdx(atom_idx)

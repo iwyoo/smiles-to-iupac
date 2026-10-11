@@ -5,7 +5,7 @@ on C-3 outranks the carboxy group, which reverses the correspondence.
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
+from ._common import assign_cip_labels
 
 _TEMPLATES = (
     ("β-alanine", "NCCC(=O)O", False),
@@ -36,7 +36,7 @@ def _descriptor(mol, centers, sulfur):
     if not centers:
         return ""
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     labels = [probe.GetAtomWithIdx(c).GetPropsAsDict().get("_CIPCode") for c in centers]
     if all(label is None for label in labels):
         return ""

@@ -220,10 +220,10 @@ def _ring_double_bonds(mol, ring_set):
 
 
 def _ring_double_bond_labels(mol):
-    from rdkit.Chem import rdCIPLabeler
+    from ._common import assign_cip_labels
 
     probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
+    assign_cip_labels(probe)
     return {
         frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
     }

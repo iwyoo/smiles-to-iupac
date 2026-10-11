@@ -11,8 +11,9 @@ from types import MappingProxyType
 import re
 
 from rdkit import Chem, rdBase
-from rdkit.Chem import CanonicalRankAtoms, rdCIPLabeler
+from rdkit.Chem import CanonicalRankAtoms
 
+from ._common import assign_cip_labels
 from ._common import (
     alphanumerical_name_key,
     assembly_join,
@@ -47,7 +48,7 @@ from ._hetero_prefixes import (
     azono_ligands,
 )
 from ._multiplicative import _bare_key
-from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
+from ._multiplicative_text import JunctionBondLocant, PrimedLocant, enclose, unit_phrase
 from ._multiplicative_ring import (
     NO_RETAINED_BENZENE,
     RingSpec,
@@ -1560,7 +1561,7 @@ def _hydrogen_isotope_bonds(original, known):
     try:
         probe = Chem.Mol(original)
         Chem.AssignStereochemistry(probe, cleanIt=True, force=True)
-        rdCIPLabeler.AssignCIPLabels(probe)
+        assign_cip_labels(probe)
     finally:
         Chem.SetUseLegacyStereoPerception(legacy)
     return [
@@ -1882,6 +1883,12 @@ def _with_descriptor(name, parts, text):
     return name[:split] + text + ("-" if name[split:split + 1].isdigit() else "") + name[split:]
 
 
+def _bond_locant(first, second):
+    if isinstance(first, PrimedLocant) and isinstance(second, PrimedLocant) and first.primes != second.primes:
+        return JunctionBondLocant(*sorted((first, second), key=lambda locant: locant.primes))
+    return min(first, second)
+
+
 def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
     """[(locant, code)] for the stereo elements found on the parent, plus
     whether every element was placed (on the parent or inside a substituent)."""
@@ -1899,7 +1906,7 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
             if ring_parent or a not in position_of or b not in position_of:
                 inside = [x for x in (a, b) if x in position_of]
                 if len(inside) == 2:
-                    entries.append((min(position_of[a], position_of[b]), code))
+                    entries.append((_bond_locant(position_of[a], position_of[b]), code))
                 elif ("bond", where) in used:
                     continue
                 elif len(inside) == 1:
@@ -1909,7 +1916,7 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
                 else:
                     complete = False
             else:
-                entries.append((min(position_of[a], position_of[b]), code))
+                entries.append((_bond_locant(position_of[a], position_of[b]), code))
     return sorted(entries), complete
 
 
@@ -1920,7 +1927,7 @@ def _stereo_rank(stereo, position_of, ring_parent=False):
         _isotope_counts(stereo, marked),
         *_isotope_locant_rank(stereo, position_of),
         _substituent_isotope_locants(position_of),
-        tuple(0 if code in "RZr" else 1 for _, code in entries),
+        tuple(0 if code in ("R", "Z", "r", "seqCis", "M", "m") else 1 for _, code in entries),
     )
 
 
@@ -2034,7 +2041,8 @@ def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
     if len(position_of) == 1 and len(entries) == 1:
         # P-93.5: the one skeletal atom of a mononuclear parent needs no locant
         return f"({entries[0][1]})-"
-    return "(" + ",".join(f"{locant}{code}" for locant, code in entries) + ")-"
+    text = ",".join(f"{locant}{code}" for locant, code in entries)
+    return f"[{text}]-" if "(" in text else f"({text})-"
 
 
 def _select(mol, attach=None, n_names=(), stereo=None):
@@ -2784,7 +2792,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
 
 
 def _without_stereo(name):
-    return re.sub(r"^\(\d+[a-z]*[RSEZrs](?:,\d+[a-z]*[RSEZrs])*\)-", "", name)
+    return _ALL_DESCRIPTORS.sub("", name, count=1) if _ALL_DESCRIPTORS.match(name) else name
 
 
 def _fused_plain_parent(mol, graph, rings):
@@ -2820,7 +2828,8 @@ def _fused_plain_parent(mol, graph, rings):
     return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True, PARENT_START.get()))
 
 
-_ALL_DESCRIPTORS = re.compile(r"\((?:\d+[a-z]*['\u2032]*)?[RSEZrs](?:,(?:\d+[a-z]*['\u2032]*)?[RSEZrs])*\)-")
+_DESCRIPTOR = r"(?:\d+[a-z]*['\u2032]*(?:\(\d+[a-z]*['\u2032]*\))?)?(?:[RSEZrsMPmp]|seqCis|seqTrans)"
+_ALL_DESCRIPTORS = re.compile(rf"[(\[]{_DESCRIPTOR}(?:,{_DESCRIPTOR})*[)\]]-")
 
 
 def _configuration_senior_system(mol, graph, tied):
@@ -4506,7 +4515,7 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
         raise UnsupportedStructure("the units name differently once their stereo is considered")
     if len(stereo) != sum(len(entries) for _, entries in per_arm):
         raise UnsupportedStructure("stereodescriptors outside the units are not supported by the chain engine yet")
-    ordered = sorted(per_arm, key=lambda arm: tuple(0 if code in "RZr" else 1 for _, code in arm[1]))
+    ordered = sorted(per_arm, key=lambda arm: tuple(0 if code in ("R", "Z", "r", "seqCis", "M", "m") else 1 for _, code in arm[1]))
     labels = [
         f"{locant}{chr(39) * i}{code}"
         for i, (_, entries) in enumerate(ordered)
