@@ -230,6 +230,8 @@ def test_symmetric_anhydride(smiles, expected):
         pytest.param("OC(=O)O", "carbonic acid", id="carbonic_acid"),
         pytest.param("COC(=O)OC", "dimethyl carbonate", id="dimethyl_carbonate"),
         pytest.param("COC(=O)O", "methyl hydrogen carbonate", id="methyl_hydrogen_carbonate"),
+        pytest.param("COC(=O)[O-].[Na+]", "sodium methyl carbonate", id="salt_of_a_monoester"),
+        pytest.param("COC(=O)[O-].[Ca+2].COC(=O)[O-]", "calcium bis(methyl carbonate)", id="multiplied_monoester_anion"),
         pytest.param("O=[Bi]OC(=O)O[Bi]=O", "bis(oxobismuthanyl) carbonate", id="multiplied_oxo_metal_group"),
         pytest.param("O=[Sb]OC(=O)OC", "methyl oxostibanyl carbonate", id="oxo_metal_group_beside_an_alkyl"),
     ],
