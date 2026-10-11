@@ -163,6 +163,38 @@ def alternating_chalcogen_runs(mol, atom_set):
     return runs
 
 
+def _ligated_chalcogen_run(mol, atoms, attachments):
+    """'disulfonyl' for -SO2-SO2- (P-16.3.6) and 'sulfanediylbis(sulfonyl)' for -SO2-S-SO2- (P-65.3.2.3): an unbranched run
+    of one chalcogen whose atoms all carry the same =X ligands, or whose two ends do and whose inner atoms carry none."""
+    z = mol.GetAtomWithIdx(atoms[0]).GetAtomicNum()
+    if z not in SULFONYL_CENTRES or len(attachments) != 2:
+        return None
+    run = [attachments[0][0]]
+    while len(run) < len(atoms):
+        onward = [n.GetIdx() for n in mol.GetAtomWithIdx(run[-1]).GetNeighbors() if n.GetIdx() in atoms and n.GetIdx() not in run]
+        if len(onward) != 1:
+            return None
+        run.append(onward[0])
+    if run[-1] != attachments[1][0]:
+        return None
+
+    def word(index):
+        ligands = chalcogen_linker_ligands(mol.GetAtomWithIdx(index))
+        if ligands is None:
+            return None
+        return acyl_suffix(make_spec(SULFONYL_CENTRES[z], [symbol for symbol, _ in ligands], ("O",)), False, 1)
+
+    words = [word(a) for a in run]
+    if None not in words and len(set(words)) == 1:
+        return Part(multiplying_prefix(len(run)) + words[0], True, False)
+    inner = run[1:-1]
+    if words[0] is not None and words[0] == words[-1] and inner and all(
+        mol.GetAtomWithIdx(a).GetDegree() == 2 and mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in inner
+    ):
+        return Part(f"{_homo_run_word(z, len(inner)) if len(inner) > 1 else _SINGLE_ATOM_WORDS[z]}bis({words[0]})", True, False)
+    return None
+
+
 def _hetero_part(mol, atoms, attachments, ctx, directed=None):
     pairs = {(a, b) for a, b, _ in attachments}
     pend = _pendants(mol, atoms, pairs)
@@ -190,6 +222,9 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             ):
                 raise UnsupportedStructure("an unsaturated heteroatom chain other than a doubly bonded pair is not supported as a linker")
             return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z], directed, whole)
+        run = _ligated_chalcogen_run(mol, atoms, attachments) if directed is None else None
+        if run is not None:
+            return run
         word = _homo_run_word(z, len(atoms))
         if word is None or pend or len(attachments) != 2 or any(mol.GetAtomWithIdx(a).GetAtomicNum() != z for a in atoms):
             raise UnsupportedStructure("this heteroatom chain is not supported as a multiplicative linker")

@@ -561,6 +561,18 @@ def test_sulfinyl_linkers_of_multiplicative_names(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("OC(=O)c1ccc(cc1)S(=O)(=O)S(=O)(=O)c1ccc(cc1)C(O)=O", "4,4'-(disulfonyl)dibenzoic acid"),
+        ("OC(=O)c1ccc(cc1)S(=O)SS(=O)c1ccc(cc1)C(O)=O", "4,4'-[sulfanediylbis(sulfinyl)]dibenzoic acid"),
+        ("OC(=O)c1ccc(cc1)S(=O)(=O)SSS(=O)(=O)c1ccc(cc1)C(O)=O", "4,4'-[disulfanediylbis(sulfonyl)]dibenzoic acid"),
+    ],
+)
+def test_runs_of_one_chalcogen_with_ligated_ends_are_multiplicative_linkers(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         (
             "CC[C@@H](C)c1ccc(Sc2ccc([C@H](C)CC)cc2)cc1",
             "1,1'-sulfanediylbis{4-[(2R)-butan-2-yl]benzene}",
