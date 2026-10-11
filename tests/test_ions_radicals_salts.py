@@ -1673,3 +1673,18 @@ def test_a_phenolate_ester_never_loses_its_charge():
     except NotImplementedError:
         return
     assert "olate" in name or "oxido" in name
+
+
+# P-73.6, P-74.1.3: the anion is the parent of a zwitterion and cites the diazonium group as a prefix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[O-]C(=O)c1ccc(cc1)[N+]#N", "4-(diazyn-1-ium-1-yl)benzoate", id="carboxylate_of_a_ring"),
+        pytest.param("[O-]C(=O)CC[N+]#N", "3-(diazyn-1-ium-1-yl)propanoate", id="carboxylate_of_a_chain"),
+        pytest.param("[O-]c1ccc(cc1)[N+]#N", "4-(diazyn-1-ium-1-yl)phenoxide", id="phenoxide"),
+        pytest.param("[O-]S(=O)(=O)c1ccc(cc1)[N+]#N", "4-(diazyn-1-ium-1-yl)benzene-1-sulfonate", id="sulfonate_outranks_the_diazonium_cation"),
+        pytest.param("[O-][N+](=O)c1ccc(cc1)[N+]#N", "4-nitrobenzenediazonium", id="nitro_charges_are_not_an_anion"),
+    ],
+)
+def test_diazonium_prefix_on_an_anionic_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

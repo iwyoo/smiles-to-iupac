@@ -109,8 +109,17 @@ def _diazonium_nitrogens(mol):
     return matches
 
 
+def _has_anionic_group(mol):
+    """A negative atom with no positive neighbour: the charges of a nitro, azide or N-oxide group balance each other."""
+    return any(
+        atom.GetFormalCharge() < 0 and not any(n.GetFormalCharge() > 0 for n in atom.GetNeighbors())
+        for atom in mol.GetAtoms()
+    )
+
+
 def has_diazonium_shape(mol) -> bool:
-    return bool(_diazonium_nitrogens(mol))
+    """An anion outranks the cation as the parent of a zwitterion (P-74.1.3), which cites the group as a prefix."""
+    return bool(_diazonium_nitrogens(mol)) and not (len(Chem.GetMolFrags(mol)) == 1 and _has_anionic_group(mol))
 
 
 def _validate_and_collect_diazonium(mol, aromatic_ring_atoms=frozenset()):

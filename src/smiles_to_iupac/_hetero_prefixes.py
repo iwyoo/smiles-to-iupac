@@ -242,6 +242,20 @@ def _oxidized_nitrogen_prefix(graph, root, order, others, halogens, aromatic_ato
     return format_mononuclear_prefixes(entries) + "-λ5-azanyl", True
 
 
+def is_diazonium_nitrogen(atom):
+    """The nitrogen of an acyclic -N#N(+) group bonded to one carbon (P-73.6)."""
+    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() != 1 or atom.IsInRing() or atom.GetDegree() != 2:
+        return False
+    partner = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
+    return (
+        len(partner) == 1
+        and partner[0].GetDegree() == 1
+        and not partner[0].GetFormalCharge()
+        and atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), partner[0].GetIdx()).GetBondTypeAsDouble() == 3.0
+        and sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() == 6) == 1
+    )
+
+
 _YLIDYNIUM_STEMS = {7: "azaniumylidyne", 8: "oxidaniumylidyne", 16: "sulfaniumylidyne"}
 
 
@@ -799,6 +813,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     oxidized = _oxidized_nitrogen_prefix(graph, root, order, others, halogens, aromatic_atoms, mol)
     if oxidized is not None:
         return oxidized
+    if order == 1.0 and is_diazonium_nitrogen(atom):
+        return "diazyn-1-ium-1-yl", True
     if (
         z == 7
         and (
