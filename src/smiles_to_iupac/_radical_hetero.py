@@ -6,6 +6,8 @@ filled with hydrogens, and the final 'ane' takes the suffix 'yl', 'ylidene' or '
 ('trisilan-2-yl', 'hydrazine-1,2-diyl').
 """
 
+import re
+
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
@@ -83,7 +85,7 @@ def _chain(mol, radicals):
         base = _hydride_name(Chem.MolToSmiles(_healed(mol, radicals)))
     except (UnsupportedStructure, Chem.rdchem.AtomValenceException):
         return None
-    if not base.endswith("ane") and base != "hydrazine":
+    if not re.search(r"ane(\(\d+\))?$", base) and base != "hydrazine":
         return None
     valences = {a.GetIdx(): a.GetNumRadicalElectrons() for a in radicals}
     best = None
@@ -95,6 +97,8 @@ def _chain(mol, radicals):
     if len(set(counts)) != 1 or counts[0] not in _SUFFIX:
         return None
     suffix, number = _SUFFIX[counts[0]], len(counts)
+    if number == 1 and base.endswith(")"):
+        return None
     if (base, number) in _RETAINED:
         return _RETAINED[(base, number)]
     if base == "hydrazine" and number == 1:
@@ -115,7 +119,8 @@ def _chain_parent(mol, graph, radicals):
 
     ids = {a.GetIdx() for a in radicals}
     z = radicals[0].GetAtomicNum()
-    if all(a.GetAtomicNum() == z for a in radicals) and z in _STEMS:
+    stems = {**_STEMS, 5: "borane"}
+    if all(a.GetAtomicNum() == z for a in radicals) and z in stems:
         chain_atoms = {radicals[0].GetIdx()}
         stack = [radicals[0]]
         while stack:
@@ -131,7 +136,9 @@ def _chain_parent(mol, graph, radicals):
             while len(order) < len(chain_atoms):
                 order.append(next(n.GetIdx() for n in mol.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetIdx() in chain_atoms and n.GetIdx() != previous))
                 previous = order[-2]
-            parent = "hydrazine" if z == 7 and len(order) == 2 else f"{multiplying_prefix(len(order))}{_STEMS[z]}"
+            parent = "hydrazine" if z == 7 and len(order) == 2 else f"{multiplying_prefix(len(order))}{stems[z]}"
+            if z == 5:
+                parent += f"({len(order) + 2})"
             return order, parent
     found = _alternating_chain(mol, graph)
     if found is None or not ids <= set(found[2]):
@@ -182,7 +189,7 @@ def _substituted_chain(mol, radicals):
         for v, locants in by_valence.items()
         if locants
     ]
-    stem = parent if len(by_valence[min(v for v, l in by_valence.items() if l)]) > 1 else parent[:-1]
+    stem = parent if len(by_valence[min(v for v, l in by_valence.items() if l)]) > 1 else re.sub(r"e(\(\d+\))?$", r"\1", parent)
     return f"{format_substituent_prefixes(grouped, omit_locants=False)}{stem}-{'-'.join(pieces)}"
 
 
