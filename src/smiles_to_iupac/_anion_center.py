@@ -48,6 +48,7 @@ _SENIORITY = [7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 5
 
 def name_center_anion(mol):
     from ._anion import marked_neutral
+    from ._nonstandard_hydride import _polyhedral_prefix
 
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
@@ -77,7 +78,7 @@ def name_center_anion(mol):
         if not atom.HasProp("_anion_word"):
             continue
         charge, word = int(atom.GetProp("_anion_charge")), atom.GetProp("_anion_word")
-        name = _mononuclear_name(neutral, atom.GetIdx())
+        name = _polyhedral_prefix(mol, mol.GetAtomWithIdx(atom.GetIdx())) + _mononuclear_name(neutral, atom.GetIdx())
         candidates.append(((-charge, word != "uide", _SENIORITY.index(atom.GetAtomicNum()), name), name))
     return min(candidates)[1]
 
