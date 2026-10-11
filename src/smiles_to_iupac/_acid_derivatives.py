@@ -145,6 +145,11 @@ def _halogen_oxoacid_center(mol, idx):
     return "inorganic", ["O"] * len(oxo), [(bridges[0].GetIdx(), "Y")]
 
 
+def _ring_nitrogen_parent(atom):
+    """A neutral ring nitrogen that is the parent-hydride position carrying a sulfonyl-type group (P-65.3.1)."""
+    return atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetFormalCharge()
+
+
 def _center(mol, idx):
     """(kind, oxo slots, [(neighbor, role)] of the Y positions) for an acyl-type ('acyl'), carbonic
     ('carbonic') or cyanic ('cyanic') centre, else None."""
@@ -172,8 +177,8 @@ def _center(mol, idx):
     if atom.GetDegree() != len(oxo) + len(rest):
         return None
     roles = [(n.GetIdx(), _role(mol, idx, n)) for n in rest]
-    organics = [r for r in roles if r[1] == "C"]
-    positions = [r for r in roles if r[1] != "C"]
+    organics = [r for r in roles if r[1] == "C" or symbol != "C" and r[1] == "N" and _ring_nitrogen_parent(mol.GetAtomWithIdx(r[0]))]
+    positions = [r for r in roles if r not in organics]
     if symbol != "C":
         kind = "acyl" if len(organics) == 1 and len(positions) == 1 else None
     elif len(organics) == 1 and len(positions) == 1:
