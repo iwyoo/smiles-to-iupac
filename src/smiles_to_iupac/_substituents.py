@@ -1471,9 +1471,8 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
     _, chain, root_position, name, is_compound, gained = best
     consumed.clear()
     consumed.update(gained)
-    stereo_prefix = _branch_stereo_prefix(
-        _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True), single_atom=len(chain) == 1
-    )
+    entries = _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True)
+    stereo_prefix = _branch_stereo_prefix(entries, single_atom=len(chain) == 1 or (len(chain) == 2 and "ethen" in name and [code for _, code in entries] in (['E'], ['Z'], ['seqCis'], ['seqTrans'])))
     return chain, root_position, stereo_prefix + name, is_compound or bool(stereo_prefix)
 
 

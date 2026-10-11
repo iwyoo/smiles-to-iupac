@@ -697,7 +697,7 @@ def test_locants_of_an_arylene_after_a_linking_group_follow_a_hyphen(smiles, exp
         ),
         pytest.param(
             "OC(=O)CCc1ccc(/C=C/O/C=C\\c2ccc(CCC(O)=O)cc2)cc1",
-            "3-{4-[(1E)-2-({(1Z)-2-[4-(2-carboxyethyl)phenyl]ethen-1-yl}oxy)ethen-1-yl]phenyl}propanoic acid",
+            "3-{4-[(E)-2-({(Z)-2-[4-(2-carboxyethyl)phenyl]ethen-1-yl}oxy)ethen-1-yl]phenyl}propanoic acid",
             id="different_descriptors_in_the_linker_forbid_a_multiplicative_name",
         ),
     ],
