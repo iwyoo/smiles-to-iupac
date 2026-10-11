@@ -6,7 +6,15 @@ and the =NR groups are 'imino' prefixes; otherwise the =NH groups are the suffix
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents, multiplied_word
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    group_substituents,
+    halogen_substituents,
+    heteroatom_stereo_prefix,
+    multiplied_word,
+)
 from ._multiplicative_text import enclose
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -96,9 +104,10 @@ def name_chalcogen_imide(mol) -> str:
     found = _find(mol)
     if found is None:
         raise UnsupportedStructure("no chalcogen imide shape found")
-    center, imines, chalcogens, carbons = found
-    if any(e.specified == Chem.StereoSpecified.Specified for e in Chem.FindPotentialStereo(mol)):
-        raise UnsupportedStructure("the configuration of a chalcogen imide is not cited yet")
+    return (heteroatom_stereo_prefix(mol, found[0].GetIdx()) or "") + _name(mol, *found)
+
+
+def _name(mol, center, imines, chalcogens, carbons) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
