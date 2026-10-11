@@ -88,13 +88,14 @@ def _carbonic_acid_carbons(mol):
         if len(double_bonded) != 1 or double_bonded[0].GetDegree() != 1 or double_bonded[0].GetFormalCharge() != 0:
             continue
         single_bonded = [o for o in oxygens if o.GetIdx() != double_bonded[0].GetIdx()]
+        anions = [o for o in single_bonded if o.GetFormalCharge() == -1 and o.GetDegree() == 1]
         if any(
-            o.GetFormalCharge() != 0
+            (o.GetFormalCharge() != 0 and o not in anions)
             or o.GetIsotope() != 0
             or o.GetDegree() not in (1, 2)
             or mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() != 1.0
             for o in single_bonded
-        ):
+        ) or len(anions) > 1 or (anions and not any(o.GetDegree() == 2 for o in single_bonded)):
             continue
         matches.append(atom)
     return matches
@@ -111,6 +112,7 @@ def name_carbonic_acid(mol) -> str:
     (carbon,) = carbons
 
     group_atom_idxs = {carbon.GetIdx()} | {n.GetIdx() for n in carbon.GetNeighbors() if n.GetAtomicNum() == _OXYGEN}
+    anion_oxygens = {i for i in group_atom_idxs if mol.GetAtomWithIdx(i).GetFormalCharge() == -1}
     for atom in mol.GetAtoms():
         if atom.GetIdx() in group_atom_idxs:
             continue
@@ -141,7 +143,9 @@ def name_carbonic_acid(mol) -> str:
         if mol.GetBondBetweenAtoms(carbon.GetIdx(), idx).GetBondTypeAsDouble() == 1.0
     ]
     ester_oxygens = [idx for idx in single_bonded_oxygens if mol.GetAtomWithIdx(idx).GetDegree() == 2]
-    hydroxyl_oxygens = [idx for idx in single_bonded_oxygens if mol.GetAtomWithIdx(idx).GetDegree() == 1]
+    hydroxyl_oxygens = [
+        idx for idx in single_bonded_oxygens if mol.GetAtomWithIdx(idx).GetDegree() == 1 and idx not in anion_oxygens
+    ]
 
     if not ester_oxygens:
         return "carbonic acid"
