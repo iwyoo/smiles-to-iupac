@@ -44,7 +44,7 @@ substituent, and the imino nitrogen takes N''. A ring fused to the guanidine cor
 from rdkit import Chem
 
 from ._chalcogenourea import is_core_substituent_root, is_urea_substituent_root, n_substituent_names, unprimed_first
-from ._common import UnsupportedStructure, adjacency, group_substituents
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents, multiplied_word
 from ._substituents import format_substituent_prefixes
 from ._urea import _is_hydrazine_tail
 
@@ -136,16 +136,95 @@ def has_guanidine_shape(mol) -> bool:
 _AMIDINE_CARBON = Chem.MolFromSmarts("[CX3](=[NX2])[NX3]")
 
 
+def _amidine_groups(mol, hydrazine):
+    """(hydrazine nitrogen, carbon, imino nitrogen, amino nitrogen) of every amidine group on a hydrazine nitrogen."""
+    groups = []
+    for h in hydrazine:
+        for carbon in mol.GetAtomWithIdx(h).GetNeighbors():
+            if (
+                carbon.GetAtomicNum() != 6
+                or carbon.GetDegree() != 3
+                or carbon.IsInRing()
+                or carbon.GetIsAromatic()
+                or carbon.GetFormalCharge()
+                or mol.GetBondBetweenAtoms(h, carbon.GetIdx()).GetBondTypeAsDouble() != 1.0
+            ):
+                continue
+            nitrogens = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetIdx() != h]
+            orders = {n.GetIdx(): mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in nitrogens}
+            imino = [n for n in nitrogens if orders[n.GetIdx()] == 2.0]
+            amino = [n for n in nitrogens if orders[n.GetIdx()] == 1.0]
+            substituent_roots = [
+                nn for n in (*imino, *amino) for nn in n.GetNeighbors() if nn.GetIdx() != carbon.GetIdx()
+            ]
+            if any(not _is_guanidine_substituent_root(mol, nn) or _carbonyl_carbon(mol, nn) for nn in substituent_roots):
+                continue
+            if len(imino) == 1 and len(amino) == 1:
+                groups.append((h, carbon.GetIdx(), imino[0].GetIdx(), amino[0].GetIdx()))
+    return groups
+
+
+def _hydrazine_polycarboximidamide_name(mol, graph, hydrazine, groups):
+    """Hydrazine-1,2-dicarboximidamide and its geminal forms: the amino nitrogen of a group is N and its imino nitrogen
+    N', both with the position of the group as superscript; the second of two geminal groups continues with N'' and
+    N''', the more substituted group taking the lower locants (P-66.4.1.4.1, P-66.4.1.4.2)."""
+    core = set(hydrazine)
+    for _, carbon, imino, amino in groups:
+        core |= {carbon, imino, amino}
+    nitrogens = (*hydrazine, *(n for _, _, imino, amino in groups for n in (amino, imino)))
+    names = n_substituent_names(mol, graph, core, nitrogens, groups[0][1], junior_groups=True)
+    on_hydrazine = dict(zip(hydrazine, names))
+    on_group = [(names[2 + 2 * i], names[3 + 2 * i]) for i in range(len(groups))]
+    rank = {}
+    for h in hydrazine:
+        here = sorted(
+            (i for i, group in enumerate(groups) if group[0] == h),
+            key=lambda i: (-sum(map(len, on_group[i])), min((alpha_sort_key(name) for name, _ in (*on_group[i][0], *on_group[i][1])), default="")),
+        )
+        rank.update({i: r for r, i in enumerate(here)})
+    best = None
+    for numbering in ((1, 2), (2, 1)):
+        position = dict(zip(hydrazine, numbering))
+        located = [(position[h], entry) for h in hydrazine for entry in on_hydrazine[h]]
+        n_located = [
+            ((position[group[0]], primes), entry)
+            for i, group in enumerate(groups)
+            for nitrogen_names, primes in zip(on_group[i], (2 * rank[i], 2 * rank[i] + 1))
+            for entry in nitrogen_names
+        ]
+        key = (
+            sorted(position[group[0]] for group in groups),
+            sorted(p for p, _ in located),
+            sorted(locant for locant, _ in n_located),
+            sorted((entry[0], str(locant)) for locant, entry in (*located, *n_located)),
+        )
+        if best is None or key < best[0]:
+            best = (key, located, n_located)
+    _, located, n_located = best
+    by_locant = {}
+    for locant, entry in located:
+        by_locant.setdefault(locant, []).append(entry)
+    for (p, primes), entry in n_located:
+        mark = "'" * primes
+        by_locant.setdefault(f"N{mark}{p}", []).append(entry)
+    prefixes = format_substituent_prefixes(group_substituents(by_locant)) if by_locant else ""
+    suffix_locants = ",".join(map(str, best[0][0]))
+    return f"{prefixes}hydrazine-{suffix_locants}-{multiplied_word(len(groups), 'carboximidamide')}"
+
+
 def _hydrazinecarboximidamide_name(mol, core):
     """Hydrazine-1-carboximidamide with N on the amino nitrogen of the amidine, N' on its imino nitrogen and 1 and 2 on
     the hydrazine nitrogens (P-66.4.1.1, P-68.3.1.2.4)."""
     carbon_idx, imino_idx, amino = core
-    if any(match[0] != carbon_idx for match in mol.GetSubstructMatches(_AMIDINE_CARBON)):
-        raise UnsupportedStructure("several amidine groups on the hydrazine are suffixes of one parent (P-66.4.1.1)")
     graph = adjacency(mol)
     alpha = next(n for n in amino if any(_is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n) for t in graph[n] if t != carbon_idx))
     amide = next(n for n in amino if n != alpha)
     tail = next(t for t in graph[alpha] if t != carbon_idx and _is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), alpha))
+    groups = _amidine_groups(mol, (alpha, tail))
+    if any(match[0] not in {group[1] for group in groups} for match in mol.GetSubstructMatches(_AMIDINE_CARBON)):
+        raise UnsupportedStructure("an amidine group away from the hydrazine nitrogens is not named with it (P-66.4.1.1)")
+    if len(groups) > 1:
+        return _hydrazine_polycarboximidamide_name(mol, graph, (alpha, tail), groups)
     names = n_substituent_names(
         mol, graph, {carbon_idx, imino_idx, alpha, amide, tail}, (amide, imino_idx, alpha, tail), carbon_idx, junior_groups=True
     )
