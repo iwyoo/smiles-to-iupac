@@ -159,11 +159,6 @@ def _unit(mol, centre):
         if centre.GetTotalNumHs() != 1 or neighbour.GetAtomicNum() != 6:
             return None
         return "aminyl", [centre.GetIdx()], neighbour.GetIdx()
-    if z in MONONUCLEAR_HYDRIDES:
-        _, word, standard = MONONUCLEAR_HYDRIDES[z]
-        if centre.GetTotalNumHs() != standard - 2 or neighbour.GetAtomicNum() != 6:
-            return None
-        return word, [centre.GetIdx()], neighbour.GetIdx()
     if z not in (8, *_CHALCOGEN_WORDS) or centre.GetTotalNumHs():
         return None
     chain = [centre.GetIdx()]
