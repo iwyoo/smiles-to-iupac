@@ -399,6 +399,12 @@ def test_selanyl_and_tellanyl_prefixes(smiles, expected):
         ("COCCOCCOCCOCCCc1ccc(C(=O)O)cc1", "4-(2,5,8,11-tetraoxatetradecan-14-yl)benzoic acid"),
         ("OC(=O)CC1CCCCCOCCCCC1C", "(6-methyl-1-oxacyclododecan-7-yl)acetic acid"),
         ("[SiH3]C1CCCC(C1)COCCOCCOCCOCC", "[3-(2,5,8,11-tetraoxatridecan-1-yl)cyclohexyl]silane"),
+        (
+            "C([SiH2]C[SiH2]C[SiH2]C[SiH2]C)C1CC(COC1)COCOCOCOC",
+            "1-[5-(2,4,6,8-tetrasilanonan-1-yl)oxan-3-yl]-2,4,6,8-tetraoxanonane",
+        ),
+        ("C(SCSCSCSC)NCOCOCOCOC", "N-(2,4,6,8-tetrathianonan-1-yl)-2,4,6,8-tetraoxanonan-1-amine"),
+        ("COCOCOCOCN(C)C", "N,N-dimethyl-2,4,6,8-tetraoxanonan-1-amine"),
     ],
 )
 def test_skeletal_replacement_groups(smiles, expected):
