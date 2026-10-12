@@ -9,7 +9,7 @@ from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._hydride_chain import _alternating_parent
 from ._numerals import alkane_name, multiplying_prefix
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _STEM = {8: "oxidane", 16: "sulfane", 34: "selane", 52: "tellane"}
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
@@ -290,8 +290,6 @@ def name_chalcogen_chain_multiplicative(mol):
         runs.append(run)
     if len(runs) != 2 or len(runs[0]) != len(runs[1]) or len(runs[0]) < 3:
         return None
-    if mol.GetNumAtoms() != sum(len(r) for r in runs) + sum(a.GetAtomicNum() == 6 for a in mol.GetAtoms()):
-        return None
     element = {mol.GetAtomWithIdx(i).GetAtomicNum() for r in runs for i in r}
     if len(element) != 1 or any(
         mol.GetAtomWithIdx(i).IsInRing() or any(b.GetBondTypeAsDouble() != 1.0 for b in mol.GetAtomWithIdx(i).GetBonds())
@@ -299,16 +297,32 @@ def name_chalcogen_chain_multiplicative(mol):
         for i in r
     ):
         return None
-    attachments = []
-    for run in runs:
+    attachments, units, covered = [], [], set()
+    for k, run in enumerate(runs):
         ends = [i for i in run if sum(n in run for n in graph[i]) == 1]
-        carbons = [(i, n) for i in ends for n in graph[i] if n not in run]
-        hydrogen = [i for i in ends if mol.GetAtomWithIdx(i).GetTotalNumHs() == 1]
-        if len(ends) != 2 or len(carbons) != 1 or len(hydrogen) != 1 or any(
+        outside = [(i, n) for i in ends for n in graph[i] if n not in run]
+        if len(ends) != 2 or any(
             sum(n in run for n in graph[i]) != 2 or graph[i] != [n for n in graph[i] if n in run] for i in run if i not in ends
         ):
             return None
-        attachments.append(carbons[0][1])
+        toward = [(i, n) for i, n in outside if _reaches(graph, n, runs[1 - k], run)]
+        if len(toward) != 1:
+            return None
+        join_end, attached = toward[0]
+        far_end = next(i for i in ends if i != join_end)
+        others = [(i, n) for i, n in outside if (i, n) != toward[0]]
+        if others:
+            ((_, root),) = others
+            name, compound = name_branch(graph, root, far_end, halogen_substituents(mol), frozenset(), mol=mol)
+            units.append((len(run), name, compound))
+            covered |= _reaches_atoms(graph, root, run)
+        elif mol.GetAtomWithIdx(far_end).GetTotalNumHs() == 1:
+            units.append((len(run), "", False))
+        else:
+            return None
+        attachments.append(attached)
+    if units[0] != units[1]:
+        return None
     linker, previous, here = [], None, attachments[0]
     while True:
         atom = mol.GetAtomWithIdx(here)
@@ -319,8 +333,25 @@ def name_chalcogen_chain_multiplicative(mol):
         if not onward:
             break
         previous, here = here, onward[0]
-    if here != attachments[1] or len(linker) + sum(len(r) for r in runs) != mol.GetNumAtoms():
+    if here != attachments[1] or len(linker) + sum(len(r) for r in runs) + len(covered) != mol.GetNumAtoms():
         return None
     parent = multiplying_prefix(len(runs[0])) + _STEM[next(iter(element))]
+    _, substituent, compound = units[0]
+    if substituent:
+        parent = format_substituent_prefixes({substituent: {"locants": [len(runs[0])], "compound": compound}}) + parent
     central = "methylene" if len(linker) == 1 else f"({alkane_name(len(linker))}-1,{len(linker)}-diyl)"
     return f"1,1'-{central}bis({parent})"
+
+
+def _reaches_atoms(graph, start, blocked):
+    seen, stack = {start}, [start]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n not in blocked and n not in seen:
+                seen.add(n)
+                stack.append(n)
+    return seen
+
+
+def _reaches(graph, start, targets, blocked):
+    return bool(_reaches_atoms(graph, start, blocked) & targets)
