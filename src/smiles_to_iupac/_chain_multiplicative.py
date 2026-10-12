@@ -553,7 +553,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     if unit_kind != "chain":
         if stereo:
             return None
-        text = _unit_name_by_pipeline(units[0][0], unit_kind)
+        chain_unit = _substituted_chain_unit(mol, graph, roots[0], parts_atoms[0]) if unit_kind == "hydride" else None
+        text = chain_unit or _unit_name_by_pipeline(units[0][0], unit_kind)
         if text is None:
             return None
         lead = ""
@@ -562,7 +563,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             return f"{linker}{multiplier_word(count, True)}({text})"
         if unit_kind in ("amide", "amine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
-        elif _MULTIPLIED_HYDRIDE.match(text):
+        elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
         linker = _linker_text(branches, central, arm_parts)
         if (
@@ -686,6 +687,62 @@ def _bare_chain(graph, root, senior_atoms, arm_atoms):
     return root in end and all(sum(n in senior_atoms for n in graph[a]) <= 2 for a in senior_atoms)
 
 
+def _senior_chain(mol, graph, root, senior_atoms, arm_atoms):
+    """The linear run of the senior element from `root` when it holds every such atom of the arm, else None."""
+    chain = [root]
+    while True:
+        onward = [n for n in graph[chain[-1]] if n in arm_atoms and n in senior_atoms and n not in chain]
+        if len(onward) > 1:
+            return None
+        if not onward:
+            return chain if set(chain) == set(senior_atoms) else None
+        chain.append(onward[0])
+
+
+_HYDRIDE_STEMS = {14: "silane", 32: "germane", 50: "stannane", 82: "plumbane", 15: "phosphane", 33: "arsane"}
+_HYDRIDE_VALENCE = {14: 4, 32: 4, 50: 4, 82: 4, 15: 3, 33: 3}
+
+
+def _substituted_chain_unit(mol, graph, root, arm_atoms):
+    """P-15.3.2.4.1: the unit of a multiplicative name that is a substituted dinuclear or longer hydride attached at
+    its first atom, with the prefixes of the unit cited inside the multiplied group ('pentafluorodisilane',
+    '2-methyldisilane'); None unless it is a linear chain of one element carrying single-bonded groups."""
+    from ._common import group_substituents
+    from ._numerals import multiplying_prefix
+    from ._substituents import format_substituent_prefixes
+
+    atom = mol.GetAtomWithIdx(root)
+    z = atom.GetAtomicNum()
+    senior = {a for a in arm_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == z}
+    chain = _senior_chain(mol, graph, root, senior, arm_atoms)
+    if chain is None or len(chain) < 2:
+        return None
+    if any(
+        mol.GetAtomWithIdx(a).GetFormalCharge()
+        or mol.GetAtomWithIdx(a).GetIsotope()
+        or mol.GetAtomWithIdx(a).GetTotalValence() != _HYDRIDE_VALENCE[z]
+        for a in chain
+    ):
+        return None
+    halogens = halogen_substituents(mol)
+    entries = {}
+    for position, member in enumerate(chain, start=1):
+        for n in graph[member]:
+            if n in chain or n not in arm_atoms:
+                continue
+            if mol.GetBondBetweenAtoms(member, n).GetBondTypeAsDouble() != 1.0:
+                return None
+            entries.setdefault(position, []).append(
+                name_branch(graph, n, member, halogens, frozenset(), mol=mol, unsaturated=True)
+            )
+    if not entries:
+        return None
+    capacity = _HYDRIDE_VALENCE[z] * len(chain) - 2 * (len(chain) - 1) - 1
+    count = sum(len(v) for v in entries.values())
+    prefix = format_substituent_prefixes(group_substituents(entries), omit_locants=count == capacity)
+    return prefix + multiplying_prefix(len(chain)) + _HYDRIDE_STEMS[z]
+
+
 def _hydride_candidates(mol, graph):
     if any(a.GetAtomicNum() == 7 for a in mol.GetAtoms()):
         return {}
@@ -711,7 +768,11 @@ def _hydride_candidates(mol, graph):
                 continue
             atoms = _arm(graph, r, h)
             inside = senior & atoms
-            if h in atoms or (inside != {r} and not _bare_chain(graph, r, inside, atoms)):
+            if h in atoms or (
+                inside != {r}
+                and not _bare_chain(graph, r, inside, atoms)
+                and _senior_chain(mol, graph, r, inside, atoms) is None
+            ):
                 continue
             candidates.setdefault(_key(mol, atoms, r), []).append((r, h, atoms))
     return candidates
