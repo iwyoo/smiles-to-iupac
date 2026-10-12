@@ -1152,6 +1152,18 @@ def test_n_acyl_carbamates(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=C(NCCC(N)=N)C1CCC(N)C1", "3-amino-N-(3-amino-3-iminopropyl)cyclopentane-1-carboxamide", id="amidine_ends_a_substituent_chain"),
+        pytest.param("OC(=O)c1ccccc1CCC(NC)=NCC", "2-[3-(ethylimino)-3-(methylamino)propyl]benzoic acid", id="substituted_amidine_ends_a_substituent_chain"),
+        pytest.param("OC(=O)c1ccc(cc1)C(N)=N", "4-carbamimidoylbenzoic acid", id="amidine_on_a_ring_stays_carbamimidoyl"),
+    ],
+)
+def test_amidine_carbon_in_a_substituent_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_acylated_nitrogen_is_not_a_hetero_parent_for_a_carboxylic_acid():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(=O)NC(=O)O")
