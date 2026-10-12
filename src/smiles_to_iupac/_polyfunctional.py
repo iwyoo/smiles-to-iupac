@@ -1710,8 +1710,73 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
     if in_parent or front:
         bare = len(parts[4]) == 1 or _locants_omitted(mol, in_parent, parts)
         capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
-        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity, _sole_heteroatoms(mol, in_parent, parts[4]), bare and len(parts[4]) > 1))
+        name = _label_parent(mol, name, parts, in_parent, front, capacity, bare)
     return name
+
+
+_HYDRO_PREFIX = re.compile(r"(-?)(?:(\d[0-9a-z',]*)-)?([a-z]*?hydro)(?!xy|per)")
+
+
+def _label_parent(mol, name, parts, labels, front, capacity, bare):
+    """`name` with the isotopic descriptor after the hydro prefixes, which are detachable prefixes at the front of the
+    parent hydride (P-82.2.3). A hydrogen added by a hydro prefix beyond the hydrogens of the mancude parent is the
+    modified one, cited as 'di[(2H)hydro]' before the unmodified prefixes."""
+    from ._isotope_labels import descriptor
+
+    split = len(parts[0]) if parts[0] is not None else (parts[6] if len(parts) > 6 else None)
+    if split is None:
+        raise UnsupportedStructure("the parent hydride part of this name is not delimited")
+    head, rest = name[:split], name[split:]
+    match = _HYDRO_PREFIX.match(rest)
+    hydro_text = ""
+    if match is not None:
+        rest = rest[match.end() :]
+        labels, capacity, hydro_text = _split_hydro_labels(mol, parts[4], labels, capacity, match)
+    text = (
+        descriptor(labels, parts[4], bare, front, capacity, _sole_heteroatoms(mol, labels, parts[4]), bare and len(parts[4]) > 1)
+        if labels or front
+        else ""
+    )
+    return head + hydro_text + text + ("-" if text and rest[:1].isdigit() else "") + rest
+
+
+def _split_hydro_labels(mol, position_of, labels, capacity, match):
+    """(descriptor labels, capacities, hydro prefix text) once the hydrogens that the hydro prefixes added are taken
+    out of the labels."""
+    lead, locant_text, _ = match.groups()
+    locants = locant_text.split(",") if locant_text else None
+    atom_of = {str(locant): atom for atom, locant in position_of.items()}
+    if locants is not None and any(x not in atom_of for x in locants):
+        raise UnsupportedStructure("a hydro prefix locant is not a position of the parent hydride")
+    hydro_atoms = {atom_of[x] for x in locants} if locants is not None else set(position_of)
+    kept, kept_capacity, modified = {}, dict(capacity), {}
+    for atom, entry in labels.items():
+        total = sum(entry["H"].values())
+        parent_hydrogens = mol.GetAtomWithIdx(atom).GetTotalNumHs() - (atom in hydro_atoms)
+        if atom in hydro_atoms and total > parent_hydrogens:
+            if len(entry["H"]) != 1 or total - parent_hydrogens != 1:
+                raise UnsupportedStructure("the hydrogens added by a hydro prefix are modified in different ways")
+            (nuclide,) = entry["H"]
+            modified[atom] = nuclide
+            entry = {"skeleton": entry["skeleton"], "H": {nuclide: parent_hydrogens} if parent_hydrogens else {}}
+        if entry["skeleton"] or entry["H"]:
+            kept[atom] = entry
+        if atom in hydro_atoms:
+            kept_capacity[atom] = parent_hydrogens
+    if not modified:
+        return labels, kept_capacity, match.group(0)
+    if locants is None:
+        raise UnsupportedStructure("hydro prefixes without locants cannot be split by their isotopic modification")
+    groups = {}
+    for x in locants:
+        groups.setdefault(modified.get(atom_of[x]), []).append(x)
+    if any(len(group) % 2 for group in groups.values()):
+        raise UnsupportedStructure("hydro prefixes of one isotopic modification are added in pairs")
+    ordered = sorted(groups, key=lambda nuclide: (nuclide is None, nuclide or ""))
+    text = "-".join(
+        f"{','.join(groups[n])}-{multiplied_word(len(groups[n]), 'hydro' if n is None else f'[({n})hydro]')}" for n in ordered
+    )
+    return kept, kept_capacity, lead + text
 
 
 def _carbon_group_label(mol, rest, reselect):
