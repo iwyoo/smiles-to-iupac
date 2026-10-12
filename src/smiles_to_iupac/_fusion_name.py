@@ -897,7 +897,7 @@ def _capacity(atom):
     symbol = atom.GetSymbol()
     degree = atom.GetDegree()
     if symbol == "C" or symbol in ("Si", "Ge", "Sn", "Pb"):
-        return 1
+        return max(1, _double_bonds(atom))
     standard = _STANDARD_BONDING.get(symbol)
     if standard is None:
         return 0
@@ -1028,6 +1028,7 @@ def name_fused_ring_system(mol):
         return (
             sorted(_locant_key(numbering[a]) for a in indicated),
             sorted((-lam[a], _locant_key(numbering[a])) for a in lam),
+            sorted(_locant_key(numbering[a]) for a in delta),
         )
 
     best = min(key(n) for n in options)
