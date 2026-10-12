@@ -619,14 +619,18 @@ def _solutions(ctx, mol):
 
 
 def _hetero_first(ctx):
-    """The heteroatoms of a skeletal replacement name of three identical components take their low locants before the
-    spiro atoms do (P-24.4.3(b)); other polyspiro systems number the spiro atoms first (P-24.6.1)."""
+    """The heteroatoms of a skeletal replacement name of three identical components take their low locant numbers
+    before the spiro atoms do (P-24.4.3(b)), primes aside; the spiro locants then decide, as in other polyspiro
+    systems (P-24.6.1, P-31.1.5.2.1)."""
     return len(ctx.comps) >= 3 and bool(ctx.replacement_atoms) and len(set(ctx.names.values())) == 1
 
 
 def _ranked(ctx, mol, sol):
     hetero = _hetero_key(ctx, mol, sol.locant_of)
-    return (hetero, sol.key) if _hetero_first(ctx) else (sol.key, hetero)
+    if not _hetero_first(ctx):
+        return (sol.key, hetero)
+    numbers = sorted(_lk(sol.locant_of[a])[0] for a in ctx.replacement_atoms | ctx.own_hetero)
+    return (numbers, sol.key, hetero)
 
 
 def _hetero_key(ctx, mol, locant_of):
