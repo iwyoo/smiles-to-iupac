@@ -500,6 +500,20 @@ def test_sulfonium_substituent_with_characteristic_group_is_a_prefix(smiles, exp
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CS[S+](SC)C", "1,2,3-trimethyltrisulfan-2-ium", id="cationic_centre_can_sit_on_another_sulfur"),
+        pytest.param("C[S+](C)SSC", "1,1,3-trimethyltrisulfan-1-ium", id="cationic_centre_at_the_end_of_the_chain"),
+        pytest.param("C[S+](C)SC", "trimethyldisulfanium", id="symmetric_chain_with_every_position_filled"),
+        pytest.param("F[S+](C)(F)(F)F", "tetrafluoro(methyl)-λ4-sulfanium", id="hypervalent_sulfonium_centre"),
+        pytest.param("C[S+](C)(C)=O", "trimethyl(oxo)-λ4-sulfanium", id="double_bonded_group_on_a_hypervalent_centre"),
+    ],
+)
+def test_sulfanium_chain_locants_and_lambda_centre(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_sulfonium_specified_stereocenter_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[S@+](CC)CCC")

@@ -4,6 +4,7 @@ that no other arrangement on the parent hydride could place differently. The dec
 structure, never on its numbering."""
 
 from contextvars import ContextVar
+from itertools import combinations
 
 from rdkit import Chem
 
@@ -135,19 +136,20 @@ def _outside(mol, root, parent):
     return seen
 
 
-def has_single_arrangement(mol, parent):
+def has_single_arrangement(mol, parent, mobile_charges=frozenset()):
     """True when the groups on the parent hydride `parent` (atom indices) can be placed on it in one way only, up to
     the symmetry of the parent: no isomer arises by moving a prefix or suffix to another position or by interchanging
-    two of them, so no locant is needed (P-14.3.4.4)."""
+    two of them, so no locant is needed (P-14.3.4.4). The `mobile_charges` atoms are cationic centres whose added
+    hydron may sit on any atom of the parent, so the centre itself is one of the groups that can move."""
     if mol is None or CITE_SUBSTITUENT_LOCANTS.get():
         return False
     try:
-        return _single_arrangement(mol, set(parent))
+        return _single_arrangement(mol, set(parent), set(mobile_charges))
     except Exception:
         return False
 
 
-def _single_arrangement(mol, parent):
+def _single_arrangement(mol, parent, mobile=frozenset()):
     groups, positions = [], sorted(parent)
     for p in positions:
         for n in mol.GetAtomWithIdx(p).GetNeighbors():
@@ -171,6 +173,7 @@ def _single_arrangement(mol, parent):
         formyl = atom.GetTotalNumHs() and any(
             order == 2 and mol.GetAtomWithIdx(r).GetAtomicNum() == 8 for _, q, r, order in groups if q == p
         )
+        total -= p in mobile
         free[p] = (total, total - (atom.GetTotalNumHs() if formyl else 0))
     groups.sort(key=lambda g: g[0])
     base = Chem.RWMol(mol)
@@ -178,7 +181,7 @@ def _single_arrangement(mol, parent):
         base.RemoveBond(p, root)
     seen, budget = set(), [_ARRANGEMENT_NODES]
 
-    def build(placement):
+    def build(placement, charged):
         editable = Chem.RWMol(base)
         used = {p: 0 for p in positions}
         for (_, _, root, order), target in zip(groups, placement):
@@ -187,7 +190,9 @@ def _single_arrangement(mol, parent):
         for p in positions:
             atom = editable.GetAtomWithIdx(p)
             atom.SetNoImplicit(True)
-            atom.SetNumExplicitHs(free[p][0] - used[p])
+            atom.SetNumExplicitHs(free[p][0] + (p in charged) - used[p])
+            if mobile:
+                atom.SetFormalCharge(int(p in charged))
         try:
             Chem.SanitizeMol(editable)
         except Exception:
@@ -195,12 +200,12 @@ def _single_arrangement(mol, parent):
             return None
         return Chem.MolToSmiles(editable, isomericSmiles=False)
 
-    def place(index, placement, remaining):
+    def place(index, placement, remaining, charged):
         budget[0] -= 1
         if budget[0] < 0 or len(seen) > 1:
             return
         if index == len(groups):
-            found = build(placement)
+            found = build(placement, charged)
             if found is not None:
                 seen.add(found)
                 if len(seen) > _ARRANGEMENT_LEAVES:
@@ -213,8 +218,9 @@ def _single_arrangement(mol, parent):
                 continue
             if remaining[p] >= order:
                 remaining[p] -= order
-                place(index + 1, placement + [p], remaining)
+                place(index + 1, placement + [p], remaining, charged)
                 remaining[p] += order
 
-    place(0, [], {p: free[p][1] for p in positions})
+    for charged in combinations(positions, len(mobile)) if mobile else [()]:
+        place(0, [], {p: free[p][1] + (p in charged) for p in positions}, set(charged))
     return budget[0] >= 0 and len(seen) == 1
