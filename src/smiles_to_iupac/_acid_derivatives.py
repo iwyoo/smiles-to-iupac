@@ -343,13 +343,20 @@ def name_phosphorous_acid(mol):
 _ACID_ENDING = re.compile(r"(?: (?:[A-Za-z]+\d*(?:,[A-Za-z]+\d*)*)-acid| acid)(\)?)$")
 
 
-def anion_name(acid_name):
-    """P-65.6.1: the '-ic acid' ending becomes '-ate' (italic acid letters dropped)."""
+def anion_name(acid_name, letters_in_anion=True):
+    """P-65.6.1: the '-ic acid' ending becomes '-ate'. The element letters of a peroxy acid stay in the anion term
+    unless an ester cites them in front of its organyl group (P-65.6.3.3.7.1), which also moves 'carbo' into the
+    parentheses: 'benzene(carbothioperoxoate)'."""
     from ._acid_lexicon import _LETTERED_TAIL
 
     lettered = _LETTERED_TAIL.search(acid_name)
     if lettered:
-        return acid_name[: lettered.start()] + f"({lettered.group(2)}-{lettered.group(1)}ate)"
+        stem = acid_name[: lettered.start()]
+        if letters_in_anion:
+            return stem + f"({lettered.group(2)}-{lettered.group(1)}ate)"
+        if stem.endswith("carbo"):
+            return stem[: -len("carbo")] + f"(carbo{lettered.group(1)}ate)"
+        return stem + f"({lettered.group(1)}ate)"
     match = _ACID_ENDING.search(acid_name)
     if match is None:
         raise UnsupportedStructure("the acid part has no 'acid' ending to turn into an anion name")
@@ -553,7 +560,7 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
         return None
     first = suffixed[centers[0]]
     acid = _acid_name(mol, acid_atoms[centers[0]], [l.chain[-1] for l in first])
-    anion = anion_name(acid)
+    anion = anion_name(acid, letters_in_anion=False)
     diyl = _diyl_name(mol, frags[hub], [l.far for l in hub_links])
     if diyl is None:
         return None
@@ -659,7 +666,7 @@ def _bridged_multiplicative_ester(mol, graph, frags, owner, acid_pieces, r_piece
     if arm_texts[0] != arm_texts[1]:
         return None
     acyl = acyl_name(_acid_name(mol, frags[inner], [l.chain[-1] for l in acid_pieces[inner]]))
-    anion = anion_name(_acid_name(mol, frags[terminals[0]], [l.chain[-1] for l in acid_pieces[terminals[0]]]))
+    anion = anion_name(_acid_name(mol, frags[terminals[0]], [l.chain[-1] for l in acid_pieces[terminals[0]]]), letters_in_anion=False)
     multiplier = multiplying_prefix(2, compound=not anion.isalpha())
     anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
     linker = f"{acyl}bis{enclose(arm_texts[0])}"
@@ -770,7 +777,7 @@ def name_ester(mol, links):
             raise UnsupportedStructure("a ring-closing ester is not named part-wise")
         removed |= far_side
     acid = _acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen])
-    anion = anion_name(acid)
+    anion = anion_name(acid, letters_in_anion=False)
     context = _stereo_context(mol, removed)
     halogens = halogen_substituents(mol)
     named = {}
