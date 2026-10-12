@@ -21,6 +21,15 @@ _SENIOR = [
     Chem.MolFromSmarts(smarts)
     for smarts in ("[CX3](=O)[OX2]", "[CX3](=O)[NX3]", "[CX2]#[NX1]", "[CX3H1](=O)[#6]", "[#16X4](=O)(=O)[OX2]")
 ]
+_SENIOR_TO_IMINE = [
+    Chem.MolFromSmarts(smarts)
+    for smarts in (
+        "[#6][CX3](=[O,S,Se,Te])[#6]",
+        "[#6][OX2H,SX2H,SeX2H,TeX2H]",
+        "[#6][OX2][OX2H]",
+        "[#6][NX3;!$(N[#6]=[O,S,N]);!$(N[!#6;!#1])]",
+    )
+]
 
 
 def _find_center(mol):
@@ -91,6 +100,7 @@ def name_phosphanone(mol) -> str:
 _IMINE_CENTERS = {
     14: "silanimine", 32: "germanimine", 50: "stannanimine", 82: "plumbanimine",
     15: "phosphanimine", 33: "arsanimine", 51: "stibanimine", 83: "bismuthanimine",
+    16: "sulfanimine", 34: "selanimine", 52: "tellanimine",
 }
 
 
@@ -115,7 +125,7 @@ def _find_imine_center(mol):
         return None
     if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
         return None
-    if any(mol.HasSubstructMatch(query) for query in _SENIOR):
+    if any(mol.HasSubstructMatch(query) for query in _SENIOR + _SENIOR_TO_IMINE):
         return None
     if any(
         b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() in (7, 8, 16)
