@@ -3923,7 +3923,9 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
             if r in placed and n.GetIdx() not in ring and n.GetIdx() not in taken
         ]
         locant_set = tuple(sorted(attached))
-        return found[0], found[1], (-len(attached), locant_set, locant_set, re.sub(r"[^a-z]", "", found[1][1]))
+        return found[0], found[1], (
+            -len(attached), tuple(_prefix_locant_key(loc) for loc in locant_set), locant_set, re.sub(r"[^a-z]", "", found[1][1])
+        )
     owned = set().union(*(o[2] for o in here))
     ring_set = set(ring)
     roots = [
@@ -3984,7 +3986,17 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
     name = _join(prefix_text, core)
     count += len(ide_atoms)
     letters = re.sub(r"[^a-z]", "", name)
-    rank = (-len(entries), best[0][2], best[0][3], letters)
+    prefix_locants = sorted(
+        [
+            *(_prefix_locant_key(locants[r]) for r, _, _ in entries),
+            *(
+                _prefix_locant_key("N")
+                for entry in n_names
+                if len(entry) < 3 or not isinstance(entry[2], tuple) or _n_position(entry[2], locants) is not None
+            ),
+        ]
+    )
+    rank = (-len(prefix_locants), tuple(prefix_locants), best[0][3], letters)
     return count, ((-count,), name, (None, None, None, 0, locants, True, len(name) - len(core))), rank
 
 
@@ -5648,6 +5660,14 @@ def _n_position(located, position_of):
     return None
 
 
+def _prefix_locant_key(locant):
+    """P-45.2.2: the N locants of the prefixes on the principal groups count with the numbered ones, letters before
+    numerals; the number of the group that carries them follows the numbering of the chain and is not compared."""
+    if isinstance(locant, str):
+        return 0, 0, locant.count("'")
+    return 1, locant, 0
+
+
 def _with_n_names(grouped, n_names, position_of=None, group_count=2):
     """`grouped` plus the N-prefixes; a locant ("N", atom) of one of several groups reads N<position of atom>
     (P-66.1.1.4.2: 'N1,N5-dimethylpentanediamide'); groups on one atom are told apart by primes, the one with the
@@ -5987,6 +6007,15 @@ def _evaluate(
     )
     with_n = _with_n_names(grouped, n_names, position_of, len(on_chain))
     nitrogens = {a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7}
+    elsewhere = set().union(*(principal_atoms[a] | {a} for a in principal_atoms if a not in chain_set))
+    # an N-substituent that holds another principal group is that group's amido prefix, not a prefix to count (P-66.1.1.4.3)
+    holds_group = any(
+        _arm_atoms(graph, neighbor, n) & elsewhere
+        for n in nitrogens
+        for neighbor in graph[n]
+        if neighbor not in owned and neighbor not in chain_set
+    )
+    prefix_locants = [loc for info in (grouped if holds_group else with_n).values() for loc in info["locants"]]
     uncited_locants = length > 1 and not force and omits_all_locants(mol, chain_set | nitrogens, with_n, owned - nitrogens)
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)
@@ -6070,8 +6099,8 @@ def _evaluate(
         lowest_locant_set(ene),
         attach_locant,
         _parent_configuration_rank(stereo, position_of, directional=False),
-        -total_count,
-        locant_set,
+        -len(prefix_locants),
+        tuple(sorted(_prefix_locant_key(loc) for loc in prefix_locants)),
         citation,
         _bonding_rank(mol, graph, chain_set, position_of),
         _n_group_positions(n_names, position_of),
