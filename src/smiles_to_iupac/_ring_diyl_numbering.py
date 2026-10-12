@@ -190,14 +190,20 @@ def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, 
                 return k
         return len(free) + 1
 
+    accommodating = ih_count >= groups and any(
+        set(oxo_suffix) <= set(ih) and _perfect_matching(set(can_hold) - set(ih), adj)
+        for ih in combinations(ordered, ih_count)
+    )
+
     def candidate_key(ih):
         valid = 0 if _perfect_matching(set(can_hold) - set(ih), adj) else 1
         if not groups:
             return (valid, loc(ih))
-        # P-58.2.3.1.4: indicated hydrogen that makes added hydrogen unnecessary comes before a placement that needs it
         needed = added_needed(ih)
         covered = sum(a in oxo_suffix for a in ih)
-        if ih_count >= groups:
+        # P-58.2.3.1.1: indicated hydrogen that can take every suffix atom needs no added hydrogen; otherwise the
+        # lowest valid indicated hydrogen comes first and added hydrogen follows (P-58.2.3.1.3, P-58.2.3.1.4)
+        if accommodating:
             return (valid, needed, -covered, loc(ih))
         return (valid, loc(ih), needed, -covered)
 

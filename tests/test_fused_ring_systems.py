@@ -839,6 +839,7 @@ def test_replacement_named_peri_fused_system_keeps_hydrocarbon_numbering_for_sub
         ("C1OCC23C1(C=CC=C2)C3", "1H,3H-3a,7a-methano-2-benzofuran"),
         ("C1C=CN2C=3C(C(C=CC13)=O)=CC(C2)=O", "1H,5H-pyrido[3,2,1-ij]quinoline-6,8-dione"),
         ("C1CC2=CC=CC3=C2N(C1)CCC3", "2,3,6,7-tetrahydro-1H,5H-pyrido[3,2,1-ij]quinoline"),
+        ("C1=C2C(COC1=O)=CC(C=1OCCCC12)=O", "9,10-dihydro-2H,4H-benzo[1,2-b:4,3-c']dipyran-2,6(8H)-dione"),
     ],
 )
 def test_saturated_and_peri_fused_heterocycles_take_hydro_and_indicated_hydrogen_fusion_names(smiles, expected):
