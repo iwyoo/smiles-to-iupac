@@ -549,3 +549,19 @@ def test_nuclide_on_the_carbonyl_carbon_of_an_acyl_prefix(smiles, expected):
 )
 def test_isotopically_modified_steroid_parent_hydride(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.3: the descriptor follows the hydro prefixes; a hydrogen added by a hydro prefix beyond those of the mancude parent is the modified one
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[15NH]1CCc2ccccc12", "2,3-dihydro(15N)-1H-indole", id="skeletal_atom_after_the_hydro_prefix"),
+        pytest.param("[15NH]1C(C(c2ccccc12)[2H])[2H]", "2,3-dihydro(2,3-2H2,15N)-1H-indole", id="one_deuterium_per_hydro_position_stays_in_the_descriptor"),
+        pytest.param("C1CCCc2cc[13cH]cc12", "1,2,3,4-tetrahydro(6-13C)naphthalene", id="descriptor_directly_before_the_stem"),
+        pytest.param("[15NH]1C([2H])([2H])C([2H])([2H])c2ccccc12", "2,3-di[(2H)hydro](2,3-2H2,15N)-1H-indole", id="modified_hydro_prefixes"),
+        pytest.param("OC1C([2H])([2H])C([2H])([2H])Cc2cc(C)ccc12", "6-methyl-2,3-di[(2H)hydro]-1,4-dihydro(2,3-2H2)naphthalen-1-ol", id="modified_before_unmodified_hydro_prefixes"),
+        pytest.param("C1CCC2C([2H])CCCC2C1", "decahydro(1-2H)naphthalene", id="hydro_prefix_without_locants"),
+    ],
+)
+def test_isotopic_descriptor_after_the_hydro_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
