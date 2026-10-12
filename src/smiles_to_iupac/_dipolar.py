@@ -291,6 +291,42 @@ def _sulfur_oxide(mol, graph):
     return f"{name}-λ4-sulfanone"
 
 
+def _alternating_chain_name(mol, graph):
+    """P-74.1.3: ammonium and boranuide centres joined in an acyclic chain are one zwitterion, not Lewis adducts; the end
+    boranuide is the parent and the rest of the chain is cited as nested azaniumyl and boranuidyl prefixes; one boranuide
+    left over makes the chain an anion."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    cations = [a for a in charged if a.GetFormalCharge() == 1 and a.GetAtomicNum() == 7]
+    anions = [a for a in charged if a.GetFormalCharge() == -1 and a.GetAtomicNum() == 5]
+    if (
+        mol.GetRingInfo().NumRings()
+        or len(cations) + len(anions) != len(charged)
+        or len(anions) - len(cations) not in (0, 1)
+        or any(a.GetAtomicNum() not in (1, 5, 6, 7) or a.GetDegree() + a.GetTotalNumHs() != 4 for a in charged)
+        or not any(mol.GetBondBetweenAtoms(c.GetIdx(), a.GetIdx()) is not None for c in cations for a in anions)
+    ):
+        return None
+    ionic = {a.GetIdx() for a in charged}
+    halogens = {}
+
+    def group(index, parent):
+        atom = mol.GetAtomWithIdx(index)
+        kids = [n for n in graph[index] if n != parent]
+        if index not in ionic:
+            if _side(graph, index, parent) & ionic:
+                raise UnsupportedStructure("an ionic centre beyond a carbon group is not named here")
+            return name_branch(graph, index, parent, halogens, frozenset(), mol=mol)
+        if atom.GetAtomicNum() == 7 and not any(n in ionic for n in kids):
+            return _cation_prefix(mol, graph, index, parent), True
+        entries = [group(n, index) for n in kids]
+        stem = "azaniumyl" if atom.GetAtomicNum() == 7 else "boranuidyl"
+        return (format_mononuclear_prefixes(entries) if entries else "") + stem, True
+
+    parent = min(anions, key=lambda a: (sum(n in ionic for n in graph[a.GetIdx()]), -a.GetDegree(), a.GetIdx()))
+    entries = [group(n, parent.GetIdx()) for n in graph[parent.GetIdx()]]
+    return format_mononuclear_prefixes(entries) + "boranuide"
+
+
 def dipolar_name(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
@@ -300,6 +336,11 @@ def dipolar_name(mol):
     if isodiazene is not None:
         return isodiazene
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) > 2 and not any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        try:
+            return _alternating_chain_name(mol, adjacency(mol))
+        except (UnsupportedStructure, ValueError, KeyError):
+            return None
     if len(charged) != 2 or sorted(a.GetFormalCharge() for a in charged) != [-1, 1]:
         return None
     cation = next(a for a in charged if a.GetFormalCharge() > 0)

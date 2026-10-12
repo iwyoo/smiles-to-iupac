@@ -236,6 +236,14 @@ def test_nitrile_imide_still_and_related_raise(smiles):
             id="onium_prefix_on_a_remote_boranuide",
         ),
         pytest.param(
+            "C[BH2-][NH2+][BH2-][NH2+]C",
+            "{[(methanaminiumyl)boranuidyl]azaniumyl}(methyl)boranuide",
+            id="alternating_ammonium_boranuide_chain",
+        ),
+        pytest.param(
+            "C[BH2-][NH2+][BH3-]", "[(boranuidyl)azaniumyl](methyl)boranuide", id="alternating_chain_with_a_spare_boranuide"
+        ),
+        pytest.param(
             "C[Se+]1CC2=C(C([CH-]1)=O)C=CC=C2",
             "2-methyl-4-oxo-3,4-dihydro-1H-2-benzoselenopyran-2-ium-3-ide",
             id="ring_chalcogenium_with_ring_carbanide",
