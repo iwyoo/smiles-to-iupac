@@ -134,6 +134,8 @@ def lewis_adduct_mol(mol):
                 cuts.append((donor.GetIdx(), acceptor.GetIdx()))
     if not cuts or any(a.GetFormalCharge() and not any(a.GetIdx() in cut for cut in cuts) for a in mol.GetAtoms()):
         return None
+    if len({donor for donor, _ in cuts}) != len(cuts) or len({acceptor for _, acceptor in cuts}) != len(cuts):
+        return None
     if any(b.GetBondType() == Chem.BondType.DATIVE for b in mol.GetBonds()) and sum(
         b.GetBondType() == Chem.BondType.DATIVE for b in mol.GetBonds()
     ) != len(cuts):
