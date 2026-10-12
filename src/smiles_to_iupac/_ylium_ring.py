@@ -16,6 +16,7 @@ from ._common import (
     halogen_substituents,
     substituent_locant_set_and_citation,
 )
+from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
 _INFIX = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
@@ -85,11 +86,11 @@ def has_ylium_ring_shape(mol) -> bool:
     )
 
 
-def _prefixes(mol, graph, ring_atoms, locant_of):
+def _prefixes(mol, graph, ring_atoms, locant_of, skip=frozenset()):
     from ._functional_prefixes import functional_names
 
     halogens = halogen_substituents(mol)
-    seeds = [(a, n) for a in ring_atoms for n in graph[a] if n not in ring_atoms]
+    seeds = [(a, n) for a in ring_atoms for n in graph[a] if n not in ring_atoms and n not in skip]
     named, shown, _ = functional_names(mol, graph, seeds, set(ring_atoms), halogens)
     entries = {}
     for atom, root in seeds:
@@ -130,8 +131,9 @@ def _hydride_parent(mol, system, centres, anions=None):
     return result, order
 
 
-def _name_fused_ylium(mol, graph, system, centres, anions=None):
+def _name_fused_ylium(mol, graph, system, centres, anions=None, group=None):
     anions = anions or {}
+    group = group or {}
     parent, order = _hydride_parent(mol, system, centres, anions)
     name, options, indicated, lam, delta = fused_parent_data(parent)
     index = {a: i for i, a in enumerate(order)}
@@ -149,12 +151,13 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None):
     best = None
     for numbering in options:
         locant_of = {a: numbering[index[a]] for a in order}
-        grouped = _prefixes(mol, graph, system, locant_of)
+        grouped = _prefixes(mol, graph, system, locant_of, set(group.values()))
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         key = (
             sorted(_locant_key(numbering[i]) for i in indicated),
             sorted((-lam[i], _locant_key(numbering[i])) for i in lam),
             sorted(_locant_key(numbering[index[a]]) for a in (*centres, *anions)),
+            sorted(_locant_key(numbering[index[a]]) for a in group),
             sorted(_locant_key(numbering[i]) for i in hydro),
             locant_set,
             citation,
@@ -175,13 +178,17 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None):
             raise UnsupportedStructure("ide and uide centres together on a cationic ring are not supported yet")
         anion_locants = sorted((numbering[index[a]] for a in anions), key=_locant_key)
         name += f"-{','.join(anion_locants)}-{_MULTIPLIER[len(anion_locants)]}{words.pop()}"
-    return grouped, name
+    return grouped, name, {a: numbering[index[a]] for a in group}
 
 
-def name_ylium_ring(mol) -> str:
+def name_ylium_ring(mol, group=None, word="") -> str:
+    """`group`: {ring atom: root atom of its cationic suffix group} when such groups are the suffix of the name, which
+    cites the ring centre first and the suffix after it (P-73.5.3.1); `word` is the suffix, e.g. 'aminium'."""
     from ._multiplicative import _ring_systems
 
-    centres = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    group = group or {}
+    skip = set(group.values())
+    centres = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and a.GetIdx() not in skip and a.GetIdx() not in _group_atoms(mol, skip)]
     anions = {a.GetIdx(): _ring_anion_word(a) for a in mol.GetAtoms() if a.GetFormalCharge() < 0}
     graph = adjacency(mol)
     system = next(s for s in _ring_systems(mol) if centres[0] in s)
@@ -197,17 +204,34 @@ def name_ylium_ring(mol) -> str:
             if set(match) != set(system) or match[centre_index] != centres[0]:
                 continue
             locant_of = {atom: locants[i] for i, atom in enumerate(match)}
-            grouped = _prefixes(mol, graph, system, locant_of)
+            grouped = _prefixes(mol, graph, system, locant_of, skip)
             locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-            key = (locant_set, citation)
+            key = (sorted(_locant_key(str(locant_of[a])) for a in group), locant_set, citation)
             if best is None or key < best[0]:
-                best = (key, grouped, core)
+                best = (key, grouped, core, {a: str(locant_of[a]) for a in group})
     if best is not None:
-        _, grouped, core = best
+        _, grouped, core, group_locants = best
     else:
         try:
-            grouped, core = _name_fused_ylium(mol, graph, system, set(centres), anions)
+            grouped, core, group_locants = _name_fused_ylium(mol, graph, system, set(centres), anions, group)
         except UnsupportedStructure as error:
             raise UnsupportedStructure("this cationic ring is not one of the ylium rings with a retained or lambda name") from error
+    if group:
+        locants = sorted(group_locants.values(), key=_locant_key)
+        count = len(locants)
+        suffix = _MULTIPLIER[count] + word if word.startswith("a") else multiplying_prefix(count, compound=True) + f"({word})" if count > 1 else word
+        core += f"-{','.join(locants)}-{suffix}"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     return f"{prefix}-{core}" if prefix and core[0].isdigit() else prefix + core
+
+
+def _group_atoms(mol, roots):
+    """The atoms of the substituents rooted at `roots`, whose charges belong to the cationic suffix group."""
+    from ._cited_group import subtree
+
+    graph = adjacency(mol)
+    atoms = set()
+    for root in roots:
+        parent = next(n for n in graph[root] if mol.GetAtomWithIdx(n).IsInRing())
+        atoms |= subtree(graph, root, parent)
+    return atoms

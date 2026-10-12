@@ -155,7 +155,7 @@ def _principal_class(classes):
     if RING_CENTER.get():
         return None
     if AMINIUM.get():
-        parent = AMINIUM.get() if AMINIUM.get() in ("imine", "amide", "nitrile") else "amine"
+        parent = AMINIUM.get() if AMINIUM.get() in ("imine", "amide", "nitrile", "amidine") else "amine"
         return parent if parent in classes else None
     if "ide" in classes:
         return "ide"
@@ -1444,10 +1444,11 @@ def _prefix_ammonium(mol, nitrogen):
     )
 
 
-def _amidinium_base(mol):
-    """The neutral amidine of the only charge in `mol`, an amidinium group C(NR2)=NH2(+) on carbon; the cation takes
-    the suffix 'imidamidium' with the N locants of the neutral amidine (P-73.5.3.1)."""
-    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+def _amidinium_base(mol, ignore=frozenset()):
+    """The neutral amidine of the only charge in `mol` (besides the `ignore`d ring centres), an amidinium group
+    C(NR2)=NH2(+) on carbon; the cation takes the suffix 'imidamidium' with the N locants of the neutral amidine
+    (P-73.5.3.1)."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
     if len(charged) != 1:
         return None
     cation = charged[0]
@@ -1533,24 +1534,57 @@ def _ring_cation_with_group(mol):
         return None
     for kind, function in (
         ("amine", lambda m: _aminium_base(m, ignore=frozenset(centres))),
+        ("amidine", lambda m: _amidinium_base(m, ignore=frozenset(centres))),
         ("amide", lambda m: _group_cation_base(m, "amide", ignore=frozenset(centres))),
         ("nitrile", lambda m: _group_cation_base(m, "nitrile", ignore=frozenset(centres))),
     ):
         base = function(mol)
         if base is not None:
-            return base, centres[0], kind
+            return base, centres[0], kind, mol
     return None
 
 
-def _name_ring_group_cation(base, centre, kind):
+def _ylium_ring_group_cation(mol, centre, kind):
+    """The name of a ring whose centre is a lambda 'ylium' centre (a nitrogen with three ring bonds) together with
+    unsubstituted aminium or carboximidamidium groups on its ring atoms, or None for another ring centre."""
+    from ._ylium_ring import _is_ylium_centre, name_ylium_ring
+
+    if not _is_ylium_centre(mol.GetAtomWithIdx(centre)):
+        return None
+    group = {}
+    for atom in mol.GetAtoms():
+        if not atom.GetFormalCharge() or atom.GetIdx() == centre:
+            continue
+        if kind == "amine" and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 3:
+            root, ring_atom = atom, atom.GetNeighbors()[0]
+        elif kind == "amidine" and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2:
+            root = atom.GetNeighbors()[0]
+            ring_atom = next((n for n in root.GetNeighbors() if n.IsInRing()), None)
+            amino = [n for n in root.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetIdx() != atom.GetIdx()]
+            if ring_atom is None or len(amino) != 1 or amino[0].GetDegree() != 1 or amino[0].GetTotalNumHs() != 2:
+                raise UnsupportedStructure("a substituted amidinium group on a lambda ylium ring is not supported yet")
+        else:
+            raise UnsupportedStructure("this cationic group on a lambda ylium ring is not supported yet")
+        if not ring_atom.IsInRing() or ring_atom.GetIdx() in group:
+            raise UnsupportedStructure("this cationic group on a lambda ylium ring is not supported yet")
+        group[ring_atom.GetIdx()] = root.GetIdx()
+    return name_ylium_ring(mol, group, "aminium" if kind == "amine" else "carboximidamidium")
+
+
+def _name_ring_group_cation(base, centre, kind, original=None):
     """A ring cation together with a cationic suffix: the skeletal centre is cited as 'ium' after the parent hydride and
     takes the lowest locant before the suffix (P-73.5.3.1, P-73.5.3.2); the suffix names the group."""
     from ._diester_ring_diyl import CATION_CENTRES
 
+    ylium = _ylium_ring_group_cation(original, centre, kind) if original is not None and kind in ("amine", "amidine") else None
+    if ylium is not None:
+        return ylium
     editable = Chem.RWMol(base)
     atom = editable.GetAtomWithIdx(centre)
     hydrogens = atom.GetTotalNumHs()
+    nitrenium = bool(atom.GetNumRadicalElectrons())
     atom.SetFormalCharge(0)
+    atom.SetNumRadicalElectrons(0)
     atom.SetNoImplicit(True)
     atom.SetNumExplicitHs(max(hydrogens - 1, 0))
     if atom.GetIsAromatic():
@@ -1565,7 +1599,8 @@ def _name_ring_group_cation(base, centre, kind):
     finally:
         CATION_CENTRES.reset(centres_token)
         AMINIUM.reset(token)
-    return _cationic_group_suffix(name, kind)
+    name = _cationic_group_suffix(name, kind)
+    return re.sub(r"(\d)-ium(?![a-z])", r"\1-ylium", name, count=1) if nitrenium else name
 
 
 def _name_aminium(base, labels=None, parent="amine", cationic=None):
@@ -1581,6 +1616,10 @@ _MULTIPLIED = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
 
 
 def _cationic_group_suffix(name, parent, cationic=None):
+    if parent == "amidine":
+        if not name.endswith("imidamide"):
+            raise UnsupportedStructure("the amidinium cation is not named as an amidine parent")
+        return name[:-1] + "ium"
     if parent in ("amide", "nitrile"):
         match = _GROUP_SUFFIX.search(name)
         if match is None or match.group("kind") != parent:

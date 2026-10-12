@@ -835,7 +835,10 @@ def _name_unabridged_body(smiles: str) -> str:
         if parsed is not None and has_group_polycation_shape(parsed):
             return name_group_polycation(parsed)
         if parsed is not None and has_ring_nitrenium_shape(parsed):
-            return name_polycation(parsed)
+            try:
+                return name_polycation(parsed)
+            except UnsupportedStructure:
+                pass
         if parsed is not None and has_skeleton_radical_ion_shape(parsed):
             return name_skeleton_radical_ion(parsed)
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
