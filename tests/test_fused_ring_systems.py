@@ -70,7 +70,7 @@ def test_multiparent_name_beats_retained_benzoazole_fusion_name(smiles, expected
         ("O=C1NC(=O)C2CCCCC12", "hexahydro-1H-isoindole-1,3(2H)-dione"),
         ("O=C1C(=O)Cc2c1c1ccccc1cc2", "1H-cyclopenta[a]naphthalene-1,2(3H)-dione"),
         ("O=C1C(=O)Cc2c1ccc1ccccc21", "1H-cyclopenta[a]naphthalene-2,3-dione"),
-        ("O=C1SC(=S)c2ccccc12", "3-sulfanylidene-2-benzothiophen-1(3H)-one"),
+        ("O=C1SC(=S)c2ccccc12", "3-sulfanylidene-2-benzothiophen-1-one"),
     ],
 )
 def test_indicated_hydrogen_at_lowest_position_before_added_hydrogen(smiles, expected):
@@ -1076,6 +1076,7 @@ def test_hydro_locants_of_a_bridged_fused_system_are_omitted_when_every_position
         pytest.param("O=C1C=CC(=C)c2ccccc12", "4-methylidenenaphthalen-1(4H)-one", id="methylidene_at_the_added_hydrogen_position"),
         pytest.param("N=C1C=CC(=S)c2ccccc12", "4-iminonaphthalene-1(4H)-thione", id="thione_suffix"),
         pytest.param("O=C1C=CC(=O)c2ccccc12", "naphthalene-1,4-dione", id="two_ketone_suffixes_need_no_added_hydrogen"),
+        pytest.param("N=C1OC(=O)c2ccccc12", "3-imino-2-benzofuran-1-one", id="ylidene_across_a_ring_heteroatom_from_the_suffix"),
     ],
 )
 def test_added_hydrogen_of_a_ketone_suffix_beside_an_ylidene_prefix(smiles, expected):

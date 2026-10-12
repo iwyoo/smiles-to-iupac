@@ -1077,6 +1077,21 @@ def _fused_mancude(mol, skeleton_atoms):
             for a in suffix_atoms & saturated
             if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and (oxo_all or not mol.GetAtomWithIdx(a).HasProp("_saturated_onium_centre"))
         }
+        if oxo_suffix:
+            # the ylidene carbon of a cyclic anhydride or lactone pairs with the suffix carbon through the ring heteroatom
+            # between them: 3-sulfanylidene-2-benzothiophen-1-one needs no added hydrogen (P-65.7.7.3)
+            across = {
+                a
+                for a in (oxo_all - suffix_atoms) & saturated
+                if any(
+                    n.GetIdx() in skeleton_atoms
+                    and n.GetAtomicNum() != 6
+                    and any(m.GetIdx() in oxo_suffix for m in n.GetNeighbors())
+                    for n in mol.GetAtomWithIdx(a).GetNeighbors()
+                )
+            }
+            if ih_count == 0 and across and _perfect_matching(set(can_hold) - set(oxo_suffix) - across, adj):
+                accommodated |= across
         if ANION_SUFFIX.get():
             centers = ANION_SUFFIX.get() & saturated
             if not accommodated:
