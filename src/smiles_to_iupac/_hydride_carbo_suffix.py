@@ -185,14 +185,34 @@ def _match_parent(mol, graph, parent):
     if not attached:
         return None
     principal = next(c for c in _CLASSES if any(cls == c for _, cls in attached.values()))
+    attached_principal = {c: host for c, (host, cls) in attached.items() if cls == principal}
     elsewhere = [
         a.GetIdx()
         for a in mol.GetAtoms()
         if a.GetAtomicNum() == 6 and a.GetIdx() not in attached and _group_class(mol, a.GetIdx()) is not None
     ]
-    if any(_CLASSES.index(_group_class(mol, i)) <= _CLASSES.index(principal) for i in elsewhere):
+    senior = [i for i in elsewhere if _CLASSES.index(_group_class(mol, i)) <= _CLASSES.index(principal)]
+    if senior and not _outnumbered_by_skeleton(mol, skeleton_set, senior, len(attached_principal)):
         return None
-    return parent, {c: host for c, (host, cls) in attached.items() if cls == principal}, principal
+    return parent, attached_principal, principal
+
+
+def _outnumbered_by_skeleton(mol, skeleton_set, senior, count):
+    """Whether no substituent branch holds more groups of the principal class than the skeleton: with equal numbers the
+    heteroatom parent hydride is senior to the carbon parent (P-44.1.1, P-44.1.2.1)."""
+    branch_of = {}
+    for start in senior:
+        if start in branch_of:
+            continue
+        seen, stack = {start}, [start]
+        while stack:
+            for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+                if n.GetIdx() not in skeleton_set and n.GetIdx() not in seen:
+                    seen.add(n.GetIdx())
+                    stack.append(n.GetIdx())
+        for a in seen:
+            branch_of[a] = seen
+    return all(sum(1 for i in senior if i in branch_of[c]) <= count for c in senior)
 
 
 def _is_oxoacid_derivative(mol) -> bool:
