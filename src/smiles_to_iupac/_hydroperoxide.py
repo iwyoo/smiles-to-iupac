@@ -140,6 +140,12 @@ def _substituted_peroxol_atoms(mol):
     """(attach, terminal) of the one -O-OH group of a chain whose substituents hold chalcogen or ether atoms."""
     if not any(a.GetAtomicNum() in (16, 34, 52) for a in mol.GetAtoms()) or any(
         a.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS | set(_CHALCOGENS) for a in mol.GetAtoms()
+    ) or any(
+        a.GetAtomicNum() in _CHALCOGENS
+        and a.GetDegree() == 1
+        and a.GetTotalNumHs() == 1
+        and a.GetNeighbors()[0].GetAtomicNum() == 6
+        for a in mol.GetAtoms()
     ):
         return None
     found = [
