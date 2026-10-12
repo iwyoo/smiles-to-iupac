@@ -911,6 +911,8 @@ def test_hydrogen_terminated_chalcogen_chains_are_parent_hydrides_with_suffixes(
         pytest.param("COI(C)C", "methoxydi(methyl)-λ3-iodane", id="alkoxy_on_centre"),
         pytest.param("C=S(C)C", "dimethyl(methylidene)-λ4-sulfane", id="ylidene_on_centre"),
         pytest.param("C=S1CCCC1", "1-methylidene-1λ4-thiolane", id="ylidene_on_ring_centre"),
+        pytest.param("C=[Se]1C=CC=C1", "1-methylidene-1H-1λ4-selenophene", id="ylidene_on_mancude_ring_centre"),
+        pytest.param("C=S1C=CC=C1C(=O)O", "1-methylidene-1H-1λ4-thiophene-2-carboxylic acid", id="ylidene_on_mancude_ring_centre_with_acid"),
     ],
 )
 def test_nonstandard_bonding_number_hydrides_and_chalcogen_chains(smiles, expected):

@@ -398,6 +398,7 @@ def _hetero_monocycle(mol, ring_order, attached):
     }
     ring_double |= triple_atoms
     heterones = _chalcogen_heterones(mol, ring_set) & SUFFIX_ATOMS.get() if not aromatic else set()
+    ylidene_centres = _ylidene_chalcogens(mol, ring_set) if not aromatic else set()
     for a in atoms:
         for n in a.GetNeighbors():
             exocyclic_double = (
@@ -409,6 +410,7 @@ def _hetero_monocycle(mol, ring_order, attached):
                 and a.GetAtomicNum() != 6
                 and a.GetAtomicNum() not in GROUP_13
                 and a.GetIdx() not in heterones
+                and a.GetIdx() not in ylidene_centres
             ):
                 raise UnsupportedStructure("a ring atom with an exocyclic double bond is not supported as a diyl yet")
     if not aromatic and any(
@@ -417,7 +419,7 @@ def _hetero_monocycle(mol, ring_order, attached):
         if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
     ):
         raise UnsupportedStructure("this ring bond is not supported as a diyl yet")
-    can_hold = {i for i in ring_order if sym[i] not in _NO_DOUBLE_BOND or (sym[i] in ("S", "Se", "Te") and i in ring_double)} | heterones
+    can_hold = {i for i in ring_order if sym[i] not in _NO_DOUBLE_BOND or (sym[i] in ("S", "Se", "Te") and i in ring_double)} | heterones | ylidene_centres
     oxo_all = _exocyclic_oxo(mol, ring_set) | (heterones - ring_double)
     oxo_suffix = oxo_all & SUFFIX_ATOMS.get()
     if aromatic:
@@ -968,6 +970,25 @@ def _chalcogen_heterones(mol, skeleton_atoms):
         and any(
             n.GetIdx() not in skeleton_atoms
             and (n.GetAtomicNum() == 8 and n.GetDegree() == 1 or n.GetAtomicNum() == 7 and not n.GetFormalCharge())
+            and mol.GetBondBetweenAtoms(a, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in mol.GetAtomWithIdx(a).GetNeighbors()
+        )
+    }
+
+
+def _ylidene_chalcogens(mol, skeleton_atoms):
+    """Ring sulfur, selenium or tellurium atoms bearing a doubly bonded carbon group: λ4 atoms whose indicated hydrogen the
+    ylidene prefix replaces, as the oxo group does in '1-oxo-1H-1λ4-thiophene' (P-22.2.7.1, P-68.4.3.1)."""
+    ring_info = mol.GetRingInfo()
+    return {
+        a
+        for a in skeleton_atoms
+        if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)
+        and ring_info.NumAtomRings(a) == 1
+        and not mol.GetAtomWithIdx(a).GetFormalCharge()
+        and any(
+            n.GetIdx() not in skeleton_atoms
+            and n.GetAtomicNum() == 6
             and mol.GetBondBetweenAtoms(a, n.GetIdx()).GetBondTypeAsDouble() == 2.0
             for n in mol.GetAtomWithIdx(a).GetNeighbors()
         )
