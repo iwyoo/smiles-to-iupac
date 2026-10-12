@@ -562,12 +562,12 @@ def _with_anion_centers(parent, located, suffix="yl"):
         return f"{parent}-{sites}-{_COUNT_PREFIX[count]}{word}"
     if suffix in SUFFIX_OF_ORDER.values():
         match = re.search(r"(-\d+(?:,\d+)*-)?(?:di|tri)?(?:yl|ylidene|ylidyne)$", parent)
-        ending = word[:-1]
     else:
         match = re.search(rf"(-\d+(?:,\d+)*-)(?:di|tri|tetra|penta|hexa)?{re.escape(suffix)}$", parent)
-        ending = word[:-1] if suffix[0] in "aeiouy" else word
     if match is None:
         raise UnsupportedStructure("this substituent group cannot carry an anionic center yet")
+    following = match.group(0)[len(match.group(1) or ""):]
+    ending = word[:-1] if following[0] in "aeiouy" else word
     base = parent[: match.start()]
     if base.endswith("e"):
         base = base[:-1]

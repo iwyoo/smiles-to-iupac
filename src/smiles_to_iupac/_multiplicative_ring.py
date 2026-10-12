@@ -364,8 +364,8 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
         else:
             free_key = tuple(sorted(locants[a] for a in free_atoms))
         key = (
-            tuple(sorted(locants[a] for a, _ in centers)),
             free_key,
+            tuple(sorted(locants[a] for a, _ in centers)),
             multiple_locants(spec, locants),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),

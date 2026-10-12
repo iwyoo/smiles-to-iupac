@@ -666,6 +666,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _carbon_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mol)
         return _anionic_group(mol, root, coming_from)
     if atom.HasProp("_anion_word"):
+        if atom.IsInRing():
+            from ._diester_ring_diyl import ring_substituent_name
+
+            return ring_substituent_name(mol, graph, root, coming_from)
         from ._anion_center import center_prefix
 
         return center_prefix(mol, root, coming_from)
