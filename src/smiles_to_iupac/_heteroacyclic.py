@@ -321,7 +321,12 @@ def _long_identical_run(mol, path, hetero_positions):
 
 
 def name_heteroacyclic(mol):
-    """The skeletal-replacement name, or None when `mol` does not qualify."""
+    """The skeletal-replacement name, or None when `mol` does not qualify. A secondary or tertiary amine is the principal
+    group when the chains qualify without its nitrogen atom, else its nitrogen is a skeletal atom (P-62.2.4.1.3)."""
+    return _name_heteroacyclic(mol, True) or _name_heteroacyclic(mol, False)
+
+
+def _name_heteroacyclic(mol, amine_groups):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     aminium = {} if any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()) else _aminium_groups(mol)
@@ -349,6 +354,11 @@ def name_heteroacyclic(mol):
     ring_groups = _ring_occurrences(mol)
     classes = set(groups) | {c for c, _, _ in ring_groups} | ({"amide"} if carbamoyl else set())
     principal = "aminium" if aminium else next((c for c in _ORDER if c in classes), None)
+    if amine_groups and not aminium and principal in (None, "amine"):
+        for nitrogen in filter(lambda a: _amine_nitrogen(mol, a), mol.GetAtoms()):
+            for neighbor in nitrogen.GetNeighbors():
+                groups.setdefault("amine", {}).setdefault(neighbor.GetIdx(), {nitrogen.GetIdx()})
+            principal = "amine"
     if principal is not None and any(c == principal for c, _, _ in ring_groups):
         return None
     if not aminium and any(
@@ -386,10 +396,11 @@ def name_heteroacyclic(mol):
     bond_codes = {
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
     }
-    best, best_chain = None, ()
+    best, best_chain, replacement_atoms = None, (), set()
     for path in _chain_paths(graph, eligible, carbamoyl if principal == "amide" else {}):
         if not _acceptable_path(mol, path):
             continue
+        replacement_atoms.update(path)
         for chain in (path, path[::-1]):
             candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl)
             if candidate is not None and (best is None or candidate[0] < best[0]):
@@ -397,10 +408,33 @@ def name_heteroacyclic(mol):
     if best is None:
         return None
     if principal is None and any(
-        a.GetAtomicNum() in _SENIOR_TO_OXYGEN and not a.IsInRing() and a.GetIdx() not in best_chain for a in mol.GetAtoms()
+        a.GetAtomicNum() in _SENIOR_TO_OXYGEN
+        and not a.IsInRing()
+        and a.GetIdx() not in best_chain
+        and a.GetIdx() not in replacement_atoms
+        for a in mol.GetAtoms()
     ):
         return None
     return best[1]
+
+
+def _amine_nitrogen(mol, atom):
+    """A secondary or tertiary amine nitrogen with carbon groups only: it carries the principal group, so the amine suffix
+    names the compound and the other chains are N-substituents (P-62.2.4, P-44.1.1)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and not atom.IsInRing()
+        and not atom.GetFormalCharge()
+        and not atom.GetIsAromatic()
+        and atom.GetDegree() in (2, 3)
+        and all(
+            n.GetAtomicNum() == 6
+            and not n.IsInRing()
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and not is_functional_carbon(mol, n.GetIdx())
+            for n in atom.GetNeighbors()
+        )
+    )
 
 
 def _chain_paths(graph, eligible, carbamoyl):
@@ -488,6 +522,13 @@ def _evaluate(
                         if neighbor != carbon:
                             name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                             nitrogen_entries.setdefault("N", []).append((name, compound))
+        elif principal == "amine":
+            for rank, carbon in enumerate(sorted(on_chain, key=position_of.get)):
+                for nitrogen in principal_atoms[carbon]:
+                    for neighbor in graph[nitrogen]:
+                        if neighbor != carbon:
+                            name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                            nitrogen_entries.setdefault("N" + "'" * rank, []).append((name, compound))
         elif principal in ("amide", "amidine"):
             primes = ("N", "N'", "N''", "N'''")
             for rank, carbon in enumerate(sorted(on_chain, key=position_of.get)):
@@ -592,6 +633,7 @@ def _evaluate(
         -count,
         -sum(len(ps) for ps in by_element.values()),
         -length,
+        tuple(-len(by_element.get(z, ())) for z in _A_ORDER),
         hetero_set,
         hetero_order,
         tuple(sorted(lambda_of)),
