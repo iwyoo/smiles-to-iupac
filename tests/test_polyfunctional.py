@@ -1084,6 +1084,9 @@ def test_ring__thiol_and_related(smiles, expected):
         ("CN=C(O)c1ccc(cc1)C(O)=NC", "N1,N4-dimethylbenzene-1,4-dicarboximidic acid"),
         ("OC(=O)c1ccccc1S(=O)(=O)OC", "2-(methoxysulfonyl)benzoic acid"),
         ("CCCS(=O)(=O)c1ccccc1", "(propane-1-sulfonyl)benzene"),
+        ("O=C(SOC)c1ccccc1", "SO-methyl benzene(carbothioperoxoate)"),
+        ("CCSOS(=O)(=O)CC", "OS-ethyl ethanesulfono(thioperoxoate)"),
+        ("O=C([Se]OC)CCCCC", "SeO-methyl hexane(selenoperoxoate)"),
     ],
 )
 def test_acid_functional_replacement_names(smiles, expected):
