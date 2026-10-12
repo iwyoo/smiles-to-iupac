@@ -70,7 +70,7 @@ def test_multiparent_name_beats_retained_benzoazole_fusion_name(smiles, expected
         ("O=C1NC(=O)C2CCCCC12", "hexahydro-1H-isoindole-1,3(2H)-dione"),
         ("O=C1C(=O)Cc2c1c1ccccc1cc2", "1H-cyclopenta[a]naphthalene-1,2(3H)-dione"),
         ("O=C1C(=O)Cc2c1ccc1ccccc21", "1H-cyclopenta[a]naphthalene-2,3-dione"),
-        ("O=C1SC(=S)c2ccccc12", "3-sulfanylidene-2-benzothiophen-1-one"),
+        ("O=C1SC(=S)c2ccccc12", "3-sulfanylidene-2-benzothiophen-1(3H)-one"),
     ],
 )
 def test_indicated_hydrogen_at_lowest_position_before_added_hydrogen(smiles, expected):
@@ -1066,4 +1066,18 @@ def test_ring_triple_bond_of_a_fused_carbocycle(smiles, expected):
 )
 def test_hydro_locants_of_a_bridged_fused_system_are_omitted_when_every_position_is_hydrogenated(smiles, expected):
     # P-14.3.4.5
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("N=C1C=CC(=O)c2ccccc12", "4-iminonaphthalen-1(4H)-one", id="imino_at_the_added_hydrogen_position"),
+        pytest.param("O=C1C=CC(=C)c2ccccc12", "4-methylidenenaphthalen-1(4H)-one", id="methylidene_at_the_added_hydrogen_position"),
+        pytest.param("N=C1C=CC(=S)c2ccccc12", "4-iminonaphthalene-1(4H)-thione", id="thione_suffix"),
+        pytest.param("O=C1C=CC(=O)c2ccccc12", "naphthalene-1,4-dione", id="two_ketone_suffixes_need_no_added_hydrogen"),
+    ],
+)
+def test_added_hydrogen_of_a_ketone_suffix_beside_an_ylidene_prefix(smiles, expected):
+    # P-58.2.4, P-31.1.4.3.4
     assert smiles_to_iupac(smiles) == expected
