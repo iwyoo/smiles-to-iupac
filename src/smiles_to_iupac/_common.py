@@ -1254,9 +1254,20 @@ def alpha_sort_key(name: str) -> str:
     return key
 
 
+def _inner_locants(name: str):
+    stripped, previous = name, None
+    while stripped != previous:
+        previous = stripped
+        for leading in (_LEADING_ISOTOPE_RE, _LEADING_STEREO_RE, _LEADING_ANOMER_RE):
+            stripped = leading.sub("", stripped)
+    return tuple(int(digits) for digits in re.findall(r"\d+", stripped))
+
+
 def citation_order_key(name: str):
-    """Alphanumerical order, an isotopically modified substituent ahead of the unmodified one (P-82.2.2.1), then configuration (P-45.6.3)."""
-    return alpha_sort_key(name), not _LEADING_ISOTOPE_RE.match(name), _descriptor_precedence(name)
+    """Alphanumerical order: letters, then the locants inside the name in cited order (P-14.5.4), then enclosing marks
+    (P-14.6); an isotopically modified substituent ahead of the unmodified one (P-82.2.2.1), then configuration (P-45.6.3)."""
+    letters = alpha_sort_key(name)
+    return str(letters), _inner_locants(name), letters.marks, not _LEADING_ISOTOPE_RE.match(name), _descriptor_precedence(name)
 
 
 _DESCRIPTOR_PRECEDENCE = {"Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "R": 2, "S": 3, "r": 4, "s": 5, "M": 2, "P": 3, "m": 4, "p": 5}

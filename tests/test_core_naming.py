@@ -925,6 +925,17 @@ def test_prefixes_with_identical_letters_are_ordered_by_their_marks(smiles):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("ClCCc1cc2cc[nH]c2cc1C(C)Cl", "6-(1-chloroethyl)-5-(2-chloroethyl)-1H-indole"),
+        ("CC(C)C(CC)C1(C(C)C(C)CC)CCCC1", "1-(2-methylpentan-3-yl)-1-(3-methylpentan-2-yl)cyclopentane"),
+    ],
+)
+def test_prefixes_with_identical_letters_are_ordered_by_their_inner_locants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param(
             "CN=C(NCCCn1cccn1)NCc1ccc(C)cc1",
             "N''-methyl-N-[(4-methylphenyl)methyl]-N'-[3-(1H-pyrazol-1-yl)propyl]guanidine",
