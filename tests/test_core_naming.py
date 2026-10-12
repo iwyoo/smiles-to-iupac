@@ -775,6 +775,9 @@ def test_toluene_and_xylenes_only_when_unsubstituted(smiles, expected):
         ("O1CC=NC=CC=NC=CN=CC=C1", "1-oxa-4,8,11-triazacyclotetradeca-3,5,7,9,11,13-hexaene"),
         ("O1\\C=C/OCCOCCOCC1", "(2Z)-1,4,7,10-tetraoxacyclododec-2-ene"),
         ("O1C\\C=N\\CCCCCCCC1", "(3E)-1-oxa-4-azacyclododec-3-ene"),
+        ("O1CC#CCCCCCCC1", "1-oxacycloundec-3-yne"),
+        ("[SiH2]1CC#CCCCCCCCCCCC1", "1-silacyclopentadec-3-yne"),
+        ("[SiH2]1CC#C/C=C\\C=C\\CC[SiH2]CCCCCCCCC1", "(5Z,7E)-1,11-disilacycloicosa-5,7-dien-3-yne"),
     ],
 )
 def test_unsaturated_heteromacrocycles_by_skeletal_replacement(smiles, expected):

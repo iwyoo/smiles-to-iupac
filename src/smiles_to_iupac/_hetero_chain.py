@@ -206,17 +206,18 @@ _MACRO_A_PREFIX = {8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza"}
 _MACRO_SENIORITY = [8, 16, 34, 52, 7]
 
 
-def _ring_double_bonds(mol, ring_set):
-    """The double bonds of a monocycle, or None when any other bond is not single or a double bond leaves the ring."""
-    doubles = []
+def _ring_multiple_bonds(mol):
+    """(double bonds, triple bonds) of a monocycle, or None when any other bond is not single or a multiple bond leaves
+    the ring."""
+    doubles, triples = [], []
     for bond in mol.GetBonds():
         order = bond.GetBondTypeAsDouble()
         if order == 1.0:
             continue
-        if order != 2.0 or not bond.IsInRing():
+        if order not in (2.0, 3.0) or not bond.IsInRing():
             return None
-        doubles.append(bond)
-    return doubles
+        (doubles if order == 2.0 else triples).append(bond)
+    return doubles, triples
 
 
 def _ring_double_bond_labels(mol):
@@ -245,17 +246,21 @@ def name_hetero_macrocycle(mol):
     if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
         return None
     ring_set = set(ring)
-    doubles = _ring_double_bonds(mol, ring_set)
-    if doubles is None or (doubles and size in _HW_STEM):
+    multiple = _ring_multiple_bonds(mol)
+    if multiple is None:
+        return None
+    doubles, triples = multiple
+    if (doubles or triples) and size in _HW_STEM:
         return None
     zs = {i: mol.GetAtomWithIdx(i).GetAtomicNum() for i in ring}
-    if sum(1 for z in zs.values() if z != 6) < (1 if doubles else 2):
+    if sum(1 for z in zs.values() if z != 6) < (1 if doubles or triples else 2):
         return None
     graph = adjacency(mol)
     if any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 for i in range(mol.GetNumAtoms()) if i not in ring_set):
         raise UnsupportedStructure("only alkyl substituents are supported on a heteromacrocycle")
     senior = next(z for z in _MACRO_SENIORITY if z in zs.values())
     double_pairs = {frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())) for b in doubles}
+    triple_pairs = {frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())) for b in triples}
     labels = _ring_double_bond_labels(mol) if doubles else {}
     cycle = [ring[0]]
     while len(cycle) < size:
@@ -269,11 +274,14 @@ def name_hetero_macrocycle(mol):
             locant = {a: k + 1 for k, a in enumerate(order)}
             hetero = {z: [locant[a] for a in order if zs[a] == z] for z in _MACRO_SENIORITY}
             lam = {locant[a]: n for a in order if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
-            ene = []
+            ene, yne = [], []
             for k, a in enumerate(order):
                 b = order[(k + 1) % size]
+                bond_locant = size if k == size - 1 else k + 1
                 if frozenset((a, b)) in double_pairs:
-                    ene.append((size if k == size - 1 else k + 1, labels.get(frozenset((a, b)))))
+                    ene.append((bond_locant, labels.get(frozenset((a, b)))))
+                elif frozenset((a, b)) in triple_pairs:
+                    yne.append(bond_locant)
             substituents: dict = {}
             for a in order:
                 for n in graph[a]:
@@ -286,13 +294,14 @@ def name_hetero_macrocycle(mol):
                 [hetero[z] for z in _MACRO_SENIORITY],
                 sorted(lam),
                 [-lam[p] for p in sorted(lam)],
+                sorted([l for l, _ in ene] + yne),
                 sorted(l for l, _ in ene),
                 sorted(l for e in substituents.values() for l in e["locants"]),
                 [substituents[k]["locants"] for k in sorted(substituents)],
             )
             if best is None or key < best[0]:
-                best = (key, hetero, substituents, lam, sorted(ene))
-    _, hetero, substituents, lam, ene = best
+                best = (key, hetero, substituents, lam, sorted(ene), sorted(yne))
+    _, hetero, substituents, lam, ene, yne = best
     prefixes = format_substituent_prefixes(substituents)
     ordered = [z for z in _MACRO_SENIORITY if hetero[z]]
     all_replaced = len(ordered) == 1 and len(hetero[ordered[0]]) == size
@@ -309,8 +318,8 @@ def name_hetero_macrocycle(mol):
         name = f"{all_locs}{a_text[:-1]}{_HW_STEM[size]}"
     else:
         stem = "cyclo" + alkane_name(size)[:-3]
-        if ene:
-            body, needs_a = unsaturation_suffix([locant for locant, _ in ene], [])
+        if ene or yne:
+            body, needs_a = unsaturation_suffix([locant for locant, _ in ene], yne)
             ending = f"{stem}{'a' if needs_a else ''}-{body}"
         else:
             ending = stem + "ane"
