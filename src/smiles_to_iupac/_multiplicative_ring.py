@@ -89,7 +89,7 @@ _PRIMARY_NITROGEN = {
     *(name for (_, oxo, terminal), name in SULFONYL_GROUP_NAMES.items() if terminal == "amide" and "NH" not in oxo and "NNH2" not in oxo),
 }
 _HETERO_PARENTS = {"pyridine": "pyridine", "furan": "furan", "thiophene": "thiophene", "pyrrole": "1H-pyrrole"}
-_VALENCE_COUNTS = (2, 3, 4)
+_VALENCE_COUNTS = (2, 3, 4, 5, 6)
 
 
 @dataclass
