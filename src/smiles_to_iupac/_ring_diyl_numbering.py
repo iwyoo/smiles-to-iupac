@@ -33,6 +33,7 @@ from ._hetero_monocyclic import (
     saturated_seven_membered_1_4_two_heteroatom_ring_name,
     saturated_two_heteroatom_1_4_ring_name,
 )
+from ._multiplicative_text import enclose
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
 from ._polyspiro import (
@@ -111,6 +112,8 @@ def _locant(text):
 
 SUFFIX_ATOMS = ContextVar("SUFFIX_ATOMS", default=frozenset())
 OMIT_SUFFIX_LOCANT = ContextVar("omit_suffix_locant", default=False)
+ENCLOSE_MULTIPARENT = ContextVar("enclose_multiparent", default=False)
+_MULTIPARENT_TAIL = re.compile(r"\[[^\[\]]*:[^\[\]]*\](?:(?:di|tri|tetra)(?:\[\d+\])?[a-z]+|(?:bis|tris|tetrakis)\(.+\))$")
 
 
 class Numbering:
@@ -149,8 +152,11 @@ def _tail(stem, locants, valence, suffix="yl", omit_locant=None):
         return stem
     if suffix != "yl":
         word = multiplied_word(valence, suffix)
+        multiparent = bool(_MULTIPARENT_TAIL.search(stem))
+        if multiparent and ENCLOSE_MULTIPARENT.get():
+            stem = enclose(stem)
         base = stem[:-1] if stem.endswith("e") and word[0] in "aeiouy" else stem
-        if OMIT_SUFFIX_LOCANT.get() if omit_locant is None else omit_locant:
+        if (OMIT_SUFFIX_LOCANT.get() if omit_locant is None else omit_locant) and not multiparent:
             return base + word
         return f"{base}-{_locs(locants)}-{word}"
     if valence == 1:

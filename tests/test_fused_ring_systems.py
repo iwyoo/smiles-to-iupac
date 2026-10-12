@@ -1082,3 +1082,24 @@ def test_hydro_locants_of_a_bridged_fused_system_are_omitted_when_every_position
 def test_added_hydrogen_of_a_ketone_suffix_beside_an_ylidene_prefix(smiles, expected):
     # P-58.2.4, P-31.1.4.3.4
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1cnc2c(n1)non2", "[1,2,5]oxadiazolo[3,4-b]pyrazine", id="monocycle_component_numbers_from_its_senior_heteroatom"),
+        pytest.param(
+            "OC(=O)c1cc2nonc2c2nonc12",
+            "[benzo[1,2-c:3,4-c']bis([1,2,5]oxadiazole)]-4-carboxylic acid",
+            id="multiparent_with_a_sole_suffix_is_enclosed_and_keeps_its_locant",
+        ),
+        pytest.param(
+            "N#CC1=CC2=CC3=CC=CC=CC3=CC2=CC=C1",
+            "(benzo[1,2:4,5]di[7]annulene)-2-carbonitrile",
+            id="enclosing_parentheses_when_the_multiparent_has_only_fusion_brackets",
+        ),
+    ],
+)
+def test_multiparent_fused_system_with_a_suffix_and_monocycle_component_numbering(smiles, expected):
+    # P-22.2.2.1.3, P-25.3.1.3, P-16.5.1.9
+    assert smiles_to_iupac(smiles) == expected
