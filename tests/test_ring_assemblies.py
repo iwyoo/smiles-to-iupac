@@ -134,6 +134,9 @@ def test_double_bond_junction_between_fused_systems(smiles, expected):
         pytest.param("C1CCC(CC1)c1ccccc1", "cyclohexylbenzene", id="benzene_and_cyclohexane_pair_is_the_stated_exception"),
         pytest.param("C1CCC(CC1)c1ccc(cc1)c1ccccc1", "1¹,1²,1³,1⁴,1⁵,1⁶-hexahydro-1¹,2¹:2⁴,3¹-terphenyl", id="three_rings_mixing_benzene_and_cyclohexane_take_hydro_prefixes"),
         pytest.param("C1CCSC1c1ccc(s1)c1cccs1", "1²,1³,1⁴,1⁵-tetrahydro-1²,2²:2⁵,3²-terthiophene", id="three_rings_five_membered_saturated_ring"),
+        pytest.param("C1(=CC=CCC1)C1=CC=CC=C1", "2,3-dihydro-1,1'-biphenyl", id="two_rings_benzene_and_cyclohexadiene_take_hydro_prefixes"),
+        pytest.param("C1=CCCCC1c1ccccc1", "1,2,3,4-tetrahydro-1,1'-biphenyl", id="benzene_and_cyclohexene_take_hydro_prefixes"),
+        pytest.param("C1CC=CC=C1C1=CC=C(C=C1)C1=CC=CC=C1", "1²,1³-dihydro-1¹,2¹:2⁴,3¹-terphenyl", id="three_rings_benzene_and_cyclohexadiene_take_hydro_prefixes"),
     ],
 )
 def test_4_chlorobiphenyl_and_related(smiles, expected):

@@ -113,6 +113,8 @@ from ._ring_assembly_chain import (
     hydro_locants,
     hydro_prefix,
     hydro_sort_key,
+    hydrogenated_atoms,
+    partly_hydrogenated_benzene,
     saturated_counterpart_kind,
     validate_hetero_ring_assembly_atoms,
 )
@@ -268,6 +270,10 @@ def find_ring_assembly_core(mol):
         kind0, hydro_ring = saturated_counterpart_kind(mol, graph, atom_rings[0]), 0
     elif kind1 is None and kind0 is not None and kind0[0] in _NON_NH_ROLE_SEQUENCES:
         kind1, hydro_ring = saturated_counterpart_kind(mol, graph, atom_rings[1]), 1
+    elif kind0 is None and kind1 == ("aromatic", 6) and partly_hydrogenated_benzene(mol, atom_rings[0]):
+        kind0, hydro_ring = kind1, 0
+    elif kind1 is None and kind0 == ("aromatic", 6) and partly_hydrogenated_benzene(mol, atom_rings[1]):
+        kind1, hydro_ring = kind0, 1
     if kind0 is None and kind1 is None:
         kind0 = _saturated_heteroring_kind(mol, graph, atom_rings[0])
         kind1 = _saturated_heteroring_kind(mol, graph, atom_rings[1])
@@ -422,7 +428,7 @@ def name_ring_assembly(mol, core) -> str:
                 hydro = ()
                 if hydro_ring is not None:
                     saturated = (ring0_atoms, ring1_atoms)[hydro_ring]
-                    hydro = hydro_locants(locants[atom] for atom in saturated)
+                    hydro = hydro_locants(locants[atom] for atom in hydrogenated_atoms(mol, saturated))
                 key = _candidate_key(
                     locants,
                     ring_atoms,

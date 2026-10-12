@@ -228,6 +228,36 @@ def saturated_counterpart_kind(mol, graph, ring):
     return None
 
 
+def _ring_double_atoms(mol, ring):
+    ring_set = set(ring)
+    return {
+        a
+        for b in mol.GetBonds()
+        if b.GetBondTypeAsDouble() == 2.0 and b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
+        for a in (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
+    }
+
+
+def partly_hydrogenated_benzene(mol, ring):
+    """A non-aromatic six-carbon ring with one or two double bonds and no multiple bond leaving it: a benzene ring with
+    hydro prefixes (P-31.2.3.3.5.1(a)); the fully saturated ring is cyclohexane and stays a substituent (P-54.3)."""
+    if len(ring) != 6 or any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 or mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+        return False
+    ring_set = set(ring)
+    bonds = [b for b in mol.GetBonds() if b.GetBeginAtomIdx() in ring_set or b.GetEndAtomIdx() in ring_set]
+    if any(
+        b.GetBondTypeAsDouble() > 1.0 and not (b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set) for b in bonds
+    ):
+        return False
+    return not any(b.GetBondTypeAsDouble() == 3.0 for b in bonds) and len(_ring_double_atoms(mol, ring)) in (2, 4)
+
+
+def hydrogenated_atoms(mol, ring):
+    """The ring atoms that take hydro prefixes: those outside a ring double bond (every atom of a saturated ring)."""
+    doubled = _ring_double_atoms(mol, ring)
+    return [a for a in ring if a not in doubled]
+
+
 def hydro_sort_key(locant):
     """Order of a (possibly primed) locant: 1, 1', 2, 2' ..."""
     return (int(locant.rstrip("'")), locant.endswith("'"))
@@ -320,7 +350,9 @@ def find_ring_assembly_chain_core(mol):
         kinds.append(kind)
     if ("aromatic", 6) in kinds:
         for i, kind in enumerate(kinds):
-            if kind == ("saturated", 6) and not _has_ring_multiple_bond(mol, atom_rings[i]):
+            if kind == ("saturated", 6) and (
+                not _has_ring_multiple_bond(mol, atom_rings[i]) or partly_hydrogenated_benzene(mol, atom_rings[i])
+            ):
                 kinds[i] = ("aromatic", 6)
                 hydro_rings.append(frozenset(atom_rings[i]))
     if len(set(kinds)) != 1 or None in kinds or len(hydro_rings) == n:
@@ -418,14 +450,16 @@ def validate_hetero_ring_assembly_atoms(mol, ring_atoms_all, kind):
     )
 
 
-def _multiple_bond_locants(mol, locants, ring_size):
+def _multiple_bond_locants(mol, locants, ring_size, hydro_atoms=frozenset()):
     """([(ring, position)] of the ring double bonds, [...] of the triple bonds) in a composite numbering; the first
-    atom of each bond cites it (P-31.1.7.1)."""
+    atom of each bond cites it (P-31.1.7.1). The double bonds of a benzene ring with hydro prefixes are not cited."""
     enes, ynes = [], []
     for bond in mol.GetBonds():
         order = bond.GetBondTypeAsDouble()
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         if order == 1.0 or a not in locants or b not in locants or locants[a][0] != locants[b][0] or bond.GetIsAromatic():
+            continue
+        if a in hydro_atoms and b in hydro_atoms:
             continue
         ring_number = locants[a][0]
         low, high = sorted((locants[a][1], locants[b][1]))
@@ -543,16 +577,16 @@ def name_ring_assembly_chain(mol, core) -> str:
             for i, (a, b) in enumerate(conns):
                 junction_pairs.append((locants[a], locants[b]))
             hydro = sorted(
-                (i + 1, pos)
+                (i + 1, combo[i][atom])
                 for i in range(n)
                 if frozenset(order[i]) in hydro_rings
-                for pos in combo[i].values()
-                if not (ring_size == 5 and pos == 1)
+                for atom in hydrogenated_atoms(mol, order[i])
+                if not (ring_size == 5 and combo[i][atom] == 1)
             )
             all_junction_locants = [loc for pair in junction_pairs for loc in pair]
             junction_locant_set = tuple(sorted(all_junction_locants))
             junction_citation = tuple(all_junction_locants)
-            found = _multiple_bond_locants(mol, locants, ring_size)
+            found = _multiple_bond_locants(mol, locants, ring_size, set().union(*hydro_rings) if hydro_rings else frozenset())
             if found is None:
                 continue
             enes, ynes = found
