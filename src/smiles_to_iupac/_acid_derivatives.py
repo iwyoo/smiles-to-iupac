@@ -562,6 +562,52 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     return " ".join(part for part in (_pendant_text(mol, graph, pendants), diyl, anion_text) if part)
 
 
+def _ester_pieces(mol, esters):
+    frags, owner = _fragments(mol, [(l.chain[-1], l.far) for l in esters])
+    acid_pieces, r_pieces = {}, {}
+    for l in esters:
+        acid_pieces.setdefault(owner[l.center], []).append(l)
+        r_pieces.setdefault(owner[l.far], []).append(l)
+    return frags, owner, acid_pieces, r_pieces
+
+
+def _suffixed_links(mol, frags, acid_pieces):
+    return {c: _suffix_links(mol, ls, frags[c], lambda l: l.chain[-1]) if len(ls) > 1 else ls for c, ls in acid_pieces.items()}
+
+
+def _acid_piece_rank(mol, frags, acid_pieces, r_pieces, piece):
+    carboxylic = any(
+        mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 and (_center(mol, l.center) or ("",))[0] == "acyl" for l in acid_pieces[piece]
+    )
+    return carboxylic, len(acid_pieces[piece]), _acid_rank(mol, frags[piece], acid_pieces[piece], r_pieces.get(piece, []))
+
+
+def _polyester_with_acyloxy_groups(mol, links):
+    """P-65.6.3.3.4.2: '2-(acetyloxy)ethyl methyl ethane-1,2-diyl dibutanedioate': an acyl group that is the only ester
+    of its acid and ranks below the others is an acyloxy prefix of an organyl group, not an anion of the name."""
+    if any(l.kind != "ester" for l in links):
+        return None
+    try:
+        _reject_unsupported(mol)
+    except UnsupportedStructure:
+        return None
+    frags, owner, acid_pieces, r_pieces = _ester_pieces(mol, links)
+    if len(acid_pieces) < 3:
+        return None
+    graph = adjacency(mol)
+    esters = links
+    ranks = {i: _acid_piece_rank(mol, frags, acid_pieces, r_pieces, i) for i in acid_pieces}
+    top = max(ranks.values())
+    junior = {i for i, links in acid_pieces.items() if len(links) == 1 and ranks[i] < top}
+    if not junior:
+        return None
+    kept = [l for l in esters if owner[l.center] not in junior]
+    frags, owner, acid_pieces, r_pieces = _ester_pieces(mol, kept)
+    if len(acid_pieces) != 2:  # three or more anion residues are named by skeletal replacement (P-65.6.3.3.4.3)
+        return None
+    return _multiplicative_ester(mol, graph, kept, frags, owner, acid_pieces, r_pieces, _suffixed_links(mol, frags, acid_pieces))
+
+
 def _free_acid_hydroxyl(mol, idx):
     """A hydroxy group on an acid centre, cited as 'hydrogen' in the anion word."""
     atom = mol.GetAtomWithIdx(idx)
@@ -697,18 +743,9 @@ def name_ester(mol, links):
         raise UnsupportedStructure("the seniority of this phosphorus or boron ester among the other groups is not decided here")
     esters = [l for l in links if l.kind == "ester"]
     graph = adjacency(mol)
-    cuts = [(l.chain[-1], l.far) for l in esters]
-    frags, owner = _fragments(mol, cuts)
-    acid_pieces = {}
-    for l in esters:
-        acid_pieces.setdefault(owner[l.center], []).append(l)
-    r_pieces = {}
-    for l in esters:
-        r_pieces.setdefault(owner[l.far], []).append(l)
+    frags, owner, acid_pieces, r_pieces = _ester_pieces(mol, esters)
     if len(acid_pieces) > 1:
-        suffixed = {
-            c: _suffix_links(mol, ls, frags[c], lambda l: l.chain[-1]) if len(ls) > 1 else ls for c, ls in acid_pieces.items()
-        }
+        suffixed = _suffixed_links(mol, frags, acid_pieces)
         multiplicative = _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces, suffixed)
         if multiplicative is not None:
             return multiplicative
@@ -716,13 +753,7 @@ def name_ester(mol, links):
             from ._diester_acyloxy import name_diester_acyloxy
 
             return name_diester_acyloxy(mol)
-    def _carboxylic(i):
-        return any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 and (_center(mol, l.center) or ("",))[0] == "acyl" for l in acid_pieces[i])
-
-    principal = max(
-        acid_pieces,
-        key=lambda i: (_carboxylic(i), len(acid_pieces[i]), _acid_rank(mol, frags[i], acid_pieces[i], r_pieces.get(i, []))),
-    )
+    principal = max(acid_pieces, key=lambda i: _acid_piece_rank(mol, frags, acid_pieces, r_pieces, i))
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])
     acid_atoms = component[0][component[1][chosen[0].center]]
@@ -1400,6 +1431,10 @@ def name_acid_derivative(mol):
         raise UnsupportedStructure("a cationic centre outranks the ester, which is then a prefix (P-41)")
     from ._heteroacyclic import name_heteroacyclic_ester
 
+    if not acid:
+        acyloxy = _polyester_with_acyloxy_groups(mol, links)
+        if acyloxy is not None:
+            return acyloxy
     skeletal = name_heteroacyclic_ester(mol)
     if skeletal is not None:
         return skeletal
