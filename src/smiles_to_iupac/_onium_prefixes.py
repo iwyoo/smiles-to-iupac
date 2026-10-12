@@ -3,7 +3,14 @@ every neutral class (P-41), so each group of the substituents is an ordinary pre
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_nitro_nitrogen, plain_phenyl_substituent_atoms
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    halogen_substituents,
+    is_nitro_nitrogen,
+    plain_phenyl_substituent_atoms,
+    specified_stereo_elements,
+)
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 
@@ -28,6 +35,19 @@ def centre_is_specified_stereocentre(mol, center):
         element.centeredOn == center.GetIdx() and element.specified == Chem.StereoSpecified.Specified
         for element in Chem.FindPotentialStereo(mol)
     )
+
+
+def centre_descriptor(mol, center):
+    """P-93.2.2: the R or S of an azanium, phosphanium, arsanium, stibanium or bismuthanium centre with four ligands,
+    cited in front of the cation name without a locant."""
+    if center.GetAtomicNum() not in (7, 15, 33, 51, 83) or center.GetDegree() + center.GetTotalNumHs() != 4:
+        return ""
+    if not centre_is_specified_stereocentre(mol, center):
+        return ""
+    codes = [code for kind, where, code in specified_stereo_elements(mol) or [] if kind == "atom" and where == center.GetIdx()]
+    if not codes:
+        raise UnsupportedStructure("could not determine a CIP descriptor for the onium centre")
+    return f"({codes[0]})-"
 
 
 def onium_name(mol, center, stem):

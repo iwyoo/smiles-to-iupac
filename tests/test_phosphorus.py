@@ -205,13 +205,6 @@ def test_phosphonium_substituent_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phosphonium_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[P@H+](CC)CCC")
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[P@@+](CC)(CCC)CCCC")
-
-
 def test_tetraphenylphosphanium():
     assert smiles_to_iupac("c1ccccc1[P+](c1ccccc1)(c1ccccc1)c1ccccc1") == "tetraphenylphosphanium"
 

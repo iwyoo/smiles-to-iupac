@@ -1783,6 +1783,8 @@ def _name_labelled(mol, labels, finish=None):
         if finish is not None:
             name = finish(name, parts[4])
         owned = set().union(*_principal_owned(mol)[1]) if stereo else frozenset()
+        if AMINIUM.get() is True:
+            owned |= {w for kind, w, _ in stereo if kind == "atom" and mol.GetAtomWithIdx(w).GetAtomicNum() == 7}
         prefix = _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"], suffix=owned)
         return name if prefix and name.startswith(prefix) else prefix + name
     finally:
@@ -1981,6 +1983,8 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset(), su
         if kind == "atom":
             if where in position_of:
                 entries.append((position_of[where], code))
+            elif where in suffix:
+                entries.append(("", code))
             elif ("atom", where) not in used:
                 complete = False
         else:

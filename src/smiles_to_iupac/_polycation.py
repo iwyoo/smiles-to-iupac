@@ -241,6 +241,8 @@ def _name_ring_polycation(mol, centres):
         atom.SetNumExplicitHs(max(hydrogens - 1, 0))
         if mol.GetAtomWithIdx(index).GetDegree() + hydrogens == _CATION_VALENCE[mol.GetAtomWithIdx(index).GetAtomicNum()]:
             atom.SetBoolProp("_ring_cation_centre", True)
+            if not mol.GetAtomWithIdx(index).GetIsAromatic():
+                atom.SetBoolProp("_saturated_onium_centre", True)
     base = editable.GetMol()
     base.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(base)

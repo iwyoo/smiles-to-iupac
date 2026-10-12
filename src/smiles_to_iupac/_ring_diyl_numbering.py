@@ -1045,7 +1045,11 @@ def _fused_mancude(mol, skeleton_atoms):
                 )
             )
         }
-        accommodated = oxo_suffix | {a for a in suffix_atoms & saturated if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}
+        accommodated = oxo_suffix | {
+            a
+            for a in suffix_atoms & saturated
+            if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and (oxo_all or not mol.GetAtomWithIdx(a).HasProp("_saturated_onium_centre"))
+        }
         if oxo_suffix:
             prefix_oxo = (oxo_all - suffix_atoms) & saturated
             quinoid = ih_count == 0 and oxo_all & suffix_atoms and _perfect_matching(set(can_hold) - set(oxo_suffix) - prefix_oxo, adj)
