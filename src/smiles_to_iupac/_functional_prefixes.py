@@ -19,6 +19,7 @@ from ._hetero_prefixes import (
     _has_senior_principal_group,
     _imidoyl_centre,
     _thioacyl,
+    diazo_prefix,
     nitrogen_pseudohalide_prefix,
     phosphoryl_name,
     require_plain_chalcogen_kids,
@@ -279,7 +280,10 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if node in skip or node not in parent_of or mol.GetAtomWithIdx(node).GetAtomicNum() != 7:
             continue
         kids = [n for n in graph[node] if n != parent_of[node]]
-        prefix = nitrogen_pseudohalide_prefix(mol, node, kids, _bond_order(mol, node, parent_of[node]))
+        order_to_parent = _bond_order(mol, node, parent_of[node])
+        prefix = nitrogen_pseudohalide_prefix(mol, node, kids, order_to_parent)
+        if prefix is None and mol.GetAtomWithIdx(parent_of[node]).GetAtomicNum() == 6 and diazo_prefix(mol, node, kids, order_to_parent):
+            prefix = "diazo"
         if prefix is not None:
             pseudohalides[node] = prefix
             skip |= subtree(node) - {node}

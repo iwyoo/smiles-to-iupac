@@ -893,15 +893,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         pseudohalide = nitrogen_pseudohalide_prefix(mol, root, others, order)
         if pseudohalide is not None:
             return pseudohalide, False
-        if order == 2.0 and atom.GetFormalCharge() == 1 and len(others) == 1 and mol.GetAtomWithIdx(coming_from).GetAtomicNum() == 6:
-            far = mol.GetAtomWithIdx(others[0])
-            if (
-                far.GetAtomicNum() == 7
-                and far.GetFormalCharge() == -1
-                and far.GetDegree() == 1
-                and mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 2.0
-            ):
-                return "diazo", False
+        if mol.GetAtomWithIdx(coming_from).GetAtomicNum() == 6 and diazo_prefix(mol, root, others, order):
+            return "diazo", False
         if EXTENDED_PREFIXES.get() and order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1:
             if not others and atom.GetTotalNumHs() == 1:
                 return "imino", False
@@ -1226,6 +1219,20 @@ def nitrogen_pseudohalide_prefix(mol, root, others, order):
     if middle.GetAtomicNum() == 6 and not middle.GetFormalCharge() and not end.GetFormalCharge():
         return _ISOCYANATE_PREFIXES.get(end.GetAtomicNum())
     return None
+
+
+def diazo_prefix(mol, root, others, order):
+    """True for the =N(+)=N(-) group that P-61.4 names 'diazo' when it is double-bonded to its parent carbon."""
+    atom = mol.GetAtomWithIdx(root)
+    if order != 2.0 or atom.GetFormalCharge() != 1 or len(others) != 1:
+        return False
+    far = mol.GetAtomWithIdx(others[0])
+    return (
+        far.GetAtomicNum() == 7
+        and far.GetFormalCharge() == -1
+        and far.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 2.0
+    )
 
 
 _HALOGEN_STEMS = {9: "fluor", 17: "chlor", 35: "brom", 53: "iod"}
