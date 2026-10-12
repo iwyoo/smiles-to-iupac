@@ -1,6 +1,7 @@
 """Three or more contiguous identical chalcogen atoms as a parent hydride (P-68.4.1.1): methyltrisulfane,
-dimethyltrisulfane, methyl(phenyl)triselane, tetramethyltetraselane. The end groups are carbon groups or hydrogen; a
-chain with a characteristic group of higher seniority is a prefix of that group's parent instead."""
+dimethyltrisulfane, methyl(phenyl)triselane, tetramethyltetraselane; a pair is a parent only when halogens are the sole
+other atoms (dichlorodisulfane). The end groups are carbon groups, halogens or hydrogen; a chain with a characteristic
+group of higher seniority is a prefix of that group's parent instead."""
 
 import re
 
@@ -12,7 +13,8 @@ from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _STEMS = {8: "oxidane", 16: "sulfane", 34: "selane", 52: "tellane"}
-_CARBON_AND_HALOGEN = {6, 9, 17, 35, 53}
+_HALOGENS = (9, 17, 35, 53)
+_CARBON_AND_HALOGEN = {6, *_HALOGENS}
 
 
 def _arm_atoms(graph, root, blocked):
@@ -41,7 +43,7 @@ def _contiguous(mol, graph, atoms):
     return found
 
 
-def _run(mol, graph, start):
+def _run(mol, graph, start, shortest=3):
     """The straight chain of identical chalcogen atoms containing `start`, as an ordered list, else None."""
     element = mol.GetAtomWithIdx(start).GetAtomicNum()
     members = {start}
@@ -52,7 +54,7 @@ def _run(mol, graph, start):
                 members.add(n)
                 stack.append(n)
     ends = [a for a in members if sum(n in members for n in graph[a]) <= 1]
-    if len(members) < 3 or len(ends) != 2 or any(sum(n in members for n in graph[a]) > 2 for a in members):
+    if len(members) < shortest or len(ends) != 2 or any(sum(n in members for n in graph[a]) > 2 for a in members):
         return None
     order, previous = [ends[0]], None
     while len(order) < len(members):
@@ -79,8 +81,9 @@ def name_polychalcogen_hydride(mol):
         members = [a for a in mol.GetAtoms() if a.GetAtomicNum() == element]
         if any(a.IsInRing() for a in members):
             return None
+        shortest = 2 if all(a.GetAtomicNum() in (element, *_HALOGENS) for a in mol.GetAtoms()) else 3
         for run in _contiguous(mol, graph, [a.GetIdx() for a in members]):
-            found = _run(mol, graph, next(iter(run))) if len(run) >= 3 else None
+            found = _run(mol, graph, next(iter(run)), shortest) if len(run) >= shortest else None
             if found is not None:
                 parents.append(found)
     names = [name for order in parents if (name := _name_with_parent(mol, graph, order)) is not None]
@@ -106,6 +109,10 @@ def _name_with_parent(mol, graph, order):
     others = set(_STEMS)
     for end in (order[0], order[-1]):
         for root in (n for n in graph[end] if n not in run):
+            if root in halogens:
+                entries.append((halogens[root], False))
+                covered.add(root)
+                continue
             if mol.GetAtomWithIdx(root).GetAtomicNum() not in {6, *others}:
                 return None
             arm = _arm_atoms(graph, root, end)
@@ -118,6 +125,8 @@ def _name_with_parent(mol, graph, order):
                 for i in arm
                 for b in mol.GetAtomWithIdx(i).GetBonds()
             ) or any(mol.GetAtomWithIdx(i).GetAtomicNum() == 6 and is_functional_carbon(mol, i) for i in arm):
+                return None
+            if any(mol.GetAtomWithIdx(i).GetAtomicNum() in _STEMS and mol.GetAtomWithIdx(i).GetTotalNumHs() for i in arm):
                 return None
             covered |= arm
             token = EXTENDED_PREFIXES.set(True)
