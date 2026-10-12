@@ -46,10 +46,10 @@ def _last_forms(base):
     return {base: base, base[:-1] + "ate": base[:-1] + "ate"} if base.endswith("ine") else {base: base}
 
 
-def acyl_word(residue, last=False, xi=True, side_chain=None):
+def acyl_word(residue, last=False, xi=True, side_chain=None, locanted_prefix=False):
     """The acyl (or, for the C-terminal residue, the amino acid) word of a residue name such as 'L-alanine' or
     'N-methyl-L-alanine'; None if not a common amino acid."""
-    words = _words(residue, last)
+    words = _words(residue, last, locanted_prefix)
     if words is None:
         return None
     pre, descriptor, allo, base, ending = words
@@ -64,14 +64,14 @@ def acyl_word(residue, last=False, xi=True, side_chain=None):
     return pre + (f"{descriptor}-" if descriptor else "") + (allo or "") + word
 
 
-def _words(residue, last):
+def _words(residue, last, locanted_prefix=False):
     for base in sorted(_RESIDUES, key=len, reverse=True):
         endings = _last_forms(base).values() if last else (base,)
         for ending in endings:
             if not residue.endswith(ending):
                 continue
             head = _DESCRIPTOR.match(residue[: -len(ending)])
-            if head is not None and (not head.group("pre") or head.group("pre").endswith("-")):
+            if head is not None and (not head.group("pre") or head.group("pre").endswith("-") or (locanted_prefix and "-" in head.group("pre"))):
                 return head.group("pre"), head.group("descriptor"), head.group("allo"), base, ending
     return None
 
