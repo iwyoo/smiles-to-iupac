@@ -1122,14 +1122,16 @@ def _bridged_numberings(mol, skeleton_atoms):
         ih, added, hydro = split
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
         stem = parent.stem
+        modified = {a for a in capable if position_of[a] in hydro} | (accommodated & capable)
+        fully_saturated = bool(hydro) and capable <= modified
 
-        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, stem=stem):
+        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, stem=stem, full=fully_saturated):
             rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
-            hydro_text = _hydro_text(hydro)
+            hydro_text = multiplied_word(len(hydro), "hydro") if full else _hydro_text(hydro)
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
 
         numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(added, hydro), ih=ih)
-        numbering.hydro, numbering.added, numbering.stem = tuple(hydro), tuple(added), stem
+        numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
         out.append(numbering)
     if not out:
         raise UnsupportedStructure("no numbering of this bridged fused system fits its hydro and indicated hydrogen")

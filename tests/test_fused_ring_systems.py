@@ -1053,3 +1053,16 @@ def test_identical_fused_systems_choose_the_parent_by_substituents(smiles, expec
 )
 def test_ring_triple_bond_of_a_fused_carbocycle(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1CC2CCC1C1CCCCC12", "decahydro-1,4-ethanonaphthalene", id="every_position_hydrogenated"),
+        pytest.param("C1(OC(C2C3C1C(C(OC3=O)=O)CC2)=O)=O", "tetrahydro-4,8-ethanopyrano[4,3-c]pyran-1,3,5,7-tetrone", id="oxo_suffix_positions_count_as_modified"),
+        pytest.param("C1CC2CCC1C1=CCCCC12", "1,2,3,4,4a,5,6,7-octahydro-1,4-ethanonaphthalene", id="an_unmodified_position_keeps_the_locants"),
+    ],
+)
+def test_hydro_locants_of_a_bridged_fused_system_are_omitted_when_every_position_is_hydrogenated(smiles, expected):
+    # P-14.3.4.5
+    assert smiles_to_iupac(smiles) == expected
