@@ -1081,6 +1081,11 @@ def test_carbonic_family_names(smiles, expected):
             "COC(=S)C(=O)OCCOC(=S)C(=O)OC",
             "2-{[methoxy(oxo)ethanethioyl]oxy}ethyl methoxy(sulfanylidene)acetate",
         ),
+        ("c1ccccc1C(=O)Oc1cccc(C(=O)Oc2ccccc2)c1", "phenyl 3-(benzoyloxy)benzoate"),
+        (
+            "COC(=O)CCC(=O)Oc1ccc(OC(=O)CC(=O)OCC)cc1",
+            "4-[(3-ethoxy-3-oxopropanoyl)oxy]phenyl methyl butanedioate",
+        ),
         ("CC(=O)Oc1ccc(cc1)C(=O)OC", "methyl 4-(acetyloxy)benzoate"),
         ("O=C(OCCOC(C)=O)CC(=O)OCCOC(C)=O", "bis[2-(acetyloxy)ethyl] propanedioate"),
         (
