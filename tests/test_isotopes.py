@@ -300,6 +300,8 @@ def test_isotope_on_substituents_and_prefixed_parents(smiles, expected):
         pytest.param("C[C@@H]([2H])O", "(1R)-(1-2H1)ethan-1-ol", id="opposite_isotopic_stereocentre"),
         pytest.param("[13CH3][C@H](Cl)C(=O)O", "(2S)-2-chloro(3-13C)propanoic acid", id="stereocentre_beside_a_labelled_acid"),
         pytest.param("[13CH3]C(=O)[C@H](Cl)C", "(3R)-3-chloro(1-13C)butan-2-one", id="stereocentre_beside_a_labelled_ketone"),
+        pytest.param("C[C@@H](C[C@@H](C)[2H])[3H]", "(2S,4R)-(4-2H1,2-3H1)pentane", id="higher_nuclide_numbered_before_the_descriptors"),
+        pytest.param("C[C@H](C[C@H](C)[2H])[3H]", "(2R,4S)-(4-2H1,2-3H1)pentane", id="mirror_image_keeps_the_isotope_positions"),
         pytest.param("C(=C\\C)/[2H]", "(1E)-(1-2H1)prop-1-ene", id="alkene_stereo_from_a_deuterium"),
         pytest.param("C(=C/C)/[2H]", "(1Z)-(1-2H1)prop-1-ene", id="alkene_stereo_from_a_deuterium_z"),
         pytest.param("C1(=CC=CC=C1)[13C]#N", "benzene(13C)carbonitrile", id="labelled_nitrile_carbon_on_a_ring"),
