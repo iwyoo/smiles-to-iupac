@@ -13,6 +13,7 @@ from ._cited_group import cited_group, subtree
 from ._common import HALIDE_WORDS, UnsupportedStructure, adjacency, alpha_sort_key
 from ._multiplicative_text import enclose
 from ._peptide import acyl_word
+from ._proline import has_proline_shape, name_proline
 
 _TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
@@ -117,6 +118,8 @@ def _acyl_halide_name(mol):
         Chem.SanitizeMol(acid)
         if has_histidine_shape(acid):
             word = acyl_word(name_histidine(acid), xi=False)
+        elif has_proline_shape(acid):
+            word = name_proline(acid)[: -len("proline")] + "prolyl"
         elif not _has_plain(acid) or _match(acid)[0] in _DIACID_SIDE_LOCANT:
             return None
         else:
