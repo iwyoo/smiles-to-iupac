@@ -925,6 +925,7 @@ def test_nonstandard_bonding_number_hydrides_and_chalcogen_chains(smiles, expect
         pytest.param("OC(=O)C[PH4]", "(λ5-phosphanyl)acetic acid", id="pnictogen_hydrogens_counted"),
         pytest.param("OC(=O)CC[SH4]C", "3-(methyl-λ6-sulfanyl)propanoic acid", id="chalcogen_lambda6"),
         pytest.param("C=S(C)CC(=O)O", "[methyl(methylidene)-λ4-sulfanyl]acetic acid", id="ylidene_on_centre_under_acid"),
+        pytest.param("C=[Se](C)(=O)CC(=O)O", "[methyl(methylidene)(oxo)-λ6-selanyl]acetic acid", id="oxo_and_ylidene_on_centre_under_acid"),
         pytest.param(
             "CC(=O)OI(OC(C)=O)c1ccc(cc1)C(O)=O", "4-[bis(acetyloxy)-λ3-iodanyl]benzoic acid", id="acyloxy_on_centre"
         ),
