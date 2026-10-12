@@ -1031,6 +1031,7 @@ def test_anhydride_and_acyl_halide_names(smiles, expected):
     [
         ("OC(=O)c1ccccc1C(=O)Cl", "2-carbonochloridoylbenzoic acid"),
         ("OC(=O)c1ccccc1C(=O)OO", "2-carbonoperoxoylbenzoic acid"),
+        ("[Cl-].OOC(=O)c1ccc[n+](C)c1", "3-carbonoperoxoyl-1-methylpyridin-1-ium chloride"),
         ("OC(=O)c1ccccc1C(=O)S", "2-(sulfanylcarbonyl)benzoic acid"),
         ("OC(=O)c1ccccc1C(O)=S", "2-(hydroxycarbonothioyl)benzoic acid"),
         ("OC(=O)c1ccccc1C(=N)O", "2-(C-hydroxycarbonimidoyl)benzoic acid"),

@@ -34,6 +34,7 @@ _SENIOR_TO_SELENOL = [
     for smarts in (
         "[CX3](=O)[OX2H1]",
         "[CX3](=O)[OX2][#6]",
+        "[CX3](=O)[OX2][OX2H1]",
         "[CX3](=O)[NX3]",
         "[CX3](=[S,Se])[NX3]",
         "[CX2]#[NX1]",
