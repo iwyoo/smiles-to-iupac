@@ -76,7 +76,15 @@ from rdkit import Chem
 
 from ._hetero_prefixes import DIAZENYL_PREFIX
 from ._multiplicative_text import enclose
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, non_single_bonds
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    alpha_sort_key,
+    assign_cip_labels,
+    halogen_substituents,
+    non_single_bonds,
+)
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -167,7 +175,20 @@ def name_diazene(mol) -> str:
         DIAZENYL_PREFIX.reset(token)
     if not names:
         raise UnsupportedStructure("no azo group of this molecule can be the diazene parent")
-    return min(names, key=alpha_sort_key)
+    name = min(names, key=alpha_sort_key)
+    if len(pairs) == 1:
+        code = _double_bond_code(mol, pairs[0][0].GetIdx(), pairs[0][1].GetIdx())
+        if code:
+            return f"({code})-{name}"
+    return name
+
+
+def _double_bond_code(mol, first, second):
+    """The E or Z of the N=N bond, a lone pair counting as atomic number 0 (P-93.4.2.1.3)."""
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    bond = probe.GetBondBetweenAtoms(first, second)
+    return bond.GetProp("_CIPCode") if bond.HasProp("_CIPCode") else None
 
 
 def pair_substituents(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx):
