@@ -122,10 +122,13 @@ def prefix_multiplier(count: int, name: str, compound: bool):
     return multiplying_prefix(count), enclosed
 
 
+_NUCLIDE_ITEM = r"(?:[A-Za-z0-9′']+-)?\d+[A-Z][a-z]?\d*"
+
+
 def _isotope_only_prefix(name):
     """A plain alkyl or alkoxy group with only its isotopic descriptor in front: cited alone it needs no enclosing
     marks (P-82.2.1)."""
-    match = re.fullmatch(r"\(\d[^()]*\)([a-z]+)", name)
+    match = re.fullmatch(rf"\({_NUCLIDE_ITEM}(?:,{_NUCLIDE_ITEM})*\)([a-z]+)", name)
     if not match:
         return False
     stem = match.group(1)
