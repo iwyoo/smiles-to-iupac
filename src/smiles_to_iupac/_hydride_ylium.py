@@ -6,7 +6,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._hetero_prefixes import EXTENDED_PREFIXES
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 _STEM = {
     5: ("boran", 3), 7: ("azan", 3), 8: ("oxidan", 2), 9: ("fluoran", 1), 14: ("sil", 4), 15: ("phosphan", 3),
@@ -149,9 +149,10 @@ def name_hydride_onium(mol) -> str:
     halogens = halogen_substituents(mol)
     token = EXTENDED_PREFIXES.set(True)
     try:
-        for n in graph[center.GetIdx()]:
-            name, compound = _group(mol, graph, n, center.GetIdx(), halogens)
-            entries.append((name, compound))
+        with cited_branch_stereo(mol, graph, {center.GetIdx()}, graph[center.GetIdx()]):
+            for n in graph[center.GetIdx()]:
+                name, compound = _group(mol, graph, n, center.GetIdx(), halogens)
+                entries.append((name, compound))
     finally:
         EXTENDED_PREFIXES.reset(token)
     return format_mononuclear_prefixes(entries) + _ONIUM_STEM[center.GetAtomicNum()]

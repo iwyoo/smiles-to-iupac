@@ -56,8 +56,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, specified_stereocenters
-from ._onium_prefixes import only_nitro_charges_besides, onium_name
+from ._common import UnsupportedStructure
+from ._onium_prefixes import centre_is_specified_stereocentre, only_nitro_charges_besides, onium_name
 
 
 def has_sulfonium_shape(mol) -> bool:
@@ -95,7 +95,7 @@ def name_sulfonium(mol) -> str:
             "only a single, singly-charged, non-isotopically-modified "
             "sulfonium sulfur is supported (P-73.1.1.2)"
         )
-    if specified_stereocenters(mol) is not None:
+    if centre_is_specified_stereocentre(mol, sulfur):
         # The sulfonium sulfur is itself a genuine, configurationally
         # stable stereocenter in virtually every real R3S+/R2HS+ molecule
         # (module docstring), and this project has no established way to

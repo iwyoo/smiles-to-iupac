@@ -68,8 +68,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, specified_stereocenters
-from ._onium_prefixes import only_nitro_charges_besides, onium_name
+from ._common import UnsupportedStructure
+from ._onium_prefixes import centre_is_specified_stereocentre, only_nitro_charges_besides, onium_name
 from ._phosphane import name_simple_phosphane
 
 
@@ -109,7 +109,7 @@ def name_phosphonium(mol) -> str:
             "only a single, singly-charged, non-isotopically-modified "
             "phosphonium phosphorus is supported (P-73.1.1.2)"
         )
-    if specified_stereocenters(mol) is not None:
+    if centre_is_specified_stereocentre(mol, phosphorus):
         # The phosphonium phosphorus is itself a genuine, configurationally
         # stable stereocenter in virtually every real R3HP+/R4P+ molecule
         # (module docstring), and this project has no established way to

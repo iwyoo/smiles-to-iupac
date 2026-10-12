@@ -360,6 +360,20 @@ def test_mixed_alkyl_and_phenyl_substituents():
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C/C=C\\C[P+](C)(C)C", "[(2Z)-but-2-en-1-yl]tri(methyl)phosphanium", id="phosphonium"),
+        pytest.param("C/C=C/C[S+](C)C", "[(2E)-but-2-en-1-yl]di(methyl)sulfanium", id="sulfonium"),
+        pytest.param("C/C=C/C[As+](C)(C)C", "[(2E)-but-2-en-1-yl]tri(methyl)arsanium", id="arsonium"),
+        pytest.param("C/C=C/[SH2+]", "[(1E)-prop-1-en-1-yl]sulfanium", id="unsubstituted_sulfonium"),
+        pytest.param("C/C=C/C[S+](C)C.[Br-]", "[(2E)-but-2-en-1-yl]di(methyl)sulfanium bromide", id="salt"),
+    ],
+)
+def test_alkenyl_group_on_an_onium_centre_cites_its_double_bond_descriptor(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("[Na+].[O-][N+](=O)[O-]", "sodium nitrate"),
