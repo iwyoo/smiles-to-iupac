@@ -789,6 +789,7 @@ def test_substituted_amino_acid_keeps_its_second_fragment():
         pytest.param("CC(=O)OC1CC(=O)CNC1=O", "2,5-dioxopiperidin-3-yl acetate", id="saturated_ring_with_ketones"),
         pytest.param("CCC(=O)OC1CCC(=O)NCCOC1", "5-oxo-1,4-oxazonan-8-yl propanoate", id="nine_membered_ring"),
         pytest.param("OC(=O)CC1CC(=O)C=CO1", "(4-oxo-3,4-dihydro-2H-pyran-2-yl)acetic acid", id="pyranone_ring"),
+        pytest.param("O=CC1CC(OC)CC(S)O1", "4-methoxy-6-sulfanyloxane-2-carbaldehyde", id="formyl_oxane_shaped_like_a_hexose"),
     ],
 )
 def test_rings_with_ketones_are_not_cited_as_sugar_groups(smiles, expected):

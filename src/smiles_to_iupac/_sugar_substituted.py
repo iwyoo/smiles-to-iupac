@@ -449,6 +449,8 @@ def _substituted_sugar_name(mol, bridges=()):
                 continue
         kind, x, root = _classify(mol, graph, carbon, skeleton_atoms, skeleton)
         if kind == "oxo":
+            if skeleton.ring and position == skeleton.n:
+                return None
             reached.add(x)
             continue
         if skeleton.ring and position == skeleton.anomeric and kind not in ("OH", "ester", "ether", "X", "N", "SH", "Sether"):
