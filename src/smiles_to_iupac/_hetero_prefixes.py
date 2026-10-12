@@ -1318,12 +1318,14 @@ def substituted_hydrazinecarbonyl(graph, carbon, alpha, alpha_subs, halogens, ar
     bonded to the carbonyl carbon (P-65.1.3.2); None unless a chain nitrogen follows. `base` is 'hydrazinecarbonyl' or its
     thio analogue."""
     from ._common import group_substituents
+    from ._hydride_chain import _is_nitro_or_nitroso
     from ._substituents import name_branch
 
     betas = [
         n for n in alpha_subs
         if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(n).IsInRing()
         and mol.GetBondBetweenAtoms(alpha, n).GetBondTypeAsDouble() == 1.0 and not mol.GetAtomWithIdx(n).GetFormalCharge()
+        and not _is_nitro_or_nitroso(mol.GetAtomWithIdx(n))
     ]
     if len(betas) != 1:
         return None
@@ -1333,7 +1335,10 @@ def substituted_hydrazinecarbonyl(graph, carbon, alpha, alpha_subs, halogens, ar
         for n in graph[nitrogen]:
             if n in (origin, beta if nitrogen == alpha else alpha):
                 continue
-            if mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) or mol.GetBondBetweenAtoms(nitrogen, n).GetBondTypeAsDouble() != 1.0:
+            substituent = mol.GetAtomWithIdx(n)
+            if mol.GetBondBetweenAtoms(nitrogen, n).GetBondTypeAsDouble() != 1.0 or not (
+                substituent.GetAtomicNum() == 6 or _is_nitro_or_nitroso(substituent)
+            ):
                 return None
             entries.setdefault(locant, []).append(name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol))
     from ._substituents import format_substituent_prefixes

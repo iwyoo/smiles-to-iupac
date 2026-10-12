@@ -109,15 +109,46 @@ def _siloxane_skeleton(mol, graph):
     return chain if len(chain) == len(silicon) + len(bridges) else None
 
 
+def _group_nitrogens(mol):
+    return frozenset(
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == _NITROGEN and a.GetDegree() == 1 and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
+    )
+
+
+def _separate_chains(mol, graph):
+    """Parent hydrides for a molecule whose heteroatoms form several chains: every chain that is a parent hydride on its
+    own, the others being substituents of the one that carries the principal group (P-44.1.1)."""
+    ignore = _group_nitrogens(mol)
+    pool = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() in _STEMS and a.GetIdx() not in ignore and not a.IsInRing() and not a.GetFormalCharge()
+    }
+    parents, seen = [], set()
+    for start in sorted(pool):
+        if start in seen:
+            continue
+        component, stack = {start}, [start]
+        while stack:
+            for n in graph[stack.pop()]:
+                if n in pool and n not in component:
+                    component.add(n)
+                    stack.append(n)
+        seen |= component
+        found = _chain_atoms(mol, graph, allow_double=True, ignore=frozenset(range(mol.GetNumAtoms())) - component)
+        if found is not None:
+            z, chain = found
+            parents.append(("chain", chain, f"{multiplying_prefix(len(chain))}{_STEMS[z]}"))
+    return parents
+
+
 def _parent(mol, graph):
     """(kind, skeleton atoms, parent hydride name) of the heteroacyclic parent, or None."""
     found = _chain_atoms(mol, graph, skip_nitrogen=True) or _chain_atoms(mol, graph, allow_double=True)
     if found is None:
-        group_nitrogens = frozenset(
-            a.GetIdx()
-            for a in mol.GetAtoms()
-            if a.GetAtomicNum() == _NITROGEN and a.GetDegree() == 1 and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
-        )
+        group_nitrogens = _group_nitrogens(mol)
         found = _chain_atoms(mol, graph, allow_double=True, ignore=group_nitrogens) if group_nitrogens else None
     if found is not None:
         z, chain = found
@@ -136,8 +167,12 @@ def _match(mol):
         return None
     graph = adjacency(mol)
     parent = _parent(mol, graph)
-    if parent is None:
-        return None
+    candidates = [parent] if parent is not None else _separate_chains(mol, graph)
+    matches = [m for m in (_match_parent(mol, graph, c) for c in candidates) if m is not None]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _match_parent(mol, graph, parent):
     _, skeleton, _ = parent
     skeleton_set = set(skeleton)
     attached = {}
