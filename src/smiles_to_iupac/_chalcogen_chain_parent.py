@@ -8,6 +8,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._hydride_chain import _alternating_parent
+from ._multiplicative_text import enclose
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -340,7 +341,7 @@ def name_chalcogen_chain_multiplicative(mol):
     if substituent:
         parent = format_substituent_prefixes({substituent: {"locants": [len(runs[0])], "compound": compound}}) + parent
     central = "methylene" if len(linker) == 1 else f"({alkane_name(len(linker))}-1,{len(linker)}-diyl)"
-    return f"1,1'-{central}bis({parent})"
+    return f"1,1'-{central}bis{enclose(parent)}"
 
 
 def _reaches_atoms(graph, start, blocked):
