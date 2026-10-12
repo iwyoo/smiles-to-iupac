@@ -1503,7 +1503,7 @@ def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
         ("C(N)(=N)NC(N)=N", "imidodicarbonimidic diamide"),
         ("C(N)(=N)NC(=N)NC(N)=N", "diimidotricarbonimidic diamide"),
         ("C(C)N=C(N(C1=CC=CC=C1)C1=CC=CC=C1)NC(N)=N", "N'1-ethyl-N1,N1-diphenylimidodicarbonimidic diamide"),
-        ("N=C(NC(N)=N)NC(NC(NC(N)=N)=N)=N", "3,5,7-triimino-2,4,6,8-tetraazanonane-1,9-diimidamide"),
+        ("N=C(NC(N)=N)NC(NC(NC(N)=N)=N)=N", "3,5,7-triimino-2,4,6,8-tetraazanonanediimidamide"),
         ("NN=C(C)NCCC(=O)O", "3-(ethanehydrazonamido)propanoic acid"),
         ("NN=S(c1ccccc1)Nc1ccc(C(=O)O)cc1", "4-(benzenesulfinohydrazonamido)benzoic acid"),
         ("NN=CNc1ccc(C(=O)O)cc1", "4-(methanehydrazonamido)benzoic acid"),
