@@ -381,7 +381,8 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
         elif z == 7:
             bond = _bond_order(mol, node, parent)
-            if atom.GetFormalCharge() == 1 and atom.GetTotalValence() == 4 and not atom.IsInRing():
+            cationic = atom.GetFormalCharge() == 1 and atom.GetTotalValence() == 4
+            if (cationic or (atom.HasProp("_cationic_amine") and not atom.GetFormalCharge())) and not atom.IsInRing():
                 record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
                 continue
             if bond == 3.0 and not kids:
