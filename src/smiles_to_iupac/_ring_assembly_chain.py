@@ -109,6 +109,7 @@ formatting, see `_NON_NH_ROLE_SEQUENCES`), mixed ring kinds/sizes, and
 any branched/cyclic ring-assembly topology.
 """
 
+import re
 from itertools import product
 
 from ._common import (
@@ -376,7 +377,8 @@ def find_ring_assembly_chain_core(mol):
         ra, rb = ring_of_atom.get(a), ring_of_atom.get(b)
         if ra is None or rb is None or ra == rb:
             continue
-        if bond.GetIsAromatic() or bond.GetBondTypeAsDouble() != 1.0:
+        order = bond.GetBondTypeAsDouble()
+        if bond.GetIsAromatic() or not (order == 1.0 or (order == 2.0 and ring_kind[0] == "saturated")):
             return None
         ring_adj[ra].append((rb, a, b))
         ring_adj[rb].append((ra, b, a))
@@ -475,7 +477,9 @@ def _unsaturation_ending(enes, ynes):
         return ""
 
     def cite(found):
-        return ",".join(superscript_locant(*loc) for loc in found)
+        return ",".join(
+            superscript_locant(*loc[:2]) + (f"({superscript_locant(*loc[2:])})" if len(loc) == 4 else "") for loc in found
+        )
 
     ene_word, yne_word = multiplied_word(len(enes), "ene"), multiplied_word(len(ynes), "yne")
     if enes and ynes:
@@ -590,6 +594,10 @@ def name_ring_assembly_chain(mol, core) -> str:
             if found is None:
                 continue
             enes, ynes = found
+            for (a, b), (la, lb) in zip(conns, junction_pairs):
+                if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 2.0:
+                    enes.append((*la, *lb))
+            enes.sort()
 
             substituents = {}
             for atom, composite in locants.items():
@@ -607,8 +615,10 @@ def name_ring_assembly_chain(mol, core) -> str:
                 f"{superscript_locant(*a)},{superscript_locant(*b)}" for a, b in junction_pairs
             )
             hydro_str = hydro_prefix([superscript_locant(*loc) for loc in hydro])
-            base = f"{hydro_str}{junction_str}-{_MULTIPLIER[n]}{ring_word}"
             ending = _unsaturation_ending(enes, ynes)
+            first_word = re.search(r"[a-z]+", ending)
+            stem = ring_word[:-1] if kind == "saturated" and first_word and first_word.group()[0] in "aeiouy" else ring_word
+            base = f"{hydro_str}{junction_str}-{_MULTIPLIER[n]}{stem}"
             if ending:
                 base = f"[{base}]-{ending}"
             # P-28.2.3: indicated hydrogen, if any, is cited at the very
