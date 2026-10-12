@@ -2845,7 +2845,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         ]
         merged = _with_n_names(grouped, n_entries)
         suffix = stem[:-1] + "amine" if len(amines) == 1 else stem + multiplied_word(len(amines), "amine")
-        return format_substituent_prefixes(merged, omit_locants=not n_entries) + suffix
+        return format_substituent_prefixes(merged, omit_locants=len(amines) > 1 and not n_entries) + suffix
     return format_mononuclear_prefixes(entries) + stem
 
 
@@ -5991,7 +5991,8 @@ def _evaluate(
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)
     else:
-        prefix = format_substituent_prefixes(with_n, omit_locants=length == 1 and not force and not n_names)
+        keeps_nitrogen_hydrogen = principal == "amine" and count == 1 and any(mol.GetAtomWithIdx(a).GetTotalNumHs() for a in nitrogens)
+        prefix = format_substituent_prefixes(with_n, omit_locants=length == 1 and not force and not n_names and not keeps_nitrogen_hydrogen)
     tail = ""
     if principal == "ide" and attach is None and length == 2 and not grouped and (ene or yne) and (count == 1 or yne):
         word = multiplied_word(count, "ide")

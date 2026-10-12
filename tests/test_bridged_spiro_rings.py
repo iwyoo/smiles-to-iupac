@@ -392,7 +392,7 @@ def test_spiro_hydroxyl_on_substituent_branch_is_a_prefix():
 
 
 def test_spiro_amine_on_substituent_branch_is_a_prefix():
-    assert smiles_to_iupac("NCC1CCCC12CCCCC2") == "(spiro[4.5]decan-1-yl)methanamine"
+    assert smiles_to_iupac("NCC1CCCC12CCCCC2") == "1-(spiro[4.5]decan-1-yl)methanamine"
 
 
 @pytest.mark.parametrize(
