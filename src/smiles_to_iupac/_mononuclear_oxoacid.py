@@ -5,6 +5,7 @@ named from these (P-67.1.1.2)."""
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
+from ._numerals import numerical_term
 
 # (atomic number, oxo, hydroxy, hydrogen) -> name
 _ACIDS = {
@@ -87,7 +88,7 @@ def _anion_name(acid, hydrogens):
         stem = stem[:-2] + "ate"
     else:
         stem = stem[:-3] + "ite"
-    words = {0: "", 1: "hydrogen ", 2: "dihydrogen "}[hydrogens]
+    words = f"{numerical_term(hydrogens) if hydrogens > 1 else ''}hydrogen " if hydrogens else ""
     return words + stem
 
 

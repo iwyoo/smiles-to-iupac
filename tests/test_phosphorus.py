@@ -306,6 +306,7 @@ def test_amidic_halides_of_group_15_acids(smiles, expected):
     [
         ("CCOP(=O)(OCC)S", "O,O-diethyl hydrogen phosphorothioate"),
         ("[Na+].[O-]P(=O)(O)O", "sodium dihydrogen phosphate"),
+        ("[Na+].[O-][Si](O)(O)O", "sodium trihydrogen silicate"),
         ("[Ca+2].[O-]P(=O)(O)O.[O-]P(=O)(O)O", "calcium bis(dihydrogen phosphate)"),
         ("O=P(N=C=O)(N=C=O)N=C=O", "phosphoryl triisocyanate"),
         ("CP(=O)(C#N)C#N", "methylphosphonic dicyanide"),
