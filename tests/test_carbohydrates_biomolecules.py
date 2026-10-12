@@ -470,6 +470,8 @@ def test_c_glycosyl_compounds(smiles, expected):
         pytest.param("OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1OCC(O)=O", "(β-D-glucopyranos-4-O-yl)acetic acid", id="o_substituent_at_c4"),
         pytest.param("OC(=O)C[C@@]1(O)[C@H](O)[C@@H](O)[C@@H](CO)O[C@H]1O", "(β-D-gulopyranos-2-C-yl)acetic acid", id="c_substituent_keeping_the_hydroxy_group"),
         pytest.param("OC(=O)C[C@H]1[C@@H](O)[C@H](O)[C@@H](CO)O[C@@H]1O", "(2-deoxy-α-D-arabino-hexopyranos-2-yl)acetic acid", id="c_symbol_omitted_beside_hydrogen_only"),
+        pytest.param("OC(=O)c1ccc(cc1)CC(=O)[C@@H](O)[C@H](O)[C@H](O)CO", "4-(1-deoxy-D-fructos-1-yl)benzoic acid", id="open_chain_ketose_on_a_senior_parent"),
+        pytest.param("OC(=O)COC[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C=O", "(D-glucos-6-O-yl)acetic acid", id="open_chain_aldose_through_oxygen"),
     ],
 )
 def test_sugar_groups_with_the_free_valence_away_from_c1(smiles, expected):

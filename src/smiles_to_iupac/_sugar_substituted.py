@@ -662,6 +662,15 @@ def name_substituted_sugar(mol) -> str:
     return substituted_sugar_name(mol)
 
 
+def _hydroxy_carbons(mol, atoms):
+    return sum(
+        1
+        for a in atoms
+        if mol.GetAtomWithIdx(a).GetAtomicNum() == 6
+        and any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1 for n in mol.GetAtomWithIdx(a).GetNeighbors())
+    )
+
+
 def sugar_substituent_group(mol, graph, root, coming_from):
     """(name, True) of a monosaccharide cited as a substituent group through an atom other than its anomeric carbon
     (P-102.6.2): the sugar is named with a hydrogen atom in place of the bond to the parent, its final e is dropped
@@ -672,7 +681,9 @@ def sugar_substituent_group(mol, graph, root, coming_from):
     if atom.GetAtomicNum() not in (6, 8) or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         return None
     atoms = subtree(graph, root, coming_from)
-    if coming_from in atoms or not 5 <= len(atoms) <= 40 or not any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms):
+    if coming_from in atoms or not 5 <= len(atoms) <= 40:
+        return None
+    if not any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms) and _hydroxy_carbons(mol, atoms) < 3:
         return None
     if any(mol.GetAtomWithIdx(a).GetAtomicNum() not in _ELEMENTS or mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms):
         return None
@@ -704,7 +715,7 @@ def sugar_substituent_group(mol, graph, root, coming_from):
         if carbon not in skeleton.carbons:
             return None
         position = skeleton.position(carbon)
-        if skeleton.ring and position == skeleton.anomeric:
+        if position == skeleton.anomeric:
             return None
         if atom.GetAtomicNum() == 8:
             kind = "O"
@@ -715,7 +726,7 @@ def sugar_substituent_group(mol, graph, root, coming_from):
         name = smiles_to_iupac(Chem.MolToSmiles(sugar))
     except (UnsupportedStructure, ValueError, RuntimeError, KeyError, StopIteration, Chem.rdchem.MolSanitizeException):
         return None
-    if not name.endswith(("ose", "oside")) or name.count(" ") > 1 or ("(" in name and " " in name) or len(name) < 8:
+    if not name.endswith(("ose", "oside")) or name.count(" ") > 1 or ("(" in name and " " in name) or len(name) < 7:
         return None
     if " " in name and not name.endswith("oside"):
         return None
