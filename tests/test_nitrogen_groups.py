@@ -375,6 +375,8 @@ def test_diazo(smiles, expected):
         pytest.param("[N-]=[N+]=CC(=O)OCC", "ethyl diazoacetate", id="diazo_acetate_ester"),
         pytest.param("[N-]=[N+]=CC(C)=O", "1-diazopropan-2-one", id="diazo_beside_a_ketone"),
         pytest.param("[N-]=[N+]=C(C(C)=O)[Si](C)(C)C", "1-diazo-1-(trimethylsilyl)propan-2-one", id="diazo_and_silyl_on_one_carbon"),
+        pytest.param("[N-]=[N+]=C1C=CC=C1", "5-diazocyclopenta-1,3-diene", id="diazo_on_an_unsaturated_ring"),
+        pytest.param("[N-]=[N+]=C1C=CC(C(O)=O)=C1", "3-diazocyclopenta-1,4-diene-1-carboxylic acid", id="diazo_on_an_unsaturated_ring_with_acid"),
     ],
 )
 def test_diazo_prefix_on_rings_and_beside_other_groups(smiles, expected):
