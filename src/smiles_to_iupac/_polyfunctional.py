@@ -2062,9 +2062,10 @@ def _substituent_isotope_locants(position_of, mol=None, labels=None):
     )
 
 
-def _parent_configuration_rank(stereo, position_of, ring_parent=False):
+def _parent_configuration_rank(stereo, position_of, ring_parent=False, directional=True):
     """P-44.4.1.11.1-3, P-44.4.1.12: between candidate parents the one with more isotopically modified atoms is senior,
-    then the one with more Z double bonds (and lower locants for them), more like descriptor pairs, and R ahead of S."""
+    then the one with more Z double bonds (and lower locants for them), more like descriptor pairs, and R ahead of S.
+    A chain numbered in either direction leaves R ahead of S to the stereo rank, after the isotopic locants (P-31.1.4.3.4)."""
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
     marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
     cis = [locant for locant, code in entries if code == "Z"]
@@ -2075,7 +2076,7 @@ def _parent_configuration_rank(stereo, position_of, ring_parent=False):
         -len(cis),
         tuple(cis),
         -like,
-        tuple(0 if code in "Rr" else 1 for code in centres),
+        tuple(0 if code in "Rr" else 1 for code in centres) if directional else (),
     )
 
 
@@ -3037,7 +3038,7 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
         -len(ene),
         lowest_locant_set(ene + yne),
         lowest_locant_set(ene),
-        _parent_configuration_rank(stereo, position_of),
+        _parent_configuration_rank(stereo, position_of, directional=False),
         -total_count,
         locant_set,
         citation,
@@ -3124,7 +3125,7 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
         tuple(suffix_locants),
         -(len(ene) + len(yne)),
         lowest_locant_set(ene + yne),
-        _parent_configuration_rank(stereo, position_of),
+        _parent_configuration_rank(stereo, position_of, directional=False),
         -total_count,
         locant_set,
         citation,
@@ -5919,7 +5920,7 @@ def _evaluate(
         lowest_locant_set(ene + yne),
         lowest_locant_set(ene),
         attach_locant,
-        _parent_configuration_rank(stereo, position_of),
+        _parent_configuration_rank(stereo, position_of, directional=False),
         -total_count,
         locant_set,
         citation,
