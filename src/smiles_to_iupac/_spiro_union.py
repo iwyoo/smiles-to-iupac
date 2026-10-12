@@ -316,7 +316,9 @@ def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True, hidden=frozen
     return "".join(groups) if bracketed else "-".join(groups)
 
 
-def _capable(mol, comp, spiro_atoms):
+def _capable(mol, comp, spiro_atoms, nonstandard=None):
+    """The ring atoms of a mancude component that can carry indicated hydrogen; a ring atom of nonstandard bonding number
+    that holds a ring double bond is recorded in `nonstandard` for the λ symbol in front of the name (P-24.8.4.1)."""
     result = set()
     for a in comp["atoms"]:
         if a in spiro_atoms:
@@ -327,8 +329,14 @@ def _capable(mol, comp, spiro_atoms):
         if z in _GROUP_14:
             capacity = 1 if ring_degree <= 3 else 0
         elif z in _STANDARD:
-            if atom.GetTotalValence() - atom.GetFormalCharge() > _STANDARD[z]:
-                raise UnsupportedStructure("a nonstandard bonding number away from the spiro atom is not supported yet")
+            excess = atom.GetTotalValence() - atom.GetFormalCharge() - _STANDARD[z]
+            if excess > 0:
+                ring_double = any(
+                    b.GetBondTypeAsDouble() == 2.0 and b.IsInRing() for b in atom.GetBonds()
+                )
+                if nonstandard is None or excess % 2 or not ring_double or atom.GetFormalCharge():
+                    raise UnsupportedStructure("a nonstandard bonding number away from the spiro atom is not supported yet")
+                nonstandard[a] = atom.GetTotalValence()
             capacity = 1 if _STANDARD[z] - ring_degree == 1 else 0
         else:
             raise UnsupportedStructure("this ring atom is not supported in a spiro component yet")

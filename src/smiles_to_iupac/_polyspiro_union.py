@@ -505,13 +505,14 @@ def _analyse(mol, atoms=None, outer=frozenset()):
 
     spiro_in = {i: sorted(s for s, members in spiro.items() if i in members) for i in range(len(comps))}
     capable, polycyclic_bonds, monocyclic_bonds, replacement_atoms = set(), set(), set(), set()
+    extra_lambda = {}
     for i, (comp, n) in enumerate(zip(comps, named)):
         if "sub" in n:
             capable |= n["sub"].capable
             polycyclic_bonds |= n["sub"].polycyclic_bonds
             monocyclic_bonds |= n["sub"].monocyclic_bonds
         elif n["fused"]:
-            capable |= _capable(mol, comp, set(spiro_in[i]) | (outer & comp["atoms"]))
+            capable |= _capable(mol, comp, set(spiro_in[i]) | (outer & comp["atoms"]), extra_lambda)
             polycyclic_bonds |= comp["bonds"]
         elif n["replacement"]:
             monocyclic_bonds |= comp["bonds"]
@@ -539,7 +540,7 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             capable.add(s)
 
     lam_members = defaultdict(list)
-    for s in info:
+    for s in [*info, *extra_lambda]:
         lam_members[s] = [i for i, c in enumerate(comps) if s in c["atoms"]]
     own_hetero = set().union(*(n["own_hetero"] for n in named if "own_hetero" in n)) if any("own_hetero" in n for n in named) else set()
     shape, centre_comp = _shape(spiro, len(comps))
@@ -560,7 +561,7 @@ def _analyse(mol, atoms=None, outer=frozenset()):
         comps=comps, spiro=spiro, info=info, cationic=cationic, named=named, inner=inner, names=names, spiro_in=spiro_in,
         capable=capable, polycyclic_bonds=polycyclic_bonds, monocyclic_bonds=monocyclic_bonds,
         replacement_atoms=replacement_atoms, layouts=layouts, projections=projections, scope=scope,
-        lam_members=lam_members, own_hetero=own_hetero, ambiguous=ambiguous,
+        lam_members=lam_members, own_hetero=own_hetero, ambiguous=ambiguous, extra_lambda=extra_lambda,
         widths=[c.get("width", 1) for c in comps],
     )
 
@@ -685,10 +686,11 @@ def _body(ctx, mol, sol, front=True, hidden=frozenset()):
             for s, early, late in blocks[gi]
         )
 
+    lam_of = {**{s: info[s][0] for s in info if info[s][0]}, **ctx.extra_lambda}
     lam_front = ",".join(
-        f"{lowest}λ{info[s][0]}"
+        f"{lowest}λ{lam_of[s]}"
         for lowest, s in sorted(
-            ((min((locant_in(s, m) for m in ctx.lam_members[s]), key=_lk), s) for s in info if info[s][0]),
+            ((min((locant_in(s, m) for m in ctx.lam_members[s]), key=_lk), s) for s in lam_of),
             key=lambda pair: _lk(pair[0]),
         )
     ) if front else ""
@@ -696,6 +698,8 @@ def _body(ctx, mol, sol, front=True, hidden=frozenset()):
     opening, closing = ("{", "}") if any("unit" in c or "system" in c for c in comps) else ("[", "]")
     kind = layout["kind"]
     identical_pair = kind == "chain" and len(comps) == 2 and len(set(ctx.names.values())) == 1
+    if ctx.extra_lambda and (kind == "hub_ter" or identical_pair or (kind == "chain" and len(comps) == 3 and len(set(ctx.names.values())) == 1)):
+        raise UnsupportedStructure("a nonstandard bonding number beside identical spiro components is not supported yet")
     identical_chain = kind == "chain" and len(comps) == 3 and len(set(ctx.names.values())) == 1
     if kind == "hub_ter":
         hub = layout["hub"]
