@@ -561,6 +561,11 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         if unit_kind == "anion":
             linker = _linker_text(branches, central, arm_parts, True)
             return f"{linker}{multiplier_word(count, True)}({text})"
+        if unit_kind == "polyamine":
+            lead = _polyamine_lead(units[0][0], count)
+            if lead is None:
+                return None
+            return f"{lead}{_linker_text(branches, central, arm_parts)}{multiplier_word(count, False)}{unit_phrase(text, '')}"
         if unit_kind in ("amide", "amine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
@@ -618,11 +623,45 @@ def _unit_name_by_pipeline(unit, unit_kind):
     if unit_kind == "amine":
         single_nitrogen = sum(a.GetAtomicNum() == 7 for a in unit.GetAtoms()) == 1
         return name if single_nitrogen and name.endswith("amine") else None
+    if unit_kind == "polyamine":
+        return name if name.endswith("diamine") else None
     if unit_kind == "phosphonic":
         return name if name in _CENTER_ACIDS else None
     if unit_kind == "anion":
         return name if re.search(r"(?:ide|uide|ate)$", name) else None
     return name if name.endswith(_HYDRIDE_ENDINGS) else None
+
+
+_MARKER = "tert-butyl"
+_MARKER_LOCANT = re.compile(r"(N['\u2032]*\d+)-(?:\d+[a-z]*-)?" + _MARKER)
+
+
+def _polyamine_lead(unit, count):
+    """The N locants of the junction nitrogen in the identical parents, `N1,N1'-`: the unit named with a tert-butyl
+    group on that nitrogen shows its locant (P-62.2.5.2)."""
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(unit)
+    attach = next(a.GetIdx() for a in editable.GetAtoms() if a.GetAtomMapNum())
+    tail = editable.AddAtom(Chem.Atom(6))
+    editable.AddBond(attach, tail, Chem.BondType.SINGLE)
+    for _ in range(3):
+        methyl = editable.AddAtom(Chem.Atom(6))
+        editable.AddBond(tail, methyl, Chem.BondType.SINGLE)
+    for atom in editable.GetAtoms():
+        if atom.GetAtomMapNum() and atom.GetNoImplicit():
+            atom.SetNumExplicitHs(atom.GetNumExplicitHs() + 1)
+        atom.SetAtomMapNum(0)
+    try:
+        Chem.SanitizeMol(editable)
+        name = smiles_to_iupac(Chem.MolToSmiles(editable))
+    except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
+        return None
+    found = _MARKER_LOCANT.search(name)
+    if found is None:
+        return None
+    locant = found.group(1)
+    return ",".join(locant + "'" * i for i in range(count)) + "-"
 
 
 def anion_multiplicative_name(mol, centers):
@@ -805,6 +844,31 @@ def _amine_candidates(mol, graph):
     return candidates
 
 
+def _polyamine_candidates(mol, graph):
+    """Diamine parents joined through a nitrogen atom by a divalent linking group (P-62.2.4.1.3, P-62.2.5.2): each
+    arm is the part of the molecule on the nitrogen side of one N-C bond."""
+    candidates = {}
+    for atom in mol.GetAtoms():
+        if (
+            atom.GetAtomicNum() != 7
+            or atom.IsInRing()
+            or atom.GetFormalCharge()
+            or atom.GetIsotope()
+            or atom.GetDegree() != 2
+            or atom.GetTotalNumHs() != 1
+            or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
+        ):
+            continue
+        for neighbor in atom.GetNeighbors():
+            if neighbor.GetAtomicNum() != 6 or neighbor.IsInRing() or is_functional_carbon(mol, neighbor.GetIdx()):
+                continue
+            atoms = _arm(graph, atom.GetIdx(), neighbor.GetIdx())
+            if neighbor.GetIdx() in atoms or sum(mol.GetAtomWithIdx(a).GetAtomicNum() == 7 for a in atoms) < 2:
+                continue
+            candidates.setdefault(_key(mol, atoms, atom.GetIdx()), []).append((atom.GetIdx(), neighbor.GetIdx(), atoms))
+    return candidates
+
+
 def _phosphonous_acid_atoms(mol):
     """P, As or Sb atoms of a phosphonous-type group: one carbon neighbour and two hydroxyl groups."""
     return [
@@ -919,6 +983,11 @@ def _chain_multiplicative_name(mol, stereo):
         name = _attempt(mol, graph, stereo, arms, "amide")
         if name is not None:
             return name
+    if principal == "amine":
+        for arms in _rank_candidates(_polyamine_candidates(mol, graph), anchors, heads, mol):
+            name = _attempt(mol, graph, stereo, arms, "polyamine")
+            if name is not None:
+                return name
     return None
 
 

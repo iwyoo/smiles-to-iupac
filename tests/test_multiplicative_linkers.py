@@ -138,7 +138,6 @@ def test_linker_with_a_substituent_that_carries_the_principal_group():
     "smiles,expected",
     [
         ("CNCCNCCNCCNC", "2,5,8,11-tetraazadodecane"),
-        ("NCCNCCNCCN", "N1,N2-bis(2-aminoethyl)ethane-1,2-diamine"),
         ("NCCN(CCN(C)C)C", "N1-(2-aminoethyl)-N1,N2,N2-trimethylethane-1,2-diamine"),
         ("NCCNCCNCCNCN", "N1-{2-[(2-aminoethyl)amino]ethyl}-N2-(aminomethyl)ethane-1,2-diamine"),
         (
@@ -149,6 +148,22 @@ def test_linker_with_a_substituent_that_carries_the_principal_group():
     ],
 )
 def test_hetero_chain_and_macrocycle_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NCCNCCNCCNCCN", "N1,N1'-[azanediyldi(ethane-2,1-diyl)]di(ethane-1,2-diamine)", id="heteroatom_in_the_linker"),
+        pytest.param("NCCCNCCc1ccc(cc1)CCNCCCN", "N1,N1'-[1,4-phenylenedi(ethane-2,1-diyl)]di(propane-1,3-diamine)", id="ring_in_the_linker"),
+        pytest.param("NCCNCCNCCN", "N1,N1'-(ethane-1,2-diyl)di(ethane-1,2-diamine)", id="alkanediyl_linker"),
+        pytest.param("NCCNCCOCCNCCN", "N1,N1'-[oxydi(ethane-2,1-diyl)]di(ethane-1,2-diamine)", id="oxygen_in_the_linker"),
+        pytest.param("C(NCCN)NCCN", "N1,N1'-methylenedi(ethane-1,2-diamine)", id="methylene_linker_unchanged"),
+        pytest.param("C(CNCCNCCNCCNCCN)N", "3,6,9,12-tetraazatetradecane-1,14-diamine", id="skeletal_replacement_for_four_heteroatoms"),
+    ],
+)
+def test_diamine_parents_joined_through_nitrogen_by_a_linking_group(smiles, expected):
+    # P-62.2.4.1.3, P-62.2.5.2
     assert smiles_to_iupac(smiles) == expected
 
 
