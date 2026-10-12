@@ -370,7 +370,7 @@ def test_glycoglycerolipids(smiles, expected):
         pytest.param("OC[C@H]1O[C@@H](F)[C@H](O)[C@@H](O)[C@@H]1O", "β-D-glucopyranosyl fluoride", id="glycosyl_halide"),
         pytest.param("OC[C@H]1O[C@@H](N)[C@H](O)[C@@H](O)[C@@H]1O", "β-D-glucopyranosylamine", id="glycosylamine"),
         pytest.param("OC[C@H]1O[C@@H](Nc2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "N-phenyl-β-D-glucopyranosylamine", id="n_substituted_glycosylamine"),
-        pytest.param("OC[C@H]1O[C@H](c2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "(β-D-glucopyranosyl)benzene", id="c_glycosyl_ring"),
+        pytest.param("OC[C@H]1O[C@@H](c2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "(β-D-glucopyranosyl)benzene", id="c_glycosyl_ring"),
         pytest.param("C([C@@H]1[C@@H]([C@@H]([C@H]([C@H](O1)OC[C@@H]2[C@H]([C@@H]([C@H]([C@H](O2)O[C@]3([C@H]([C@@H]([C@H](O3)CO)O)O)CO)O)O)O)O)O)O)O", "β-D-fructofuranosyl α-D-galactopyranosyl-(1→6)-α-D-glucopyranoside", id="trisaccharide_without_hemiacetal"),
         pytest.param("C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O[C@]2([C@H]([C@@H]([C@H](O2)CO)O)O)CO)O)O)O)O", "β-D-fructofuranosyl α-D-glucopyranoside", id="aldose_is_the_glycoside_parent"),
         pytest.param("OC[C@H]1O[C@H](O[C@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranosyl α-D-glucopyranoside", id="identical_units_anomeric_bond"),
@@ -437,14 +437,24 @@ def test_substituted_monosaccharides(smiles, expected):
     "smiles,expected",
     [
         pytest.param(
-            "OC[C@H]1O[C@H](c2c(O)cc3oc(-c4ccc(O)cc4)cc(=O)c3c2O)[C@H](O)[C@@H](O)[C@@H]1O",
+            "OC[C@H]1O[C@@H](c2c(O)cc3oc(-c4ccc(O)cc4)cc(=O)c3c2O)[C@H](O)[C@@H](O)[C@@H]1O",
             "6-(β-D-glucopyranosyl)-5,7-dihydroxy-2-(4-hydroxyphenyl)-4H-1-benzopyran-4-one",
             id="c_glucosyl_flavone",
         ),
-        pytest.param("OC[C@H]1O[C@H](c2ccc(O)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)phenol", id="glycosyl_on_a_phenol"),
-        pytest.param("OC[C@H]1O[C@H](c2ccc(C(=O)O)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)benzoic acid", id="glycosyl_on_a_benzoic_acid"),
-        pytest.param("OC[C@H]1O[C@H](c2ccc(N)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)aniline", id="glycosyl_on_an_aniline"),
-        pytest.param("OC[C@H]1O[C@H](c2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "(β-D-glucopyranosyl)benzene", id="glycosyl_on_benzene"),
+        pytest.param("OC[C@H]1O[C@@H](c2ccc(O)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)phenol", id="glycosyl_on_a_phenol"),
+        pytest.param("OC[C@H]1O[C@@H](c2ccc(C(=O)O)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)benzoic acid", id="glycosyl_on_a_benzoic_acid"),
+        pytest.param("OC[C@H]1O[C@@H](c2ccc(N)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)aniline", id="glycosyl_on_an_aniline"),
+        pytest.param("OC[C@H]1O[C@@H](c2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "(β-D-glucopyranosyl)benzene", id="glycosyl_on_benzene"),
+        pytest.param(
+            "OC[C@H]1O[C@@](O)(c2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O",
+            "(1-hydroxy-β-D-glucopyranosyl)benzene",
+            id="hydroxyglycosyl_on_benzene",
+        ),
+        pytest.param(
+            "OC[C@H]1O[C@](O)(CC(=O)O)[C@H](O)[C@@H](O)[C@H]1O",
+            "(1-hydroxy-α-D-galactopyranosyl)acetic acid",
+            id="hydroxyglycosyl_on_an_acid_chain",
+        ),
     ],
 )
 def test_c_glycosyl_compounds(smiles, expected):
