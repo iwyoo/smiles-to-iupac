@@ -104,7 +104,7 @@ def name_chain_onium(mol) -> str:
     n = len(chain)
     stem = "hydrazin" if z == 7 and n == 2 else multiplying_prefix(n) + _STEM[z][0][:-1]
     locants = ",".join(map(str, key[0]))
-    if has_single_arrangement(mol, chain_set):
+    if has_single_arrangement(mol, chain_set, cations):
         ending = "ium" if count == 1 else f"e{multiplying_prefix(count)}ium"
         return format_substituent_prefixes(grouped, omit_all=True) + stem + ending
     if count == 1:

@@ -112,6 +112,21 @@ _ONIUM_STEM = {
 _ONIUM_NEIGHBOURS = (6, 7, 8, 9, 16, 17, 34, 35, 52, 53)
 
 
+_HYPERVALENT = {15, 16, 17, 33, 34, 35, 51, 52, 53}
+
+
+def _onium_lambda(atom):
+    """The bonding number of the neutral parent hydride of an onium centre when it differs from the standard one (the
+    centre then takes the lambda convention, P-73.1.1.2: tetrafluoro(methyl)-\u03bb4-sulfanium), '' when standard, else None."""
+    standard = _STEM[atom.GetAtomicNum()][1]
+    bonds = int(sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs())
+    if bonds == standard + 1:
+        return ""
+    if atom.GetAtomicNum() in _HYPERVALENT and bonds > standard + 1 and (bonds - standard - 1) % 2 == 0:
+        return str(bonds - 1)
+    return None
+
+
 def _onium_center(mol):
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
     if len(charged) != 1 or charged[0].GetFormalCharge() != 1 or len(Chem.GetMolFrags(mol)) != 1:
@@ -119,8 +134,7 @@ def _onium_center(mol):
     atom = charged[0]
     if atom.GetAtomicNum() not in _ONIUM_STEM or atom.IsInRing() or atom.GetIsotope():
         return None
-    bonds = sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs()
-    if bonds != _STEM[atom.GetAtomicNum()][1] + 1:
+    if _onium_lambda(atom) is None:
         return None
     triple_allowed = atom.GetAtomicNum() in (7, 8)
     if any(b.GetBondTypeAsDouble() > (3.0 if triple_allowed else 2.0) for b in atom.GetBonds()):
@@ -166,7 +180,11 @@ def name_hydride_onium(mol) -> str:
                 entries.append((name, compound))
     finally:
         EXTENDED_PREFIXES.reset(token)
-    return centre_descriptor(mol, center) + format_mononuclear_prefixes(entries) + _ONIUM_STEM[center.GetAtomicNum()]
+    stem = _ONIUM_STEM[center.GetAtomicNum()]
+    lam = _onium_lambda(center)
+    if lam:
+        stem = f"-\u03bb{lam}-{stem}"
+    return centre_descriptor(mol, center) + format_mononuclear_prefixes(entries) + stem
 
 
 def _substituted_nitrilium(mol, graph, center):
