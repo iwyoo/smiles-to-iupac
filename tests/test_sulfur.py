@@ -901,6 +901,9 @@ def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
         pytest.param("OSOSO", "dithioxanediol", id="alternating_parent_with_two_suffixes"),
         pytest.param("SSSCSSS", "1,1'-methylenebis(trisulfane)", id="multiplicative_chalcogen_chain_parents"),
         pytest.param("SSSCCSSS", "1,1'-(ethane-1,2-diyl)bis(trisulfane)", id="multiplicative_chain_linker_with_locants"),
+        pytest.param("C(CSSSC)SSSC", "1,1'-(ethane-1,2-diyl)bis(3-methyltrisulfane)", id="trisulfane_runs_are_parents_not_heterounits"),
+        pytest.param("CSSSCCSSSCC", "ethyl[2-(methyltrisulfanyl)ethyl]trisulfane", id="different_end_groups_leave_a_substitutive_name"),
+        pytest.param("CSCSSSCSC", "bis[(methylsulfanyl)methyl]trisulfane", id="two_heterounits_beside_a_trisulfane"),
     ],
 )
 def test_hydrogen_terminated_chalcogen_chains_are_parent_hydrides_with_suffixes(smiles, expected):

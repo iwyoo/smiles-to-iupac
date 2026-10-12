@@ -310,12 +310,17 @@ def _acceptable_path(mol, path):
 
 
 def _long_identical_run(mol, path, hetero_positions):
-    """Three or more identical adjacent heteroatoms form a parent hydride of their own (trisilane, trisulfane)."""
+    """Three or more identical adjacent heteroatoms form a parent hydride of their own (trisilane, trisulfane); sulfur,
+    selenium and tellurium atoms of nonstandard bonding number are chain units instead (P-51.4.1.2)."""
     return any(
         b - a == 1
         and c - b == 1
         and mol.GetAtomWithIdx(path[a]).GetAtomicNum() == mol.GetAtomWithIdx(path[b]).GetAtomicNum() == mol.GetAtomWithIdx(path[c]).GetAtomicNum()
-        and mol.GetAtomWithIdx(path[a]).GetAtomicNum() not in (15, 16, 34, 52)
+        and mol.GetAtomWithIdx(path[a]).GetAtomicNum() != 15
+        and not (
+            mol.GetAtomWithIdx(path[a]).GetAtomicNum() in (16, 34, 52)
+            and any(mol.GetAtomWithIdx(path[i]).GetDegree() != 2 for i in (a, b, c))
+        )
         for a, b, c in zip(hetero_positions, hetero_positions[1:], hetero_positions[2:])
     )
 

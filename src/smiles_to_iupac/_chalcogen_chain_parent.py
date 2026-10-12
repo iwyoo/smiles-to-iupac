@@ -8,6 +8,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._hydride_chain import _alternating_parent
+from ._multiplicative_text import enclose
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -268,8 +269,9 @@ def _candidate(mol, graph, chain, elements, arms, halogens, aromatic, first, las
 
 
 def name_chalcogen_chain_multiplicative(mol):
-    """'1,1'-methylenebis(trisulfane)' (P-68.4.1.2): two identical hydrogen-terminated chains of three or more identical
-    chalcogen atoms joined through one end atom each by an unbranched saturated carbon chain."""
+    """'1,1'-methylenebis(trisulfane)', '1,1'-(ethane-1,2-diyl)bis(3-methyltrisulfane)' (P-68.4.1.2, P-51.4.1.2): two
+    identical chains of three or more identical chalcogen atoms joined through one end atom each by an unbranched
+    saturated carbon chain, the other end carrying hydrogen or the same carbon group."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(
         a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()
     ):
@@ -290,8 +292,6 @@ def name_chalcogen_chain_multiplicative(mol):
         runs.append(run)
     if len(runs) != 2 or len(runs[0]) != len(runs[1]) or len(runs[0]) < 3:
         return None
-    if mol.GetNumAtoms() != sum(len(r) for r in runs) + sum(a.GetAtomicNum() == 6 for a in mol.GetAtoms()):
-        return None
     element = {mol.GetAtomWithIdx(i).GetAtomicNum() for r in runs for i in r}
     if len(element) != 1 or any(
         mol.GetAtomWithIdx(i).IsInRing() or any(b.GetBondTypeAsDouble() != 1.0 for b in mol.GetAtomWithIdx(i).GetBonds())
@@ -299,28 +299,60 @@ def name_chalcogen_chain_multiplicative(mol):
         for i in r
     ):
         return None
-    attachments = []
+    ends = []
     for run in runs:
-        ends = [i for i in run if sum(n in run for n in graph[i]) == 1]
-        carbons = [(i, n) for i in ends for n in graph[i] if n not in run]
-        hydrogen = [i for i in ends if mol.GetAtomWithIdx(i).GetTotalNumHs() == 1]
-        if len(ends) != 2 or len(carbons) != 1 or len(hydrogen) != 1 or any(
-            sum(n in run for n in graph[i]) != 2 or graph[i] != [n for n in graph[i] if n in run] for i in run if i not in ends
-        ):
+        found = [i for i in run if sum(n in run for n in graph[i]) == 1]
+        if len(found) != 2 or any(sum(n in run for n in graph[i]) != 2 or len(graph[i]) != 2 for i in run if i not in found):
             return None
-        attachments.append(carbons[0][1])
-    linker, previous, here = [], None, attachments[0]
-    while True:
-        atom = mol.GetAtomWithIdx(here)
-        if atom.GetAtomicNum() != 6 or atom.GetTotalNumHs() != 2 or atom.IsInRing():
-            return None
-        linker.append(here)
-        onward = [n for n in graph[here] if n != previous and mol.GetAtomWithIdx(n).GetAtomicNum() == 6]
-        if not onward:
-            break
-        previous, here = here, onward[0]
-    if here != attachments[1] or len(linker) + sum(len(r) for r in runs) != mol.GetNumAtoms():
+        ends.append(found)
+    previous = {atom: None for atom in runs[0]}
+    queue = list(runs[0])
+    while queue:
+        atom = queue.pop(0)
+        for n in graph[atom]:
+            if n not in previous and (n not in chalcogens or n in runs[1]):
+                previous[n] = atom
+                if n not in runs[1]:
+                    queue.append(n)
+    reached = [a for a in runs[1] if a in previous]
+    if len(reached) != 1:
         return None
+    path = [reached[0]]
+    while path[-1] not in runs[0]:
+        path.append(previous[path[-1]])
+    linker = path[1:-1][::-1]
+    attach = (path[-1], path[0])
+    if not linker or any(
+        mol.GetAtomWithIdx(a).GetAtomicNum() != 6 or mol.GetAtomWithIdx(a).GetTotalNumHs() != 2 or mol.GetAtomWithIdx(a).IsInRing() or len(graph[a]) != 2
+        for a in linker
+    ):
+        return None
+    halogens = halogen_substituents(mol)
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    far_names, covered = [], set(runs[0]) | set(runs[1]) | set(linker)
+    for run, pair, joined in zip(runs, ends, attach):
+        if joined not in pair:
+            return None
+        (far,) = [i for i in pair if i != joined]
+        atom = mol.GetAtomWithIdx(far)
+        outside = [n for n in graph[far] if n not in run]
+        if len(outside) > 1 or atom.GetTotalNumHs() + len(outside) != 1:
+            return None
+        if not outside:
+            far_names.append(None)
+            continue
+        arm = _arm_atoms(graph, outside[0], far)
+        if far in arm or arm & covered or not _plain_arm(mol, graph, arm, run) or mol.GetAtomWithIdx(outside[0]).GetAtomicNum() != 6:
+            return None
+        covered |= arm
+        far_names.append(name_branch(graph, outside[0], far, halogens, aromatic, mol=mol, unsaturated=True))
+    if far_names[0] != far_names[1] or len(covered) != mol.GetNumAtoms():
+        return None
+    from ._substituents import format_substituent_prefixes
+
     parent = multiplying_prefix(len(runs[0])) + _STEM[next(iter(element))]
+    if far_names[0] is not None:
+        name, compound = far_names[0]
+        parent = format_substituent_prefixes({name: {"locants": [len(runs[0])], "compound": compound}}) + parent
     central = "methylene" if len(linker) == 1 else f"({alkane_name(len(linker))}-1,{len(linker)}-diyl)"
-    return f"1,1'-{central}bis({parent})"
+    return f"1,1'-{central}bis{enclose(parent)}"
