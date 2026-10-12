@@ -556,6 +556,7 @@ def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smi
         ("CP(C)P(O)P(C)C", "bis(dimethylphosphanyl)phosphinous acid"),
         ("CCOC(=O)CC(P)P", "ethyl 3,3-bis(phosphanyl)propanoate"),
         ("CC(=O)OC(=O)OC(=O)O", "{[(acetyloxy)carbonyl]oxy}formic acid"),
+        ("COP(=O)(OC)O[PH](=O)OC", "methyl [(dimethoxyphosphoryl)oxy]phosphonate"),
     ],
 )
 def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, expected):

@@ -809,7 +809,7 @@ def _substitutive_name(mol, centers, links):
             acid_groups = sum(1 for lig in center.singles if lig.kind == "hydroxy" and lig.element == "O")
             choices.append(((-acid_groups, *acid[0]), parent, acid, group, bridge_atom, elements))
         else:
-            choices.append((acid[0], parent, acid, group, bridge_atom, elements))
+            choices.append(((acid[0], center.hydrogens == 0), parent, acid, group, bridge_atom, elements))
     if not choices:
         return None
     _, parent, acid, group, bridge_atom, elements = min(choices, key=lambda c: c[0])
