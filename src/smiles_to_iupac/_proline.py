@@ -41,6 +41,8 @@ def _match(mol):
     if len(ring) != 5 or any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
         return None
     ring_set = set(ring)
+    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(ring, ring[1:] + ring[:1])):
+        return None
 
     nitrogens = [a for a in ring if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
     if len(nitrogens) != 1:
