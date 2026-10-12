@@ -1332,3 +1332,18 @@ def test_anhydrides_of_stibinous_halogen_and_boron_acids(smiles, expected):
 )
 def test_substituent_prefixes_keep_multiple_bonds_and_heteroatoms(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=C(c1ccccc1)C(=O)c1ccccc1", "diphenylethanedione", id="suffix_and_prefix_locants_both_omitted"),
+        pytest.param("O=C(c1ccc2ccccc2c1)C(=O)c1ccc2ccccc2c1", "di(naphthalen-2-yl)ethanedione", id="ring_substituent_with_a_locant"),
+        pytest.param("CC(=O)C(=O)C", "butane-2,3-dione", id="isomers_exist_for_the_suffix"),
+        pytest.param("O=C(c1ccccc1)C(=O)C", "1-phenylpropane-1,2-dione", id="isomers_exist_for_the_prefix"),
+        pytest.param("ClCC(=O)C(=O)CCl", "1,4-dichlorobutane-2,3-dione", id="isomers_exist_when_a_chlorine_moves"),
+    ],
+)
+def test_locants_are_omitted_when_no_isomer_can_be_generated(smiles, expected):
+    # P-14.3.4.4
+    assert smiles_to_iupac(smiles) == expected
