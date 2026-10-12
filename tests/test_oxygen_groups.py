@@ -1063,6 +1063,13 @@ def test_acid_derivative_prefixes(smiles, expected):
         ("C(=O)(NC(=O)NC(=O)O)NN", "1-hydrazido-2,4-diimidotricarbonic acid"),
         ("OC(=N)OC(=O)O", "1-imidodicarbonic acid"),
         ("ClC(=O)OC(=O)O", "chlorodicarbonic acid"),
+        ("OC(=O)N(CC)C(=O)O", "N2-ethyl-2-imidodicarbonic acid"),
+        ("OC(=O)N(CC)C(=O)N(C)C(=O)O", "N2-ethyl-N4-methyl-2,4-diimidotricarbonic acid"),
+        ("OC(=NC)OC(=O)O", "N1-methyl-1-imidodicarbonic acid"),
+        ("CN(C)C(=O)OC(=O)O", "N,N-dimethylamidodicarbonic acid"),
+        ("CNC(=O)SC(=O)O", "N-methyl-1-amido-2-thiodicarbonic acid"),
+        ("CNNC(=O)OC(=O)O", "N'-methylhydrazidodicarbonic acid"),
+        ("OC(=O)N(C)C(=O)N", "carbamoyl(methyl)carbamic acid"),
     ],
 )
 def test_carbonic_family_names(smiles, expected):

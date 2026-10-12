@@ -10,10 +10,11 @@ from rdkit import Chem
 from ._acid_lexicon import _INFIX
 from ._carbonic_family import _HALIDE_INFIX, _SYMBOL, PSEUDO_INFIX, _chain, pseudohalide_at
 from ._alkoxy import alkoxy_prefix
+from ._carbonic_amide import _hydrocarbon_arms
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
-from ._substituents import name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _PREFIX_WORDS = {"fluorid": "fluoro", "chlorid": "chloro", "bromid": "bromo", "iodid": "iodo", "azid": "azido", "isocyanid": "isocyano", "isocyanatid": "isocyanato", "isothiocyanatid": "isothiocyanato", "isoselenocyanatid": "isoselenocyanato", "isotellurocyanatid": "isotellurocyanato"}
 _UNITS = {2: "di", 3: "tri", 4: "tetra"}
@@ -33,13 +34,15 @@ def _carbonic_center(mol, idx):
     return sum(1 for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 2.0) == 1
 
 
-def _oxo_word(mol, center):
+def _oxo_word(mol, center, substituted=False):
     for n in mol.GetAtomWithIdx(center).GetNeighbors():
         if _bond(mol, center, n.GetIdx()) == 2.0:
             z = n.GetAtomicNum()
             if z in _SYMBOL and n.GetDegree() == 1:
                 return _SYMBOL[z], n.GetIdx()
             if z == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
+                return "NH", n.GetIdx()
+            if substituted and z == 7 and n.GetDegree() == 2 and not n.GetTotalNumHs() and not n.GetFormalCharge() and not n.IsInRing():
                 return "NH", n.GetIdx()
     return None, None
 
@@ -61,7 +64,7 @@ def _dianion_name(mol):
     return name[: -len("ic acid")] + "ate"
 
 
-def _chain_setup(mol):
+def _chain_setup(mol, substituted=False):
     centers = [a.GetIdx() for a in mol.GetAtoms() if _carbonic_center(mol, a.GetIdx())]
     if len(centers) < 2:
         raise UnsupportedStructure("fewer than two carbonic units")
@@ -80,9 +83,11 @@ def _chain_setup(mol):
                     far = [m for m in graph[partner[0]] if m != n]
                     if far and far[0] in centers:
                         bridges.setdefault(frozenset((c, far[0])), (n, partner[0]))
-            elif atom.GetAtomicNum() == 7 and atom.GetDegree() == 2 and atom.GetTotalNumHs() == 1 and not atom.GetFormalCharge():
-                far = [m for m in graph[n] if m != c]
-                if far and far[0] in centers:
+            elif atom.GetAtomicNum() == 7 and not atom.GetFormalCharge() and not atom.IsInRing() and (
+                (atom.GetDegree() == 2 and atom.GetTotalNumHs() == 1) or (substituted and atom.GetDegree() == 3 and not atom.GetTotalNumHs())
+            ):
+                far = [m for m in graph[n] if m != c and m in centers]
+                if len(far) == 1:
                     bridges.setdefault(frozenset((c, far[0])), n)
     if len(bridges) != len(centers) - 1:
         raise UnsupportedStructure("the carbonic units are not joined in a single chain")
@@ -120,21 +125,26 @@ def name_polycarbonic(mol):
         raise UnsupportedStructure("several fragments")
     if any(a.GetFormalCharge() for a in mol.GetAtoms()):
         return _dianion_name(mol)
-    graph, bridges, ends, n = _chain_setup(mol)
+    graph, bridges, ends, n = _chain_setup(mol, substituted=True)
     best = None
     for start in ends:
         order = _walk(bridges, start, n)
         try:
-            replaced = _replacements(mol, graph, order, bridges)
+            replaced = _replacements(mol, graph, order, bridges, substituted=True)
         except UnsupportedStructure:
             acyl = _acyl_end_name(mol, graph, order, bridges)
             if acyl is None:
                 raise
             return acyl
-        key = tuple(sorted(loc for loc, _ in replaced))
+        entries = _nitrogen_substituents(mol, graph, order, bridges)
+        key = (
+            tuple(sorted(loc for loc, _ in replaced)),
+            tuple(sorted(_locant_number(loc) for loc, _, _ in entries)),
+            tuple(sorted((name, loc) for loc, name, _ in entries)),
+        )
         if best is None or key < best[0]:
-            best = (key, order, replaced)
-    _, order, replaced = best
+            best = (key, order, replaced, entries)
+    _, order, replaced, entries = best
     amido = [p for p, w in replaced if w == "amido"]
     if n == 2 and amido and (2, "imido") in replaced and all(p != amido[0] for p, w in replaced if w != "amido"):
         raise UnsupportedStructure("a carbamic acid carrying a carbamoyl group on nitrogen is named as such (P-66.1.6.1.1.4)")
@@ -143,7 +153,55 @@ def name_polycarbonic(mol):
     ]
     if len(ends_ligands) == 2:
         raise UnsupportedStructure("two non-hydroxy end groups make an acyl halide of the polycarbonic acid")
-    return _compose(mol, n, replaced, _letters(mol, graph, order, bridges))
+    return _compose(mol, n, replaced, _letters(mol, graph, order, bridges), _substituent_prefix(entries))
+
+
+def _locant_number(locant):
+    return int(locant.lstrip("N'") or 0)
+
+
+def _substituent_prefix(entries):
+    grouped = {}
+    for locant, name, compound in entries:
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    return format_substituent_prefixes(grouped) if grouped else ""
+
+
+def _arm_names(mol, graph, nitrogen, skip, locant):
+    found = _hydrocarbon_arms(mol, graph, nitrogen, skip)
+    if found is None:
+        raise UnsupportedStructure("a substituent on a nitrogen of a polycarbonic acid carries a characteristic group")
+    return [(locant, name, compound) for name, compound in found[0]]
+
+
+def _nitrogen_substituents(mol, graph, order, bridges):
+    """P-65.2.3.1.2.1, P-65.2.3.1.4: [(locant, substituent name, is compound)] of the groups on the imido nitrogens
+    (N2, N3, ... after the chain position of the nitrogen) and on the amido or hydrazido nitrogen (N, N')."""
+    entries = []
+    for i, center in enumerate(order):
+        word, atom = _oxo_word(mol, center, substituted=True)
+        if word == "NH":
+            entries += _arm_names(mol, graph, atom, {center}, f"N{2 * i + 1}")
+    for i in range(len(order) - 1):
+        bridge = bridges[frozenset((order[i], order[i + 1]))]
+        if isinstance(bridge, int) and mol.GetAtomWithIdx(bridge).GetAtomicNum() == 7:
+            entries += _arm_names(mol, graph, bridge, {order[i], order[i + 1]}, f"N{2 * i + 2}")
+    bridge_atoms = _bridge_atoms(bridges)
+    for center in (order[0], order[-1]):
+        for m in graph[center]:
+            atom = mol.GetAtomWithIdx(m)
+            if m in bridge_atoms or atom.GetAtomicNum() != 7 or _bond(mol, center, m) != 1.0:
+                continue
+            betas = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetIdx() != center]
+            entries += _arm_names(mol, graph, m, {center, *betas}, "N")
+            for beta in betas:
+                entries += _arm_names(mol, graph, beta, {m}, "N'")
+    if entries and (
+        any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms())
+        or any(b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds())
+    ):
+        raise UnsupportedStructure("isotopes and stereodescriptors on a substituted polycarbonic acid are not named yet")
+    return entries
 
 
 def _acyl_end_name(mol, graph, order, bridges):
@@ -187,13 +245,13 @@ def _bridge_atoms(bridges):
     return atoms
 
 
-def _replacements(mol, graph, order, bridges):
+def _replacements(mol, graph, order, bridges, substituted=False):
     """[(locant, prefix word)] and letters for the replaced atoms along the numbered chain."""
     n = len(order)
     replaced, letters = [], []
     for i, center in enumerate(order):
         position = 2 * i + 1
-        oxo, _ = _oxo_word(mol, center)
+        oxo, _ = _oxo_word(mol, center, substituted)
         if oxo is None:
             raise UnsupportedStructure("unsupported =X atom on a polycarbonic acid")
         if oxo != "O":
@@ -203,7 +261,7 @@ def _replacements(mol, graph, order, bridges):
             ligand = [m for m in graph[center] if m not in bridge_atoms and _bond(mol, center, m) == 1.0]
             if len(ligand) != 1:
                 raise UnsupportedStructure("a terminal group of the polycarbonic acid is not recognized")
-            _terminal(mol, graph, center, ligand[0], position, replaced, letters)
+            _terminal(mol, graph, center, ligand[0], position, replaced, letters, substituted)
     for i in range(n - 1):
         bridge = bridges[frozenset((order[i], order[i + 1]))]
         if isinstance(bridge, tuple):
@@ -216,7 +274,7 @@ def _replacements(mol, graph, order, bridges):
     return replaced
 
 
-def _terminal(mol, graph, center, atom_idx, position, replaced, letters):
+def _terminal(mol, graph, center, atom_idx, position, replaced, letters, substituted=False):
     atom = mol.GetAtomWithIdx(atom_idx)
     chain = _chain(mol, center, atom)
     if chain is not None:
@@ -249,6 +307,14 @@ def _terminal(mol, graph, center, atom_idx, position, replaced, letters):
         ):
             replaced.append((position, "hydrazido"))
             return
+        if substituted and not atom.IsInRing() and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds()):
+            betas = [n for n in others if n.GetAtomicNum() == 7]
+            if not betas:
+                replaced.append((position, "amido"))
+                return
+            if len(betas) == 1 and not betas[0].IsInRing() and not betas[0].GetFormalCharge():
+                replaced.append((position, "hydrazido"))
+                return
     raise UnsupportedStructure("this terminal group of a polycarbonic acid is not supported")
 
 
@@ -277,7 +343,7 @@ def _letters(mol, graph, order, bridges):
     return ",".join(sorted(marked))
 
 
-def _compose(mol, n, replaced, letters=""):
+def _compose(mol, n, replaced, letters="", prefix=""):
     if n >= 5:
         if replaced:
             raise UnsupportedStructure("functional replacement on a polycarbonic acid with five or more units is not named")
@@ -307,4 +373,5 @@ def _compose(mol, n, replaced, letters=""):
         parts = [
             (multiplying_prefix(len(by_word[w])) if len(by_word[w]) > 1 else "") + w for w in sorted(by_word)
         ]
-    return "-".join(parts) + core[:-len(" acid")] + (f" {letters}-acid" if letters else " acid")
+    separator = "-" if prefix and parts[0][0].isdigit() else ""
+    return prefix + separator + "-".join(parts) + core[:-len(" acid")] + (f" {letters}-acid" if letters else " acid")
