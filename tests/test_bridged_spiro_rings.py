@@ -963,9 +963,9 @@ def test_polyspiro_union_with_polycyclic_components(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("C1C2(Cc3ccccc3C24CCCC4)CC3(Cc4ccccc4C3)CC15Cc6ccccc6C5", "1′′′,1′′′′,3′′′,3′′′′-tetrahydro-3′′H-spiro{cyclopentane-1,1′′-trispiro[cyclohexane-1,2′:3,2′′:5,2′′′-tris(indene)]}", id="largest_branched_system_named_first_and_used_as_a_unit"),
-        pytest.param("c1ccc2c(c1)CC1(C2)OP23(S1)SP14(OC5(Cc6ccccc6C5)S1)SP1(OC5(Cc6ccccc6C5)S1)(S2)SP1(OC2(Cc5ccccc5C2)S1)(S3)S4", "1′′′′′,1′′′′′′,1′′′′′′′,1′′′′′′′′,3′′′′′,3′′′′′′,3′′′′′′′,3′′′′′′′′-octahydro-1λ5,2′′λ5,2′′′λ5,2′′′′λ5-tetraspiro{tetraspiro[[2,4,6,8,9,10]hexathia[1,3,5,7]tetraphosphaadamantane-1,2′:3,2′′:5,2′′′:7,2′′′′-tetrakis([1,3,2]oxathiaphosphetane)]-4′,2′′′′′:4′′,2′′′′′′:4′′′,2′′′′′′′:4′′′′,2′′′′′′′′-tetrakis(indene)}", id="heteroadamantane_unit_with_nonstandard_spiro_atoms"),
-        pytest.param("C1C2(Cc3ccccc3C24CCCC4)CC3(Cc4ccccc4C3)CC15Cc6ccccc6C5=O", "1′′′′,3′′′′-dihydro-3′′H-spiro{cyclopentane-1,1′′-trispiro[cyclohexane-1,2′:3,2′′:5,2′′′-tris(indene)]}-1′′′(3′′′H)-one", id="suffix_group_on_a_nested_system"),
+        pytest.param("C1C2(Cc3ccccc3C24CCCC4)CC3(Cc4ccccc4C3)CC15Cc6ccccc6C5", "1′′′,1′′′ ′,3′′′,3′′′ ′-tetrahydro-3′′H-spiro{cyclopentane-1,1′′-trispiro[cyclohexane-1,2′:3,2′′:5,2′′′-tris(indene)]}", id="largest_branched_system_named_first_and_used_as_a_unit"),
+        pytest.param("c1ccc2c(c1)CC1(C2)OP23(S1)SP14(OC5(Cc6ccccc6C5)S1)SP1(OC5(Cc6ccccc6C5)S1)(S2)SP1(OC2(Cc5ccccc5C2)S1)(S3)S4", "1′′′ ′′,1′′′ ′′′,1′′′ ′′′ ′,1′′′ ′′′ ′′,3′′′ ′′,3′′′ ′′′,3′′′ ′′′ ′,3′′′ ′′′ ′′-octahydro-1λ5,2′′λ5,2′′′λ5,2′′′ ′λ5-tetraspiro{tetraspiro[[2,4,6,8,9,10]hexathia[1,3,5,7]tetraphosphaadamantane-1,2′:3,2′′:5,2′′′:7,2′′′ ′-tetrakis([1,3,2]oxathiaphosphetane)]-4′,2′′′ ′′:4′′,2′′′ ′′′:4′′′,2′′′ ′′′ ′:4′′′ ′,2′′′ ′′′ ′′-tetrakis(indene)}", id="heteroadamantane_unit_with_nonstandard_spiro_atoms"),
+        pytest.param("C1C2(Cc3ccccc3C24CCCC4)CC3(Cc4ccccc4C3)CC15Cc6ccccc6C5=O", "1′′′ ′,3′′′ ′-dihydro-3′′H-spiro{cyclopentane-1,1′′-trispiro[cyclohexane-1,2′:3,2′′:5,2′′′-tris(indene)]}-1′′′(3′′′H)-one", id="suffix_group_on_a_nested_system"),
     ],
 )
 def test_polyspiro_union_with_a_nested_spiro_system(smiles, expected):

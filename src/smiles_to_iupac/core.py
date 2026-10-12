@@ -1,3 +1,4 @@
+import contextvars
 import re
 
 from rdkit import Chem, rdBase
@@ -589,11 +590,23 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
     legacy = Chem.GetUseLegacyStereoPerception()
     Chem.SetUseLegacyStereoPerception(False)
+    nested = _NAMING.get()
+    token = _NAMING.set(True)
     try:
         with rdBase.BlockLogs():
-            return _name_checked(smiles)
+            name = _name_checked(smiles)
+        return name if nested else _group_primes(name)
     finally:
+        _NAMING.reset(token)
         Chem.SetUseLegacyStereoPerception(legacy)
+
+
+_NAMING = contextvars.ContextVar("naming", default=False)
+_PRIME_RUN = re.compile("[\u2032']{4,}")
+
+
+def _group_primes(name):
+    return _PRIME_RUN.sub(lambda m: " ".join(m.group()[i : i + 3] for i in range(0, len(m.group()), 3)), name)
 
 
 def _name_checked(smiles: str) -> str:

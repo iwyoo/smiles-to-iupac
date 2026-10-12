@@ -1223,7 +1223,7 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         ),
         pytest.param(
             "CCN(CC)NC(=N)C1(CCCCC1)C(=N)NN(C)C",
-            "N'1,N'1-diethyl-N''''1,N''''1-dimethylcyclohexane-1,1-dicarboximidohydrazide",
+            "N'1,N'1-diethyl-N''' '1,N''' '1-dimethylcyclohexane-1,1-dicarboximidohydrazide",
             id="geminal_imidohydrazides_continue_the_primes",
         ),
         pytest.param("NN=C(N)C(=N)NN", "2-hydrazinyl-2-iminoethanehydrazonamide", id="imidohydrazide_at_a_chain_end_is_prefixes"),

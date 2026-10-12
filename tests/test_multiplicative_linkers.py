@@ -173,7 +173,7 @@ def test_diamine_parents_joined_through_nitrogen_by_a_linking_group(smiles, expe
         ("C[O]1CC[O](C)->[Pt]<-1([Cl])[Cl]", "dichlorido(1,2-dimethoxyethane-κ2O,O')platinum"),
         (
             "C1C[O]2->[K]3456<-[O]1CC[O]->3CC[O]->4CC[O]->5CC[O]->6CC2",
-            "(1,4,7,10,13,16-hexaoxacyclooctadecane-κ6O,O',O'',O''',O'''',O''''')potassium",
+            "(1,4,7,10,13,16-hexaoxacyclooctadecane-κ6O,O',O'',O''',O''' ',O''' '')potassium",
         ),
     ],
 )
@@ -669,6 +669,10 @@ def test_identical_configuration_units_are_multiplied_and_r_is_cited_before_s(sm
         ("n1nc(CO)c(CO)c(Oc2cnnc(CO)c2CO)c1", "[oxydi(pyridazine-5,3,4-triyl)]tetramethanol"),
         ("[SiH3]CCCCCCCCCCCCCCOCCCCCCCCCCCCCC[SiH3]", "[oxydi(tetradecane-14,1-diyl)]bis(silane)"),
         ("[SiH3]c1cc([SiH3])cc([SiH3])c1", "(benzene-1,3,5-triyl)tris(silane)"),
+        (
+            "OC(=O)Cc1c(CC(O)=O)c(CC(O)=O)c(CC(O)=O)c(CC(O)=O)c1",
+            "2,2',2'',2''',2''' '-(benzene-1,2,3,4,5-pentayl)pentaacetic acid",
+        ),
         ("CC(=O)N(C)[Si](C)(C=C)N(C)C(C)=O", "N,N'-[ethenyl(methyl)silanediyl]bis(N-methylacetamide)"),
     ],
 )
