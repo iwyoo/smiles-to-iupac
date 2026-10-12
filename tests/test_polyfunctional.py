@@ -918,6 +918,7 @@ def test_heteroatom_chain_parent_hydrides(smiles, expected):
         ("NC(=N)N=NNC(=N)NN", "3-(hydrazinecarboximidoyl)triaz-1-ene-1-carboximidamide"),
         ("N(=O)NNC(=N)N=NNNC(N)=N", "4-(2-nitrosohydrazine-1-carboximidoyl)tetraaz-3-ene-1-carboximidamide"),
         ("NC(=O)N=NNC(=N)NN", "3-(hydrazinecarboximidoyl)triaz-1-ene-1-carboxamide"),
+        ("C(=O)(O)CC[SiH2][SiH2]C(=O)O", "2-(2-carboxyethyl)disilane-1-carboxylic acid"),
     ],
 )
 def test_carbo_suffix_on_heteroacyclic_parent_hydride(smiles, expected):

@@ -39,6 +39,8 @@ _A_WORD = {
 }
 _A_ORDER = [8, 16, 34, 52, 7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81]
 _STANDARD_VALENCE = {7: 3, 15: 3, 33: 3, 51: 3, 83: 3, 14: 4, 32: 4, 50: 4, 82: 4, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3}
+# P-44.1.2.1: these elements outrank oxygen and carbon, so a hydride of one of them is the parent when no principal group decides
+_SENIOR_TO_OXYGEN = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
 _CHAIN_ENDS = {6, *(z for z in _STANDARD_VALENCE if z != 7)}
 _MINIMUM_UNITS = 4
 _ORDER = [*_SENIORITY[: _SENIORITY.index("amide")], "halide", *_SENIORITY[_SENIORITY.index("amide") :]]
@@ -384,15 +386,19 @@ def name_heteroacyclic(mol):
     bond_codes = {
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
     }
-    best = None
+    best, best_chain = None, ()
     for path in _chain_paths(graph, eligible, carbamoyl if principal == "amide" else {}):
         if not _acceptable_path(mol, path):
             continue
         for chain in (path, path[::-1]):
             candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl)
             if candidate is not None and (best is None or candidate[0] < best[0]):
-                best = candidate
+                best, best_chain = candidate, chain
     if best is None:
+        return None
+    if principal is None and any(
+        a.GetAtomicNum() in _SENIOR_TO_OXYGEN and not a.IsInRing() and a.GetIdx() not in best_chain for a in mol.GetAtoms()
+    ):
         return None
     return best[1]
 
