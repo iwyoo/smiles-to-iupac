@@ -182,7 +182,7 @@ def _find(mol):
         triples = [n for n in neighbors if _bond(mol, atom.GetIdx(), n.GetIdx()) == 3.0 and n.GetAtomicNum() == 7 and n.GetDegree() == 1]
         doubles = [n for n in neighbors if _bond(mol, atom.GetIdx(), n.GetIdx()) == 2.0]
         if triples and len(neighbors) == 2:
-            if all(n.GetAtomicNum() != 7 for n in neighbors if n.GetIdx() != triples[0].GetIdx()):
+            if all(n.GetAtomicNum() not in (6, 7) for n in neighbors if n.GetIdx() != triples[0].GetIdx()):
                 cyano.append(atom.GetIdx())
         elif len(neighbors) == 3 and len(doubles) == 1 and sum(n.GetAtomicNum() == 6 for n in neighbors) < 2:
             centers.append(atom.GetIdx())
