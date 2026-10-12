@@ -10,6 +10,7 @@ from rdkit import Chem
 from rdkit.Chem import BondType, RWMol
 
 from ._common import UnsupportedStructure, adjacency, superscript_locant
+from ._fusion_bridged import BRIDGED_MAX_CYCLE, SENIORITY_MAX_CYCLE
 from ._ring_system_seniority import ring_seniority_key
 from ._ring_diyl_numbering import _PREFIX, _bare_skeleton, is_hydro_fusion_system, monocycle_numberings, system_numberings
 from ._steroid_named import _embeddings as _steroid_embeddings
@@ -147,7 +148,11 @@ def _numberings_of(bare):
     rings = [tuple(r) for r in bare.GetRingInfo().AtomRings()]
     if bare.GetNumBonds() - bare.GetNumAtoms() + 1 == 1:
         return monocycle_numberings(bare, _ring_order(graph, atoms), set(), 0)
-    return system_numberings(bare, graph, rings, atoms)
+    token = BRIDGED_MAX_CYCLE.set(SENIORITY_MAX_CYCLE)
+    try:
+        return system_numberings(bare, graph, rings, atoms)
+    finally:
+        BRIDGED_MAX_CYCLE.reset(token)
 
 
 def _parent_name(numbering, bare):

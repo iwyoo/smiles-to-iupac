@@ -303,6 +303,10 @@ def test_methyl_on_the_bridge_atom_of_a_bridged_fused_system():
     assert smiles_to_iupac("C1=CC2C(C)C1c1ccccc12") == "9-methyl-1,4-dihydro-1,4-methanonaphthalene"
 
 
+def test_fused_system_to_be_bridged_has_the_most_skeletal_atoms_and_a_saturated_name_cites_no_hydro_locants():
+    assert smiles_to_iupac("C1CCCC2C1CCCC1CCCC(CCC2)C1") == "hexadecahydro-1H-8,12-methanobenzo[13]annulene"
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
