@@ -1828,7 +1828,10 @@ def nonstandard_bonding(atom):
         return None
     if any(atom.HasProp(prop) for prop in ("_anion", "_anion_word", "_anion_lambda", "_ring_cation_centre")):
         return None
-    if any(b.GetBondTypeAsDouble() > 1.0 and b.GetOtherAtom(atom).GetDegree() == 1 for b in atom.GetBonds()):
+    if any(
+        b.GetBondTypeAsDouble() > 1.0 and b.GetOtherAtom(atom).GetDegree() == 1 and b.GetOtherAtom(atom).GetAtomicNum() != 6
+        for b in atom.GetBonds()
+    ):
         return None
     valence = int(atom.GetTotalValence())
     return valence if valence > standard else None

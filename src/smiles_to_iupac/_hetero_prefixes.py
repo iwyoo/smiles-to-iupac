@@ -1840,20 +1840,28 @@ def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol
         or atom.GetIsotope()
         or atom.GetNumRadicalElectrons()
         or (mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0 and not ylidene)
-        or any(not ylidene or mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 2.0 or not _oxo_or_imino(mol, root, n) for n in multiple)
+        or any(not _lambda_multiple_bond(mol, root, n, ylidene) for n in multiple)
     ):
         return None
     if bonding > standard and not _has_senior_principal_group(mol):
         raise UnsupportedStructure("a λ-bonded centre outranks the carbon parent unless a senior group is present")
     entries = [
         _oxo_or_imino_prefix(graph, mol, root, n, halogens, aromatic_atoms)
-        if n in multiple
+        if n in multiple and mol.GetAtomWithIdx(n).GetAtomicNum() != 6
         else name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol)
         for n in others
     ]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     ending = stem[:-2] + "ylidene" if ylidene else stem
     return (prefix + "-" if prefix else "") + f"λ{bonding}-{ending}", True
+
+
+def _lambda_multiple_bond(mol, centre, n, ylidene):
+    """A double bond from the λ centre to a carbon (ylidene prefix) or, on a centre that is itself an ylidene group,
+    to a terminal chalcogen or imino group."""
+    if mol.GetBondBetweenAtoms(centre, n).GetBondTypeAsDouble() != 2.0:
+        return False
+    return mol.GetAtomWithIdx(n).GetAtomicNum() == 6 or (ylidene and _oxo_or_imino(mol, centre, n))
 
 
 def _oxo_or_imino(mol, centre, n):
