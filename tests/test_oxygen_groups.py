@@ -1079,6 +1079,7 @@ def test_acid_derivative_prefixes(smiles, expected):
         ("OC(=O)N(CC(=O)O)C(=O)O", "N,N-dicarboxyglycine"),
         ("N#CCN(C)C(=O)O", "(cyanomethyl)(methyl)carbamic acid"),
         ("N#CCNC(=O)OC", "methyl (cyanomethyl)carbamate"),
+        ("CNC(=O)CCNC(=O)O", "[3-(methylamino)-3-oxopropyl]carbamic acid"),
     ],
 )
 def test_carbonic_family_names(smiles, expected):
