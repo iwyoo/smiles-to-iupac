@@ -429,6 +429,18 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         )
         if skeletal is not None:
             return _assemble(2, unit, Part(skeletal, False, True), [])
+        graph = adjacency(mol)
+        ends = [u.linker_atom for u in selected]
+        # the chain of a skeletal name ends in carbon, so an ether oxygen on a unit stays outside it as an oxy group
+        if len(set(ends)) == 2 and all(
+            mol.GetAtomWithIdx(e).GetAtomicNum() == 8 and mol.GetAtomWithIdx(e).GetDegree() == 2 for e in ends
+        ):
+            inner = linker_atoms - set(ends)
+            starts = [next((n for n in graph[e] if n in inner), None) for e in ends]
+            if None not in starts:
+                skeletal = skeletal_linker(mol, graph, inner, starts, frozenset(ends))
+                if skeletal is not None:
+                    return _assemble(2, unit, Part(f"({skeletal})bis(oxy)", True, True), [])
     try:
         central = name_component(mol, kind, atoms, center_edges, ctx)
         arm_parts = []
@@ -446,6 +458,9 @@ def _attempt(mol, groups, selected, tree, core, name_function):
             return None
         raise
 
+    skeletal_arm = _skeletal_arm(mol, arm_chain, components, center_edges, selected) if len(selected) == 2 else None
+    if skeletal_arm is not None:
+        arm_parts = skeletal_arm
     if len(selected) == 2:
         from ._common import adjacency
 
@@ -481,6 +496,27 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     if descriptors is False:
         return None
     return name if descriptors is None else f"{descriptors}{name}"
+
+
+def _skeletal_arm(mol, arm_chain, components, center_edges, selected):
+    """The parts of a central group's arm that runs from an oxy group through a carbon-terminated chain of four or more
+    heterounits to an oxy group on the multiplied parent: 'oxy(3,6,9,12-tetraoxatetradecane-14,1-diyl)oxy' (P-51.3.2.1)."""
+    from ._common import adjacency
+    from ._heteroacyclic import skeletal_linker
+    from ._multiplicative_linker import Part
+
+    if not arm_chain or len(center_edges) != 2:
+        return None
+    graph = adjacency(mol)
+    first, last = center_edges[0][1], selected[0].linker_atom
+    if first == last or any(mol.GetAtomWithIdx(a).GetAtomicNum() != 8 or mol.GetAtomWithIdx(a).GetDegree() != 2 for a in (first, last)):
+        return None
+    arm = set().union(*(components[cid][1] for cid, _, _ in arm_chain)) - {first, last}
+    starts = [next((n for n in graph[end] if n in arm), None) for end in (first, last)]
+    if None in starts or not arm:
+        return None
+    name = skeletal_linker(mol, graph, arm, starts, frozenset({first, last}), directed=True)
+    return None if name is None else [Part("oxy", False, False), Part(name, True, True), Part("oxy", False, False)]
 
 
 def _unit_descriptors(mol, selected, unit):

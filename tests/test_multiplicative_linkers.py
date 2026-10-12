@@ -693,6 +693,18 @@ def test_multiplicative_linker_locants_enclosure_and_multiplying_prefix(smiles, 
             "2,2'-(3,6,9,12-tetraoxatetradecane-1,14-diyl)dibenzoic acid",
         ),
         (
+            "c1ccccc1OCCOCCOCCOCCOCCOc1ccccc1",
+            "1,1'-[(3,6,9,12-tetraoxatetradecane-1,14-diyl)bis(oxy)]dibenzene",
+        ),
+        (
+            "O(CCOCCOCCOCCOCCOc1ccoc1)c1cocc1OCCOCCOCCOCCOCCOc1ccoc1",
+            "3,3'-{furan-3,4-diylbis[oxy(3,6,9,12-tetraoxatetradecane-14,1-diyl)oxy]}difuran",
+        ),
+        (
+            "c1ccccc1OCCOCCOCCOCCOc1ccccc1",
+            "1,1'-[oxybis(ethane-2,1-diyloxyethane-2,1-diyloxy)]dibenzene",
+        ),
+        (
             "OC(=O)c1ccc(cc1)C(c1cccc(c1)C(O)=O)(c1cccc(c1)C(O)=O)c1ccc(cc1)C(O)=O",
             "3,3'-[bis(4-carboxyphenyl)methylene]dibenzoic acid",
         ),
