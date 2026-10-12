@@ -3936,7 +3936,8 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
         ]
         locant_set = tuple(sorted(attached))
         return found[0], found[1], (
-            -len(attached), tuple(_prefix_locant_key(loc) for loc in locant_set), locant_set, re.sub(r"[^a-z]", "", found[1][1])
+            -len(attached), tuple(_prefix_locant_key(loc) for loc in locant_set), locant_set, re.sub(r"[^a-z]", "", found[1][1]),
+            tuple(int(n) for n in re.findall(r"\d+", found[1][1])),
         )
     owned = set().union(*(o[2] for o in here))
     ring_set = set(ring)
@@ -4008,7 +4009,7 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
             ),
         ]
     )
-    rank = (-len(prefix_locants), tuple(prefix_locants), best[0][3], letters)
+    rank = (-len(prefix_locants), tuple(prefix_locants), best[0][3], letters, tuple(int(n) for n in re.findall(r"\d+", name)))
     return count, ((-count,), name, (None, None, None, 0, locants, True, len(name) - len(core))), rank
 
 

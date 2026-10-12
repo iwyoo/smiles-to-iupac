@@ -1277,6 +1277,8 @@ def test_acid_carbon_bonded_to_a_chain_heteroatom_is_the_chain_end():
         ("OC(=O)c1ccc(cc1)-c1ccncc1C(=O)O", "4-(4-carboxyphenyl)pyridine-3-carboxylic acid"),
         ("OC(=O)c1ccc(cc1)C1CCC(CC1)C(=O)O", "4-(4-carboxycyclohexyl)benzoic acid"),
         ("OC(=O)CCc1c(CC(=O)O)c(CC(=O)O)cc2ccccc12", "3-[2,3-bis(carboxymethyl)naphthalen-1-yl]propanoic acid"),
+        ("OC(=O)c1ccc(cc1)CC(Cl)OCC(Cl)c1ccc(cc1)C(O)=O", "4-{2-[2-(4-carboxyphenyl)-1-chloroethoxy]-1-chloroethyl}benzoic acid"),
+        ("OC(=O)c1ccc(cc1)C(Cl)COC(Cl)Cc1ccc(cc1)C(O)=O", "4-{2-[2-(4-carboxyphenyl)-1-chloroethoxy]-1-chloroethyl}benzoic acid"),
     ],
 )
 def test_senior_ring_is_the_parent_and_a_multiplicative_centre_keeps_all_principal_groups(smiles, expected):
