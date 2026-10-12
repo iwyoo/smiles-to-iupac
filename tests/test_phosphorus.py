@@ -555,6 +555,7 @@ def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smi
         ("O=P(O)(O)CCCP(=O)(O)CC", "{3-[hydroxy(ethylphosphonoyl)]propyl}phosphonic acid"),
         ("COS(=O)(=O)c1ccccc1P(=O)(O)O", "[2-(methoxysulfonyl)phenyl]phosphonic acid"),
         ("CP(C)P(O)P(C)C", "bis(dimethylphosphanyl)phosphinous acid"),
+        ("CCOC(=O)CC(P)P", "ethyl 3,3-bis(phosphanyl)propanoate"),
         ("CC(=O)OC(=O)OC(=O)O", "{[(acetyloxy)carbonyl]oxy}formic acid"),
     ],
 )

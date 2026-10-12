@@ -842,7 +842,7 @@ def _diphosphate_locants(mol, acid_atoms, per_link, free_centers):
     if len(phosphorus) != 2:
         return None
     around = [{n.GetIdx() for n in mol.GetAtomWithIdx(p).GetNeighbors()} for p in phosphorus]
-    if len(around[0] & around[1]) != 1:
+    if len(around[0] & around[1]) != 1 or any(mol.GetAtomWithIdx(b).GetAtomicNum() != 8 for b in around[0] & around[1]):
         return None
     slots = {p: [] for p in phosphorus}
     for link, name in per_link:
