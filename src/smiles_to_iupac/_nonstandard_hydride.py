@@ -156,6 +156,12 @@ def name_nonstandard_hydride(mol) -> str:
         return _chain_name(mol, chain)
     if any(a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified structures are not supported yet")
+    from ._heteroacyclic import name_heteroacyclic
+
+    # P-15.4.3.2.5: a chain of four or more heterounits is a skeletal replacement name whatever the bonding numbers
+    skeletal = name_heteroacyclic(mol)
+    if skeletal is not None:
+        return skeletal
     graph = adjacency(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     hydroxyls = [n for n in graph[center.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1]
