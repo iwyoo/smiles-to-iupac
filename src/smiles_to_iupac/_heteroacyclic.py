@@ -604,7 +604,8 @@ def _evaluate(
             if principal not in _SUFFIX_WORD:
                 return None
             suffix_word = multiplied_word(count, _SUFFIX_WORD[principal])
-        body = name_from_substituents(length, ene, yne, suffix_word, suffix_locants) + halide_word
+        both_ends = principal in _TERMINAL_CLASSES and suffix_locants == [1, length]
+        body = name_from_substituents(length, ene, yne, suffix_word, None if both_ends else suffix_locants) + halide_word
     name = prefix + ("-" if prefix and a_text and not prefix.endswith("-") else "") + a_text + body
     stereo = _chain_stereo(chain, position_of, atom_codes, bond_codes)
     if attach is not None:
