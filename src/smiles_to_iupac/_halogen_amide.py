@@ -5,6 +5,7 @@ with the carbon groups on nitrogen cited without locants."""
 
 from rdkit import Chem
 
+from ._carbonic_amide import plain_arm_atom
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -57,10 +58,12 @@ def name_halogen_amide(mol) -> str:
         raise UnsupportedStructure("a halogen on nitrogen carries something other than terminal oxygens")
     owned = {halogen.GetIdx(), *(o.GetIdx() for o in oxygens)}
     if any(
-        a.GetIdx() not in owned and (a.GetAtomicNum() not in (6, 7, *HALOGEN_PREFIXES) or a.GetFormalCharge() or a.GetIsotope())
+        a.GetIdx() not in owned
+        and a.GetIdx() != nitrogen.GetIdx()
+        and (not (plain_arm_atom(a) or a.GetAtomicNum() == 7) or a.GetFormalCharge() or a.GetIsotope())
         for a in mol.GetAtoms()
     ):
-        raise UnsupportedStructure("only carbon groups and halogens may accompany an amide of a halogen acid")
+        raise UnsupportedStructure("only plain substituent groups may accompany an amide of a halogen acid")
     if nitrogen.IsInRing() or any(
         a.GetAtomicNum() == 7 and a.GetIdx() != nitrogen.GetIdx() and not a.IsInRing() for a in mol.GetAtoms()
     ):

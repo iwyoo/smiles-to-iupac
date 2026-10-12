@@ -22,6 +22,19 @@ def _plain(mol):
     )
 
 
+def plain_arm_atom(atom):
+    """An atom that adds no characteristic group to an N-substituent: carbon, halogen, a divalent ether oxygen or sulfide
+    sulfur between carbons, or a ring nitrogen of a heterocycle."""
+    z = atom.GetAtomicNum()
+    if z in _CARBON_AND_HALOGEN:
+        return True
+    if z == 7:
+        return atom.IsInRing()
+    return z in (8, 16) and atom.GetDegree() == 2 and all(
+        n.GetAtomicNum() == 6 and (bond.GetBondTypeAsDouble() == 1.0 or bond.GetIsAromatic()) for bond in atom.GetBonds() for n in [bond.GetOtherAtom(atom)]
+    )
+
+
 def _arm_atoms(graph, root, blocked):
     seen, stack = {root}, [root]
     while stack:
@@ -34,7 +47,7 @@ def _arm_atoms(graph, root, blocked):
 
 def _hydrocarbon_arms(mol, graph, nitrogen, skip):
     """(name, compound) of each carbon group on `nitrogen` outside `skip` and the atoms they cover, or None when a
-    group is not a plain hydrocarbon (or halogenated) substituent."""
+    group carries a characteristic group."""
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     names, covered = [], set()
@@ -44,7 +57,7 @@ def _hydrocarbon_arms(mol, graph, nitrogen, skip):
         if mol.GetAtomWithIdx(root).GetAtomicNum() != 6:
             return None
         arm = _arm_atoms(graph, root, nitrogen)
-        if nitrogen in arm or covered & arm or any(mol.GetAtomWithIdx(i).GetAtomicNum() not in _CARBON_AND_HALOGEN for i in arm):
+        if nitrogen in arm or covered & arm or not all(plain_arm_atom(mol.GetAtomWithIdx(i)) for i in arm):
             return None
         covered |= arm
         names.append(name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol, unsaturated=True))
