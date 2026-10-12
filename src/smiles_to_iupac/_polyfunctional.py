@@ -1757,13 +1757,17 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         finally:
             FORCE_LOCANTS.reset(force_token)
     # a suffix group cannot also be cited as a prefix, so labels that candidate names consumed there are still open
-    suffix_atoms = set().union(*_principal_owned(mol)[1])
+    parent_groups = [
+        group for group in _principal_owned(mol)[1]
+        if any(a in parts[4] or any(n.GetIdx() in parts[4] for n in mol.GetAtomWithIdx(a).GetNeighbors()) for a in group)
+    ]
+    suffix_atoms = set().union(*parent_groups) if parent_groups else set()
     rest = {a: e for a, e in labels.items() if a not in in_parent and (a not in consumed or a in suffix_atoms)}
     if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in rest):
         name, parts, suffix_text = _carbon_group_label(mol, rest, reselect)
         front = []
     else:
-        front, suffix_text = _group_atom_labels(mol, rest) if rest else ([], None)
+        front, suffix_text = _group_atom_labels(mol, rest, parts[4]) if rest else ([], None)
     if suffix_text:
         name = _before_suffix(name, *suffix_text)
     if in_parent or front:
@@ -1964,11 +1968,12 @@ def _principal_owned(mol):
     return principal, groups.get(principal, [])
 
 
-def _group_atom_labels(mol, rest):
+def _group_atom_labels(mol, rest, parent_atoms=None):
     """([(nuclide, locant, count, repeatable)], suffix descriptor text) for nuclides on atoms of the principal
     characteristic group: an amide or amine nitrogen and the oxygens of an acid are cited in front of the parent
     with a letter locant (P-82.2.4, P-82.2.5, P-82.6.2); a hydroxy, oxo or aldehyde oxygen is inserted before the
-    suffix (P-82.2.1, P-82.6.1.1)."""
+    suffix (P-82.2.1, P-82.6.1.1). Atoms of the same element in the substituents of the parent do not make the
+    letter locant ambiguous; those inside `parent_atoms` do."""
     from ._isotope_labels import _nuclide_sort_key
 
     principal, owned_groups = _principal_owned(mol)
@@ -1981,7 +1986,8 @@ def _group_atom_labels(mol, rest):
     (element,) = elements
     before_suffix = principal in _SUFFIX_WORD and element == _SUFFIX_ELEMENT.get(principal, 8)
     if not before_suffix and any(
-        a.GetAtomicNum() == element and a.GetIdx() not in owned and a.GetIdx() not in rest for a in mol.GetAtoms()
+        a.GetAtomicNum() == element and a.GetIdx() not in owned and a.GetIdx() not in rest and (parent_atoms is None or a.GetIdx() in parent_atoms)
+        for a in mol.GetAtoms()
     ):
         raise UnsupportedStructure("the modified atom of the characteristic group needs a locant that is not defined yet")
     symbol = mol.GetAtomWithIdx(next(iter(rest))).GetSymbol()
