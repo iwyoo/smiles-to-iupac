@@ -139,6 +139,11 @@ def _chain_prefix_allowed(mol):
     return EXTENDED_PREFIXES.get() or _has_senior_principal_group(mol) or _dichalcogenide_only(mol)
 
 
+def _on_senior_hydride(mol, atom):
+    """A chalcogen chain hanging on a Group 13-15 atom is a prefix, for that atom is senior to every chalcogen (P-44.1.2.1)."""
+    return atom is not None and mol.GetAtomWithIdx(atom).GetAtomicNum() in MONONUCLEAR_HYDRIDES
+
+
 def require_senior_group(mol, z):
     """A free -SeH/-TeH/=Se/=Te is the principal group (selenol, tellurol, selone) unless a more senior class
     (acid, ester, amide, nitrile, aldehyde, ketone, alcohol, thiol) is present (P-41, P-63.1)."""
@@ -763,7 +768,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
             acyl, acyl_compound = _sulfur_oxo_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(acyl, acyl_compound) + "oxy", True
-        if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS and _chain_prefix_allowed(mol):
+        if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS and (
+            _chain_prefix_allowed(mol)
+            or (mol.GetAtomWithIdx(other).GetAtomicNum() != 8 and _on_senior_hydride(mol, coming_from))
+        ):
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
         if (
             mol.GetAtomWithIdx(other).GetAtomicNum() == 8
@@ -816,7 +824,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, others[0], root):
             acyl, acyl_compound = _sulfur_oxo_group(graph, others[0], root, halogens, aromatic_atoms, mol)
             return _enclose(acyl, acyl_compound) + word, True
-        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS and _chain_prefix_allowed(mol):
+        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS and (
+            _chain_prefix_allowed(mol) or _on_senior_hydride(mol, coming_from)
+        ):
             return _chalcogen_chain_group(graph, root, others[0], halogens, aromatic_atoms, mol)
         from ._substituents import name_branch
 
