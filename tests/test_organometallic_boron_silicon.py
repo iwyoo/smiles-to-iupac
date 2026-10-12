@@ -923,15 +923,8 @@ def test_ylidene_and_enyl_prefixes_alongside_principal_characteristic_groups(smi
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        "OC(=O)CC1CCCC\\C1=C/C",
-    ],
-)
-def test_specified_double_bond_geometry_on_a_prefix_is_not_silently_dropped(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_specified_double_bond_geometry_on_a_prefix_is_not_silently_dropped():
+    assert smiles_to_iupac("OC(=O)CC1CCCC\\C1=C/C") == "[(2E)-2-ethylidenecyclohexyl]acetic acid"
 
 
 def test_double_bond_geometry_on_a_prefix_is_cited_inside_the_prefix():
