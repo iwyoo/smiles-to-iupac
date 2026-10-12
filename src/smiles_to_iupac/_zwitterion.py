@@ -113,7 +113,7 @@ def has_zwitterion_shape(mol) -> bool:
     here before `has_salt_shape`, since `_salt.py`'s cation loop would
     otherwise crash trying (and failing) to name the whole single-fragment
     molecule as a bare ammonium cation."""
-    if len(Chem.GetMolFrags(mol)) > 1:
+    if len(Chem.GetMolFrags(mol)) > 1 or sum(a.GetFormalCharge() > 0 for a in mol.GetAtoms()) != 1:
         return False
     if not (has_ammonium_shape(mol) or _has_iminium_nitrogen(mol) or _onium_centre(mol) is not None):
         return False
