@@ -1763,7 +1763,7 @@ def _name_labelled(mol, labels, finish=None):
     isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
         try:
-            multiplicative = _multiplicative_name(mol, stereo)
+            multiplicative = None if _ionic_linker_centre(mol) else _multiplicative_name(mol, stereo)
         except UnsupportedStructure:
             if not labels:
                 raise
@@ -1788,6 +1788,14 @@ def _name_labelled(mol, labels, finish=None):
     finally:
         BRANCH_STEREO.reset(token)
         ISOTOPE_LABELS.reset(isotope_token)
+
+
+def _ionic_linker_centre(mol):
+    """An anionic centre with two or more bonds cannot be a repeated unit: it is the parent, senior to every neutral
+    group (P-41), unless the terminal anionic groups outnumber the centres in between (P-72.7(a))."""
+    marked = [a for a in mol.GetAtoms() if a.HasProp(ANION_PROP)]
+    inner = sum(1 for a in marked if a.GetDegree() > 1)
+    return bool(inner) and len(marked) - inner <= inner
 
 
 _SUFFIX_WORD = {

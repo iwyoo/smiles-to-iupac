@@ -1009,7 +1009,7 @@ def _name_unabridged_body(smiles: str) -> str:
                     return name_isotope_steroid(parsed)
                 except UnsupportedStructure:
                     pass
-            if has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed):
+            if not _has_ionic_centre(parsed) and has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed):
                 try:
                     return name_polyfunctional(parsed)
                 except UnsupportedStructure:
@@ -1095,7 +1095,22 @@ def _drops_anionic_charge(mol, name, anywhere=False) -> bool:
         return False
     if (_ANION_WORD_ANYWHERE if anywhere else _ANION_NAME_ENDING).search(name) is None:
         return True
+    if _has_carbanion(mol) and _CARBANION_WORD.search(name) is None:
+        return True
     return bool(_ESTER_WORD_ENDING.search(name)) and _protonated_name(mol) == name
+
+
+_CARBANION_WORD = re.compile(r"u?id(?:e(?![a-z])|-\d|e?diyl|yl|ylidene|ylidyne)")
+
+
+def _has_carbanion(mol) -> bool:
+    """A carbon or a nitrogen bonded twice carries its charge in an 'ide' word, never in an acid ending."""
+    return any(
+        a.GetFormalCharge() < 0
+        and (a.GetAtomicNum() == 6 or (a.GetAtomicNum() == 7 and a.GetDegree() == 2))
+        and not any(n.GetFormalCharge() > 0 for n in a.GetNeighbors())
+        for a in mol.GetAtoms()
+    )
 
 
 _ESTER_WORD_ENDING = re.compile(r"^\S+ \S*ate$")
@@ -1209,6 +1224,13 @@ def _has_hydro_fusion_system(mol) -> bool:
             if is_hydro_fusion_system(mol, atoms):
                 return True
     return False
+
+
+def _has_ionic_centre(mol) -> bool:
+    """An anionic or cationic centre other than a nitro group, which a multiplicative name must keep as the parent."""
+    from ._anion import anion_atoms, _is_nitro_nitrogen
+
+    return bool(anion_atoms(mol)) or any(a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a) for a in mol.GetAtoms())
 
 
 def _has_aromatic_oxo(mol) -> bool:

@@ -733,8 +733,12 @@ _P72_COVERAGE = [
     ("[O-]C(=O)c1ccc(cc1)S[S-]", "4-disulfanidylbenzoate"),
     ("[O-]C(=O)c1ccc(cc1)SS[S-]", "4-trisulfanidylbenzoate"),
     ("[S-]Sc1ccc(cc1)[S-]", "4-sulfidobenzene-1-dithioperoxolate"),
-    ("[O-]C(=O)c1ccc(cc1)C2=C(c3ccc(cc3)C(=O)[O-])[CH-]C=C2", "4,4'-(cyclopenta-2,4-dien-1-id-2,3-diyl)dibenzoate"),
+    ("[O-]C(=O)c1ccc(cc1)C2=C(c3ccc(cc3)C(=O)[O-])[CH-]C=C2", "4,4'-(cyclopenta-1,4-dien-3-ide-1,2-diyl)dibenzoate"),
     ("[O-]C(=O)c1ccc(cc1)CCCc1ccc(cc1)C(=O)[O-]", "4,4'-(propane-1,3-diyl)dibenzoate"),
+    ("OC(=O)CC1CC([CH-]C1)CC(=O)O", "2,4-bis(carboxymethyl)cyclopentan-1-ide"),
+    ("OCC1CC([CH+]C1)CO", "2,4-bis(hydroxymethyl)cyclopentan-1-ylium"),
+    ("OC(=O)CC[N-]CCC(=O)O", "2-carboxy-N-(2-carboxyethyl)ethan-1-aminide"),
+    ("[O-]C(=O)CC=[B-]1Cc2ccccc2C1", "3-(1,3-dihydro-2H-2-benzoborol-2-uid-2-ylidene)propanoate"),
     ("N#C[C-](C#N)C1=C(C(=C(C#N)C#N)1)[C-](C#N)C#N", "[3-(dicyanomethylidene)cycloprop-1-ene-1,2-diyl]bis(dicyanomethanide)"),
     ("OC(=O)c1ccc(cc1)C1=C(c2ccc(cc2)C(=O)O)C1=C(C#N)C#N", "4,4'-[3-(dicyanomethylidene)cycloprop-1-ene-1,2-diyl]dibenzoic acid"),
     ("B1C=Cc2ccccc12", "1H-1-benzoborole"),
@@ -768,6 +772,11 @@ _P72_COVERAGE = [
 @pytest.mark.parametrize(("smiles", "expected"), _P72_COVERAGE)
 def test_p72_prefixes_chains_fusion_and_retained_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_charge_of_a_linking_aminide_is_not_dropped_beside_two_carboxylates():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[O-]C(=O)CC[N-]CCC(=O)[O-]")
 
 
 def test_ammonium_counter_ion_multiplied_with_bis_to_avoid_diazane_reading():
