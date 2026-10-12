@@ -73,7 +73,7 @@ from ._acid_lexicon import SULFONYL_CENTRES, SULFONYL_GROUP_NAMES, carbo_suffix,
 from ._retained_acids import retained_chain_acid, single_site_prefixes
 from ._hydroperoxide import peroxol_suffix
 from ._locant_omission import has_single_arrangement, omits_all_locants, omits_group_locants
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
 
 _AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
 _CHALCOGEN_AMIDE = {16: "thioamide", 34: "selenoamide", 52: "telluroamide"}
@@ -2591,6 +2591,9 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
 
     chain_best = None
     chain_error = None
+    stereo_context = BRANCH_STEREO.get()
+    used_before = set(stereo_context["used"]) if stereo_context else set()
+    chain_used = set()
     principal_atoms = groups.get(principal, {})
     if principal_atoms:
         owned = set().union(*principal_atoms.values())
@@ -2615,16 +2618,21 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         try:
             for path in _paths(graph, eligible):
                 for chain in (path, path[::-1]):
+                    if stereo_context:
+                        stereo_context["used"] &= used_before
                     candidate = _evaluate(
                         mol, graph, halogens, aromatic_atoms, chain, principal, principal_atoms, owned, attach, n_names, stereo
                     )
                     if chain_best is None or candidate[0] < chain_best[0]:
                         chain_best = candidate
+                        chain_used = set(stereo_context["used"]) - used_before if stereo_context else set()
         except UnsupportedStructure as error:
             chain_error, chain_best = error, None
         if chain_best is not None and chain_best[0][0] == 1:
             chain_best = None
     chain_count = -chain_best[0][0] if chain_best else 0
+    if stereo_context:
+        stereo_context["used"] &= used_before
 
     assembly = _assembly_parent(
         mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], stereo
@@ -2661,6 +2669,8 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         return _finish(ring_best[1])
     if chain_best is None:
         raise UnsupportedStructure("no parent carries the principal group")
+    if stereo_context:
+        stereo_context["used"] |= chain_used
     if _is_terminal(principal) and chain_count < len(principal_atoms):
         carbo = _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo, n_names)
         if carbo is not None and -carbo[0][0] > chain_count:

@@ -847,6 +847,8 @@ def test_saturated_fused_systems_use_hydro_prefixes(smiles, expected):
         ("C/C=C1\\C/C(=C/C)CC1", "(1Z,3E)-1,3-diethylidenecyclopentane"),
         ("C/C=C1\\CCCCC1C", "(1E)-1-ethylidene-2-methylcyclohexane"),
         ("C/C=C1\\CCCC[C@H]1O", "(1R,2E)-2-ethylidenecyclohexan-1-ol"),
+        pytest.param("F/C=C1\\CC[C@H](C(=O)O)C1", "(1S,3E)-3-(fluoromethylidene)cyclopentane-1-carboxylic acid", id="ring_parent_of_an_acid"),
+        pytest.param("F/C=C1\\CC[C@H](C(C)=O)C1", "1-[(1S,3E)-3-(fluoromethylidene)cyclopentyl]ethan-1-one", id="ring_substituent_of_a_ketone_chain"),
     ],
 )
 def test_ring_stereodescriptors_are_cited_once(smiles, expected):
@@ -1257,15 +1259,11 @@ def test_polyfunctional_never_misattributes_a_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        "C=CCC(CN)CC(C)/C(=C\\C)CC/C=C\\C",
-    ],
-)
-def test_group_or_stereo_element_without_a_supported_citation_raises(smiles):
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac(smiles)
+def test_ylidene_double_bond_beside_a_chain_double_bond_cites_both_descriptors():
+    assert (
+        smiles_to_iupac("C=CCC(CN)CC(C)/C(=C\\C)CC/C=C\\C")
+        == "(5Z,8Z)-5-ethylidene-4-methyl-2-(prop-2-en-1-yl)dec-8-en-1-amine"
+    )
 
 
 def test_acid_carbon_bonded_to_a_chain_heteroatom_is_the_chain_end():
