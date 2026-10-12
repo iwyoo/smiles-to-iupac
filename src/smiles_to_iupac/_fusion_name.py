@@ -161,6 +161,23 @@ def _first_order_outranked(ctx, parts):
     return False
 
 
+def _senior_retained_rings(ctx, retained_sets):
+    """Rings of the retained-name components identified first: the most senior one, then the most senior among those left
+    over, and so on (P-25.2.2.4, P-25.3.1.2.1)."""
+    cached = getattr(ctx, "_senior_retained", None)
+    if cached is not None and cached[0] is retained_sets:
+        return cached[1]
+    key = lambda subset: min(
+        q.comp.senior_key for q in ctx.parts_for(subset) if q.comp.retained and q.comp.kind != "mono" and not q.comp.benzo_unit
+    )
+    chosen = set()
+    for subset in sorted(retained_sets, key=key):
+        if not subset & chosen:
+            chosen |= subset
+    ctx._senior_retained = (retained_sets, chosen)
+    return chosen
+
+
 def _valid_decomposition(ctx, parts, retained_sets):
     """P-25.3.5: retained components are never broken up by weaker ones, and an isolated benzene ring fused to a
     heteromonocycle of five or more members belongs to a benzoheterocycle unit, unless that would break up a multiplicative
@@ -189,7 +206,7 @@ def _valid_decomposition(ctx, parts, retained_sets):
             rings = sorted(part.rings)
             benzo = [r for r in rings if elements(r) == {"C"}]
             host = [r for r in rings if r in hosts]
-            if not benzo or not host or benzo[0] not in benzene:
+            if not benzo or not host or benzo[0] not in benzene or benzo[0] in _senior_retained_rings(ctx, retained_sets):
                 return False
             if len(hosts[host[0]]) > 1 or host_count.get(benzo[0], 0) > 1:
                 return False

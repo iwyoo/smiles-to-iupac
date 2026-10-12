@@ -653,6 +653,11 @@ def test_phane_with_a_naphthalene_amplificant(smiles, expected):
         ("C1=CC2=CC=NC3=NC=CC(=N1)N23", "1,3a1,4,9-tetraazaphenalene"),
         ("C1=CC2=C3C=CC=CN3C=CN2C=C1", "dipyrido[1,2-a:2',1'-c]pyrazine"),
         ("c1cnc2cc3cc4cnoc4cc3cc2c1", "[1,2]benzoxazolo[6,5-g]quinoline"),
+        pytest.param(
+            "O1COC=2C=3C4=C(C5=CC=6C(N=CC=CC6)=CC5=CC4=CC2)C=CC13",
+            "2H-[1,3]benzodioxino[6',5',4':10,5,6]anthra[2,3-b]azepine",
+            marks=pytest.mark.slow,
+        ),
         pytest.param("C1=Cc2cc3c(cc2=Cc2ccccc21)C=c1ccccc1=c1ccccc1=3", "tribenzo[c,d',e]benzo[1,2-a:4,5-a']di[7]annulene", marks=pytest.mark.slow),
         ("C1=Cc2cc3c(cc2=C1)-c1cc2c(nc1C=3)C=c1c-2ccc2c1=CC=C2", "as-indaceno[2,3-b]-s-indaceno[1,2-e]pyridine"),
         ("C1=S=CC2=C1C=S=C2", "2λ4δ2,5λ4δ2-thieno[3,4-c]thiophene"),
