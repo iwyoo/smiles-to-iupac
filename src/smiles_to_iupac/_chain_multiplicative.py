@@ -957,7 +957,9 @@ def _chain_multiplicative_name(mol, stereo):
             bond = mol.GetBondBetweenAtoms(r, h)
             if atom.GetAtomicNum() == 6:
                 ok = (h in linkers and not (principal == "ketone" and r in anchors)) or (
-                    mol.GetAtomWithIdx(h).IsInRing() and bond.GetBondTypeAsDouble() in (1.0, 2.0)
+                    not (principal == "aldehyde" and r in anchors)
+                    and mol.GetAtomWithIdx(h).IsInRing()
+                    and bond.GetBondTypeAsDouble() in (1.0, 2.0)
                 )
                 target = candidates
             elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide") and r in anchors:
