@@ -50,7 +50,10 @@ def _bare_chalcogen_analogue(mol):
         return None
     nitrogen = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7]
     chalcogen = [a for a in mol.GetAtoms() if a.GetAtomicNum() in (16, 34, 52)]
-    if len(nitrogen) == 1 and len(chalcogen) == 1 and not any(a.GetFormalCharge() for a in mol.GetAtoms()):
+    if len(nitrogen) != 1 or len(chalcogen) != 1 or any(a.GetFormalCharge() for a in mol.GetAtoms()):
+        return None
+    single = mol.GetBondBetweenAtoms(nitrogen[0].GetIdx(), chalcogen[0].GetIdx()).GetBondTypeAsDouble() == 1.0
+    if single and nitrogen[0].GetTotalNumHs() == 2 and chalcogen[0].GetTotalNumHs() == 1:
         return _PARENT[chalcogen[0].GetAtomicNum()][1]
     return None
 
