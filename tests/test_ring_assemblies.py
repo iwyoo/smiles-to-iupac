@@ -147,9 +147,12 @@ def test_4_chlorobiphenyl_and_related(smiles, expected):
     "smiles, expected",
     [
         ("C1=CCCCC1C1=CCCCC1C1=CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-1¹,2²,3²-triene"),
-        ("C1CC=CCC1C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexane]-1³-ene"),
-        ("C1CCCCC1C1CC#CCC1C1CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-2⁴-yne"),
-        ("C1=CCCCC1C1CC#CCC1C1CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-1²-en-2⁴-yne"),
+        ("C1CC=CCC1C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexan]-1³-ene"),
+        ("C1CCCCC1=C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexan]-1¹(2¹)-ene"),
+        ("C1CCCCC1=C1CCC(CC1)=C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexane]-1¹(2¹),2⁴(3¹)-diene"),
+        ("C1CCCCC1=C1C=CC(CC1)C1C=CCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexane]-1¹(2¹),2²,3²-triene"),
+        ("C1CCCCC1C1CC#CCC1C1CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexan]-2⁴-yne"),
+        ("C1=CCCCC1C1CC#CCC1C1CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexan]-1²-en-2⁴-yne"),
     ],
 )
 def test_ring_chain_unsaturation_is_cited_after_the_bracket(smiles, expected):
@@ -195,7 +198,6 @@ def test_halogen_substituent__and_related(smiles, expected):
     "smiles, expected",
     [
         ("OC1CCCCC1C1CCC(CC1)=C1CCCCC1", "4'-cyclohexylidene[1,1'-bi(cyclohexan)]-2-ol"),
-        ("C1CCCCC1C1CCC(CC1)=C1CCCCC1", "4-cyclohexyl-1,1'-bi(cyclohexylidene)"),
         ("OC1CCCCC1=C1CCCCC1C1CCCCC1", "2'-cyclohexyl[1,1'-bi(cyclohexylidene)]-2-ol"),
     ],
 )
