@@ -579,7 +579,7 @@ def _solutions(ctx, mol):
         centre = layout.get("centre")
         terminal_atoms = [s for s, _, _ in layout["links"]] if centre is not None else []
         shortlist, shortlist_key = [], None
-        hetero_first = len(ctx.comps) >= 3 and bool(ctx.replacement_atoms)
+        hetero_first = _hetero_first(ctx)
         for combo in product(*(list(ctx.projections[i]) for i in indices)):
             base = {}
             for i, proj in zip(indices, combo):
@@ -618,11 +618,15 @@ def _solutions(ctx, mol):
                 )
 
 
+def _hetero_first(ctx):
+    """The heteroatoms of a skeletal replacement name of three identical components take their low locants before the
+    spiro atoms do (P-24.4.3(b)); other polyspiro systems number the spiro atoms first (P-24.6.1)."""
+    return len(ctx.comps) >= 3 and bool(ctx.replacement_atoms) and len(set(ctx.names.values())) == 1
+
+
 def _ranked(ctx, mol, sol):
-    """(sol.key, hetero key) in the order of precedence: the heteroatoms of a skeletal replacement name of three or more
-    components take their low locants before the spiro atoms do (P-24.4.3(b))."""
     hetero = _hetero_key(ctx, mol, sol.locant_of)
-    return (hetero, sol.key) if len(ctx.comps) >= 3 and ctx.replacement_atoms else (sol.key, hetero)
+    return (hetero, sol.key) if _hetero_first(ctx) else (sol.key, hetero)
 
 
 def _hetero_key(ctx, mol, locant_of):
