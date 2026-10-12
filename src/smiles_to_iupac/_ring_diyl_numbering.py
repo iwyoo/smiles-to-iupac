@@ -469,16 +469,16 @@ def _hetero_monocycle(mol, ring_order, attached):
         elements = tuple(sym[a] for a in walk)
         if fully_saturated:
             stem = _saturated_name(elements, hetero, lam)
-            results.append((position_of, stem, (), (), (), ()))
+            results.append((position_of, stem, (), (), (), (), ()))
             continue
         stem = _MANCUDE_RETAINED.get(elements)
         if stem is None:
             stem = _hantzsch_widman(elements, saturated=False)
             if stem is None:
-                stem = _replacement_ene_name(mol, elements, walk, hetero, lam)
-                if stem is None:
+                named = _replacement_ene_name(mol, elements, walk, hetero, lam)
+                if named is None:
                     raise UnsupportedStructure("this heteromonocycle has no supported mancude parent name yet")
-                results.append((position_of, stem, (), (), (), tuple(sorted(position_of[a] for a in triple_atoms))))
+                results.append((position_of, named[0], (), (), (), (), named[1]))
                 continue
             stem = _with_hetero_locants(stem, elements, hetero, lam)
         elif lam:
@@ -501,7 +501,7 @@ def _hetero_monocycle(mol, ring_order, attached):
             ih = tuple(sorted(sat_pos[:mancude_sp3] + lambda_h))
             hydro = tuple(sat_pos[mancude_sp3:])
             added = ()
-        results.append((position_of, stem, ih, hydro, added, tuple(sorted(position_of[a] for a in triple_atoms))))
+        results.append((position_of, stem, ih, hydro, added, tuple(sorted(position_of[a] for a in triple_atoms)), ()))
     return best_pre, results
 
 
@@ -552,14 +552,16 @@ def _replacement_ene_name(mol, elements, walk, hetero, lam):
     if base is None:
         return None
     position_of = {a: i + 1 for i, a in enumerate(walk)}
-    enes = []
+    citations = {2.0: [], 3.0: []}
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        if bond.GetBondTypeAsDouble() == 2.0 and a in position_of and b in position_of:
+        if bond.GetBondTypeAsDouble() in citations and a in position_of and b in position_of:
             low, high = sorted((position_of[a], position_of[b]))
-            enes.append((low, str(low)) if high - low == 1 else (low, f"{low}({high})"))
-    body, needs_a = _unsaturation_suffix_from_citations(enes, [])
-    return base[:-3] + ("a" if needs_a else "") + "-" + body
+            citations[bond.GetBondTypeAsDouble()].append((low, str(low)) if high - low == 1 else (low, f"{low}({high})"))
+    enes, ynes = citations[2.0], citations[3.0]
+    body, needs_a = _unsaturation_suffix_from_citations(enes, ynes)
+    unsaturation = (tuple(sorted(l for l, _ in enes + ynes)), tuple(sorted(l for l, _ in enes)))
+    return base[:-3] + ("a" if needs_a else "") + "-" + body, unsaturation
 
 
 _RETAINED_WITHOUT_LOCANTS = {"piperazine", "morpholine", "thiomorpholine", "imidazolidine", "pyrazolidine"}
@@ -612,12 +614,12 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
         return out
     best_pre, results = _hetero_monocycle(mol, ring_order, attached)
     out = []
-    for position_of, stem, ih, hydro, added, dehydro in results:
+    for position_of, stem, ih, hydro, added, dehydro, unsaturation in results:
         numbering = Numbering(
             position_of,
             _hetero_text(stem, ih, hydro, added, dehydro),
             pre_key=best_pre + (ih,),
-            unsat_key=(added, tuple(sorted(hydro + dehydro))),
+            unsat_key=(added, tuple(sorted(hydro + dehydro)), unsaturation),
             ih=ih,
         )
         numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
@@ -653,7 +655,7 @@ def _hetero_text(stem, ih, hydro, added=(), dehydro=()):
     def text(locants, valence, substituted=frozenset(), suffix="yl"):
         # P-14.3.4.2(c): the position of the one heteroatom of an unsubstituted ring is not cited (thiacyclododecane)
         bare = stem
-        if not substituted and not valence and suffix in ("", "yl") and not hydro and not added:
+        if not substituted and not valence and suffix in ("", "yl") and not hydro and not added and not re.search(r"cyclo[a-z]+-\d", stem):
             bare = re.sub(r"^1-(?=[a-z]+acyclo)", "", stem)
         ih_text = ",".join(f"{p}H" for p in ih) + "-" if ih else ""
         rest = ih_text + _tail_added(bare, locants, valence, suffix, added)
