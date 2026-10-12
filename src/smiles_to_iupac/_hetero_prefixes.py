@@ -49,6 +49,8 @@ _SENIOR_TO_SELENOL = [
     )
 ]
 _SELONE_KETONE = Chem.MolFromSmarts("[#6][CX3](=[Se])[#6]")
+_SELENOL = Chem.MolFromSmarts("[SeX2H1][#6;!$([#6]=[O,S,Se,Te])]")
+_HEAVY_CHALCOGENOL = Chem.MolFromSmarts("[SeX2H1,TeX2H1][#6;!$([#6]=[O,S,Se,Te])]")
 AMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
 _ENAMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX3;!a]=[#6]")
 _SENIOR_SULFONYL = [
@@ -91,6 +93,7 @@ def _has_senior_principal_group(mol):
         CATION_PARENT.get()
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_SULFONYL)
+        or mol.HasSubstructMatch(_HEAVY_CHALCOGENOL)
         or mol.HasSubstructMatch(AMINE_PATTERN)
         or mol.HasSubstructMatch(_ENAMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
@@ -151,7 +154,7 @@ def require_senior_group(mol, z, parent=None):
     if parent is not None and mol.GetAtomWithIdx(parent).GetAtomicNum() == 7:
         return
     if z in (34, 52) and not any(
-        mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *([_SELONE_KETONE] if z == 52 else []))
+        mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *([_SELONE_KETONE, _SELENOL] if z == 52 else []))
     ):
         raise UnsupportedStructure("a selenol, tellurol, selone or tellone is the principal group, not a prefix")
 

@@ -387,6 +387,9 @@ def test_warning_is_emitted_once_per_call():
     "smiles, expected",
     [
         ("OC(=O)C1CCC(=[Se])CC1", "4-selanylidenecyclohexane-1-carboxylic acid"),
+        ("[SeH]C(C)N[SeH]", "1-(selanylamino)ethane-1-selenol"),
+        ("[TeH]C(C)N[TeH]", "1-(tellanylamino)ethane-1-tellurol"),
+        ("[SeH]CC[TeH]", "2-tellanylethane-1-selenol"),
     ],
 )
 def test_selanyl_and_tellanyl_prefixes(smiles, expected):
