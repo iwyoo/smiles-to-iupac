@@ -1839,6 +1839,11 @@ def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol
     others = [n for n in graph[root] if n != coming_from]
     ylidene = atom.GetAtomicNum() in (16, 34, 52) and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0
     multiple = [n for n in others if mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0]
+    # S(=O)nR keeps its sulfonyl/sulfinyl acyl name; only a centre that also holds a methylidene group falls outside it
+    hetero_multiple = ylidene or (
+        atom.GetAtomicNum() in (16, 34, 52)
+        and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0 for n in multiple)
+    )
     if (
         bonding <= standard
         or (bonding - standard) % 2
@@ -1846,7 +1851,7 @@ def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol
         or atom.GetIsotope()
         or atom.GetNumRadicalElectrons()
         or (mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0 and not ylidene)
-        or any(not _lambda_multiple_bond(mol, root, n, ylidene) for n in multiple)
+        or any(not _lambda_multiple_bond(mol, root, n, hetero_multiple) for n in multiple)
     ):
         return None
     if bonding > standard and not _has_senior_principal_group(mol):
