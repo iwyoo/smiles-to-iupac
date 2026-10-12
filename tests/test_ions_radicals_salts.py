@@ -1206,6 +1206,10 @@ def test_ium_and_ylium_centres_in_one_ring_system(smiles, expected):
         pytest.param("C[n+]1ccc([NH3+])cc1", "1-methylpyridin-1-ium-4-aminium", id="primary_aminium_on_the_ring"),
         pytest.param("C[n+]1ccc(cc1)C(=O)[NH3+]", "1-methylpyridin-1-ium-4-carboxamidium", id="ring_ium_then_carboxamidium"),
         pytest.param("C[n+]1ccc(cc1)C#[NH+]", "1-methylpyridin-1-ium-4-carbonitrilium", id="ring_ium_then_carbonitrilium"),
+        pytest.param("NC(=[NH2+])c1ccc[nH+]c1", "pyridin-1-ium-3-carboximidamidium", id="ring_ium_then_carboximidamidium"),
+        pytest.param("[NH3+]c1ccc[n+]c1", "pyridin-1-ylium-3-aminium", id="ring_nitrenium_then_aminium"),
+        pytest.param("C1=C(C=C[N+]2=CC=CC=C12)C(=[NH2+])N", "5λ5-quinolizin-5-ylium-2-carboximidamidium", id="lambda_ylium_ring_then_carboximidamidium"),
+        pytest.param("c1cc([NH3+])c[n+]2ccccc12", "5λ5-quinolizin-5-ylium-3-aminium", id="lambda_ylium_ring_then_aminium"),
         pytest.param("C[n+]1ccc(N(C)C)cc1", "4-(dimethylamino)-1-methylpyridin-1-ium", id="neutral_substituted_amine_is_a_prefix_of_the_ring_cation"),
     ],
 )
