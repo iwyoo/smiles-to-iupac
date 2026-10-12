@@ -47,7 +47,7 @@ def _phosphinic_acid_phosphorus_atoms(mol):
     oxygen, and one single-bonded hydroxyl oxygen (terminal, one H)."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetFormalCharge() != 0:
+        if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetFormalCharge() != 0 or atom.IsInRing():
             continue
         if atom.GetDegree() + atom.GetTotalNumHs() != 4 or atom.GetTotalNumHs() > 1:
             continue
