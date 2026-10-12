@@ -1077,6 +1077,8 @@ def test_acid_derivative_prefixes(smiles, expected):
         ("OC(=O)N(C(C)=O)C(=O)O", "N2-acetyl-2-imidodicarbonic acid"),
         ("CN(CCO)C(=O)OC(=O)O", "N-(2-hydroxyethyl)-N-methylamidodicarbonic acid"),
         ("OC(=O)N(CC(=O)O)C(=O)O", "N,N-dicarboxyglycine"),
+        ("N#CCN(C)C(=O)O", "(cyanomethyl)(methyl)carbamic acid"),
+        ("N#CCNC(=O)OC", "methyl (cyanomethyl)carbamate"),
     ],
 )
 def test_carbonic_family_names(smiles, expected):
