@@ -10,7 +10,7 @@ from rdkit import Chem
 from ._acid_lexicon import _INFIX
 from ._carbonic_family import _HALIDE_INFIX, _SYMBOL, PSEUDO_INFIX, _chain, pseudohalide_at
 from ._alkoxy import alkoxy_prefix
-from ._carbonic_amide import _hydrocarbon_arms
+from ._carbonic_amide import _arm_atoms
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
@@ -42,8 +42,14 @@ def _oxo_word(mol, center, substituted=False):
                 return _SYMBOL[z], n.GetIdx()
             if z == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
                 return "NH", n.GetIdx()
-            if substituted and z == 7 and n.GetDegree() == 2 and not n.GetTotalNumHs() and not n.GetFormalCharge() and not n.IsInRing():
-                return "NH", n.GetIdx()
+            if z == 7 and n.GetDegree() == 2 and not n.GetTotalNumHs() and not n.GetFormalCharge() and not n.IsInRing():
+                far = next(m for m in n.GetNeighbors() if m.GetIdx() != center)
+                if far.GetAtomicNum() == 7:
+                    if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge():
+                        return "NNH2", n.GetIdx()
+                    return None, None
+                if substituted:
+                    return "NH", n.GetIdx()
     return None, None
 
 
@@ -140,6 +146,7 @@ def name_polycarbonic(mol):
         key = (
             tuple(sorted(loc for loc, _ in replaced)),
             tuple(sorted(_locant_number(loc) for loc, _, _ in entries)),
+            tuple(sorted((word, loc) for loc, word in replaced)),
             tuple(sorted((name, loc) for loc, name, _ in entries)),
         )
         if best is None or key < best[0]:
@@ -167,11 +174,37 @@ def _substituent_prefix(entries):
     return format_substituent_prefixes(grouped) if grouped else ""
 
 
+def _acid_group_in(mol, arm):
+    """Class 7a acids outrank the polycarbonic acids of class 7b (P-41), so an arm holding one would be the parent."""
+    for idx in arm:
+        atom = mol.GetAtomWithIdx(idx)
+        if atom.GetFormalCharge() or atom.GetNumRadicalElectrons():
+            return True
+        if atom.GetAtomicNum() not in _SYMBOL or not atom.GetTotalNumHs():
+            continue
+        for x in atom.GetNeighbors():
+            if atom.GetAtomicNum() == x.GetAtomicNum() == 8 and x.GetDegree() == 2:
+                x = next(m for m in x.GetNeighbors() if m.GetIdx() != atom.GetIdx())
+            if x.GetAtomicNum() in (5, 15, 16, 33, 34, 51, 52):
+                return True
+            if any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(x).GetAtomicNum() in (7, 8, 16, 34, 52) for b in x.GetBonds()):
+                return True
+    return False
+
+
 def _arm_names(mol, graph, nitrogen, skip, locant):
-    found = _hydrocarbon_arms(mol, graph, nitrogen, skip)
-    if found is None:
-        raise UnsupportedStructure("a substituent on a nitrogen of a polycarbonic acid carries a characteristic group")
-    return [(locant, name, compound) for name, compound in found[0]]
+    halogens = halogen_substituents(mol)
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    entries = []
+    for root in graph[nitrogen]:
+        if root in skip:
+            continue
+        arm = _arm_atoms(graph, root, nitrogen)
+        if arm & skip or _acid_group_in(mol, arm):
+            raise UnsupportedStructure("a substituent on a nitrogen of a polycarbonic acid holds a senior group or closes a ring")
+        name, compound = name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol, unsaturated=True)
+        entries.append((locant, name, compound))
+    return entries
 
 
 def _nitrogen_substituents(mol, graph, order, bridges):
