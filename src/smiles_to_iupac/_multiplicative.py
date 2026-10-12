@@ -13,7 +13,7 @@ from rdkit import Chem
 
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import UnsupportedStructure, specified_stereo_elements
-from ._diacyl_linker import acyl_part, diacyl_linker
+from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
@@ -460,6 +460,9 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         if diacyl is not None:
             central = acyl_part(diacyl[0], diacyl[2])
             arm_parts = arm_parts[diacyl[1]:]
+        diamido = diamido_linker(mol, adjacency(mol), set(range(mol.GetNumAtoms())) - unit_atoms, [u.linker_atom for u in selected])
+        if diamido is not None:
+            central, arm_parts = diamido, []
 
     represented = set(atoms)
     for cid, _, _ in arm_chain:
