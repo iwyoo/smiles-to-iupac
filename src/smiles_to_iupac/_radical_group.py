@@ -351,7 +351,22 @@ def _carbenium_valence(atom):
     return atom.GetTotalNumHs() + atom.GetDegree() == 3 and all(order == 1.0 for order in orders)
 
 
+def _pi_cation_kekule(mol):
+    """`mol` with its aromatic bonds written as alternating ones when the carbenium centre is an aromatic atom with three
+    sigma bonds (the empty p orbital of a tropylium-type cation), else `mol`."""
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(cations) != 1 or not cations[0].GetIsAromatic() or cations[0].GetTotalNumHs() + cations[0].GetDegree() != 3:
+        return mol
+    kekule = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+    except Chem.rdchem.KekulizeException:
+        return mol
+    return kekule
+
+
 def _group_cation_centre(mol):
+    mol = _pi_cation_kekule(mol)
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
     if (
         len(cations) != 1
@@ -387,6 +402,8 @@ def name_group_cation(mol) -> str:
     centre = _group_cation_centre(mol)
     if centre is None or specified_stereo_elements(mol):
         raise UnsupportedStructure("this cation is not a single carbenium centre on a plain skeleton")
+    mol = _pi_cation_kekule(mol)
+    centre = mol.GetAtomWithIdx(centre.GetIdx())
     if _is_unbranched_alkane_with_terminal_cation(mol, centre):
         # P-73.2.2.1.1: the specific method turns the 'ane' of the parent hydride into 'ylium'
         return alkyl_name(mol.GetNumAtoms()) + "ium"
@@ -409,8 +426,20 @@ def name_group_cation(mol) -> str:
     if name.endswith("benzenide"):
         return name[: -len("ide")] + "ylium"
     if name.endswith("ide") and name[:-3].endswith("-"):
-        return name[:-3] + "ylium"
+        return _delocalized_name(mol, centre, name[:-3] + "ylium")
     raise UnsupportedStructure("the cation is not named as a carbanion-like parent")
+
+
+def _delocalized_name(mol, centre, name):
+    """P-76: a cation whose centre lies in a fused ring system with no sp3 atom is delocalized over the whole system, so
+    the mancude parent name takes 'ylium' without indicated hydrogen or locant (benzo[7]annulenylium)."""
+    from ._multiplicative import _ring_systems
+
+    match = re.fullmatch(r"\d+[a-z]?H-([^-]+)-\d+[a-z]?-ylium", name)
+    system = next((s for s in _ring_systems(mol) if centre.GetIdx() in s), set())
+    rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= system]
+    sp2 = all(mol.GetAtomWithIdx(a).GetTotalNumHs() + mol.GetAtomWithIdx(a).GetDegree() <= 3 for a in system)
+    return match.group(1) + "ylium" if match and len(rings) > 1 and sp2 else name
 
 
 def _with_ylo(mol, kept):
