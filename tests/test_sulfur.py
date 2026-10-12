@@ -1190,6 +1190,7 @@ def test_nonstandard_bonding_in_substituents_and_substituent_chains(smiles, expe
     "smiles,expected",
     [
         ("[SH]1=CCC=C1", "3H-1λ4-thiophene"),
+        ("[SH3]1=CC=CC=C1", "1λ6-thiopyran"),
         ("[SH2]1C=Cc2ccccc12", "1H-1λ4-benzothiophene"),
         ("[IH]1C=Cc2ccccc12", "1H-1λ3-benziodole"),
         ("[IH]1CCCCC1", "1λ3-iodinane"),

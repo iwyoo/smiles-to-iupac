@@ -48,6 +48,7 @@ _STEM_ENDING = {3: "irane", 4: "etane", 5: "olane", 6: "ane", 7: "epane", 8: "oc
 _NITROGEN_STEM_ENDING = {3: "iridine", 4: "etidine", 5: "olidine", 6: "inane"}
 _MANCUDE_ENDING = {3: "irene", 4: "ete", 5: "ole", 6: "ine", 7: "epine", 8: "ocine", 9: "onine", 10: "ecine"}
 _RETAINED = {"S": "thiophene", "Se": "selenophene", "Te": "tellurophene"}
+_RETAINED_SIX = {"S": "thiopyran", "Se": "selenopyran", "Te": "telluropyran"}
 _SUFFIX = {"O": "one", "S": "thione", "Se": "selone", "Te": "tellone"}
 _PREFIX = {"O": "oxo", "S": "sulfanylidene", "Se": "selanylidene", "Te": "tellanylidene"}
 
@@ -173,6 +174,8 @@ def _stem(elements, size, mancude):
     a ring of `size` atoms."""
     if mancude and len(elements) == 1 and size == 5 and elements[0] in _RETAINED:
         return _RETAINED[elements[0]]
+    if mancude and len(elements) == 1 and size == 6 and elements[0] in _RETAINED_SIX:
+        return _RETAINED_SIX[elements[0]]
     counts = {e: elements.count(e) for e in _SENIORITY if e in elements}
     prefix = ""
     for e, n in counts.items():
