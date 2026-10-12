@@ -15,7 +15,7 @@ _GROUP = {
     52: ("tellanal", "telluraldehyde", "methanetelluroyl"),
 }
 _MULTIPLIERS = {1: "", 2: "di", 3: "tri", 4: "tetra", 5: "penta", 6: "hexa"}
-_WHOLE_MOLECULES = {"C=O": "formaldehyde", "C#N": "formonitrile", "C=S": "methanethial", "C=[Se]": "methaneselenal", "C=[Te]": "methanetellanal"}
+WHOLE_MOLECULES = {"C=O": "formaldehyde", "C#N": "formonitrile", "C=S": "methanethial", "C=[Se]": "methaneselenal", "C=[Te]": "methanetellanal"}
 _ALDEHYDE = Chem.MolFromSmarts("[CX3H1](=O)[#6]")
 _FORMYL_ACID = re.compile(r"(\d+)-formyl([a-z]+(?:-\d+-[a-z]+)? acid)")
 
@@ -33,7 +33,7 @@ def _groups(mol):
 
 
 def has_chalcogen_aldehyde_shape(mol) -> bool:
-    return Chem.MolToSmiles(mol) in _WHOLE_MOLECULES or bool(_groups(mol))
+    return Chem.MolToSmiles(mol) in WHOLE_MOLECULES or bool(_groups(mol))
 
 
 def _rename(name, element, count):
@@ -59,7 +59,7 @@ def _rename(name, element, count):
 
 
 def name_chalcogen_aldehyde(mol) -> str:
-    whole = _WHOLE_MOLECULES.get(Chem.MolToSmiles(mol))
+    whole = WHOLE_MOLECULES.get(Chem.MolToSmiles(mol))
     if whole is not None:
         return whole
     chalcogens = _groups(mol)
