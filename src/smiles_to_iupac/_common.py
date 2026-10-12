@@ -1543,6 +1543,20 @@ def assign_cip_labels(mol):
             bond.SetProp("_CIPCode", _ENANTIOMORPHIC_BOND_CODE[bond.GetProp("_CIPCode")])
 
 
+def match_cip_labels(original, copy):
+    """Inverts the chirality tag of each tetrahedral centre of `copy` whose CIP label differs from the label of the atom
+    with the same index in `original`, so that a name built from the copy cites the descriptors of the structure itself
+    (P-92.1.4)."""
+    reference, rewritten = Chem.Mol(original), Chem.Mol(copy)
+    assign_cip_labels(reference)
+    assign_cip_labels(rewritten)
+    for atom in rewritten.GetAtoms():
+        idx = atom.GetIdx()
+        if idx < reference.GetNumAtoms() and atom.HasProp("_CIPCode") and reference.GetAtomWithIdx(idx).HasProp("_CIPCode"):
+            if atom.GetProp("_CIPCode") != reference.GetAtomWithIdx(idx).GetProp("_CIPCode"):
+                copy.GetAtomWithIdx(idx).InvertChirality()
+
+
 def specified_stereocenters(mol):
     """Scan `mol` for stereo elements (RDKit's `Chem.FindPotentialStereo`).
     If there are none at all, or every one present is left unspecified

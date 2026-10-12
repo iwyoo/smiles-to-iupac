@@ -341,6 +341,16 @@ def _cites_positions(parent):
     return "hydro" in parent or any(ch.isdigit() for ch in re.sub(r"^\d+(?:,\d+)*-(?=[a-z])", "", parent))
 
 
+def _cited_code(context, element, code):
+    """The descriptor an enclosing name already holds for `element`, computed on the structure itself (P-92.1.4), else
+    `code` of the molecule being named."""
+    if not context:
+        return code
+    if isinstance(element, tuple):
+        return context["bonds"].get(element) or context["bonds"].get(element[::-1]) or code
+    return context["atoms"].get(element, code)
+
+
 def _evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
     key_centers=(), n_names=(),
@@ -373,7 +383,7 @@ def _evaluate_skeleton(
         side = _component(graph, next(iter(skeleton)), blocked)
         for atom, code in cip_labels(mol, side, chain_double_bonds=True):
             if not _within(atom, skeleton):
-                stereo_context["bonds" if isinstance(atom, tuple) else "atoms"][atom] = code
+                stereo_context["bonds" if isinstance(atom, tuple) else "atoms"].setdefault(atom, code)
         if any(a in side for m in matches_on for a in (m[0].GetIdx(), m[1].GetIdx())):
             raise UnsupportedStructure(
                 "a lactone or macrocyclic diester is a heterocyclic pseudoketone (P-65.6.3.5), not an ester of a "
@@ -417,7 +427,9 @@ def _evaluate_skeleton(
         skeleton = pool if kind == "ring" else set(position_of)
         side, branch = analyze(skeleton)
         if stereo_all is None:
-            stereo_all = cip_labels(mol, side, chain_double_bonds=True)
+            stereo_all = [
+                (a, _cited_code(stereo_context, a, code)) for a, code in cip_labels(mol, side, chain_double_bonds=True)
+            ]
         substituents = {}
         for atom in position_of:
             roots = [n for n in graph[atom] if n not in skeleton and n not in blocked]
