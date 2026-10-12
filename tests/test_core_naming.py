@@ -477,21 +477,14 @@ def test_smiles_to_iupac_unsaturated(smiles, expected):
         pytest.param("C/C=C/CC#C", "(4E)-hex-4-en-1-yne", id="enyne_numbered_from_the_triple_bond"),
         pytest.param("CC#C/C=C\\CC", "(4Z)-hept-4-en-2-yne", id="enyne_double_bond_next_to_the_triple_bond"),
         pytest.param("C#C/C=C/C=C\\C", "(3E,5Z)-hepta-3,5-dien-1-yne", id="dienyne_cites_every_double_bond"),
+        pytest.param("C=C/C=C/C", "(3E)-penta-1,3-diene", id="terminal_double_bond_takes_no_descriptor"),
+        pytest.param("CC=C/C=C\\CCC", "(4Z)-octa-2,4-diene", id="unspecified_double_bond_takes_no_descriptor"),
+        pytest.param("C/C=C/C=CC", "(2E)-hexa-2,4-diene", id="equal_numberings_give_the_lower_locant_to_the_cited_bond"),
+        pytest.param("C/C=C/C=C\\C", "(2Z,4E)-hexa-2,4-diene", id="z_takes_the_lower_locant_when_numberings_are_equal"),
     ],
 )
 def test_smiles_to_iupac_ez_double_bond(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C/C=C/C=CC", id="partially_specified_diene_raises"),
-    ],
-)
-def test_specified_double_bond_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize("smiles", ["", "   ", "xyz", "C("])
