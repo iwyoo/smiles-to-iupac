@@ -321,6 +321,8 @@ def test_group13_hydride_name(smiles, expected):
         pytest.param("C[Al](C)[O-].[Na+]", "sodium dimethylalumanolate", id="group13_olate"),
         pytest.param("[Ga](SSCC)(SSCC)SSCC", "tris(ethyldisulfanyl)gallane", id="disulfanyl_on_group13"),
         pytest.param("C[Sn](C)(C)SC", "trimethyl(methylsulfanyl)stannane", id="sulfanyl_on_group14"),
+        pytest.param("SSSSS[SiH2][SiH2][SiH3]", "1-pentasulfanyltrisilane", id="sulfur_chain_on_a_senior_hydride_chain"),
+        pytest.param("C[SiH2]OSS", "(disulfanyloxy)(methyl)silane", id="mixed_chain_through_oxygen_on_group14"),
         pytest.param(
             "CCCCCCCCCCCCCCCCCC(=O)O[Al](OC(=O)CCCCCCCCCCCCCCCCC)OC(=O)CCCCCCCCCCCCCCCCC",
             "alumanetriyl tri(octadecanoate)",
