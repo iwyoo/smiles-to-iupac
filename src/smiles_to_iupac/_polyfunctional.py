@@ -5634,7 +5634,7 @@ def _ring_occurrences(mol):
                 found.append((_CHALCOGEN_KETONE_CLASS[z], r, {i}))
             elif z == 8 and _terminal_heteroatom(mol, i, 1):
                 found.append(("alcohol", r, {i}))
-            elif order == 1.0 and atom.GetAtomicNum() == 6 and (peroxol := _peroxol_group(mol, n, r)) is not None:
+            elif order == 1.0 and (peroxol := _peroxol_group(mol, n, r)) is not None:
                 found.append((peroxol[0], r, peroxol[1]))
             elif z in (16, 34, 52) and _terminal_heteroatom(mol, i, 1):
                 found.append(({16: "thiol", 34: "selenol", 52: "tellurol"}[z], r, {i}))
