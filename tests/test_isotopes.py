@@ -6,6 +6,19 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("[13CH2]=O", "(13C)formaldehyde", id="skeletal_carbon"),
+        pytest.param("[2H]C=S", "(2H1)methanethial", id="one_hydrogen_of_two"),
+        pytest.param("[2H]C#N", "(2H)formonitrile", id="only_hydrogen_takes_no_subscript"),
+        pytest.param("[13CH]#[15N]", "(13C,15N)formonitrile", id="two_elements_in_alphabetical_order"),
+    ],
+)
+def test_isotope_descriptor_before_a_one_carbon_retained_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("[2H]CC", "(2H1)ethane", id="one_deuterium_on_ethane"),
         pytest.param("[3H]C", "(3H1)methane", id="tritiated_methane"),
     ],

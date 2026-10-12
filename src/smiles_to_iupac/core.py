@@ -271,6 +271,7 @@ from ._radical_group import has_group_cation_shape, has_radical_group_shape, nam
 from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
 from ._isotope_carboxylic_acid import has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid
 from ._isotope_ketone import has_isotope_ketone_shape, name_isotope_ketone
+from ._isotope_one_carbon import has_isotope_one_carbon_shape, name_isotope_one_carbon
 from ._ketone import (
     has_five_membered_1_2_ring_ketone_shape,
     has_five_membered_1_3_ring_ketone_shape,
@@ -673,6 +674,7 @@ def _name_isotope_label(mol) -> str:
         (has_labelled_diazene, name_labelled_diazene),
         (has_labelled_hydrazone, name_labelled_hydrazone),
         (has_isotope_hydride_shape, name_isotope_hydride),
+        (has_isotope_one_carbon_shape, name_isotope_one_carbon),
         (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
         (has_isotope_alcohol_shape, name_isotope_alcohol),
         (has_isotope_ketone_shape, name_isotope_ketone),
