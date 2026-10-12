@@ -1189,7 +1189,7 @@ def _bridged_numberings(mol, skeleton_atoms):
         ih, added, hydro = split
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
         stem = parent.stem
-        modified = {a for a in capable if position_of[a] in hydro} | (accommodated & capable)
+        modified = {a for a in capable if position_of[a] in hydro or position_of[a] in ih} | (accommodated & capable)
         fully_saturated = bool(hydro) and capable <= modified
 
         def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, stem=stem, full=fully_saturated):

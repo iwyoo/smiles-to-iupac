@@ -135,10 +135,10 @@ def _phane_key(mol, atoms):
 
 
 def _bridged_parents(mol, atoms):
-    from ._fusion_bridged import bridged_parents
+    from ._fusion_bridged import SENIORITY_MAX_CYCLE, bridged_parents
 
     try:
-        return bridged_parents(mol, atoms)
+        return bridged_parents(mol, atoms, SENIORITY_MAX_CYCLE)
     except UnsupportedStructure:
         return []
 

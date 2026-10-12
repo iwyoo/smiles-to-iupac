@@ -16,7 +16,9 @@ from ._fusion_components import A_PREFIX, identify, skeleton
 from ._fusion_name import _MAX_RINGS_IN_SYSTEM, Context, _fusion_name_core, system_numbering_options
 from ._numerals import alkane_name, numerical_term
 
-_MAX_CYCLE = 12
+_MAX_CYCLE = 13
+SENIORITY_MAX_CYCLE = 12
+BRIDGED_MAX_CYCLE = ContextVar("bridged_max_cycle", default=_MAX_CYCLE)
 _MAX_STATES = 6000
 _MAX_CLUSTER = 14
 _MAX_PARTS = 4
@@ -86,14 +88,14 @@ def _fused_valid(mol, graph, cycles, subset):
     return order, sk
 
 
-def _candidates(mol, atoms):
+def _candidates(mol, atoms, max_cycle):
     graph = nx.Graph()
     graph.add_nodes_from(atoms)
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         if a in atoms and b in atoms:
             graph.add_edge(a, b)
-    cycles = [tuple(c) for c in nx.simple_cycles(graph, length_bound=_MAX_CYCLE)]
+    cycles = [tuple(c) for c in nx.simple_cycles(graph, length_bound=max_cycle)]
     edge_sets = [{frozenset((c[k], c[(k + 1) % len(c)])) for k in range(len(c))} for c in cycles]
     total = graph.number_of_edges() - graph.number_of_nodes() + 1
     seen, valid, by_edges = set(), {}, {}
@@ -652,7 +654,7 @@ def _carbonized(mol, atoms):
     return out
 
 
-def bridged_parents(mol, atoms):
+def bridged_parents(mol, atoms, max_cycle=None):
     """Names of the ring system `atoms` as a fused ring system with bridges: list of `BridgedParent`, best choice only.
     A fused ring system with no fusion name takes its hydrocarbon name with 'a' prefixes for all heteroatoms, bridge
     atoms included (P-25.5.1.2)."""
@@ -663,7 +665,7 @@ def bridged_parents(mol, atoms):
         raise UnsupportedStructure("a ring system with more rings than a fused system and its bridges can have")
     aromatic = Chem.Mol(mol)
     mol = _kekule(aromatic)
-    graph, valid = _candidates(mol, atoms)
+    graph, valid = _candidates(mol, atoms, max_cycle or BRIDGED_MAX_CYCLE.get())
     cache = {"aromatic_rings": [r for r in aromatic.GetRingInfo().AtomRings() if all(aromatic.GetAtomWithIdx(a).GetIsAromatic() for a in r)]}
 
     def hetero_count(order):
