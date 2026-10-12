@@ -111,6 +111,7 @@ def _locant(text):
 
 
 SUFFIX_ATOMS = ContextVar("SUFFIX_ATOMS", default=frozenset())
+LINK_ATOMS = ContextVar("link_atoms", default=frozenset())
 OMIT_SUFFIX_LOCANT = ContextVar("omit_suffix_locant", default=False)
 ENCLOSE_MULTIPARENT = ContextVar("enclose_multiparent", default=False)
 _MULTIPARENT_TAIL = re.compile(r"\[[^\[\]]*:[^\[\]]*\](?:(?:di|tri|tetra)(?:\[\d+\])?[a-z]+|(?:bis|tris|tetrakis)\(.+\))$")
@@ -175,11 +176,13 @@ def _perfect_matching(atoms, adj):
     )
 
 
-def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, ih_count):
+def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, ih_count, fusion=frozenset(), anchors=frozenset()):
     """(indicated, added, hydro) locant tuples for a ring whose `saturated` atoms include the ring atoms
     bearing oxo groups, following P-58.2.3: indicated hydrogen goes to the suffix atoms when it can
     accommodate them all, else the lowest valid position first; the suffix groups left over take added
-    hydrogen (P-58.2.2). None when no split exists."""
+    hydrogen (P-58.2.2). `fusion` atoms rank after nonfusion ones for an indicated hydrogen that takes no group
+    (P-58.2.1.2); `anchors` are saturated atoms left without hydrogen by a suffix group, which indicated hydrogen
+    also prefers (P-58.2.3.1.1). None when no split exists."""
     ordered = sorted(saturated, key=lambda a: position_of[a])
     if ih_count > len(ordered):
         return None
@@ -196,22 +199,35 @@ def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, 
                 return k
         return len(free) + 1
 
-    accommodating = ih_count >= groups and any(
-        set(oxo_suffix) <= set(ih) and _perfect_matching(set(can_hold) - set(ih), adj)
+    marked = set(oxo_suffix) | set(anchors)
+    accommodating = ih_count >= len(marked) and bool(marked) and any(
+        marked <= set(ih) and _perfect_matching(set(can_hold) - set(ih), adj)
         for ih in combinations(ordered, ih_count)
     )
 
+    def nonfusion_rank(ih):
+        return sum(a in fusion for a in ih if a not in marked)
+
+    first_nonfusion = None
+    if groups and not accommodating:
+        valid_sets = [ih for ih in combinations(ordered, ih_count) if _perfect_matching(set(can_hold) - set(ih), adj)]
+        firsts = [min(position_of[a] for a in ih if a not in fusion) for ih in valid_sets if any(a not in fusion for a in ih)]
+        first_nonfusion = min(firsts) if firsts else None
+
     def candidate_key(ih):
         valid = 0 if _perfect_matching(set(can_hold) - set(ih), adj) else 1
-        if not groups:
-            return (valid, loc(ih))
-        needed = added_needed(ih)
-        covered = sum(a in oxo_suffix for a in ih)
-        # P-58.2.3.1.1: indicated hydrogen that can take every suffix atom needs no added hydrogen; otherwise the
-        # lowest valid indicated hydrogen comes first and added hydrogen follows (P-58.2.3.1.3, P-58.2.3.1.4)
+        if not groups and not marked:
+            return (valid, nonfusion_rank(ih), loc(ih))
+        needed = added_needed(ih) if groups else 0
+        covered = sum(a in marked for a in ih)
+        # P-58.2.3.1.1: indicated hydrogen that can take every suffix atom needs no added hydrogen; otherwise one
+        # goes to the lowest nonfusion atom, the others to suffix atoms, and added hydrogen follows (P-58.2.3.1.3, P-58.2.3.1.4)
         if accommodating:
-            return (valid, needed, -covered, loc(ih))
-        return (valid, loc(ih), needed, -covered)
+            return (valid, needed, -covered, nonfusion_rank(ih), loc(ih))
+        if not groups:
+            return (valid, nonfusion_rank(ih), loc(ih))
+        holds_first = 0 if first_nonfusion is not None and any(position_of[a] == first_nonfusion for a in ih) else 1
+        return (valid, nonfusion_rank(ih), holds_first, needed, -covered, loc(ih))
 
     for ih in sorted(combinations(ordered, ih_count), key=candidate_key):
         free = [a for a in ordered if a not in ih and a not in oxo_suffix]
@@ -1103,7 +1119,11 @@ def _fused_mancude(mol, skeleton_atoms):
             if not accommodated:
                 centers = {a for a in centers if not _single_hydrogen_removed(mol, a)}
             accommodated = set() if saturated <= ANION_SUFFIX.get() else set(accommodated) | centers
-        split = _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, accommodated, ih_count)
+        fusion = {a for a in skeleton_atoms if ring_info.NumAtomRings(a) > 1}
+        anchors = set() if ANION_SUFFIX.get() else {
+            a for a in (suffix_atoms & saturated) - set(accommodated) - LINK_ATOMS.get() if not mol.GetAtomWithIdx(a).GetTotalNumHs()
+        }
+        split = _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, accommodated, ih_count, fusion, anchors)
         if split is None:
             continue
         ih, added, hydro = split

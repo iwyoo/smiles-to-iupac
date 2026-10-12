@@ -9,7 +9,7 @@ from ._common import UnsupportedStructure, assembly_join
 from ._multiplicative_ring import _SUFFIX_WORDS
 from ._common import multiplied_word
 from ._multiplicative_text import PrimedLocant
-from ._ring_diyl_numbering import SUFFIX_ATOMS, is_hydro_fusion_system, system_numberings
+from ._ring_diyl_numbering import LINK_ATOMS, SUFFIX_ATOMS, is_hydro_fusion_system, system_numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
 
@@ -243,12 +243,14 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         _require_mancude_system(mol, atoms)
     join = joins[0]
     token = SUFFIX_ATOMS.set(frozenset(join) | frozenset(o[1] for o in occurrences))
+    links = LINK_ATOMS.set(frozenset(join))
     try:
         numbered = [
             _monocycle_numberings(mol, graph, atoms) if len(rings) == 1 else system_numberings(mol, graph, rings, atoms)
             for rings, atoms in systems
         ]
     finally:
+        LINK_ATOMS.reset(links)
         SUFFIX_ATOMS.reset(token)
     owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
     marked = [o[1] for o in occurrences] if not frees else [f[0] for f in frees]
