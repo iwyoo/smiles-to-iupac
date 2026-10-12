@@ -1749,7 +1749,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return chain
         mark(None, POLYACID_SUBSTITUENT_REASON)
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
-    located = "S-" if zx == 7 and ("NH" in symbols or "NNH2" in symbols) and center == "S" else ""
+    located = f"{center}-" if zx == 7 and ("NH" in symbols or "NNH2" in symbols) and center in ("S", "Se", "Te") else ""
     return located + (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True
 
 
