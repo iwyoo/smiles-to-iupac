@@ -979,6 +979,9 @@ def test_ylidene_ylidyne_and_ring_nitrogen_radicals_beside_groups(smiles, expect
         pytest.param("[c+]1cccc2ccccc12", "naphthalen-1-ylium", id="mancude_fused_ring_position_takes_no_added_hydrogen"),
         pytest.param("[CH+]1CC=Cc2ccccc12", "1,2-dihydronaphthalen-1-ylium", id="hydro_pair_on_fused_ring_stays_a_prefix"),
         pytest.param("C1CCC2CC[CH+]CC2C1", "decahydronaphthalen-2-ylium", id="saturated_fused_ring"),
+        pytest.param("[CH+]1C=CC=CC=C1", "cyclohepta-2,4,6-trien-1-ylium", id="monocycle_drawn_aromatic_by_the_toolkit"),
+        pytest.param("C[C+]1C=CC=CC=C1", "1-methylcyclohepta-2,4,6-trien-1-ylium", id="substituted_monocycle_drawn_aromatic"),
+        pytest.param("[CH+]1C=CC=C2C1=CC=CC=C2", "benzo[7]annulenylium", id="cation_delocalized_over_a_fused_ring_system"),
     ],
 )
 def test_carbenium_centre_beside_groups(smiles, expected):
