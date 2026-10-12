@@ -1206,6 +1206,7 @@ def test_branched_heteroatom_skeletons(smiles, expected):
         pytest.param("[AsH2]c1ccc2ccccc2c1", "(naphthalen-2-yl)arsane", id="lone_prefix_with_a_locant_is_enclosed"),
         pytest.param("ClCC[AsH]C(Cl)C", "(1-chloroethyl)(2-chloroethyl)arsane", id="same_name_prefixes_ordered_by_locant"),
         pytest.param("[SbH2]c1ccc(cc1)[AsH2]", "(4-stibanylphenyl)arsane", id="simple_metal_group_on_an_aryl_prefix"),
+        pytest.param("C([SbH2])[AsH2]", "(stibanylmethyl)arsane", id="metal_group_on_methyl_takes_no_locant"),
     ],
 )
 def test_prefixes_of_a_group15_parent_hydride(smiles, expected):
