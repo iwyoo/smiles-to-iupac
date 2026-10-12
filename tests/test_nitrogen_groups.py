@@ -498,6 +498,8 @@ def test_hydrazide_names(smiles, expected):
     [
         pytest.param("C(=O)NN", "formohydrazide", id="formohydrazide"),
         pytest.param("CC(=O)NN", "acetohydrazide", id="acetohydrazide"),
+        pytest.param("NNC(=O)C(=O)NN", "oxalohydrazide", id="oxalohydrazide"),
+        pytest.param("CNNC(=O)C(=O)NNC", "N'1,N'2-dimethyloxalohydrazide", id="n_substituted_oxalohydrazide"),
         pytest.param("ClC(C(=O)N(N(C)C)C)C", "2-chloro-N,N',N'-trimethylpropanehydrazide", id="n_locants_ordered_with_other_prefixes"),
         pytest.param("CC[C@@H](C)C(=O)N(C)N", "(2R)-N,2-dimethylbutanehydrazide", id="n_substituted_stereocenter_hydrazide"),
         pytest.param("CN(C)NC=O", "N',N'-dimethylformohydrazide", id="n_substituted_formohydrazide"),
@@ -1513,6 +1515,7 @@ def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):
         ("C(CC)(NN)=S", "propanethiohydrazide"),
         ("C1(=CC=CC=C1)C(NN)=S", "benzenecarbothiohydrazide"),
         ("NNC(=S)CCC(=S)NN", "butanedithiohydrazide"),
+        ("NNC(=S)C(=S)NN", "ethanedithiohydrazide"),
         ("NNC(=S)N1CCCCC1", "piperidine-1-carbothiohydrazide"),
         ("CC(=[Se])NN", "ethaneselenohydrazide"),
         ("NNC(=O)NN", "hydrazinecarbohydrazide"),
