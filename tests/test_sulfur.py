@@ -904,6 +904,8 @@ def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
         pytest.param("C(CSSSC)SSSC", "1,1'-(ethane-1,2-diyl)bis(3-methyltrisulfane)", id="trisulfane_is_no_heterounit_of_skeletal_replacement"),
         pytest.param("CSSSCSSSC", "1,1'-methylenebis(3-methyltrisulfane)", id="substituent_on_the_far_end_of_each_polysulfane"),
         pytest.param("CSCSSSCSC", "bis[(methylsulfanyl)methyl]trisulfane", id="other_sulfur_units_stay_in_the_prefixes_of_the_polysulfane"),
+        pytest.param("CSSSCCSSSCC", "ethyl[2-(methyltrisulfanyl)ethyl]trisulfane", id="different_end_groups_leave_a_substitutive_name"),
+        pytest.param("ClCSSSCCSSSCCl", "1,1'-(ethane-1,2-diyl)bis[3-(chloromethyl)trisulfane]", id="compound_end_group_nests_the_marks"),
     ],
 )
 def test_hydrogen_terminated_chalcogen_chains_are_parent_hydrides_with_suffixes(smiles, expected):

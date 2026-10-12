@@ -2,10 +2,12 @@
 dimethyltrisulfane, methyl(phenyl)triselane, tetramethyltetraselane. The end groups are carbon groups or hydrogen; a
 chain with a characteristic group of higher seniority is a prefix of that group's parent instead."""
 
+import re
+
 from rdkit import Chem
 
-from ._common import adjacency, halogen_substituents
-from ._hetero_prefixes import is_functional_carbon
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -72,19 +74,21 @@ def name_polychalcogen_hydride(mol):
     ):
         return None
     graph = adjacency(mol)
-    order = None
+    parents = []
     for element in _STEMS:
         members = [a for a in mol.GetAtoms() if a.GetAtomicNum() == element]
         if any(a.IsInRing() for a in members):
             return None
-        runs = _contiguous(mol, graph, [a.GetIdx() for a in members])
-        long_runs = [r for r in runs if len(r) >= 3]
-        found = _run(mol, graph, next(iter(long_runs[0]))) if len(long_runs) == 1 else None
-        if found is not None:
-            order = found
-            break
-    if order is None:
-        return None
+        for run in _contiguous(mol, graph, [a.GetIdx() for a in members]):
+            found = _run(mol, graph, next(iter(run))) if len(run) >= 3 else None
+            if found is not None:
+                parents.append(found)
+    names = [name for order in parents if (name := _name_with_parent(mol, graph, order)) is not None]
+    # equally senior runs: the name earlier in alphanumerical order is chosen (P-45.5)
+    return min(names, key=lambda name: (re.sub(r"[^a-z]", "", name), name)) if names else None
+
+
+def _name_with_parent(mol, graph, order):
     run = set(order)
     for atom in order:
         a = mol.GetAtomWithIdx(atom)
@@ -116,7 +120,13 @@ def name_polychalcogen_hydride(mol):
             ) or any(mol.GetAtomWithIdx(i).GetAtomicNum() == 6 and is_functional_carbon(mol, i) for i in arm):
                 return None
             covered |= arm
-            entries.append(name_branch(graph, root, end, halogens, aromatic, mol=mol, unsaturated=True))
+            token = EXTENDED_PREFIXES.set(True)
+            try:
+                entries.append(name_branch(graph, root, end, halogens, aromatic, mol=mol, unsaturated=True))
+            except UnsupportedStructure:
+                return None
+            finally:
+                EXTENDED_PREFIXES.reset(token)
     if len(covered) != mol.GetNumAtoms():
         return None
     parent = multiplying_prefix(len(order)) + _STEMS[mol.GetAtomWithIdx(order[0]).GetAtomicNum()]
