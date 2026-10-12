@@ -1056,7 +1056,7 @@ def _acid_group_count(mol, atoms, centers):
         and n.GetDegree() == 1
         and n.GetTotalNumHs() == 1
         and n.GetIdx() in atoms
-        and any(_bond(mol, atom, m.GetIdx()) == 2.0 for m in mol.GetAtomWithIdx(atom).GetNeighbors())
+        and (atom in centers or any(_bond(mol, atom, m.GetIdx()) == 2.0 for m in mol.GetAtomWithIdx(atom).GetNeighbors()))
     )
     return hydroxy + len(centers)
 
@@ -1455,12 +1455,13 @@ def name_acid_derivative(mol):
         ):
             return name_ester(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
-            try:
+            if any("cyanic" in (_center(mol, l.center)[0], _center(mol, l.far)[0]) for l in links if l.kind == "anhydride"):
+                # P-67.1.2.4.1.3: an -OCN group on the acid is cited by functional replacement, the acid outranking the anhydride
                 return _acyloxy_oxoacid(mol, acid)
-            except UnsupportedStructure:
-                if not all(mol.GetAtomWithIdx(c).GetAtomicNum() in (16, 34, 52) for c in acid):
-                    raise
+            try:
                 return name_anhydride(mol, links)
+            except UnsupportedStructure:
+                return _acyloxy_oxoacid(mol, acid)
         from ._multiplicative import name_if_multiplicative
         from ._polyfunctional import name_polyfunctional
 
