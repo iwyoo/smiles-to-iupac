@@ -212,6 +212,19 @@ def test_diester_acyloxy_generalized_backbones(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C(C\\C=C\\C=C\\C)(=O)OC[C@@H](CO)OC(C\\C=C\\C=C\\C)=O", "(2R)-3-hydroxypropane-1,2-diyl di[(3E,5E)-hepta-3,5-dienoate]", id="double_bonds_of_identical_acid_parts"),
+        pytest.param("CCC[C@H](C)C(=O)OCCOC(=O)[C@@H](C)CCC", "ethane-1,2-diyl bis[(2S)-2-methylpentanoate]", id="stereocentres_of_identical_acid_parts"),
+        pytest.param("C/C=C/C=C/CC(=O)OCCOC(=O)C/C=C/C=C\\C", "ethane-1,2-diyl (3E,5E)-hepta-3,5-dienoate (3E,5Z)-hepta-3,5-dienoate", id="different_acid_parts_are_cited_separately"),
+    ],
+)
+def test_stereodescriptors_inside_the_multiplied_acid_parts_of_a_diester(smiles, expected):
+    # P-93.4.2.4
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         (
             "CC(=O)Oc1ccc(Cl)cc1OC(=O)c1ccc(Cl)cc1",
             "4-chloro-1,2-phenylene 1-acetate 2-(4-chlorobenzoate)",
