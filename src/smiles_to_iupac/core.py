@@ -68,7 +68,7 @@ from ._hydride_ylium import (
     name_poly_ylium,
 )
 from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
-from ._substituents import FORCED_BRANCH_NAMES
+from ._substituents import BRANCH_STEREO, FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
 from ._sugar_acid import has_ketoaldonic_chain_shape, name_ketoaldonic_chain, has_sugar_ring_acid_shape, name_sugar_ring_acid, has_sugar_lactam_shape, name_sugar_lactam, has_substituted_chain_shape, name_substituted_chain, has_sugar_alcohol_acid_shape, has_sugar_lactone_shape, name_sugar_lactone, name_sugar_alcohol_acid, sugar_acid_derivative_name
 from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar, has_sugar_dianhydride_shape, name_sugar_dianhydride
@@ -793,6 +793,8 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
 
 
 def _name_unabridged(smiles: str) -> str:
+    # The stereo context of an enclosing name indexes the atoms of another molecule.
+    isolated = BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()}) if nested() and BRANCH_STEREO.get() else None
     enter()
     result = None
     try:
@@ -800,6 +802,8 @@ def _name_unabridged(smiles: str) -> str:
         return result
     finally:
         leave(result)
+        if isolated is not None:
+            BRANCH_STEREO.reset(isolated)
 
 
 def _name_unabridged_body(smiles: str) -> str:

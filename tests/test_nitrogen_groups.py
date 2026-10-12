@@ -790,6 +790,16 @@ def test_specified_double_bond_stereo_n_alkyl_imine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C=N/C=N\\N(C)C", "N-[(Z)-N-(dimethylamino)methanimidoyl]methanimine"),
+    ],
+)
+def test_imidoyl_prefix_with_a_disubstituted_amino_nitrogen_cites_its_descriptor(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_phenyl_chain_imine():
     assert smiles_to_iupac("c1ccccc1CC=N") == "2-phenylethan-1-imine"
     assert smiles_to_iupac("c1ccccc1CCC=N") == "3-phenylpropan-1-imine"
