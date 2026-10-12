@@ -46,11 +46,17 @@ def _center(mol):
     excess = center.GetTotalValence() - _HYDRIDES[center.GetAtomicNum()][1]
     if excess == 0 or excess % 2 or (excess < 0 and center.GetDegree()):
         return None
-    if any(b.GetBondTypeAsDouble() != 1.0 or not _substituent_atom(b.GetOtherAtom(center)) for b in center.GetBonds()):
+    if any(not _substituent_atom(b.GetOtherAtom(center)) or not _bond_allowed(b, center) for b in center.GetBonds()):
         return None
     if _outranked(mol, center):
         return None
     return center
+
+
+def _bond_allowed(bond, center):
+    """A single bond, or a double bond to a carbon that becomes an ylidene prefix (P-68.4.3.1)."""
+    order = bond.GetBondTypeAsDouble()
+    return order == 1.0 or (order == 2.0 and bond.GetOtherAtom(center).GetAtomicNum() == 6)
 
 
 def _oxo_acyl(atom, bridges):
