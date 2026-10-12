@@ -727,6 +727,7 @@ def test_less_common_amino_acid_retained_names(smiles, expected):
     [
         pytest.param("O[C@@H]1CCN[C@@H]1C(=O)O", "(3R)-3-hydroxy-L-proline", id="ring_centre_by_cip_alpha_by_ld"),
         pytest.param("OC1CNC(C1)C(=O)O", "4-hydroxyproline", id="no_stereo_no_hyphen"),
+        pytest.param("OC(=O)C1C=CCN1", "2,5-dihydro-1H-pyrrole-2-carboxylic acid", id="unsaturated_ring_is_not_proline"),
     ],
 )
 def test_substituted_proline(smiles, expected):
