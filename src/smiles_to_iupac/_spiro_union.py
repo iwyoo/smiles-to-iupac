@@ -247,7 +247,7 @@ def _adamantane_component(mol, comp, atoms, orders, spiro_atoms):
     hetero = sorted(a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6)
 
     def text(numbering):
-        prefix = _replacement_prefixes(mol, hetero, numbering, hidden=spiro_atoms) if hetero else ""
+        prefix = _replacement_prefixes(mol, hetero, numbering, hidden=spiro_atoms, bracketed=True) if hetero else ""
         return prefix + "adamantane"
 
     return {
@@ -301,7 +301,7 @@ def _bonding_number(atom):
     return valence if valence > standard else None
 
 
-def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True, hidden=frozenset()):
+def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True, hidden=frozenset(), bracketed=False):
     by_element = {}
     for a in atoms:
         by_element.setdefault(mol.GetAtomWithIdx(a).GetAtomicNum(), []).append(a)
@@ -311,8 +311,9 @@ def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True, hidden=frozen
         for a in sorted(by_element[z], key=lambda a: _lk(locant_of[a])):
             lam = _bonding_number(mol.GetAtomWithIdx(a)) if with_lambda and a not in hidden else None
             cited.append(f"{locant_of[a]}λ{lam}" if lam else locant_of[a])
-        groups.append(f"{','.join(cited)}-{_replacement_multiplied_word(len(cited), _A_PREFIX[z])}")
-    return "-".join(groups)
+        word = _replacement_multiplied_word(len(cited), _A_PREFIX[z])
+        groups.append(f"[{','.join(cited)}]{word}" if bracketed else f"{','.join(cited)}-{word}")
+    return "".join(groups) if bracketed else "-".join(groups)
 
 
 def _capable(mol, comp, spiro_atoms):
