@@ -982,6 +982,14 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 return "hydrazinyl", False
         if len(others) == 1 and atom.GetTotalNumHs() == 1 and is_nitro_nitrogen(mol, others[0]):
             return "nitramido", False
+        nitro_nitrogens = [n for n in others if is_nitro_nitrogen(mol, n)]
+        if len(others) == 2 and len(nitro_nitrogens) == 1 and not atom.IsInRing():
+            from ._substituents import format_mononuclear_prefixes, name_branch
+
+            (other,) = [n for n in others if n != nitro_nitrogens[0]]
+            if mol.GetAtomWithIdx(other).GetAtomicNum() == 6:
+                entry = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)
+                return format_mononuclear_prefixes([entry]) + "nitramido", True
         amido = _chalcogen_amido(graph, root, others, mol) or _hydrazido(graph, root, others, mol)
         if amido is not None:
             return amido
