@@ -406,6 +406,11 @@ def test_phosphorus_acid_groups_cited_as_prefixes_under_a_carboxylic_acid(smiles
         ("c1ccccc1[As](c1ccccc1)S", "diphenylarsinothious acid"),
         ("CB(C)S", "dimethylborinothioic acid"),
         ("CB(O)S", "methylboronothioic acid"),
+        ("CB(NC)O", "B,N-dimethylboronamidic acid"),
+        ("CB(N)S", "methylboronamidothioic acid"),
+        ("CN(O)S", "methylazonothious acid"),
+        ("CN(O)O", "methylazonous acid"),
+        ("CN(=O)(O)S", "methylazonothioic S-acid"),
     ],
 )
 def test_mononuclear_oxoacids_modified_by_functional_replacement(smiles, expected):
