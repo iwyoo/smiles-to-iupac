@@ -192,7 +192,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
 
             return _ring_nitrogen_acyl(graph, z_idx, root, halogens, aromatic_atoms, mol, {"O": "carbonyl", "S": "carbothioyl"}[x])
         amino = _amino(_group_names(graph, mol, subs, z_idx, halogens, aromatic_atoms)) if subs else "amino"
-        if n_entries:
+        if n_entries or (subs and x == "NH"):
             imino_mark, amino_mark = ("N'", "N") if x == "NH" else ("N", "N'")
             entries = [(imino_mark, n, c) for _, n, c in n_entries]
             entries += [(amino_mark, *name_branch(graph, m, z_idx, halogens, aromatic_atoms, mol=mol)) for m in subs]
