@@ -364,6 +364,22 @@ def test_peroxol_with_ether_prefixes(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("OOCCO[SeH]", "2-(selanyloxy)ethane-1-peroxol", id="selanyloxy_beside_a_peroxol"),
+        pytest.param("OOCCOS", "2-(sulfanyloxy)ethane-1-peroxol", id="sulfanyloxy_beside_a_peroxol"),
+        pytest.param("SCC(C)(C)OS", "2-methyl-2-(sulfanyloxy)propane-1-thiol", id="thiol_outranks_a_sulfanyloxy_group"),
+        pytest.param("OOCC[SeH]", "2-hydroperoxyethane-1-selenol", id="selenol_outranks_a_peroxol"),
+        pytest.param("OOC1CCC(S)CC1", "4-hydroperoxycyclohexane-1-thiol", id="thiol_outranks_a_peroxol_on_a_ring"),
+        pytest.param("OOCC(O)S", "2-hydroperoxy-1-sulfanylethan-1-ol", id="alcohol_outranks_thiol_and_peroxol"),
+    ],
+)
+def test_peroxol_ranks_after_the_chalcogenols_and_before_their_peroxol_analogues(smiles, expected):
+    # P-63.7, P-41
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC(C)OCC(C)=O", "1-[(propan-2-yl)oxy]propan-2-one", id="branched_alkoxy_r_prime__ether_ketone"),
         pytest.param("O=CC(=O)COC", "3-methoxy-2-oxopropanal", id="two_ketones"),
         pytest.param("O=C1CCCCC1COC", "2-(methoxymethyl)cyclohexan-1-one", id="ring__ether_ketone"),

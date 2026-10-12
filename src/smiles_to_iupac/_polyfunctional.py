@@ -100,13 +100,14 @@ _PEROXOL_ANALOGUES = tuple(
     peroxol_suffix(a, t)
     for a, t in ((16, 8), (34, 8), (52, 8), (8, 16), (8, 34), (8, 52), (16, 16), (34, 16), (52, 16), (16, 34), (16, 52), (34, 34), (52, 34), (34, 52), (52, 52))
 )
+_PEROXOL_CLASSES = ("peroxol", *_PEROXOL_ANALOGUES)
 _CHALCOGEN_HYDRAZIDE = _sulfonyl_names("hydrazide", "plain")
 _CHALCOGEN_IMIDAMIDE = {**_sulfonyl_names("amide", "imide"), **_sulfonyl_names("hydrazide", "imide")}
 _CHALCOGEN_HYDRAZIDINE = {**_sulfonyl_names("amide", "hydrazone"), **_sulfonyl_names("hydrazide", "hydrazone")}
 _CHALCOGEN_SULFONAMIDE_CLASSES = tuple(name for name in _sulfonyl_names("amide", "plain").values() if name != "sulfonamide")
 _SENIORITY = [
-    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_SULFONYL_AMIDE_ORDER, "hydrazide", *_SULFONYL_HYDRAZIDE_ORDER, "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
-    "thiol", "selenol", "tellurol", *_PEROXOL_ANALOGUES, "amine", "imine",
+    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_SULFONYL_AMIDE_ORDER, "hydrazide", *_SULFONYL_HYDRAZIDE_ORDER, "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol",
+    "thiol", "selenol", "tellurol", "peroxol", *_PEROXOL_ANALOGUES, "amine", "imine",
 ]
 _TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "hydrazide", "nitrile", "aldehyde"}
 _PLAIN_ACID = make_spec("C", ["O"], ["O"])
@@ -128,6 +129,24 @@ FORCE_LOCANTS = contextvars.ContextVar("force_locants", default=False)
 LAST_POSITIONS = contextvars.ContextVar("last_positions", default=None)
 FORCED_PRINCIPAL = contextvars.ContextVar("forced_principal", default=None)
 SUBSTITUTED_AMINE_PREFIX = contextvars.ContextVar("substituted_amine_prefix", default=False)
+
+
+def _senior_anionic_centres(mol, groups, ring_groups, marked):
+    """P-72.7(d): between a peroxolate and a chalcogenolate the anionic centre of the first element in O > S > Se > Te
+    decides; with the same element the thiol class outranks the peroxol class (P-72.7(e))."""
+    thiols = ("thiol", "selenol", "tellurol")
+
+    def centre(owned):
+        return min(mol.GetAtomWithIdx(a).GetAtomicNum() for a in owned & marked)
+
+    peroxols = [centre(o) for cls, members in groups.items() if cls in _PEROXOL_CLASSES for o in members.values()]
+    peroxols += [centre(owned) for cls, _, owned in ring_groups if cls in _PEROXOL_CLASSES]
+    chalcogenols = [centre(o) for cls, members in groups.items() if cls in thiols for o in members.values()]
+    chalcogenols += [centre(owned) for cls, _, owned in ring_groups if cls in thiols]
+    if peroxols and chalcogenols and min(peroxols) < min(chalcogenols):
+        groups = {cls: members for cls, members in groups.items() if cls not in thiols}
+        ring_groups = [g for g in ring_groups if g[0] not in thiols]
+    return groups, ring_groups
 
 
 def _principal_class(classes):
@@ -2282,6 +2301,7 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
             if (kept := {c: owned for c, owned in members.items() if owned & marked})
         }
         ring_groups = [g for g in ring_groups if g[2] & marked]
+        groups, ring_groups = _senior_anionic_centres(mol, groups, ring_groups, marked)
         secondary = any(_substituted_amine_nitrogen(mol, mol.GetAtomWithIdx(i)) for i in marked)
         if not groups and not ring_groups and not secondary:
             raise UnsupportedStructure("this anionic group is not a principal-capable characteristic group")

@@ -92,7 +92,7 @@ def _demoted_peroxy(atom, centers):
     return any(
         c is not atom
         and (_is_group_anion(c) or _is_carbanion(c))
-        and not _is_junior_to_peroxol(c)
+        and not _is_junior_to_peroxol(c, atom)
         and not _is_peroxy_anion(c)
         for c in centers
     )
@@ -102,10 +102,14 @@ def _is_peroxy_anion(atom):
     return atom.GetAtomicNum() in _CHALCOGENS and atom.GetDegree() == 1 and _is_peroxy_host(atom.GetNeighbors()[0], atom)
 
 
-def _is_junior_to_peroxol(atom):
+def _is_junior_to_peroxol(atom, peroxy):
+    """The anionic centre of a peroxolate decides first (O > S > Se > Te, P-72.7(d)); with the same element the thiol
+    class outranks the peroxol class (P-72.7(e), P-63.7)."""
     if atom.GetAtomicNum() == 7:
         return True
     if atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() == 1:
+        if atom.GetAtomicNum() <= peroxy.GetAtomicNum():
+            return False
         host = atom.GetNeighbors()[0]
         return host.GetAtomicNum() == 6 and not any(
             b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(host).GetAtomicNum() in (7, 8, 16, 34, 52) for b in host.GetBonds()
@@ -299,7 +303,7 @@ def _name_substitutive(mol):
             except UnsupportedStructure:
                 name = _pipeline_neutral_name(neutral)
     variant = peroxy_variant(neutral)
-    if variant is not None:
+    if variant is not None and _PEROXY_TAIL.search(name):
         return _peroxy_swap(name, variant, peroxy_carbonyl_thio(neutral))
     chalco = chalcogen_acid_variant(neutral)
     if chalco is not None and _THIOIC_TAIL.search(name):
