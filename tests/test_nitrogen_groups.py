@@ -1191,6 +1191,7 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         pytest.param("NC(=NN)C(N)=NN", "ethanedihydrazonamide", id="two_hydrazonamide_groups"),
         pytest.param("NNC(=N)C(=N)NN", "ethanediimidohydrazide", id="two_imidohydrazide_groups"),
         pytest.param("NC=N", "methanimidamide", id="amidine_of_a_one_carbon_parent"),
+        pytest.param("CN=CNC1CCOC1", "N'-methyl-N-(oxolan-3-yl)methanimidamide", id="one_carbon_amidine_with_a_ring_on_nitrogen"),
         pytest.param(
             "CN(C)C(=NN)c1cc(C(=NN)N(CC)CC)cc2ccccc12",
             "N3,N3-diethyl-N1,N1-dimethylnaphthalene-1,3-dicarbohydrazonamide",
