@@ -81,6 +81,8 @@ def test_asymmetric_1_2_and_related(smiles, expected):
         ("C1=CC=CCC1", "cyclohexa-1,3-diene"),
         ("BrC1C=CCCC1", "3-bromocyclohex-1-ene"),
         ("C=1=C=C=C=C=C=C=C=C=C=C1", "cycloundecaundecaene"),
+        ("S=1=S=C=C=C=C=C=C=C=C=C1", "1λ4,2λ4-dithiacycloundecaundecaene"),
+        ("C1=C=C=C=C=C=C=C=C=C=[S]=1", "1λ4-thiacycloundecaundecaene"),
         ("C1#CC(C)=CC=C1", "3-methyl-1,2-didehydrobenzene"),
     ],
 )

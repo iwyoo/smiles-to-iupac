@@ -7,7 +7,7 @@ prefix ('1,2-dimethoxyethane', 'N1-(2-aminoethyl)ethane-1,2-diamine').
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, nonstandard_bonding, unsaturation_suffix
+from ._common import UnsupportedStructure, adjacency, multiplied_word, nonstandard_bonding, unsaturation_suffix
 from ._numerals import alkane_name, multiplying_prefix
 from ._phosphanyl_group import PREFIX_PROP
 from ._prefix_groups import PrefixNamer
@@ -318,7 +318,9 @@ def name_hetero_macrocycle(mol):
         name = f"{all_locs}{a_text[:-1]}{_HW_STEM[size]}"
     else:
         stem = "cyclo" + alkane_name(size)[:-3]
-        if ene or yne:
+        if len(ene) == size and not yne:
+            ending = f"{stem}a{multiplied_word(size, 'ene')}"
+        elif ene or yne:
             body, needs_a = unsaturation_suffix([locant for locant, _ in ene], yne)
             ending = f"{stem}{'a' if needs_a else ''}-{body}"
         else:
@@ -326,7 +328,7 @@ def name_hetero_macrocycle(mol):
         if all_replaced and not lam:
             name = multiplying_prefix(size) + _MACRO_A_PREFIX[ordered[0]] + ending
         elif len(sum(hetero.values(), [])) == 1:
-            name = f"{sum(hetero.values(), [])[0]}-{_MACRO_A_PREFIX[ordered[0]]}{ending}"
+            name = f"{_cite(sum(hetero.values(), [])[0], lam)}-{_MACRO_A_PREFIX[ordered[0]]}{ending}"
         else:
             parts = [
                 f"{','.join(_cite(p, lam) for p in sorted(hetero[z]))}-{multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ''}{_MACRO_A_PREFIX[z]}"
