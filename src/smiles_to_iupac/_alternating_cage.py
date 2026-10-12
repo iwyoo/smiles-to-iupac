@@ -131,13 +131,9 @@ def name_alternating_cage(mol):
     found = _shape(mol)
     junior, senior, count, heads = found
     carbon_name = _carbon_skeleton_name(mol)
+    head = _retained_head(carbon_name, {"adamantane": "tricyclo[3.3.1.1^3,7]"})
     if senior is None:
-        head = _retained_head(carbon_name, {"adamantane": "tricyclo[3.3.1.1^3,7]"})
         return None if head is None else f"{head}{numerical_term(count)}{_HYDRIDE[junior]}"
-    if carbon_name == "adamantane":
-        # P-68.2.1.2 prints the replacement name of an adamantane skeleton as the preselected one, against P-52.1.6.2
-        return None
-    head = _retained_head(carbon_name)
     if head is None:
         return None
     parent = _PARENT[senior]
