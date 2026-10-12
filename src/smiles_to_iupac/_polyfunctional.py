@@ -1855,11 +1855,13 @@ def _group_atom_labels(mol, rest):
     items = []
     if len(heavy) > 1:
         return [(rest[heavy[0]]["skeleton"], None, len(heavy), False)], None
+    several_atoms = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == element) > 1
+    only_heavy = not any(e["H"] for e in rest.values())
     for atom, entry in rest.items():
         heavy_label = entry["skeleton"]
         locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
         if heavy_label:
-            items.append((heavy_label, None, 1, False))
+            items.append((heavy_label, symbol if several_atoms and only_heavy else None, 1, False))
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
