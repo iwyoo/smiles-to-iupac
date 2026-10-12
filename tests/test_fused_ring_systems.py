@@ -580,6 +580,10 @@ def test_bridgehead_heteroatom_fused_yl_groups(smiles, expected):
         ("C1C=CC=Cc2ccccc12", "5H-benzo[7]annulene"),
         ("C1C=Cc2ccccc2-c2ccccc12", "5H-dibenzo[a,c][7]annulene"),
         ("C1C=Cc2c1ccc1c2ccc2ccccc21", "17H-cyclopenta[a]phenanthrene"),
+        (
+            "C1=CN=C2C=CC=C3C2=C1C=C1C2=C(C3)C=CC=C2C=C1",
+            "7H-indeno[7',1':5,6,7]cycloocta[1,2,3-de]quinoline",
+        ),
     ],
 )
 def test_fusion_names_of_a_parent_component_with_attached_rings(smiles, expected):

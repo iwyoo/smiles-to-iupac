@@ -23,8 +23,14 @@ _HOUSE = {
 }
 
 
+# P-25.3.2.3.1: besides the regular octagon, an octagon drawn on the hexagon grid with flat top and bottom edges
+_WIDE_OCTAGON = [Fraction(0), Fraction(5, 6), Fraction(3, 4), Fraction(2, 3), Fraction(1, 2), Fraction(1, 3), Fraction(1, 4), Fraction(1, 6)]
+
+
 @lru_cache(maxsize=None)
 def _shape_tables(n):
+    if n == 8:
+        return ([Fraction(-k, 8) % 1 for k in range(8)], _WIDE_OCTAGON)
     if n in _HOUSE:
         up = _HOUSE[n]
         down = [(-up[(-k) % n]) % 1 for k in range(n)]
@@ -195,7 +201,7 @@ def _layouts(system):
     choices = []
     for r in order:
         size = len(rings[r])
-        if size in _HOUSE:
+        if size in _HOUSE or size == 8:
             tables = _shape_tables(size)
             choices.append([(t, j) for t in range(len(tables)) for j in range(size)])
         else:
