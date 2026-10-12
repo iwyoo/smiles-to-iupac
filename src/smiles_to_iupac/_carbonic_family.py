@@ -195,6 +195,10 @@ def _find(mol):
     if len(found) > 1:
         found = [c for c in found if not _acyl_on_other_center(mol, c, found)]
     if len(found) > 1:
+        acids = [c for c in found if _has_hydroxy(mol, c) and not any(n.GetAtomicNum() == 6 for n in mol.GetAtomWithIdx(c).GetNeighbors())]
+        if len(acids) == 1:
+            found = acids
+    if len(found) > 1:
         rest = [c for c in found if not _is_urea_core(mol, c)]
         if len(rest) == 1 and _has_acid_ligand(mol, rest[0]):
             found = rest
@@ -235,6 +239,10 @@ def _has_acid_ligand(mol, idx):
         _bond(mol, idx, n.GetIdx()) == 1.0 and (_chain(mol, idx, n) is not None or _chain(mol, idx, n, ion=True) is not None)
         for n in mol.GetAtomWithIdx(idx).GetNeighbors()
     )
+
+
+def _has_hydroxy(mol, idx):
+    return any(n.GetAtomicNum() == 8 and n.GetTotalNumHs() == 1 and n.GetDegree() == 1 for n in mol.GetAtomWithIdx(idx).GetNeighbors())
 
 
 def _cyano_carbon(mol, atom, nitrogen):

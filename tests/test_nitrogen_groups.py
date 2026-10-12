@@ -1143,9 +1143,9 @@ def test_substituted_hydrazinecarbohydrazides(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CC(=O)NC(=O)OC", "methyl N-acetylcarbamate", id="n_acyl_carbamate"),
-        pytest.param("O=C(NC(=O)c1ccccc1)OC", "methyl N-benzoylcarbamate", id="n_aroyl_carbamate"),
-        pytest.param("CC(=O)N(C)C(=O)OC", "methyl N-acetyl-N-methylcarbamate", id="n_acyl_n_alkyl_carbamate"),
+        pytest.param("CC(=O)NC(=O)OC", "methyl acetylcarbamate", id="n_acyl_carbamate"),
+        pytest.param("O=C(NC(=O)c1ccccc1)OC", "methyl benzoylcarbamate", id="n_aroyl_carbamate"),
+        pytest.param("CC(=O)N(C)C(=O)OC", "methyl acetyl(methyl)carbamate", id="n_acyl_n_alkyl_carbamate"),
     ],
 )
 def test_n_acyl_carbamates(smiles, expected):
@@ -1165,8 +1165,7 @@ def test_amidine_carbon_in_a_substituent_chain(smiles, expected):
 
 
 def test_acylated_nitrogen_is_not_a_hetero_parent_for_a_carboxylic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)NC(=O)O")
+    assert smiles_to_iupac("CC(=O)NC(=O)O") == "acetylcarbamic acid"
 
 
 @pytest.mark.parametrize(
