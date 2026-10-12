@@ -2517,7 +2517,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             return _finish(carbo)
     if (
         _is_terminal(principal)
-        and not (principal in ("amidine", *_AMIDRAZONE) and attach is None and not mol.GetRingInfo().NumRings())
+        and not (principal in ("amidine", *_AMIDRAZONE) and attach is None)
         and len(chain_best[2][4]) == 1
         and not (_is_variant(principal) and attach is None)
         and not chain_best[1].endswith("formic acid")
