@@ -2144,3 +2144,7 @@ def test_configuration_of_the_c_n_bond_of_hydrazones_and_amidoximes(smiles, expe
 def test_azine_ylidenes_that_differ_in_configuration_are_not_ordered():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C/C=N/N=C\\C")
+
+
+def test_stereodefined_ring_amine_with_a_chalcogen_in_its_n_substituent():
+    assert smiles_to_iupac("CSCCN[C@H]1CCOC1") == "(3S)-N-[2-(methylsulfanyl)ethyl]oxolan-3-amine"
