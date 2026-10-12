@@ -521,7 +521,7 @@ def _pendant_text(mol, graph, links):
     return _multiplied([(n, not n.isalpha(), k, []) for n, k in counts.items()])
 
 
-def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces):
+def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces, suffixed):
     """'dimethyl ethane-1,2-diyl dibutanedioate' (P-65.6.3.3.4.1): one organyl piece joining identical acid pieces
     whose remaining ester groups carry organyl groups; None when the molecule is not of that shape."""
 
@@ -535,18 +535,24 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     centers = [owner[l.center] for l in hub_links]
     if len(set(centers)) != len(centers) or len(acid_pieces) != len(centers):
         return None
-    if len({_piece_key(mol, frags[c]) for c in centers}) != 1:
+    if any(l not in suffixed[owner[l.center]] for l in hub_links):
         return None
-    pendants = [l for ls in acid_pieces.values() for l in ls if owner[l.far] != hub]
+    acid_atoms = {}
+    for c in centers:
+        component = _fragments(mol, [(l.chain[-1], l.far) for l in suffixed[c]])
+        acid_atoms[c] = component[0][component[1][suffixed[c][0].center]]
+    if len({_piece_key(mol, acid_atoms[c]) for c in centers}) != 1:
+        return None
+    pendants = [l for c in centers for l in suffixed[c] if owner[l.far] != hub]
     if any(len(r_pieces[owner[l.far]]) != 1 for l in pendants):
         return None
     if not pendants and (
         any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 for l in hub_links)
-        or any(_free_acid_hydroxyl(mol, a) for c in centers for a in frags[c])
+        or any(_free_acid_hydroxyl(mol, a) for c in centers for a in acid_atoms[c])
     ):
         return None
-    first = acid_pieces[centers[0]]
-    acid = _acid_name(mol, frags[centers[0]], [l.chain[-1] for l in first])
+    first = suffixed[centers[0]]
+    acid = _acid_name(mol, acid_atoms[centers[0]], [l.chain[-1] for l in first])
     anion = anion_name(acid)
     diyl = _diyl_name(mol, frags[hub], [l.far for l in hub_links])
     if diyl is None:
@@ -674,11 +680,16 @@ def name_ester(mol, links):
     for l in esters:
         r_pieces.setdefault(owner[l.far], []).append(l)
     if len(acid_pieces) > 1:
-        multiplicative = _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces)
+        suffixed = {
+            c: _suffix_links(mol, ls, frags[c], lambda l: l.chain[-1]) if len(ls) > 1 else ls for c, ls in acid_pieces.items()
+        }
+        multiplicative = _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces, suffixed)
         if multiplicative is not None:
             return multiplicative
-    if len(acid_pieces) > 1 and len(r_pieces) == 1:
-        raise UnsupportedStructure("an organyl component with several acid components uses a multiplied name")
+        if len({owner[l.far] for ls in suffixed.values() for l in ls}) == 1:
+            from ._diester_acyloxy import name_diester_acyloxy
+
+            return name_diester_acyloxy(mol)
     def _carboxylic(i):
         return any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 and (_center(mol, l.center) or ("",))[0] == "acyl" for l in acid_pieces[i])
 
