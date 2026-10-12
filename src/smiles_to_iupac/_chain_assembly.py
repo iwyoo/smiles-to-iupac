@@ -75,7 +75,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     an assembly."""
     from ._diester_ring_diyl import _isotope_key
     from ._polyfunctional import _assembly_spec, _require_mancude_system, _stereo_rank
-    from ._ring_diyl_numbering import SUFFIX_ATOMS, system_numberings
+    from ._ring_diyl_numbering import LINK_ATOMS, SUFFIX_ATOMS, system_numberings
     from ._system_assembly import _fully_hydro, _hydro, _lit_hydrogens, _stem
 
     frees = [] if free is None else [free] if isinstance(free[0], int) else list(free)
@@ -133,9 +133,11 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         def orientations(unit, ring_atoms, attach):
             if fused[0]:
                 token = SUFFIX_ATOMS.set(frozenset(attach) | (set(marked) & set(ring_atoms)))
+                links = LINK_ATOMS.set(frozenset(attach))
                 try:
                     return [(n.position_of, n) for n in system_numberings(mol, graph, unit[0], unit[1])]
                 finally:
+                    LINK_ATOMS.reset(links)
                     SUFFIX_ATOMS.reset(token)
             if spec.hetero is not None:
                 return [(n, None) for n in numberings(_assembly_spec(mol, graph, ring_atoms))]
