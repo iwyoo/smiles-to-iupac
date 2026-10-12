@@ -1868,10 +1868,7 @@ def _name_mol(mol) -> str:
     if has_group1_2_organometallic_shape(mol):
         return mark(name_group1_2_organometallic(mol), _NO_PIN_ORGANOMETALLIC)
 
-    # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
-    # 20-hexagon cage) is recognized by exact whole-molecule match --
-    # see _fullerene.py's module docstring; none of the ring modules
-    # below understand a cage shape at all.
+    # None of the ring modules below understand a closed cage (P-27.2).
     if has_fullerene_name(mol):
         return name_fullerene(mol)
     if has_substituted_fullerene_cage(mol):

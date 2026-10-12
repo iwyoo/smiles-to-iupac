@@ -6,6 +6,7 @@ from smiles_to_iupac._fullerene import (
     _C84_D6H_ISOMER_24_SMILES,
     _FULLERENE_C60_SMILES,
     _FULLERENE_C70_SMILES,
+    _FULLERENE_C76_SMILES,
 )
 from smiles_to_iupac._fullerene_spiral import (
     _C84_IPR_ISOMERS,
@@ -198,8 +199,42 @@ def test_two_separate_paracyclophane_units_not_misread_as_one_n4_phane():
         smiles_to_iupac("C1CC2=CC=C(CCC3=CC=C1C=C3)C=C2.C1CC2=CC=C(CCC3=CC=C1C=C3)C=C2")
 
 
-def test_c70_fullerene():
-    assert smiles_to_iupac(_FULLERENE_C70_SMILES) == "(C70-D5h(6))[5,6]fullerene"
+_C20_DODECAHEDRON = "c12c3c4c5c1c1c6c2c2c3c3c4c4c5c1c1c6c2c3c41"
+_C24_TRUNCATED_OCTAHEDRON = "c12c3c4c1c1c5c6c2c2c7c3c3c8c4c4c1c5c1c(c26)c(c73)c1c84"
+_C24_D6D = "c12c3c4c5c6c7c8c9c%10c%11c(c1c1c3c5c7c9c%111)c1c2c4c6c8c%101"
+_C28_TD = "c12c3c4c5c1c1c6c2c2c3c3c7c2c2c8c7c7c3c4c3c5c4c(c37)c8c(c14)c62"
+_C30_D5H = "c12c3c4c5c1c1c6c2c2c3c3c4c4c5c1c1c5c7c8c9c%10c7c1c4c%10c3c9c2c8c56"
+_C30_C2V = "c12c3c4c5c1c1c6c7c8c9c%10c%11c%12c9c7c1c1c5c5c(c%11c7c%10c8c(c26)c3c7c45)c%121"
+_C34_CS = "c12c3c4c5c1c1c6c7c8c9c%10c7c7c%11c%10c%10c9c9c8c6c5c5c4c4c6c3c(c2c71)c%11c6c%10c4c59"
+_C36_D3H = "c12c3c4c5c1c1c6c7c8c9c(c75)c5c4c4c3c3c2c1c1c2c7c%10c(c23)c4c2c%10c3c7c1c6c8c3c9c52"
+_C60_WITH_A_HEPTAGON = (
+    "c12c3c4c5c1c1c6c7c8c9c%10c%11c%12c%13c%14c%15c%16c%17c%18c%15c%15c%19c%20c%21c(c%14%19)c%12c%12c%11c9c7c7c6c2c2c3c3c6c(c%20c9c3c4c3c5c4c(c%18c3c%159)c%17c(c%10c%16%13)c8c14)c%21c%12c7c26"
+)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(_C20_DODECAHEDRON, "(C20-Ih)[5]fullerene", id="icosahedral_cage_of_pentagons_only"),
+        pytest.param(_FULLERENE_C60_SMILES, "(C60-Ih)[5,6]fullerene", id="cubic_family_has_no_principal_axis"),
+        pytest.param(_C24_TRUNCATED_OCTAHEDRON, "(C24-Oh)[4,6]fullerene", id="four_membered_rings_in_the_bracket"),
+        pytest.param(_C28_TD, "(C28-Td)[5,6]fullerene", id="tetrahedral_with_mirror_planes"),
+        pytest.param(_FULLERENE_C76_SMILES, "(C76-D2)[5,6]fullerene", id="dihedral_without_a_principal_axis"),
+        pytest.param(_FULLERENE_C70_SMILES, "(C70-D5h(6))[5,6]fullerene", id="axial_pentagon_surrounded_by_hexagons"),
+        pytest.param(_C30_D5H, "(C30-D5h(5))[5,6]fullerene", id="axial_pentagon_surrounded_by_pentagons"),
+        pytest.param(_C24_D6D, "(C24-D6d(5))[5,6]fullerene", id="dihedral_with_diagonal_mirror_planes"),
+        pytest.param(_C30_C2V, "(C30-C2v)[5,6]fullerene", id="cyclic_with_vertical_mirror_planes"),
+        pytest.param(_C34_CS, "(C34-Cs)[5,6]fullerene", id="single_mirror_plane"),
+        pytest.param(_C60_WITH_A_HEPTAGON, "(C60-C1)[5,6,7]fullerene", id="seven_membered_ring_without_symmetry"),
+    ],
+)
+def test_fullerene_cage_named_from_its_symmetry_and_rings(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_fullerene_whose_axis_ring_has_mixed_neighbours_is_flagged():
+    with pytest.warns(NonPreferredNameWarning, match="ring-surround"):
+        assert smiles_to_iupac(_C36_D3H) == "(C36-D3h)[5,6]fullerene"
 
 
 def test_c84_isomer_24_via_spiral_match():
