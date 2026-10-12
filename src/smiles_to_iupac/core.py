@@ -1176,13 +1176,13 @@ def _cites_every_tetrahedral_center(mol, name) -> bool:
 
 def _cites_every_stereo_element(mol, name) -> bool:
     cited = len(_STEREO_TOKENS.findall(name))
-    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)\(", name):
+    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)[(\[{]", name):
         return cited > 0
     return cited >= sum(1 for s in Chem.FindPotentialStereo(mol) if s.specified == Chem.StereoSpecified.Specified)
 
 
 def _cites_every_double_bond(mol, name) -> bool:
-    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)\(", name):
+    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)[(\[{]", name):
         return True
     probe = Chem.Mol(mol)
     assign_cip_labels(probe)
