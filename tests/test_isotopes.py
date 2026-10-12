@@ -104,7 +104,7 @@ def test_isotope_alcohol_17o_name():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(=[18O])O", "(18O)acetic acid"),
+        ("CC(=[18O])O", "(O-18O)acetic acid"),
     ],
 )
 def test_isotope_carboxylic_acid_name(smiles, expected):
@@ -197,7 +197,7 @@ def test_isotope_on_ring_parent(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("OC=[18O]", "(18O)formic acid"),
+        ("OC=[18O]", "(O-18O)formic acid"),
     ],
 )
 def test_isotope_descriptor_before_retained_acid_name(smiles, expected):
