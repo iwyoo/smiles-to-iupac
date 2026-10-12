@@ -189,6 +189,7 @@ def test_two_ring_and_heteroaromatic_chain_aldehyde(smiles, expected):
         pytest.param("O=Cc1cccnc1", "pyridine-3-carbaldehyde", id="heteroaromatic_ring_directly_attached_aldehyde"),
         pytest.param("OC=CC=O", "3-hydroxyprop-2-enal", id="aldehyde_enol_mix"),
         pytest.param("O=CC1CCC(C=O)CC1", "cyclohexane-1,4-dicarbaldehyde", id="ring_aldehyde_multiple_groups"),
+        pytest.param("O=CC1(C=O)CCOCC1", "oxane-4,4-dicarbaldehyde", id="two_formyl_groups_on_one_heteroring_atom"),
     ],
 )
 def test_two_ring_aromatic_and_related_2(smiles, expected):
