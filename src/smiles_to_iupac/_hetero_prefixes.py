@@ -144,9 +144,12 @@ def _on_senior_hydride(mol, atom):
     return atom is not None and mol.GetAtomWithIdx(atom).GetAtomicNum() in MONONUCLEAR_HYDRIDES
 
 
-def require_senior_group(mol, z):
+def require_senior_group(mol, z, parent=None):
     """A free -SeH/-TeH/=Se/=Te is the principal group (selenol, tellurol, selone) unless a more senior class
-    (acid, ester, amide, nitrile, aldehyde, ketone, alcohol, thiol) is present (P-41, P-63.1)."""
+    (acid, ester, amide, nitrile, aldehyde, ketone, alcohol, thiol) is present (P-41, P-63.1); on a nitrogen it is the
+    chalcogen analogue of hydroxylamine, cited as a prefix like -SH (P-68.3.1.1.1.6)."""
+    if parent is not None and mol.GetAtomWithIdx(parent).GetAtomicNum() == 7:
+        return
     if z in (34, 52) and not any(
         mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *([_SELONE_KETONE] if z == 52 else []))
     ):
@@ -810,7 +813,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if z in CHALCOGEN_PREFIXES:
         word = CHALCOGEN_PREFIXES[z]
         if not others:
-            require_senior_group(mol, z)
+            require_senior_group(mol, z, coming_from)
         require_plain_chalcogen_kids(mol, z, others)
         if order == 2.0 and not others:
             return word[:-2] + "ylidene", False
