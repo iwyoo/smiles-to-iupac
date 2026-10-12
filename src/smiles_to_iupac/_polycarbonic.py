@@ -135,6 +135,9 @@ def name_polycarbonic(mol):
         if best is None or key < best[0]:
             best = (key, order, replaced)
     _, order, replaced = best
+    amido = [p for p, w in replaced if w == "amido"]
+    if n == 2 and amido and (2, "imido") in replaced and all(p != amido[0] for p, w in replaced if w != "amido"):
+        raise UnsupportedStructure("a carbamic acid carrying a carbamoyl group on nitrogen is named as such (P-66.1.6.1.1.4)")
     ends_ligands = [
         w for _, w in replaced if w in _TERMINAL_ONLY
     ]
