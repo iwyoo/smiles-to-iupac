@@ -464,7 +464,7 @@ def _chain_stereo(chain, position_of, atom_codes, bond_codes):
 
 def _evaluate(
     mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl=None, attach=None, blocked=frozenset(),
-    attaches=(),
+    attaches=(), directed=False,
 ):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
@@ -586,9 +586,10 @@ def _evaluate(
     prefix = format_substituent_prefixes(grouped_all)
     halide_word = ""
     if attaches:
-        body = name_from_substituents(
-            length, ene, yne, "diyl", sorted(position_of[a] for a in attaches), force_own_locant=True
-        )
+        ordered = [position_of[a] for a in attaches]
+        body = name_from_substituents(length, ene, yne, "diyl", sorted(ordered), force_own_locant=True)
+        if directed:
+            body = body.replace(",".join(map(str, sorted(ordered))) + "-diyl", ",".join(map(str, ordered)) + "-diyl")
     elif attach is not None:
         body = name_from_substituents(length, ene, yne, "yl", [position_of[attach]], force_own_locant=True)
     elif principal is None:
@@ -648,9 +649,10 @@ def _evaluate(
     return key, stereo + name
 
 
-def skeletal_linker(mol, graph, span, attaches, blocked):
+def skeletal_linker(mol, graph, span, attaches, blocked, directed=False):
     """The 'a' name of the divalent chain `span` joining two multiplied units ('3,6,9,12-tetraoxatetradecane-1,14-diyl',
-    P-51.3.1), or None when no chain with four heterounits runs between the two attachment atoms."""
+    P-51.3.1), or None when no chain with four heterounits runs between the two attachment atoms. With `directed`, the
+    locants are cited from the first attachment to the second, which takes locant 1 ('14,1-diyl')."""
     atoms = [mol.GetAtomWithIdx(a) for a in span]
     if len(attaches) != 2 or any(a.IsInRing() or a.GetFormalCharge() or a.GetIsotope() for a in atoms):
         return None
@@ -672,7 +674,11 @@ def skeletal_linker(mol, graph, span, attaches, blocked):
         if set(path) != set(span) or {path[0], path[-1]} != set(attaches) or not _acceptable_path(mol, path):
             continue
         for chain in (path, path[::-1]):
-            candidate = _evaluate(mol, graph, chain, None, {}, set(), {}, {}, attaches=tuple(attaches), blocked=blocked)
+            if directed and chain[0] != attaches[1]:
+                continue
+            candidate = _evaluate(
+                mol, graph, chain, None, {}, set(), {}, {}, attaches=tuple(attaches), blocked=blocked, directed=directed
+            )
             if candidate is not None and (best is None or candidate[0] < best[0]):
                 best = candidate
     return best[1] if best else None
