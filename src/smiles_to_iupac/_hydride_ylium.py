@@ -12,12 +12,15 @@ _STEM = {
     5: ("boran", 3), 7: ("azan", 3), 8: ("oxidan", 2), 9: ("fluoran", 1), 14: ("sil", 4), 15: ("phosphan", 3),
     16: ("sulfan", 2), 17: ("chloran", 1), 32: ("germ", 4), 33: ("arsan", 3), 34: ("selan", 2), 35: ("broman", 1), 50: ("stann", 4),
     51: ("stiban", 3), 52: ("tellan", 2), 53: ("iodan", 1), 82: ("plumb", 4), 83: ("bismuthan", 3),
+    13: ("aluman", 3), 31: ("gallan", 3), 49: ("indigan", 3), 81: ("thallan", 3),
 }
+_POLYCATION_ELEMENTS = {5, 13, 31, 49, 81, 14, 32, 50, 82}
+_MULTIPLIED_YLIUM = {2: "bis(ylium)", 3: "tris(ylium)", 4: "tetrakis(ylium)"}
 
 
 def _center(mol):
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
-    if len(charged) != 1 or charged[0].GetFormalCharge() not in (1, 2) or len(Chem.GetMolFrags(mol)) != 1:
+    if len(charged) != 1 or charged[0].GetFormalCharge() not in (1, 2, 3, 4) or len(Chem.GetMolFrags(mol)) != 1:
         return None
     atom = charged[0]
     if atom.GetAtomicNum() not in _STEM or atom.IsInRing() or atom.GetIsotope():
@@ -26,13 +29,16 @@ def _center(mol):
     bonds = sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs()
     if bonds != standard - atom.GetFormalCharge():
         return None
-    if atom.GetFormalCharge() == 2 and (atom.GetAtomicNum() != 7 or atom.GetDegree() != 1 or atom.GetTotalNumHs()):
+    if atom.GetFormalCharge() >= 2 and not (
+        atom.GetAtomicNum() in _POLYCATION_ELEMENTS
+        or (atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 2 and atom.GetDegree() == 1 and not atom.GetTotalNumHs())
+    ):
         return None
     if atom.GetAtomicNum() == 7 and atom.GetDegree() and atom.GetFormalCharge() == 1:
         return None
-    if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds() if atom.GetFormalCharge() == 1) or any(
-        b.GetBondTypeAsDouble() > 2.0 for b in atom.GetBonds()
-    ):
+    if any(
+        b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds() if atom.GetFormalCharge() == 1 or atom.GetAtomicNum() in _POLYCATION_ELEMENTS
+    ) or any(b.GetBondTypeAsDouble() > 2.0 for b in atom.GetBonds()):
         return None
     if atom.GetAtomicNum() != 8 and any(n.GetAtomicNum() == 7 for n in atom.GetNeighbors()):
         return None
@@ -61,7 +67,11 @@ def name_hydride_ylium(mol) -> str:
     if z == 8 and len(entries) == 1:
         return _oxylium(mol, graph, center, halogens, aromatic)
     stem = _STEM[z][0]
-    parent = stem + ("ylium" if center.GetFormalCharge() == 1 else "ebis(ylium)")
+    charge = center.GetFormalCharge()
+    if charge == 1:
+        parent = stem + "ylium"
+    else:
+        parent = stem + ("e" if stem.endswith("an") else "ane") + _MULTIPLIED_YLIUM[charge]
     return format_mononuclear_prefixes(entries) + parent if entries else parent
 
 
