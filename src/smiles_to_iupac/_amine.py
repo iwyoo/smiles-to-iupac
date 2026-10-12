@@ -273,11 +273,8 @@ def _add_n_names(grouped, n_names, n_locants=None):
 
 
 def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names=(), n_locants=None):
-    # Only chain_length == 1 omits a substituent prefix's own locant too
-    # (see `_alcohol.py`'s equivalent comment) -- an 'N-' locant is never
-    # omitted either way (see `_add_n_names`/`format_substituent_prefixes`:
-    # it marks a different atom than the chain itself).
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=chain_length == 1 and not n_names)
+    # A prefix could also stand on the NH2 nitrogen: the locant is kept on methane for one amine group (P-14.3.4.4)
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=chain_length == 1 and len(amine_locants) > 1)
     return prefix + name_from_substituents(
         chain_length,
         ene_locants,

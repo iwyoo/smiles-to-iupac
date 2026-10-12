@@ -232,7 +232,9 @@ def test_unsaturated_ring_amine_with_substituent():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("NCC1CCCCC1", "cyclohexylmethanamine", id="substituent_chain_amine"),
+        pytest.param("NCC1CCCCC1", "1-cyclohexylmethanamine", id="substituent_chain_amine"),
+        pytest.param("NCNN", "1-hydrazinylmethanamine", id="locant_kept_beside_a_prefix_that_could_stand_on_nitrogen"),
+        pytest.param("NC(Cl)Cl", "1,1-dichloromethanamine", id="every_prefix_locant_of_a_substituted_methanamine"),
         pytest.param("NC1CCCCC1CN", "2-(aminomethyl)cyclohexan-1-amine", id="with_amine_chain_amine_tie"),
         pytest.param("NC1CCCCC1C(N)CN", "1-(2-aminocyclohexyl)ethane-1,2-diamine", id="with_amine_chain_amine_chain_wins"),
     ],
