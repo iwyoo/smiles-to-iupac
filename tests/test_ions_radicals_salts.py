@@ -865,6 +865,7 @@ def test_heteroaromatic_n_oxide(smiles, expected):
         pytest.param("c1ccc2oc[nH+]c2c1", "1,3-benzoxazol-3-ium", id="protonated_fused_azole"),
         pytest.param("[O-][N+]1(C)CCCCC1", "1-methylpiperidine 1-oxide", id="saturated_ring_n_oxide"),
         pytest.param("[O-][NH+]1CCOCC1", "morpholine 4-oxide", id="saturated_ring_nh_oxide"),
+        pytest.param("CC(N)C[N+]1([O-])CCCC1", "1-(2-aminopropyl)pyrrolidine 1-oxide", id="ring_oxide_is_the_parent_beside_a_chain_amine"),
         pytest.param("[O-][n+]1ccoc1", "1,3-oxazole 3-oxide", id="azole_n_oxide_locant"),
     ],
 )
