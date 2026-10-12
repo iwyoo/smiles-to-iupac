@@ -755,10 +755,22 @@ def _terminal_ester_groups(mol):
     return found
 
 
+def _phane_acid_name(acid):
+    from ._linear_phane import has_linear_phane_shape, name_linear_phane
+
+    if not has_linear_phane_shape(acid):
+        return None
+    try:
+        name = name_linear_phane(acid)
+    except UnsupportedStructure:
+        return None
+    return name if name.endswith("carboxylic acid") else None
+
+
 def name_heteroacyclic_ester(mol):
-    """'dimethyl 3,8,10,15-tetraoxo-4,7,11,14-tetraoxaheptadecane-1,17-dioate' (P-51.4.1.1, P-65.6.3.2): the free acid
-    of the chain named by skeletal replacement, with the organyl groups of its terminal esters cited first; None when
-    the molecule is not of that shape."""
+    """'dimethyl 3,8,10,15-tetraoxo-4,7,11,14-tetraoxaheptadecane-1,17-dioate' (P-51.4.1.1, P-65.6.3.2), and the same
+    with a linear phane in place of the chain (P-65.6.3.3.4.4): the free acid named by skeletal replacement or as a
+    phane, with the organyl groups of its terminal esters cited first; None when the molecule is not of that shape."""
     from ._acid_derivatives import _multiplied, anion_name
 
     terminal = _terminal_ester_groups(mol)
@@ -776,7 +788,9 @@ def name_heteroacyclic_ester(mol):
     Chem.SanitizeMol(acid)
     name = name_heteroacyclic(acid)
     if name is None or not name.endswith("oic acid"):
-        return None
+        name = _phane_acid_name(acid)
+        if name is None:
+            return None
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     counts = {}
