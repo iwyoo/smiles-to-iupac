@@ -664,6 +664,32 @@ def _suffix_links(mol, links, keep, cap_of):
     return kept or list(links)
 
 
+def _acid_rank(mol, atoms, links, entering):
+    """(ring parent, parent size, substituents cited as prefixes) of the acid component made of `atoms`, in the order of
+    P-44.1.2.2, P-44.3 and P-45.2.1; an ester oxygen entering the component counts as an acyloxy prefix."""
+    inside = set(atoms)
+    centers = {l.center for l in links}
+    seeds = set(centers)
+    for c in centers:
+        seeds |= {n.GetIdx() for n in mol.GetAtomWithIdx(c).GetNeighbors() if n.GetIdx() in inside and n.GetAtomicNum() == 6}
+    ringed = {i for i in seeds if mol.GetAtomWithIdx(i).IsInRing()}
+    parent = set(ringed or seeds)
+    stack = list(parent)
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            j = n.GetIdx()
+            if j in inside and j not in parent and (n.IsInRing() if ringed else n.GetAtomicNum() == 6 and not n.IsInRing()):
+                parent.add(j)
+                stack.append(j)
+    substituents = len(entering)
+    for idx in parent:
+        for n in mol.GetAtomWithIdx(idx).GetNeighbors():
+            j = n.GetIdx()
+            if j in inside and j not in parent and not (idx in centers and n.GetDegree() == 1):
+                substituents += 1
+    return bool(ringed), len(parent), substituents
+
+
 def name_ester(mol, links):
     _reject_unsupported(mol)
     kinds = {_center(mol, l.center)[0] == "inorganic" for l in links}
@@ -693,7 +719,10 @@ def name_ester(mol, links):
     def _carboxylic(i):
         return any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 and (_center(mol, l.center) or ("",))[0] == "acyl" for l in acid_pieces[i])
 
-    principal = max(acid_pieces, key=lambda i: (_carboxylic(i), len(acid_pieces[i]), len(frags[i])))
+    principal = max(
+        acid_pieces,
+        key=lambda i: (_carboxylic(i), len(acid_pieces[i]), _acid_rank(mol, frags[i], acid_pieces[i], r_pieces.get(i, []))),
+    )
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])
     acid_atoms = component[0][component[1][chosen[0].center]]
