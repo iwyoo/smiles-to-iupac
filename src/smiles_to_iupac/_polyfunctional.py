@@ -17,6 +17,7 @@ from rdkit.Chem import CanonicalRankAtoms
 from ._common import assign_cip_labels
 from ._common import (
     alphanumerical_name_key,
+    citation_order_key,
     assembly_join,
     alpha_sort_key,
     HALOGEN_PREFIXES,
@@ -6117,7 +6118,11 @@ def _evaluate(
         holds_group,
         -len(prefix_locants),
         tuple(sorted(_prefix_locant_key(loc) for loc in prefix_locants)),
-        citation,
+        tuple(
+            _prefix_locant_key(loc)
+            for cited in sorted(with_n, key=citation_order_key)
+            for loc in sorted(with_n[cited]["locants"], key=_prefix_locant_key)
+        ),
         _bonding_rank(mol, graph, chain_set, position_of),
         alphanumerical_name_key(name),
         _n_group_positions(n_names, position_of),
