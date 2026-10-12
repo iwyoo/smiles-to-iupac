@@ -3187,6 +3187,7 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
         -total_count,
         locant_set,
         citation,
+        alphanumerical_name_key(name),
         _stereo_rank(stereo, position_of),
         name,
     )
@@ -3274,6 +3275,7 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
         -total_count,
         locant_set,
         citation,
+        alphanumerical_name_key(name),
         _n_group_positions(n_names, position_of),
         _stereo_rank(stereo, position_of),
         name,
@@ -6008,14 +6010,14 @@ def _evaluate(
     with_n = _with_n_names(grouped, n_names, position_of, len(on_chain))
     nitrogens = {a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7}
     elsewhere = set().union(*(principal_atoms[a] | {a} for a in principal_atoms if a not in chain_set))
-    # an N-substituent that holds another principal group is that group's amido prefix, not a prefix to count (P-66.1.1.4.3)
+    # a parent whose N-substituent holds another principal group yields to the one citing that group as an amido prefix
     holds_group = any(
         _arm_atoms(graph, neighbor, n) & elsewhere
         for n in nitrogens
         for neighbor in graph[n]
         if neighbor not in owned and neighbor not in chain_set
     )
-    prefix_locants = [loc for info in (grouped if holds_group else with_n).values() for loc in info["locants"]]
+    prefix_locants = [loc for info in with_n.values() for loc in info["locants"]]
     uncited_locants = length > 1 and not force and omits_all_locants(mol, chain_set | nitrogens, with_n, owned - nitrogens)
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)
@@ -6099,10 +6101,12 @@ def _evaluate(
         lowest_locant_set(ene),
         attach_locant,
         _parent_configuration_rank(stereo, position_of, directional=False),
+        holds_group,
         -len(prefix_locants),
         tuple(sorted(_prefix_locant_key(loc) for loc in prefix_locants)),
         citation,
         _bonding_rank(mol, graph, chain_set, position_of),
+        alphanumerical_name_key(name),
         _n_group_positions(n_names, position_of),
         _stereo_rank(stereo, position_of),
         name,

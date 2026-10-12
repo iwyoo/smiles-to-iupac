@@ -936,6 +936,17 @@ def test_prefixes_with_identical_letters_are_ordered_by_their_inner_locants(smil
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("CC(Br)C(C)C(CC(=O)O)C(C(C)Br)[N+](=O)[O-]", "5-bromo-3-(3-bromobutan-2-yl)-4-nitrohexanoic acid"),
+        ("CC([81Br])C(C)C(CC(=O)O)C(C(C)[81Br])[N+](=O)[O-]", "5-(81Br)bromo-3-[3-(81Br)bromobutan-2-yl]-4-nitrohexanoic acid"),
+    ],
+)
+def test_names_with_equal_locant_sets_are_ordered_by_their_letters(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param(
             "CN=C(NCCCn1cccn1)NCc1ccc(C)cc1",
             "N''-methyl-N-[(4-methylphenyl)methyl]-N'-[3-(1H-pyrazol-1-yl)propyl]guanidine",
