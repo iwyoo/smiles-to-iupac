@@ -1078,6 +1078,7 @@ RETAINED_ACYL_STEMS = {
     (1, "hydrazide"): "formohydrazide",
     (2, "hydrazide"): "acetohydrazide",
     (2, "diamide"): "oxamide",
+    (2, "dihydrazide"): "oxalohydrazide",
     (2, "nitrile"): "acetonitrile",
     (2, "dinitrile"): "oxalonitrile",
     (1, "al"): "formaldehyde",
