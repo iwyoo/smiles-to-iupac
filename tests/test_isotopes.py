@@ -235,6 +235,12 @@ def test_unplaceable_isotope_label_is_never_dropped(smiles):
         pytest.param("CC(=O)O[2H]", "(O-2H)acetic acid", id="acid_hydroxyl_deuterium"),
         pytest.param("CCC(=O)O[2H]", "(O-2H)propanoic acid", id="acid_hydroxyl_deuterium_on_a_chain"),
         pytest.param("Clc1ccc(N([2H])[2H])cc1", "4-chloro(N-2H2)aniline", id="group_label_after_prefixes"),
+        pytest.param("OC(=O)CCSc1ccccc1N([2H])[2H]", "3-{[2-(2H2)aminophenyl]sulfanyl}propanoic acid", id="amino_prefix_on_a_ring_of_a_substituent"),
+        pytest.param(
+            "[2H]N([2H])C1C=C(C=C(C1)C)SC1=C(C(CC=C1)N([2H])[2H])C",
+            "3-{[3-(2H2)amino-5-methylcyclohexa-1,5-dien-1-yl]sulfanyl}-2-methyl(N-2H2)cyclohexa-2,4-dien-1-amine",
+            id="amine_of_the_parent_beside_an_amino_prefix_of_a_substituent",
+        ),
         pytest.param("CC(=[18O])C(C)C", "3-methylbutan-2-(18O)one", id="ketone_oxygen_nuclide"),
         pytest.param("CCC#[15N]", "(15N)propanenitrile", id="nitrile_nitrogen_nuclide"),
         pytest.param("ClCC#[15N]", "chloro(15N)acetonitrile", id="nitrile_nitrogen_after_prefixes"),

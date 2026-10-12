@@ -385,6 +385,24 @@ ISOTOPE_LABELS = contextvars.ContextVar("isotope_labels", default=None)
 FORCED_BRANCH_NAMES = contextvars.ContextVar("forced_branch_names", default=None)
 
 
+def _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated):
+    """`name` with the descriptor of an isotopically modified amino prefix on a ring of the substituent cited in front
+    of 'amino' (P-82.2.1), when the labelled atoms are all the nitrogen of one such prefix, else None."""
+    if mol is None or len(labelled) != 1 or name.count("amino") != 1:
+        return None
+    (nitrogen,) = labelled
+    atom = mol.GetAtomWithIdx(nitrogen)
+    if nitrogen == root or atom.GetAtomicNum() != 7 or atom.IsInRing() or atom.GetDegree() != 1:
+        return None
+    (host,) = [n.GetIdx() for n in atom.GetNeighbors()]
+    if not mol.GetAtomWithIdx(host).IsInRing():
+        return None
+    inner, _ = name_branch(graph, nitrogen, host, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+    if not inner.endswith("amino"):
+        return None
+    return name.replace("amino", inner, 1)
+
+
 def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aromatic_atoms=frozenset(), unsaturated=None):
     """`result` with the isotopic descriptor of the labelled atoms of the substituent: inserted before the stem of its
     principal chain with that chain's locants (P-82.2.1, P-82.6.1), before 'phenyl' for a phenyl group, or before
@@ -404,6 +422,9 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         return result
     name, compound = result
     capacity = _hydrogen_capacity(context, labelled)
+    amino = _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
+    if amino is not None:
+        return amino, compound
     if name == "methoxy":
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
