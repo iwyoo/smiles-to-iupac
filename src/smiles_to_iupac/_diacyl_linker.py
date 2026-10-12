@@ -13,6 +13,10 @@ _PLAIN_ACYL = re.compile(
     r"^oxalyl$|^(?:cyclo)?(?:meth|eth|prop|but|pent|hex|hept|oct|non|dec|undec|dodec)an(?:e|-[\d,]+-)?(?:di|tri|tetra)?"
     r"(?:oyl|carbonyl|carbothioyl|carboselenoyl|carbotelluroyl|carboximidoyl|bis\([a-z]+\))$"
 )
+_PLAIN_DIAMIDO = re.compile(
+    r"^(?:cyclo)?(?:meth|eth|prop|but|pent|hex|hept|oct|non|dec|undec|dodec)an(?:e|-[\d,]+-)?(?:di|tri|tetra)?"
+    r"(?:amido|carboxamido|sulfonamido|selenonamido|telluronamido)$"
+)
 
 
 def _terminals(mol, atom):
@@ -95,3 +99,55 @@ def diacyl_linker(mol, graph, central_atoms, edges, first_atoms, protected):
 
 def acyl_part(name, substituted):
     return Part(name, substituted or bool(re.match(r"[\d(\[{]", name)), bool(re.search(r"[\d(]", name)))
+
+
+def diamido_linker(mol, graph, linker_atoms, handles):
+    """The divalent prefix 'butanediamido' for two units joined through the nitrogen atoms of a diamide: the final 'e' of
+    the complete diamide name becomes 'o' (P-66.1.1.4.3); None unless both handle atoms are NH groups on acyl centres.
+    Oxamide keeps 'oxalylbis(azanediyl)' (P-66.1.1.4.5.2)."""
+    from ._hetero_prefixes import _acylated_nitrogens, _imidoyl_centre, _thioacyl
+    from .core import smiles_to_iupac
+
+    if len(handles) != 2 or len(set(handles)) != 2:
+        return None
+    centres = []
+    for h in handles:
+        atom = mol.GetAtomWithIdx(h)
+        inward = [n for n in graph[h] if n in linker_atoms]
+        if (
+            atom.GetAtomicNum() != 7
+            or atom.IsInRing()
+            or atom.GetFormalCharge()
+            or atom.GetIsotope()
+            or atom.GetTotalNumHs() != 1
+            or len(graph[h]) != 2
+            or len(inward) != 1
+            or not (_thioacyl(mol, inward[0]) or _imidoyl_centre(mol, inward[0]))
+        ):
+            return None
+        centres.append(inward[0])
+    if centres[0] == centres[1] or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    if any(
+        a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in map(mol.GetAtomWithIdx, linker_atoms)
+    ) or any(
+        b.GetStereo() != Chem.BondStereo.STEREONONE
+        for b in mol.GetBonds()
+        if b.GetBeginAtomIdx() in linker_atoms and b.GetEndAtomIdx() in linker_atoms
+    ):
+        return None
+    editable = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(linker_atoms), reverse=True):
+        editable.RemoveAtom(idx)
+    fragment = editable.GetMol()
+    try:
+        Chem.SanitizeMol(fragment)
+        if len(Chem.GetMolFrags(fragment)) != 1 or _acylated_nitrogens(fragment) != 2:
+            return None
+        name = smiles_to_iupac(Chem.MolToSmiles(fragment))
+    except (UnsupportedStructure, ValueError):
+        return None
+    if " " in name or not name.endswith("amide") or name == "oxamide" or re.match(r"N\d*[,'-]", name):
+        return None
+    prefix = name[:-1] + "o"
+    return Part(prefix, _PLAIN_DIAMIDO.match(prefix) is None, bool(re.search(r"[\d(]", prefix)))

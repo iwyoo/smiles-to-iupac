@@ -9,7 +9,7 @@ from rdkit import Chem
 
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._diacyl_linker import acyl_part, diacyl_linker
+from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
 from ._multiplicative_linker import DecompositionRejected, name_component
@@ -544,6 +544,10 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         if diacyl is not None:
             central = acyl_part(diacyl[0], diacyl[2])
             arm_parts = arm_parts[diacyl[1]:]
+        if unit_kind == "chain":
+            diamido = diamido_linker(mol, graph, set(range(mol.GetNumAtoms())) - arm_atoms, handles)
+            if diamido is not None:
+                central, arm_parts = diamido, []
     parts_atoms = [a for _, _, a in arms]
     units = [_unit_molecule(mol, atoms_, root) for atoms_, root in zip(parts_atoms, roots)]
     if unit_kind != "chain":
