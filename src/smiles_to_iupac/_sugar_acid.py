@@ -105,7 +105,7 @@ def sugar_alcohol_acid_name(mol):
         return None
     chain, kinds = found
     kind = _class(kinds)
-    if kind is None:
+    if kind is None or (kind == "aldaric" and len(chain) == 4):
         return None
     if kind == "aldonic":
         reverses = [kinds[0][0] != "COOH"]

@@ -552,6 +552,8 @@ def test_carbohydrate_acid_derivatives(smiles, expected):
         pytest.param("O=C(O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "D-gluconic acid", id="aldonic_acid"),
         pytest.param("O=C[C@H](O)[C@@H](O)[C@H](O)[C@H](O)C(=O)O", "D-glucuronic acid", id="uronic_acid"),
         pytest.param("O=C(O)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)O", "D-glucaric acid", id="aldaric_acid"),
+        pytest.param("O[C@@H](C(O)=O)[C@@H](O)C(O)=O", "(2R,3R)-2,3-dihydroxybutanedioic acid", id="four_carbon_aldaric_acid_cites_cip_descriptors"),
+        pytest.param("COC(=O)[C@@H](O)[C@@H](O)C(=O)OC", "dimethyl (2R,3S)-2,3-dihydroxybutanedioate", id="meso_four_carbon_aldaric_diester"),
         pytest.param("OC(=O)[C@H]1O[C@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranuronic acid", id="cyclic_uronic_acid"),
         pytest.param("OC(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl β-D-glucopyranosiduronic acid", id="uronic_acid_glycoside"),
     ],
