@@ -677,6 +677,10 @@ def test_multiplicative_linker_locants_enclosure_and_multiplying_prefix(smiles, 
             "OC(=O)c1ccccc1CCOCCOCCOCCOCCc1ccccc1C(O)=O",
             "2,2'-(3,6,9,12-tetraoxatetradecane-1,14-diyl)dibenzoic acid",
         ),
+        (
+            "OC(=O)c1ccc(cc1)C(c1cccc(c1)C(O)=O)(c1cccc(c1)C(O)=O)c1ccc(cc1)C(O)=O",
+            "3,3'-[bis(4-carboxyphenyl)methylene]dibenzoic acid",
+        ),
     ],
 )
 def test_parent_choice_beside_identical_hydrides_acyl_diazenes_and_heterounits(smiles, expected):

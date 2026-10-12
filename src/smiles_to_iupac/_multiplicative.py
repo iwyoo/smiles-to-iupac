@@ -570,6 +570,17 @@ def _is_linear_phane(core):
     return rings >= 4 and len(core) >= 7 and all(len(v) <= 2 for v in core.values())
 
 
+def _junction_key(mol, groups, selected, name_function):
+    """P-45.2.2: of equally senior sets of multiplied parents, the one attached through the lower locants."""
+    from ._substituents import _locant_sort_key
+
+    try:
+        unit = _unit_text(mol, selected[0], groups, name_function)
+    except UnsupportedStructure:
+        return ((2, 0, 0, 0, ""),)
+    return (_locant_sort_key(unit.junction_locant),) if unit is not None else ((2, 0, 0, 0, ""),)
+
+
 def name_if_multiplicative(mol, name_function=None):
     name = _name_if_multiplicative(mol, name_function)
     return name.replace("(1,2-dioxoethane-1,2-diyl)", "oxalyl") if name else name
@@ -605,9 +616,19 @@ def _name_if_multiplicative(mol, name_function=None):
             for subset in itertools.combinations(members, size):
                 candidates.append(((-size, principal if principal is not None else 99, rank, key), list(subset)))
     candidates.sort(key=lambda c: c[0])
-    for _, selected in candidates:
-        name = _attempt(mol, groups, selected, tree, core, name_function)
-        if name is not None:
+    for _, tier in itertools.groupby(candidates, key=lambda c: c[0][:3]):
+        named = []
+        for _, selected in tier:
+            try:
+                name = _attempt(mol, groups, selected, tree, core, name_function)
+            except UnsupportedStructure:
+                if not named:
+                    raise
+                continue
+            if name is not None:
+                named.append((_junction_key(mol, groups, selected, name_function), name))
+        if named:
+            name = min(named)[1]
             if _is_linear_phane(core):
                 from ._linear_phane import has_linear_phane_shape, name_linear_phane
 

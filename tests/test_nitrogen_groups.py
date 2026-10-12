@@ -131,6 +131,11 @@ def test_polyamines_of_a_ring_and_acyclic_amine_nitrogens(smiles, expected):
             id="ring_parent_aminophenyl_branch",
         ),
         pytest.param("NCc1ccc(NC)cc1", "4-(aminomethyl)-N-methylaniline", id="ring_with_one_amine_beats_chain"),
+        pytest.param(
+            "NC1=C(OC2=C(NC)C=CC=C2)C=CC(=C1)C",
+            "2-(2-amino-4-methylphenoxy)-N-methylaniline",
+            id="parent_with_the_lower_prefix_locant_set_counts_the_n_prefix",
+        ),
     ],
 )
 def test_polyamine_n_locants_and_ring_parents(smiles, expected):
@@ -1158,6 +1163,8 @@ def test_acylated_nitrogen_is_not_a_hetero_parent_for_a_carboxylic_acid():
         pytest.param("CNC(=O)CCC(N)=O", "N1-methylbutanediamide", id="one_substituted_group_of_a_diamide"),
         pytest.param("CCNC(=O)c1cccc(C(=O)NC)c1", "N1-ethyl-N3-methylbenzene-1,3-dicarboxamide", id="n_locants_of_a_ring_diamide"),
         pytest.param("CC(=O)NCC(N)=O", "2-acetamidoacetamide", id="second_amide_cited_as_a_prefix"),
+        pytest.param("CNC(=O)CCc1cc(CC(C)C(N)=O)ccc1C", "3-[5-(3-amino-2-methyl-3-oxopropyl)-2-methylphenyl]-N-methylpropanamide", id="parent_amide_carries_the_n_prefix"),
+        pytest.param("CN(C)C(=O)C(C)Cc1ccc(C)c(CC(C)C(=O)NC)c1", "N,N,2-trimethyl-3-{4-methyl-3-[2-methyl-3-(methylamino)-3-oxopropyl]phenyl}propanamide", id="parent_amide_with_more_prefixes"),
         pytest.param("C(C)NC(=O)C(CCC(=O)NC)C(=O)N(C)C", "N'1-ethyl-N1,N1,N3-trimethylpropane-1,1,3-tricarboxamide", id="primed_n_locants_on_a_geminal_carboxamide"),
         pytest.param("CNC(=O)C(CC(=O)NC)CC(=O)NC", "N1,N2,N3-trimethylpropane-1,2,3-tricarboxamide", id="n_substituents_of_carboxamides_on_a_chain"),
         pytest.param("O=CCNSCNON=C(C)S", "N-{[({[(2-oxoethyl)amino]sulfanyl}methyl)amino]oxy}ethanimidothioic acid", id="n_substituent_of_an_imidothioic_acid"),
