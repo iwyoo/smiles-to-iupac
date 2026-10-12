@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
-from ._common import assign_cip_labels
+from ._common import assign_cip_labels, match_cip_labels
 from ._acid_lexicon import CHALCOGENS
 from ._carbonic_family import pseudohalide_at
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
@@ -1281,6 +1281,8 @@ def name_acyl_halide(mol, links):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
+    if not drop:
+        match_cip_labels(mol, acid)
     from .core import smiles_to_iupac
 
     acid_text = smiles_to_iupac(Chem.MolToSmiles(acid))

@@ -938,3 +938,21 @@ def test_prefixes_with_identical_letters_are_ordered_by_their_marks(smiles):
 )
 def test_guanidine_and_urea_beside_other_groups_keep_their_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("O=C(Cl)[C@@H](Cl)CCl", id="acyl_chloride_ranks_above_chloromethyl"),
+        pytest.param("O=C(Br)[C@@H](Cl)CCl", id="acyl_bromide"),
+        pytest.param("CN(C)CC[C@@H]1CCNC1", id="dimethylamino_chain_beside_a_ring_centre"),
+        pytest.param("CN(C)CC[C@@H]1CCNCC1C", id="dimethylamino_chain_beside_a_substituted_ring"),
+    ],
+)
+def test_descriptor_is_the_cip_label_of_the_structure_as_given(smiles):
+    from rdkit.Chem import rdCIPLabeler
+
+    mol = Chem.MolFromSmiles(smiles)
+    rdCIPLabeler.AssignCIPLabels(mol)
+    expected = [a.GetProp("_CIPCode") for a in mol.GetAtoms() if a.HasProp("_CIPCode")]
+    assert re.findall(r"\(\d+([RS])\)", smiles_to_iupac(smiles)) == expected
