@@ -11,6 +11,7 @@ from ._common import (
     halogen_substituents,
     substituent_locant_set_and_citation,
 )
+from ._locant_omission import has_single_arrangement
 from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -103,6 +104,9 @@ def name_chain_onium(mol) -> str:
     n = len(chain)
     stem = "hydrazin" if z == 7 and n == 2 else multiplying_prefix(n) + _STEM[z][0][:-1]
     locants = ",".join(map(str, key[0]))
+    if has_single_arrangement(mol, chain_set):
+        ending = "ium" if count == 1 else f"e{multiplying_prefix(count)}ium"
+        return format_substituent_prefixes(grouped, omit_all=True) + stem + ending
     if count == 1:
         parent = f"{stem}-{locants}-ium"
     else:

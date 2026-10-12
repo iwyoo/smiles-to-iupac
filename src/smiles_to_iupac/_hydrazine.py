@@ -89,6 +89,7 @@ import re
 
 from rdkit import Chem
 
+from ._locant_omission import has_single_arrangement
 from ._multiplicative_text import enclose
 from ._common import (
     HALOGEN_PREFIXES,
@@ -264,6 +265,9 @@ def hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated
     if total == 1:
         ((name, compound),) = names_n1 + names_n2
         return (enclose(name) if compound and (name[0].isdigit() or "(" in name) else name) + "hydrazine"
+    # a repeated prefix keeps its locants in the book's names (1,1-dimethyl-2-(propan-2-ylidene)hydrazine)
+    if len(set(names_n1 + names_n2)) == total and has_single_arrangement(mol, {n1_idx, n2_idx}):
+        return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
 
     candidates = []
     for first, second in ((names_n1, names_n2), (names_n2, names_n1)):

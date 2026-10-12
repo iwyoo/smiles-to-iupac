@@ -72,7 +72,7 @@ from ._acid_groups import acid_group_at
 from ._acid_lexicon import SULFONYL_CENTRES, SULFONYL_GROUP_NAMES, carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
 from ._retained_acids import retained_chain_acid, single_site_prefixes
 from ._hydroperoxide import peroxol_suffix
-from ._locant_omission import omits_all_locants, omits_group_locants
+from ._locant_omission import has_single_arrangement, omits_all_locants, omits_group_locants
 from ._substituents import format_substituent_prefixes, name_branch
 
 _AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
@@ -6019,6 +6019,8 @@ def _evaluate(
     )
     prefix_locants = [loc for info in with_n.values() for loc in info["locants"]]
     uncited_locants = length > 1 and not force and omits_all_locants(mol, chain_set | nitrogens, with_n, owned - nitrogens)
+    single_arrangement = length > 1 and not force and not ene and not yne and has_single_arrangement(mol, chain_set | nitrogens)
+    uncited_locants = uncited_locants or single_arrangement
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)
     else:
@@ -6080,8 +6082,8 @@ def _evaluate(
     else:
         word = CHAIN_SUFFIX_WORD[principal]
         body = name_from_substituents(
-            length, ene, yne, multiplied_word(count, word), suffix_locants, force_own_locant=force,
-            substituted=bool(grouped),
+            length, ene, yne, multiplied_word(count, word), None if single_arrangement else suffix_locants,
+            force_own_locant=force, substituted=bool(grouped) and not single_arrangement,
         )
     if prefix and uncited_locants and not any(ch.isdigit() for ch in body):
         prefix = format_substituent_prefixes(with_n, omit_all=True)
