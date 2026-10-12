@@ -38,6 +38,23 @@ def test_chalcogen_peroxols_on_rings_and_unsaturated_chains(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("SSCCSS", "ethane-1,2-bis(dithioperoxol)", id="two_groups_on_a_chain"),
+        pytest.param("SSc1ccc(cc1)SS", "benzene-1,4-bis(dithioperoxol)", id="two_groups_on_a_ring"),
+        pytest.param("SSCC(SS)CSS", "propane-1,2,3-tris(dithioperoxol)", id="three_groups"),
+        pytest.param("OSCCSO", "ethane-1,2-bis(SO-thioperoxol)", id="mixed_pair_analogue"),
+        pytest.param("SSCCOO", "2-disulfanylethane-1-peroxol", id="peroxol_outranks_the_analogue"),
+        pytest.param("SOCCSS", "2-disulfanylethane-1-OS-thioperoxol", id="oxygen_first_analogue_outranks_dithioperoxol"),
+        pytest.param("NCCSS", "2-aminoethane-1-dithioperoxol", id="analogue_outranks_amine"),
+    ],
+)
+def test_several_chalcogen_peroxol_groups_take_a_bis_suffix(smiles, expected):
+    # P-63.4.2.1, P-16.3.6, P-72.2.2.2.2
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("CC[C@H](C)SSCC", "(2S)-2-(ethyldisulfanyl)butane"),

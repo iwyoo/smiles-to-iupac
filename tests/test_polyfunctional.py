@@ -437,17 +437,6 @@ def test_heterogeneous_chalcogen_chains_between_organic_groups(smiles, expected)
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NCCSS", id="perthiol_outranks_amine"),
-    ],
-)
-def test_chalcogen_chain_beside_a_principal_group_raises(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("NC1CCCCC1COO", "(2-aminocyclohexyl)methaneperoxol", id="ring_amine"),
