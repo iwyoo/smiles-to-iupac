@@ -478,6 +478,21 @@ def test_hydrazine_and_diazene_without_a_principal_group_are_the_parent():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("c1ccccc1/N=N\\c1ccccc1", "(Z)-diphenyldiazene"),
+        ("C/N=N/c1ccccc1", "(E)-methyl(phenyl)diazene"),
+        ("O/N=N\\O", "(Z)-diazene-1,2-diol"),
+        ("C/N=N/O", "(E)-2-methyldiazen-1-ol"),
+        ("N/N=N/N", "(2E)-tetraaz-2-ene"),
+        ("O[SiH2][SiH2]O", "disilane-1,2-diol"),
+    ],
+)
+def test_double_bond_descriptor_and_hydroxy_suffix_of_a_diazene_or_chain_hydride(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         (
             "OC(=O)CC1Cc2ccc(cc2)C(CC(=O)O)c2ccc1cc2",
             "2,2'-(1,3(1,4)-dibenzenacyclopentaphane-2,4-diyl)diacetic acid",

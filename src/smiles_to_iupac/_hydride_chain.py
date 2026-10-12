@@ -1,8 +1,11 @@
 """Unbranched chains of one heteroatom (disilane, triazane, 1,2-dimethyldiphosphane) as parent hydrides
 (P-21.2.1, P-44.1.2.2): Group 14 and 15 atoms outrank carbon, so the chain is the parent and carbon groups are prefixes."""
 
+from rdkit import Chem
+
 from ._common import (
     alphanumerical_name_key,
+    assign_cip_labels,
     UnsupportedStructure,
     unsaturation_suffix,
     group_substituents,
@@ -395,14 +398,63 @@ def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alt
     return _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating)[1]
 
 
+_HETEROL_ELEMENTS = {14, 32, 50, 82}
+
+
+def _with_hydroxy_suffix(parent, positions, size, grouped, omit):
+    """'disilan-1-ol', 'diazene-1,2-diol': the hydroxy groups of a chain hydride are the suffix 'ol' (P-63.1.3); the locant
+    of a sole group on a dinuclear chain with no other substituent is omitted (P-14.3.4.2)."""
+    count = len(positions)
+    locants = ",".join(str(p) for p in sorted(positions))
+    if count == 1:
+        stem = parent[:-1] if parent.endswith("e") else parent
+        return (f"{stem}ol" if size == 2 and not grouped else f"{stem}-{locants}-ol"), omit and not grouped
+    return f"{parent}-{locants}-{multiplying_prefix(count)}ol", omit and not grouped
+
+
+def _hydroxy_oxygen(mol, atom):
+    return atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1 and not atom.GetFormalCharge()
+
+
+def _bond_codes(mol):
+    """{bond atoms: E or Z} of the double bonds, from the enclosing name's labels when it holds them (and then marked as
+    cited) so that the descriptors are those of the structure itself (P-92.1.4)."""
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    if context:
+        codes = {}
+        for ends, code in context["bonds"].items():
+            if code in ("E", "Z"):
+                codes[frozenset(ends)] = code
+                context["used"].add(("bond", ends))
+        return codes
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    return {
+        frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())): b.GetProp("_CIPCode")
+        for b in probe.GetBonds()
+        if b.HasProp("_CIPCode") and b.GetProp("_CIPCode") in ("E", "Z")
+    }
+
+
 def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating):
     chain_set = set(chain)
     best = None
+    heterol = alternating is None and (
+        (z in _HETEROL_ELEMENTS and not unsaturated)
+        or (z == 7 and unsaturated and len(chain) == 2 and mol.GetBondBetweenAtoms(chain[0], chain[1]).GetBondTypeAsDouble() == 2.0)
+    )
+    codes = _bond_codes(mol) if unsaturated else {}
     for candidate in (chain, chain[::-1]):
         substituents = {}
+        hydroxy = []
         for i, atom in enumerate(candidate):
             for n in graph[atom]:
                 if n in chain_set:
+                    continue
+                if heterol and _hydroxy_oxygen(mol, mol.GetAtomWithIdx(n)) and mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() == 1.0:
+                    hydroxy.append(i + 1)
                     continue
                 if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() not in (1.0, 2.0, 3.0) or (
                     mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0 and mol.GetAtomWithIdx(n).GetAtomicNum() != 6
@@ -435,13 +487,22 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
         lam_text = ",".join(f"{p}\u03bb{lam[p]}" for p in sorted(lam))
         if lam_text:
             parent = f"{lam_text}-{parent}"
+        if hydroxy:
+            parent, omit = _with_hydroxy_suffix(parent, hydroxy, len(chain), grouped, omit)
         if omit and len(grouped) > 1:
             entries = [(n, info["compound"]) for n, info in grouped.items() for _ in info["locants"]]
             name = format_mononuclear_prefixes(entries) + parent
         else:
             prefixes = format_substituent_prefixes(grouped, omit_locants=omit)
             name = prefixes + ("-" if prefixes and lam_text else "") + parent
-        key = (sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation, name)
+        stereo = sorted(
+            (i + 1, codes[frozenset((candidate[i], candidate[i + 1]))])
+            for i in range(len(candidate) - 1)
+            if frozenset((candidate[i], candidate[i + 1])) in codes
+        )
+        if stereo:
+            name = f"({stereo[0][1]})-{name}" if len(chain) == 2 else f"({','.join(f'{p}{c}' for p, c in stereo)})-{name}"
+        key = (sorted(hydroxy), sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation, name)
         if best is None or key < best[0]:
             best = (key, name)
     return best
