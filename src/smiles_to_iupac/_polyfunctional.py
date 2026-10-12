@@ -2867,8 +2867,6 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if rings:
         if any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
             raise UnsupportedStructure("several rings without a principal group are not named by the chain engine")
-        if len(rings) >= 4:
-            raise UnsupportedStructure("four or more rings need a phane or ring-assembly name")
         ranked = sorted(rings, key=lambda r: _ring_rank(mol, r[0]))
         top = _ring_rank(mol, ranked[0][0])
         tied = [r for r in ranked if _ring_rank(mol, r[0]) == top]

@@ -201,6 +201,10 @@ def test_chain_parent_cites_each_aromatic_ring_as_a_substituent(smiles, expected
         ("NS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzenesulfonamide"),
         ("Nc1ccc(Cc2ccccc2)cc1", "4-benzylaniline"),
         ("Oc1ccc(Cc2ccccc2)cc1", "4-benzylphenol"),
+        (
+            "CC=1C=C(C=CC1)C=NNC1=CC(=NC(=N1)OCCC1=NC=CC=C1)N1CCOCC1",
+            "4-(6-{[(3-methylphenyl)methylidene]hydrazinyl}-2-[2-(pyridin-2-yl)ethoxy]pyrimidin-4-yl)morpholine",
+        ),
     ],
 )
 def test_ring_parent_cites_other_aromatic_rings_as_substituents(smiles, expected):
