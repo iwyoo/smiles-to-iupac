@@ -23,6 +23,22 @@ def _arm_atoms(graph, root, blocked):
     return seen
 
 
+def _contiguous(mol, graph, atoms):
+    """The sets of bonded atoms among `atoms`."""
+    remaining, found = set(atoms), []
+    while remaining:
+        group, stack = set(), [remaining.pop()]
+        while stack:
+            current = stack.pop()
+            group.add(current)
+            for n in graph[current]:
+                if n in remaining:
+                    remaining.discard(n)
+                    stack.append(n)
+        found.append(group)
+    return found
+
+
 def _run(mol, graph, start):
     """The straight chain of identical chalcogen atoms containing `start`, as an ordered list, else None."""
     element = mol.GetAtomWithIdx(start).GetAtomicNum()
@@ -61,8 +77,10 @@ def name_polychalcogen_hydride(mol):
         members = [a for a in mol.GetAtoms() if a.GetAtomicNum() == element]
         if any(a.IsInRing() for a in members):
             return None
-        found = _run(mol, graph, members[0].GetIdx()) if len(members) >= 3 else None
-        if found is not None and len(found) == len(members):
+        runs = _contiguous(mol, graph, [a.GetIdx() for a in members])
+        long_runs = [r for r in runs if len(r) >= 3]
+        found = _run(mol, graph, next(iter(long_runs[0]))) if len(long_runs) == 1 else None
+        if found is not None:
             order = found
             break
     if order is None:
@@ -81,7 +99,7 @@ def name_polychalcogen_hydride(mol):
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     entries, covered = [], set(run)
     element = mol.GetAtomWithIdx(order[0]).GetAtomicNum()
-    others = set(_STEMS) - {element}
+    others = set(_STEMS)
     for end in (order[0], order[-1]):
         for root in (n for n in graph[end] if n not in run):
             if mol.GetAtomWithIdx(root).GetAtomicNum() not in {6, *others}:

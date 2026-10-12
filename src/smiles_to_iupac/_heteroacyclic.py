@@ -224,6 +224,32 @@ def _imino_chain_nitrogen(atom):
     return len(orders) == 2 and orders[1] == (2.0, 6) and orders[0][0] == 1.0
 
 
+def polychalcogen_atoms(mol):
+    """Atoms of every unbranched run of three or more identical chalcogen atoms: trisulfane and the longer
+    polychalcogenanes are parent hydrides, never heterounits of skeletal replacement (P-51.4.1.2)."""
+
+    def plain(a):
+        return a.GetAtomicNum() in (8, 16, 34, 52) and a.GetDegree() <= 2 and not a.GetFormalCharge() and all(
+            b.GetBondTypeAsDouble() == 1.0 for b in a.GetBonds()
+        )
+
+    found, seen = set(), set()
+    for atom in mol.GetAtoms():
+        z = atom.GetAtomicNum()
+        if not plain(atom) or atom.GetIdx() in seen:
+            continue
+        run, stack = {atom.GetIdx()}, [atom]
+        while stack:
+            for n in stack.pop().GetNeighbors():
+                if n.GetAtomicNum() == z and plain(n) and n.GetIdx() not in run:
+                    run.add(n.GetIdx())
+                    stack.append(n)
+        seen |= run
+        if len(run) >= 3:
+            found |= run
+    return found
+
+
 def _chain_heteroatom(atom, phosphorus=False):
     z = atom.GetAtomicNum()
     if phosphorus and _phosphorus_unit(atom.GetOwningMol(), atom):
@@ -330,7 +356,8 @@ def _name_heteroacyclic(mol, amine_groups):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     aminium = {} if any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()) else _aminium_groups(mol)
-    hetero_atoms = [a for a in mol.GetAtoms() if _chain_heteroatom(a, bool(aminium))]
+    polychalcogens = polychalcogen_atoms(mol)
+    hetero_atoms = [a for a in mol.GetAtoms() if _chain_heteroatom(a, bool(aminium)) and a.GetIdx() not in polychalcogens]
     if len(hetero_atoms) < _MINIMUM_UNITS:
         return None
     from ._polyfunctional import boranyl_amine_parent_applies
@@ -386,6 +413,7 @@ def _name_heteroacyclic(mol, amine_groups):
         )
         or (
             _chain_heteroatom(a, bool(aminium))
+            and a.GetIdx() not in polychalcogens
             and a.GetIdx() not in owned
             and (senior_to_amine or not (a.GetAtomicNum() == 7 and a.GetDegree() == 3))
         )
