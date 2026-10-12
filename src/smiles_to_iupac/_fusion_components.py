@@ -374,7 +374,8 @@ def monocycle_prototype(sub):
             locants = {atom: k + 1 for k, atom in enumerate(seq)}
             hetero_positions = [(locants[a], sub.GetAtomWithIdx(a).GetSymbol()) for a in seq if sub.GetAtomWithIdx(a).GetSymbol() != "C"]
             by_seniority = sorted(hetero_positions, key=lambda t: (HETERO_RANK[t[1]], t[0]))
-            key = (sorted(p for p, _ in hetero_positions), [p for p, _ in by_seniority])
+            first_rank = HETERO_RANK.get(sub.GetAtomWithIdx(seq[0]).GetSymbol(), len(HETERO_RANK))
+            key = (first_rank, sorted(p for p, _ in hetero_positions), [p for p, _ in by_seniority])
             candidates.append((key, seq))
     best_key = min(c[0] for c in candidates)
     best = [c[1] for c in candidates if c[0] == best_key]

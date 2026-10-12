@@ -16,6 +16,7 @@ _ASSEMBLY_BRACKETS = re.compile(
     r"|\[[\d,:⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ]+-(?:ter|quater|quinque|sexi)[a-z]+\]"  # [1¹,2¹:2⁴,3¹-terphenyl]
     r"|\[[\d.^,':\u2032]+\]"  # von Baeyer, spiro and primed fusion locants: [3.3.1.1^3,7], [4.5], [3',4':6,7]
     r"|\[[\d,']*-?[a-z]{1,2}(?:,[a-z]{1,2})*\]"  # fusion descriptors: [b], [3,2-b], [b,f]
+    r"|\[\d+(?:,\d+)*-[a-z]{1,2}['\u2032]*(?::\d+(?:,\d+)*-[a-z]{1,2}['\u2032]*)+\]"  # multiparent: [1,2-b:5,4-b']
 )
 
 

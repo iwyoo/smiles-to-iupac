@@ -26,7 +26,7 @@ from ._fullerene_numbering import cage_numberings
 from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
 from ._functional_prefixes import functional_names, nitro_atoms
 from ._locant_omission import omits_all_locants
-from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
+from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, ENCLOSE_MULTIPARENT, chain_numberings, monocycle_numberings, system_numberings
 from ._substituents import cite_heteroatom_double_bonds, format_substituent_prefixes, name_branch
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3, "Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "M": 0, "P": 1, "m": 2, "p": 3}
@@ -472,7 +472,19 @@ def _evaluate_skeleton(
     position_of = numbering.position_of
 
     substituted = frozenset(loc for info in grouped.values() for loc in info["locants"])
-    parent = numbering.text(free, valence, substituted, suffix)
+    enclose_token = ENCLOSE_MULTIPARENT.set(
+        kind == "ring"
+        and valence == 1
+        and not grouped
+        and not numbering.hydro
+        and not numbering.added
+        and not numbering.ih
+        and not (centers or n_names or ring_stereo)
+    )
+    try:
+        parent = numbering.text(free, valence, substituted, suffix)
+    finally:
+        ENCLOSE_MULTIPARENT.reset(enclose_token)
     if mixed:
         parent = _mixed_valence_text(parent, free, valence, position_of, orders)
         if parent is None:
