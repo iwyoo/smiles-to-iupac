@@ -1660,6 +1660,8 @@ def test_carbaldehyde_on_a_polyaza_chain(smiles, expected):
         ("NOC(=O)c1ccccc1", "aminooxy(phenyl)methanone"),
         ("CNS", "N-sulfanylmethanamine"),
         ("CC(=O)NS", "N-sulfanylacetamide"),
+        ("C[NH][SeH]", "N-selanylmethanamine"),
+        ("CN([TeH])C", "N-methyl-N-tellanylmethanamine"),
         ("ON(C=1C=C(C(=O)O)C=CC1)C=1C=C(C(=O)O)C=CC1", "3,3'-(hydroxyazanediyl)dibenzoic acid"),
     ],
 )

@@ -371,7 +371,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         elif z in CHALCOGEN_PREFIXES:
             word = CHALCOGEN_PREFIXES[z]
             if not kids:
-                require_senior_group(mol, z)
+                require_senior_group(mol, z, parent)
             require_plain_chalcogen_kids(mol, z, kids)
             if not kids and _bond_order(mol, node, parent) == 2.0:
                 record(node, word[:-2] + "ylidene", False)
