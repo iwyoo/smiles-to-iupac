@@ -345,6 +345,19 @@ def test_oxidanium():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("[AsH4+]", "arsanium"),
+        ("[SeH3+]", "selanium"),
+        ("[TeH3+]", "telluranium"),
+        ("[ClH2+]", "chloranium"),
+    ],
+)
+def test_unsubstituted_onium_cations_of_the_other_mononuclear_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC(C)[OH2+]", "(propan-2-yl)oxidanium", id="branched_substituent"),
         pytest.param("[OH2+]C1CCCCC1", "cyclohexyloxidanium", id="ring_substituent"),
         pytest.param("Cc1ccccc1[OH2+]", "(2-methylphenyl)oxidanium", id="substituted_phenyl"),
