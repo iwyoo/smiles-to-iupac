@@ -1803,3 +1803,21 @@ def test_cationic_ring_nitrogen_of_a_substituted_diazine(smiles, expected):
 )
 def test_bis_before_an_anion_that_di_would_misname(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[N@+](CC)(CCC)c1ccccc1", "(S)-N-ethyl-N-methyl-N-propylanilinium", id="azanium_beside_a_ring"),
+        pytest.param("C(C1=CC=CC=C1)[N@+](C1=CC=CC=C1)(CC=C)C.[Br-]", "(R)-N-benzyl-N-methyl-N-(prop-2-en-1-yl)anilinium bromide", id="descriptor_stays_with_the_cation_of_a_salt"),
+        pytest.param("C[N@@+](CC)(CCC)CC(C)C", "(R)-N-ethyl-N,2-dimethyl-N-propylpropan-1-aminium", id="acyclic_aminium"),
+        pytest.param("C[P@+](CC)(CCC)c1ccccc1.[Br-]", "(S)-ethyl(methyl)(phenyl)(propyl)phosphanium bromide", id="acyclic_phosphanium"),
+        pytest.param("C[P@@+](CC)(CCC)c1ccccc1", "(R)-ethyl(methyl)(phenyl)(propyl)phosphanium", id="phosphanium_without_counter_ion"),
+        pytest.param("C[P@H+](CC)CCC", "(R)-ethyl(methyl)(propyl)phosphanium", id="hydrogen_is_the_fourth_ligand"),
+        pytest.param("C[As@+](CC)(CCC)c1ccccc1", "(S)-ethyl(methyl)(phenyl)(propyl)arsanium", id="arsanium_like_phosphanium"),
+        pytest.param("C1CC2=CC=CC=C2C[P@@+]1(c1ccccc1)c1ccc(O)cc1.[Cl-]", "(2S)-2-(4-hydroxyphenyl)-2-phenyl-1,2,3,4-tetrahydroisophosphinolin-2-ium chloride", id="ring_phosphonium_centre_is_a_hydro_position"),
+    ],
+)
+def test_cip_descriptor_of_a_stereogenic_azanium_or_phosphanium_centre(smiles, expected):
+    # P-93.2.2, P-93.5.4
+    assert smiles_to_iupac(smiles) == expected

@@ -6,6 +6,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._hetero_prefixes import EXTENDED_PREFIXES
+from ._onium_prefixes import centre_descriptor
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 _STEM = {
@@ -165,7 +166,7 @@ def name_hydride_onium(mol) -> str:
                 entries.append((name, compound))
     finally:
         EXTENDED_PREFIXES.reset(token)
-    return format_mononuclear_prefixes(entries) + _ONIUM_STEM[center.GetAtomicNum()]
+    return centre_descriptor(mol, center) + format_mononuclear_prefixes(entries) + _ONIUM_STEM[center.GetAtomicNum()]
 
 
 def _substituted_nitrilium(mol, graph, center):
