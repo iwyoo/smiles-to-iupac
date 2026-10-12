@@ -222,6 +222,7 @@ def test_tetraphenylphosphanium():
         pytest.param("O=P(O)(O)CCN", "(2-aminoethyl)phosphonic acid", id="phosphonic_acid_with_an_amino_substituent"),
         pytest.param("O=P(O)(CCN)CCN", "bis(2-aminoethyl)phosphinic acid", id="phosphinic_acid_with_amino_substituents"),
         pytest.param("O=P(O)(O)c1ccc(O)cc1", "(4-hydroxyphenyl)phosphonic acid", id="phosphonic_acid_on_a_substituted_ring"),
+        pytest.param("O=P1(O)CCC(O)CC1", "1,4-dihydroxy-1λ5-phosphinan-1-one", id="ring_phosphinic_acid_with_a_hydroxy_on_a_ring_carbon"),
     ],
 )
 def test_phosphorus_acids_with_other_substituent_groups(smiles, expected):
