@@ -1,8 +1,10 @@
 """Substituents on a mononuclear onium centre ('sulfanium', 'oxidanium', 'phosphanium'; P-73.1.1.2): a cation outranks
 every neutral class (P-41), so each group of the substituents is an ordinary prefix named through `name_branch`."""
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_nitro_nitrogen, plain_phenyl_substituent_atoms
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 
 def _nitro_part(mol, atom):
@@ -19,6 +21,15 @@ def only_nitro_charges_besides(mol, center):
     )
 
 
+def centre_is_specified_stereocentre(mol, center):
+    """Whether the onium centre itself is a specified stereocentre; the descriptors of the groups on it are cited with
+    their prefixes (P-93.4.2.1, P-91.3)."""
+    return any(
+        element.centeredOn == center.GetIdx() and element.specified == Chem.StereoSpecified.Specified
+        for element in Chem.FindPotentialStereo(mol)
+    )
+
+
 def onium_name(mol, center, stem):
     """`stem` ('sulfanium', ...) preceded by the prefixes of every group bonded to `center`."""
     for atom in mol.GetAtoms():
@@ -30,8 +41,9 @@ def onium_name(mol, center, stem):
     halogens = halogen_substituents(mol)
     roots = sorted(graph[center.GetIdx()])
     phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, set(roots))
-    names = [
-        ("phenyl", False) if root in phenyl_atoms else name_branch(graph, root, center.GetIdx(), halogens, mol=mol)
-        for root in roots
-    ]
+    with cited_branch_stereo(mol, graph, {center.GetIdx()}, roots):
+        names = [
+            ("phenyl", False) if root in phenyl_atoms else name_branch(graph, root, center.GetIdx(), halogens, mol=mol)
+            for root in roots
+        ]
     return (format_mononuclear_prefixes(names) if names else "") + stem
