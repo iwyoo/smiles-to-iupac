@@ -123,7 +123,7 @@ def _acyl_halide_name(mol):
         elif not _has_plain(acid) or _match(acid)[0] in _DIACID_SIDE_LOCANT:
             return None
         else:
-            word = acyl_word(_name_plain(acid), xi=False)
+            word = acyl_word(_name_plain(acid), xi=False, locanted_prefix=True)
     except UnsupportedStructure:
         return None
     return f"{word} {HALIDE_WORDS[mol.GetAtomWithIdx(halogen).GetAtomicNum()]}" if word else None

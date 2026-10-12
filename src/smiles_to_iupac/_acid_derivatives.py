@@ -11,6 +11,7 @@ from rdkit import Chem
 
 from ._common import assign_cip_labels, match_cip_labels
 from ._acid_lexicon import CHALCOGENS
+from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._carbonic_family import pseudohalide_at
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
@@ -1324,6 +1325,12 @@ def name_acyl_halide(mol, links):
     from .core import smiles_to_iupac
 
     acid_text = smiles_to_iupac(Chem.MolToSmiles(acid))
+    if not _ACID_ENDING.search(acid_text):
+        token = SYSTEMATIC_ACID_PROBE.set(True)
+        try:
+            acid_text = smiles_to_iupac(Chem.MolToSmiles(acid))
+        finally:
+            SYSTEMATIC_ACID_PROBE.reset(token)
     if re.fullmatch(r"[a-z0-9,\-]*(?:di|tri|tetra)carbonic acid", acid_text):
         return f"{acid_text[: -len(' acid')]} {_class_words(mol, halides)}"
     return f"{acyl_name(acid_text)} {_class_words(mol, halides)}"
