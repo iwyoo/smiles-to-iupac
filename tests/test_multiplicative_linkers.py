@@ -108,6 +108,10 @@ def test_diacyl_and_diamido_linking_groups_and_oxamoylamino(smiles, expected):
     "smiles, expected",
     [
         ("[SiH3][SiH2]C[SiH2][SiH3]", "1,1'-methylenebis(disilane)"),
+        ("F[Si](F)(F)[Si](F)(F)C[Si](F)(F)[Si](F)(F)F", "1,1'-methylenebis(pentafluorodisilane)"),
+        ("C([SiH2][SiH2]C)[SiH2][SiH2]C", "1,1'-methylenebis(2-methyldisilane)"),
+        ("C([SiH](F)[SiH3])[SiH](F)[SiH3]", "1,1'-methylenebis(1-fluorodisilane)"),
+        ("C([SiH2][SiH2]C)[SiH2][SiH2]CC", "1-[(2-ethyldisilanyl)methyl]-2-methyldisilane"),
         ("[SiH3]CC[SiH2]CC[SiH3]", "[silanediyldi(ethane-2,1-diyl)]bis(silane)"),
         ("C[Si](C)(C)C[Si](C)(C)C", "methylenebis(trimethylsilane)"),
         ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "(ethane-1,2-diyl)bis(diphenylphosphane)"),
