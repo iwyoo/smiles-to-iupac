@@ -1262,14 +1262,28 @@ def _inner_locants(name: str):
         previous = stripped
         for leading in (_LEADING_ISOTOPE_RE, _LEADING_STEREO_RE, _LEADING_ANOMER_RE):
             stripped = leading.sub("", stripped)
-    return tuple(int(digits) for digits in re.findall(r"\d+", stripped))
+    return tuple(int(digits) for digits in re.findall(r"\d+", re.sub(r"λ\d+", "", stripped)))
+
+
+def _bonding_number_rank(name: str):
+    """P-14.4(h): of prefixes with the same letters, one on a nonstandard bonding number comes first, the higher number first."""
+    numbers = [int(n) for n in re.findall(r"λ(\d+)", name)]
+    return (0, tuple(-n for n in numbers)) if numbers else (1, ())
 
 
 def citation_order_key(name: str):
-    """Alphanumerical order: letters, then the locants inside the name in cited order (P-14.5.4), then enclosing marks
-    (P-14.6); an isotopically modified substituent ahead of the unmodified one (P-82.2.2.1), then configuration (P-45.6.3)."""
+    """Alphanumerical order: letters, nonstandard bonding numbers (P-14.4(h)), the locants inside the name in cited order
+    (P-14.5.4), then enclosing marks (P-14.6); an isotopically modified substituent ahead of the unmodified one (P-82.2.2.1),
+    then configuration (P-45.6.3)."""
     letters = alpha_sort_key(name)
-    return str(letters), _inner_locants(name), letters.marks, not _LEADING_ISOTOPE_RE.match(name), _descriptor_precedence(name)
+    return (
+        str(letters),
+        _bonding_number_rank(name),
+        _inner_locants(name),
+        letters.marks,
+        not _LEADING_ISOTOPE_RE.match(name),
+        _descriptor_precedence(name),
+    )
 
 
 _DESCRIPTOR_PRECEDENCE = {"Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "R": 2, "S": 3, "r": 4, "s": 5, "M": 2, "P": 3, "m": 4, "p": 5}
@@ -1295,7 +1309,7 @@ def substituent_locant_set_and_citation(grouped):
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
-        for name in sorted(grouped, key=alpha_sort_key)
+        for name in sorted(grouped, key=citation_order_key)
         for loc in sorted(grouped[name]["locants"])
     )
     return locant_set, total_count, citation_locants
