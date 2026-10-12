@@ -356,6 +356,7 @@ def test_ring_with_extra_and_related(smiles, expected):
         pytest.param("COC[C@@H](C)C(=O)OC", "methyl (2R)-3-methoxy-2-methylpropanoate", id="specified_stereocenter__ether_ester"),
         pytest.param("CC(C)OCCOO", "2-[(propan-2-yl)oxy]ethane-1-peroxol", id="branched_alkoxy_r_prime__ether_hydroperoxide"),
         pytest.param("COCC(Cl)COO", "2-chloro-3-methoxypropane-1-peroxol", id="halogen_on_main_chain_still_works__ether_hydroperoxide"),
+        pytest.param("OON1CCN(C)CC1", "4-methylpiperazine-1-peroxol", id="hydroperoxy_group_on_a_ring_nitrogen"),
     ],
 )
 def test_hydroxyl_coexisting__and_related(smiles, expected):

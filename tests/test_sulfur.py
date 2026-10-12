@@ -568,8 +568,8 @@ def test_ring_chalcogen_with_doubly_bonded_chalcogens_is_a_lambda_heterone(smile
         pytest.param("N=S1C=CSC1", "1λ4,3-dithiol-1(2H)-imine", id="imine_on_a_ring_sulfur_with_added_hydrogen"),
         pytest.param("N=P1CCCC1", "1λ5-phospholan-1-imine", id="imine_on_a_ring_phosphorus"),
         pytest.param("CN(O)N1CC1", "N-hydroxy-N-methylaziridin-1-amine", id="heteroatom_group_on_the_amine_of_a_ring_nitrogen"),
-        pytest.param("SON1CCC1", "1-(sulfanyloxy)azetidine", id="chalcogen_pair_on_a_ring_nitrogen"),
-        pytest.param("OON1CC1", "1-hydroperoxyaziridine", id="peroxol_needs_a_carbon_host"),
+        pytest.param("SON1CCC1", "azetidine-1-OS-thioperoxol", id="chalcogen_pair_on_a_ring_nitrogen"),
+        pytest.param("OON1CC1", "aziridine-1-peroxol", id="peroxol_on_a_ring_nitrogen"),
     ],
 )
 def test_ring_heteroatom_imines_and_heteroatom_groups_on_ring_nitrogen(smiles, expected):
