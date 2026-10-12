@@ -17,7 +17,7 @@ from ._substituents import format_substituent_prefixes, name_branch
 
 _STEM = {
     7: ("az", 3), 8: ("oxid", 2), 14: ("sil", 4), 15: ("phosph", 3), 16: ("sulf", 2), 33: ("ars", 3), 34: ("sel", 2),
-    51: ("stib", 3), 52: ("tellur", 2),
+    51: ("stib", 3), 52: ("tellur", 2), 32: ("germ", 4), 50: ("stann", 4), 82: ("plumb", 4),
 }
 _GROUP = {8: "perox", 16: "disulfan", 34: "diselan", 52: "ditellan"}
 _BIS = {2: "bis", 3: "tris", 4: "tetrakis"}
@@ -103,12 +103,15 @@ def name_chain_ylium(mol) -> str:
             best = (key, grouped)
     (ylium, enes, _, _), grouped = best
     n = len(chain)
-    omitted = z != 7 and omits_all_locants(mol, set(chain), grouped, single_kind=False)
+    dinuclear_hydride = len(chain) == 2 and z not in _GROUP and z != 7
+    omitted = z != 7 and not dinuclear_hydride and omits_all_locants(mol, set(chain), grouped, single_kind=False)
     prefix = format_substituent_prefixes(grouped, omit_all=omitted) if grouped else ""
     root = _STEM[z][0]
-    if n == 2 and z != 7 and not enes and len(ylium) == 1:
+    if n == 2 and z in _GROUP and not enes and len(ylium) == 1:
         group = _GROUP[z] if grouped or z != 8 else "dioxidan"
         return prefix.removeprefix("2-") + group + "ylium"
+    if dinuclear_hydride and not enes and len(ylium) == 1 and not grouped:
+        return f"{multiplying_prefix(n)}{root}anylium"
     if n == 2 and enes and len(ylium) == 1:
         return prefix + multiplying_prefix(n) + root + "enylium"
     if enes:
