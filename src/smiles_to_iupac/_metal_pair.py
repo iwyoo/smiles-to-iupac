@@ -160,6 +160,8 @@ def _carbon_group(mol, graph, n, idx, seen):
         raise UnsupportedStructure("only an unbranched alkyl chain carrying one metal group is supported here")
     ((position, (metal, carbon)),) = linked.items()
     group = _metal_group_name(mol, graph, metal, carbon, seen)
+    if len(chain) == 1:
+        return _mark(f"{group}methyl"), True
     return _mark(f"{position}-({group}){alkyl_name(len(chain))}"), True
 
 
