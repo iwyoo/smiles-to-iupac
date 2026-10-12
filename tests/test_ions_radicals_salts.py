@@ -1569,6 +1569,7 @@ def test_ring_cation_with_an_ester_group_names_the_cation_as_parent(smiles, expe
         ("C(C)[NH+]", "ethanaminylium"),
         ("[NH3+]CC(CC[NH3+])CC[NH3+]", "3-(azaniumylmethyl)pentane-1,5-bis(aminium)"),
         ("NCCC[NH3+]", "3-aminopropan-1-aminium"),
+        ("[NH3+]CC1CCC([NH3+])CO1", "6-(azaniumylmethyl)oxan-3-aminium"),
     ],
 )
 def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expected):
