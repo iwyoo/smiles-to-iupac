@@ -109,7 +109,7 @@ def _onium_center(mol):
     if atom.GetAtomicNum() not in _ONIUM_STEM or atom.IsInRing() or atom.GetIsotope():
         return None
     bonds = sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs()
-    if bonds != _STEM[atom.GetAtomicNum()][1] + 1 or not atom.GetDegree():
+    if bonds != _STEM[atom.GetAtomicNum()][1] + 1:
         return None
     triple_allowed = atom.GetAtomicNum() in (7, 8)
     if any(b.GetBondTypeAsDouble() > (3.0 if triple_allowed else 2.0) for b in atom.GetBonds()):
