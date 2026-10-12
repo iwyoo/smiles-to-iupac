@@ -158,15 +158,25 @@ def _peroxol_atoms(mol):
     return _hydroperoxide_oxygens(mol) or _chalcogen_peroxol_atoms(mol) or _substituted_peroxol_atoms(mol)
 
 
+def peroxol_suffix(attach_number, terminal_number):
+    """Suffix of the group -X-YH from Table 6.1 (P-63.4.2.1): 'peroxol', 'dithioperoxol', 'OS-thioperoxol'."""
+    first, second = _CHALCOGENS[attach_number], _CHALCOGENS[terminal_number]
+    if first == second:
+        return f"di{first[1]}peroxol" if first[1] else "peroxol"
+    prefixes = "".join(sorted(p for _, p in (first, second) if p))
+    return f"{first[0]}{second[0]}-{prefixes}peroxol"
+
+
+PEROXOL_SUFFIXES = tuple(
+    peroxol_suffix(a, t) for a in _CHALCOGENS for t in _CHALCOGENS if (a, t) != (8, 8)
+)
+
+
 def _chalcogen_word(attach, terminal, base):
     """`base` ('...peroxol') with the functional replacement of Table 6.1: 'dithioperoxol', 'OS-thioperoxol'."""
-    first, second = _CHALCOGENS[attach.GetAtomicNum()], _CHALCOGENS[terminal.GetAtomicNum()]
     stem = base[: -len("peroxol")]
-    if first == second:
-        return f"{stem}di{first[1]}peroxol"
-    prefixes = "".join(sorted(p for _, p in (first, second) if p))
-    pair = first[0] + second[0]
-    return f"{stem}{'' if stem.endswith('-') else '-'}{pair}-{prefixes}peroxol"
+    suffix = peroxol_suffix(attach.GetAtomicNum(), terminal.GetAtomicNum())
+    return stem + suffix if suffix[0] == "d" else f"{stem}{'' if stem.endswith('-') else '-'}{suffix}"
 
 
 def has_hydroperoxide_shape(mol) -> bool:

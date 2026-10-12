@@ -28,7 +28,7 @@ from contextvars import ContextVar
 from rdkit import Chem, rdBase
 from rdkit.Chem import rdCIPLabeler
 
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name, multiplying_prefix, numerical_term
 
 _NUCLIDE = r"(?:[\d,]+-)?\d+[A-Z][a-z]?\d*"
 _LEADING_LOCANTS_RE = re.compile(rf"^\x01?(?:[\d,\-]+(?:\((?!{_NUCLIDE}(?:,{_NUCLIDE})*\)[A-Za-z]))?)?")
@@ -968,6 +968,8 @@ def multiplied_word(count, base):
         return ""
     if count == 1:
         return base
+    if base.endswith("peroxol") and base != "peroxol":
+        return multiplying_prefix(count, compound=True) + f"({base})"
     prefix = numerical_term(count)
     if prefix.endswith("a") and base[:1] in "ao":
         prefix = prefix[:-1]

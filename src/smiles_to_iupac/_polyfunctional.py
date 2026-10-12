@@ -71,6 +71,7 @@ from ._ring_system_seniority import ring_seniority_key
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import SULFONYL_CENTRES, SULFONYL_GROUP_NAMES, carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
 from ._retained_acids import retained_chain_acid, single_site_prefixes
+from ._hydroperoxide import peroxol_suffix
 from ._locant_omission import omits_all_locants, omits_group_locants
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -94,13 +95,18 @@ def _sulfonyl_names(terminal, nitrogen):
     }
 
 
+_PEROXOL_ELEMENTS = (8, 16, 34, 52)
+_PEROXOL_ANALOGUES = tuple(
+    peroxol_suffix(a, t)
+    for a, t in ((16, 8), (34, 8), (52, 8), (8, 16), (8, 34), (8, 52), (16, 16), (34, 16), (52, 16), (16, 34), (16, 52), (34, 34), (52, 34), (34, 52), (52, 52))
+)
 _CHALCOGEN_HYDRAZIDE = _sulfonyl_names("hydrazide", "plain")
 _CHALCOGEN_IMIDAMIDE = {**_sulfonyl_names("amide", "imide"), **_sulfonyl_names("hydrazide", "imide")}
 _CHALCOGEN_HYDRAZIDINE = {**_sulfonyl_names("amide", "hydrazone"), **_sulfonyl_names("hydrazide", "hydrazone")}
 _CHALCOGEN_SULFONAMIDE_CLASSES = tuple(name for name in _sulfonyl_names("amide", "plain").values() if name != "sulfonamide")
 _SENIORITY = [
     "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_SULFONYL_AMIDE_ORDER, "hydrazide", *_SULFONYL_HYDRAZIDE_ORDER, "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
-    "thiol", "selenol", "tellurol", "amine", "imine",
+    "thiol", "selenol", "tellurol", *_PEROXOL_ANALOGUES, "amine", "imine",
 ]
 _TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "hydrazide", "nitrile", "aldehyde"}
 _PLAIN_ACID = make_spec("C", ["O"], ["O"])
@@ -879,12 +885,26 @@ def _group_of(mol, carbon):
     for name, found in _hydroxy_type_groups(mol, carbon):
         if found:
             return name, set(found)
-    for n in _single_neighbors(mol, carbon, 8):
-        bridge = mol.GetAtomWithIdx(n)
-        ends = [m for m in bridge.GetNeighbors() if m.GetIdx() != carbon]
-        if bridge.GetDegree() == 2 and len(ends) == 1 and ends[0].GetAtomicNum() == 8 and _terminal_heteroatom(mol, ends[0].GetIdx(), 1):
-            return "peroxol", {n, ends[0].GetIdx()}
+    for n in mol.GetAtomWithIdx(carbon).GetNeighbors():
+        if mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0:
+            found = _peroxol_group(mol, n, carbon)
+            if found is not None:
+                return found
     return None
+
+
+def _peroxol_group(mol, bridge, anchor):
+    """(class, owned atoms) of the -X-YH group of two chalcogens whose first atom `bridge` is bonded to `anchor`: the
+    peroxol of Table 6.1 or its chalcogen analogue (P-63.4.1, P-63.4.2.1)."""
+    ends = [m for m in bridge.GetNeighbors() if m.GetIdx() != anchor]
+    if bridge.GetAtomicNum() not in _PEROXOL_ELEMENTS or bridge.GetDegree() != 2 or bridge.GetTotalNumHs() or len(ends) != 1:
+        return None
+    end = ends[0]
+    if end.GetAtomicNum() not in _PEROXOL_ELEMENTS or not _terminal_heteroatom(mol, end.GetIdx(), 1):
+        return None
+    if mol.GetBondBetweenAtoms(bridge.GetIdx(), end.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return None
+    return peroxol_suffix(bridge.GetAtomicNum(), end.GetAtomicNum()), {bridge.GetIdx(), end.GetIdx()}
 
 
 def _paths(adj, eligible):
@@ -1802,6 +1822,7 @@ def _ionic_linker_centre(mol):
 
 _SUFFIX_WORD = {
     "alcohol": "ol", "ketone": "one", "aldehyde": "al", "peroxol": "peroxol", "thiol": "thiol", "selenol": "selenol", "tellurol": "tellurol",
+    **{name: name for name in _PEROXOL_ANALOGUES},
 }
 _SUFFIX_ELEMENT = {"thiol": 16, "selenol": 34, "tellurol": 52}
 
@@ -3623,6 +3644,7 @@ _FUSED_SUFFIX = _FusedSuffix({
     "aldehyde": "carbaldehyde",
     "alcohol": "ol",
     "peroxol": "peroxol",
+    **{name: name for name in _PEROXOL_ANALOGUES},
     "ketone": "one",
     "imine": "imine",
     "thione": "thione",
@@ -3672,6 +3694,7 @@ _RING_SUFFIX = _RingSuffix({
     "ide": "ide",
     "peroxoic": "peroxoic",
     "peroxol": "peroxol",
+    **{name: name for name in _PEROXOL_ANALOGUES},
     "thioic": "thioic",
     "imidic": "imidic",
     "acid": "carboxylic_acid",
@@ -5052,6 +5075,7 @@ _CHAIN_GROUP_WORDS = {
     "amine": ("amine", ""),
     "peroxoic": ("peroxoic", " acid"),
     "peroxol": ("peroxol", ""),
+    **{name: (name, "") for name in _PEROXOL_ANALOGUES},
     "thioic": ("thioic", " acid"),
     "imidic": ("imidic", " acid"),
 }
@@ -5471,8 +5495,8 @@ def _ring_occurrences(mol):
                 found.append((_CHALCOGEN_KETONE_CLASS[z], r, {i}))
             elif z == 8 and _terminal_heteroatom(mol, i, 1):
                 found.append(("alcohol", r, {i}))
-            elif z == 8 and order == 1.0 and atom.GetAtomicNum() == 6 and (hydroperoxy := _hydroperoxy_oxygen(mol, n, r)) is not None:
-                found.append(("peroxol", r, {i, hydroperoxy}))
+            elif order == 1.0 and atom.GetAtomicNum() == 6 and (peroxol := _peroxol_group(mol, n, r)) is not None:
+                found.append((peroxol[0], r, peroxol[1]))
             elif z in (16, 34, 52) and _terminal_heteroatom(mol, i, 1):
                 found.append(({16: "thiol", 34: "selenol", 52: "tellurol"}[z], r, {i}))
             elif z in (16, 34, 52) and order == 1.0:
@@ -5880,9 +5904,9 @@ def _evaluate(
                 body = "acetic"
     elif principal in ("peroxoic", "thioic", "imidic"):
         body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, principal)), " acid"
-    elif principal == "peroxol":
+    elif principal == "peroxol" or principal in _PEROXOL_ANALOGUES:
         body = name_from_substituents(
-            length, ene, yne, multiplied_word(count, "peroxol"), suffix_locants, substituted=bool(grouped)
+            length, ene, yne, multiplied_word(count, principal), suffix_locants, substituted=bool(grouped)
         )
     elif principal == "amide" or principal in _CHALCOGEN_AMIDE_CLASSES:
         body = name_from_substituents(length, ene, yne, multiplied_word(count, principal))

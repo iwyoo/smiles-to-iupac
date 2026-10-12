@@ -63,6 +63,10 @@ _SENIOR_SULFONYL = [
     )
 ]
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
+_OXYGEN_PEROXOL = (
+    Chem.MolFromSmarts("[OX2H1][O,S,Se,Te;X2][#6]"),
+    Chem.MolFromSmarts("[S,Se,Te;X2H1][OX2][#6]"),
+)
 
 
 def require_plain_chalcogen_kids(mol, z, kids):
@@ -97,6 +101,7 @@ def _has_senior_principal_group(mol):
         or mol.HasSubstructMatch(AMINE_PATTERN)
         or mol.HasSubstructMatch(_ENAMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
+        or any(mol.HasSubstructMatch(query) for query in _OXYGEN_PEROXOL)
     )
 
 
@@ -561,7 +566,7 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
         organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
     elif len(run) == 2 and _on_carbon(graph, mol, first, second) and not any(
-        mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL
+        mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *_OXYGEN_PEROXOL)
     ):
         raise UnsupportedStructure("a peroxol or its chalcogen analogue outranks an amine as the principal group")
     runs = [[atom.GetAtomicNum(), 0] for atom in atoms[:1]]

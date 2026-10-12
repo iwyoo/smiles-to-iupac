@@ -12,6 +12,7 @@ from rdkit import Chem
 
 from ._acid_lexicon import SULFONYL_GROUP_NAMES
 from ._free_valence import valence_word
+from ._hydroperoxide import PEROXOL_SUFFIXES
 from ._common import (
     UnsupportedStructure,
     citation_order_key,
@@ -43,6 +44,7 @@ _SUFFIX_WORDS = _SuffixWords({
     "thioic": "carbothioic acid",
     "imidic": "carboximidic acid",
     "peroxol": "peroxol",
+    **{name: name for name in PEROXOL_SUFFIXES},
     "carboxylic_acid": "carboxylic acid",
     "sulfonic_acid": "sulfonic acid",
     "amide": "carboxamide",
