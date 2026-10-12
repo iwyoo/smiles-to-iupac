@@ -6,10 +6,12 @@ the other end CH2OH), named as that aldose, and the 'ose' ending becomes 'itol',
 then D before L; a chain that is its own mirror image is a meso form and carries no D or L.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._carbohydrate import has_open_chain_aldose_shape, name_open_chain_aldose
-from ._common import UnsupportedStructure, adjacency
+from ._common import UnsupportedStructure, adjacency, alphanumerical_name_key
 
 _MIN_CARBONS, _MAX_CARBONS = 4, 7
 
@@ -99,7 +101,9 @@ def _suffixes(kind):
     return {"alditol": "itol", "aldonic": "onic acid", "uronic": "uronic acid", "aldaric": "aric acid"}[kind]
 
 
-def sugar_alcohol_acid_name(mol):
+def _resolved(mol):
+    """(class, name, chains) of an alditol, aldonic, uronic or aldaric acid: each chain lists the carbons from C-1 for an
+    orientation that gives the chosen name (both of them when the name is the same either way)."""
     found = _chain(mol)
     if found is None:
         return None
@@ -117,12 +121,18 @@ def sugar_alcohol_acid_name(mol):
     if None in names:
         return None
     if len(names) == 2 and names[0][2:] == names[1][2:] and names[0][0] != names[1][0]:
-        name = names[0][2:]
+        name, winners = names[0][2:], reverses
     else:
         name = min(names, key=lambda n: (n[2:], n[0] != "D"))
+        winners = [reverse for reverse, n in zip(reverses, names) if n == name]
     if not name.endswith("ose"):
         return None
-    return name[: -len("ose")] + _suffixes(kind)
+    return kind, name[: -len("ose")] + _suffixes(kind), [chain[::-1] if reverse else chain for reverse in winners]
+
+
+def sugar_alcohol_acid_name(mol):
+    resolved = _resolved(mol)
+    return resolved[1] if resolved else None
 
 
 def has_sugar_alcohol_acid_shape(mol) -> bool:
@@ -179,7 +189,7 @@ def _as_acid(mol):
         except Exception:
             return None
         removal.extend(subtree(graph, match[3], match[2]))
-    for index in sorted(removal, reverse=True):
+    for index in sorted(set(removal), reverse=True):
         editable.RemoveAtom(index)
     for atom in editable.GetAtoms():
         atom.SetNoImplicit(False)
@@ -192,7 +202,128 @@ def _as_acid(mol):
     return acid, kind, ester_group
 
 
+_OXO_SUBSTITUENT = {
+    "amide": "{n}-amino-{n}-deoxy-{n}-oxo-",
+    "hydrazide": "{n}-deoxy-{n}-hydrazinyl-{n}-oxo-",
+}
+
+
+def _aldaric_with_modified_ends(mol):
+    """(aldaric acid mol, {end carbon: (kind, ester group)}) for a chain whose carboxy ends are esters or amides, else None."""
+    from ._cited_group import cited_group, subtree
+
+    if mol.GetRingInfo().NumRings():
+        return None
+    ends = [(kind, match) for kind in ("ester", "hydrazide", "amide") for match in mol.GetSubstructMatches(_DERIVATIVES[kind])]
+    ends = [(kind, match) for kind, match in ends if kind != "amide" or all(m[0] != match[0] for k, m in ends if k == "hydrazide")]
+    if not 1 <= len(ends) <= 2:
+        return None
+    graph = adjacency(mol)
+    editable = Chem.RWMol(mol)
+    removal, modified = [], {}
+    for kind, match in ends:
+        if kind in ("amide", "hydrazide"):
+            editable.GetAtomWithIdx(match[2]).SetAtomicNum(8)
+            if kind == "hydrazide":
+                removal.append(match[3])
+            modified[match[0]] = (kind, None)
+            continue
+        try:
+            group = cited_group(mol, graph, match[3], match[2])[0]
+        except Exception:
+            return None
+        removal.extend(subtree(graph, match[3], match[2]))
+        modified[match[0]] = (kind, group)
+    removed = set(removal)
+    if len(removed) != len(removal) or removed & {match[0] for _, match in ends}:
+        return None
+    for index in sorted(removed, reverse=True):
+        editable.RemoveAtom(index)
+    for atom in editable.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    acid = editable.GetMol()
+    try:
+        Chem.SanitizeMol(acid)
+    except Exception:
+        return None
+    kept = [i for i in range(mol.GetNumAtoms()) if i not in removed]
+    new_index = {old: new for new, old in enumerate(kept)}
+    return acid, {new_index[carbon]: entry for carbon, entry in modified.items()}
+
+
+def _aldonic_of_amic_end(acid, amide_carbon):
+    """The aldonic acid reached by reducing the carboxy group at `amide_carbon` to CH2OH."""
+    editable = Chem.RWMol(acid)
+    oxygen = next(
+        n.GetIdx()
+        for n in acid.GetAtomWithIdx(amide_carbon).GetNeighbors()
+        if acid.GetBondBetweenAtoms(amide_carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    )
+    editable.RemoveAtom(oxygen)
+    for atom in editable.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    aldonic = editable.GetMol()
+    Chem.SanitizeMol(aldonic)
+    return sugar_alcohol_acid_name(aldonic)
+
+
+def aldaric_derivative_name(mol):
+    """Half esters, amic acids, ester amides and diamides of an aldaric acid (P-102.5.6.6.5.3): '6-methyl hydrogen
+    D-glucarate', '6-amino-6-deoxy-6-oxo-D-gluconic acid', 'methyl 6-amino-6-deoxy-6-oxo-D-gluconate', 'D-glucaramide'."""
+    prepared = _aldaric_with_modified_ends(mol)
+    if prepared is None:
+        return None
+    acid, modified = prepared
+    resolved = _resolved(acid)
+    if resolved is None or resolved[0] != "aldaric":
+        return None
+    _, name, chains = resolved
+    first, last = chains[0][0], chains[0][-1]
+    kinds = {end: modified.get(end, ("acid", None)) for end in (first, last)}
+    stem = name[: -len("ic acid")]
+    size = len(chains[0])
+    by_kind = sorted(kind for kind, _ in kinds.values())
+    if by_kind == ["amide", "amide"]:
+        return stem + "amide"
+    if by_kind == ["hydrazide", "hydrazide"]:
+        return stem + "odihydrazide"
+    if by_kind == ["ester", "ester"]:
+        groups = [kinds[first][1], kinds[last][1]]
+        if groups[0] == groups[1]:
+            group = f"({groups[0]})" if re.search(r"[\d\-\s()\[\]]", groups[0]) else groups[0]
+            return f"di{group} {stem}ate"
+        cited = min(
+            sorted(((kinds[chain[0]][1], 1), (kinds[chain[-1]][1], size)), key=lambda part: alphanumerical_name_key(part[0]))
+            for chain in chains
+        )
+        return " ".join(f"{locant}-{group}" for group, locant in cited) + f" {stem}ate"
+    if by_kind == ["acid", "ester"]:
+        (ester_end,) = (end for end, (kind, _) in kinds.items() if kind == "ester")
+        locant = min(1 if chain[0] == ester_end else size for chain in chains)
+        return f"{locant}-{kinds[ester_end][1]} hydrogen {stem}ate"
+    senior_amide = by_kind == ["amide", "hydrazide"]
+    junior_kind = "hydrazide" if senior_amide else next((kind for kind in _OXO_SUBSTITUENT if kind in by_kind), None)
+    if junior_kind is None or not (senior_amide or {"acid", "ester"} & set(by_kind)):
+        return None
+    junior = next(end for end, (kind, _) in kinds.items() if kind == junior_kind)
+    aldonic = _aldonic_of_amic_end(acid, junior)
+    if aldonic is None or not aldonic.endswith("onic acid"):
+        return None
+    prefix = _OXO_SUBSTITUENT[junior_kind].format(n=size)
+    if senior_amide:
+        return f"{prefix}{aldonic[: -len('ic acid')]}amide"
+    if "acid" in by_kind:
+        return prefix + aldonic
+    (ester_end,) = (end for end, (kind, _) in kinds.items() if kind == "ester")
+    return f"{kinds[ester_end][1]} {prefix}{aldonic[: -len('ic acid')]}ate"
+
+
 def sugar_acid_derivative_name(mol):
+    aldaric = aldaric_derivative_name(mol)
+    if aldaric is not None:
+        return aldaric
     prepared = _as_acid(mol)
     if prepared is None:
         return None

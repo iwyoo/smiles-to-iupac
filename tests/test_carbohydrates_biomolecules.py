@@ -537,7 +537,7 @@ def test_derivatives_of_sugar_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-# P-66.1.1.1.2.5, P-66.3.1.2.4, P-66.5.1.2.4 amides, hydrazides, nitriles and esters of carbohydrate acids
+# P-66.1.1.1.2.5, P-66.3.1.2.4, P-66.5.1.2.4, P-102.5.6.6.5.3 amides, hydrazides, nitriles and esters of carbohydrate acids
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -547,6 +547,22 @@ def test_derivatives_of_sugar_acids(smiles, expected):
         pytest.param("CC(C)OC(=O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "propan-2-yl D-gluconate", id="aldonate_ester"),
         pytest.param("NC(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl β-D-glucopyranosiduronamide", id="glycosiduronamide"),
         pytest.param("NC(=O)[C@H]1O[C@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranuronamide", id="pyranuronamide"),
+        pytest.param("O=C(OC)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)O", "6-methyl hydrogen D-glucarate", id="aldaric_half_ester"),
+        pytest.param("OC(=O)[C@H](O)[C@@H](O)[C@@H](O)[C@H](O)C(=O)OC", "1-methyl hydrogen galactarate", id="meso_aldaric_half_ester_takes_locant_1"),
+        pytest.param("O=C(N)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)O", "6-amino-6-deoxy-6-oxo-D-gluconic acid", id="aldaric_amic_acid"),
+        pytest.param(
+            "O=C(N)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)OC", "methyl 6-amino-6-deoxy-6-oxo-D-gluconate", id="aldaric_ester_amide"
+        ),
+        pytest.param("O=C(N)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(N)=O", "D-glucaramide", id="aldaric_diamide"),
+        pytest.param("NNC(=O)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)NN", "D-glucarodihydrazide", id="aldaric_dihydrazide"),
+        pytest.param(
+            "NNC(=O)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(N)=O", "6-deoxy-6-hydrazinyl-6-oxo-D-gluconamide", id="aldaric_amide_hydrazide"
+        ),
+        pytest.param("COC(=O)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)OCC", "1-ethyl 6-methyl D-glucarate", id="aldaric_diester_of_two_alkyls"),
+        pytest.param("COC(=O)[C@H](O)[C@@H](O)[C@@H](O)[C@H](O)C(=O)OC", "dimethyl galactarate", id="meso_aldaric_diester"),
+        pytest.param(
+            "CC(C)OC(=O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)C(=O)OC(C)C", "di(propan-2-yl) D-glucarate", id="aldaric_diester_with_a_locant_group"
+        ),
     ],
 )
 def test_carbohydrate_acid_derivatives(smiles, expected):
