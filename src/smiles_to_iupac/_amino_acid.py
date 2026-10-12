@@ -483,6 +483,18 @@ def _acylated_hydrazine_nitrogen(mol, site, root):
     )
 
 
+def _substituent_atoms(graph, substituents):
+    inside = set()
+    for _, site, root in substituents:
+        stack = [root]
+        while stack:
+            node = stack.pop()
+            if node not in inside:
+                inside.add(node)
+                stack.extend(n for n in graph[node] if n != site and n not in inside)
+    return inside
+
+
 def has_amino_acid_shape(mol) -> bool:
     found = _match(mol)
     if found is None:
@@ -498,7 +510,7 @@ def has_amino_acid_shape(mol) -> bool:
     if name in _BETA_NATURAL and alpha_carbon is not None:
         beta = _beta_specified(mol, _beta_atom(mol, alpha_carbon, side_chain_atoms))
         try:
-            alpha = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms) is not None
+            alpha = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms | _substituent_atoms(adjacency(mol), found[4])) is not None
         except UnsupportedStructure:
             return True
         return beta == alpha
@@ -511,14 +523,7 @@ def _substituent_prefixes(mol, graph, substituents):
 
     halogens = halogen_substituents(mol)
     aromatic = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
-    inside = set()
-    for _, site, root in substituents:
-        stack = [root]
-        while stack:
-            node = stack.pop()
-            if node not in inside:
-                inside.add(node)
-                stack.extend(n for n in graph[node] if n != site and n not in inside)
+    inside = _substituent_atoms(graph, substituents)
     probe = Chem.Mol(mol)
     assign_cip_labels(probe)
     atoms = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")}
@@ -545,7 +550,7 @@ def name_amino_acid(mol) -> str:
     name, alpha_carbon, side_chain_atoms, phosphoryl, substituents = _match(mol)
     if alpha_carbon is None:
         return name
-    label = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms)
+    label = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms | _substituent_atoms(adjacency(mol), substituents))
     mapping = _ALPHA_TO_LD_CYSTEINE if name in _SULFUR_ON_C3 else _ALPHA_TO_LD
     if name in _BETA_NATURAL and label:
         beta = mol.GetAtomWithIdx(_beta_atom(mol, alpha_carbon, side_chain_atoms)).GetProp("_CIPCode")
