@@ -96,6 +96,7 @@ from ._common import (
     multiplied_word,
     non_single_bonds,
     specified_double_bond_stereo,
+    stereo_locant_rank,
     substituent_locant_set_and_citation,
     unsaturation_suffix,
     validate_atoms_and_bonds,
@@ -226,18 +227,7 @@ def name_acyclic_unsaturated(mol) -> str:
         )
 
     stereo = specified_double_bond_stereo(mol)
-    if stereo is not None:
-        ene_ends = [atom for a, b, order in bonds if order == _ENE_ORDER for atom in (a, b)]
-        ene_bond_count = sum(
-            1 for a, b, order in bonds if order == _ENE_ORDER and ene_ends.count(a) == 1 and ene_ends.count(b) == 1
-        )
-        if len(stereo) != ene_bond_count:
-            raise UnsupportedStructure(
-                "a non-stereogenic or unspecified double bond alongside one "
-                "or more specified double-bond E/Z elements is not "
-                "supported yet -- every double bond in the molecule must be "
-                "specified (see P-93)"
-            )
+    bond_stereo = [("bond", bond_idx, code) for bond_idx, code in stereo or ()]
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -252,6 +242,9 @@ def name_acyclic_unsaturated(mol) -> str:
             ene_locants, yne_locants = _on_chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, mol=mol, unsaturated=True)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            cited = sorted(min(position_of[a] for a in _bond_atoms(mol, idx)) for _, idx, _ in bond_stereo)
+            key = (key, stereo_locant_rank(mol, bond_stereo, position_of), cited)
             if best_key is None or key < best_key:
                 best_key, best_name, best_candidate = key, name, candidate
 
