@@ -100,6 +100,7 @@ from rdkit import Chem
 
 from ._common import (
     alphanumerical_name_key,
+    citation_order_key,
     stereo_locant_rank,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -347,7 +348,7 @@ def _n_locant_labels(amines, amine_locants, n_names_by_nitrogen, chain_length):
         group.sort(
             key=lambda n: (
                 -len(n_names_by_nitrogen.get(n, [])),
-                sorted(name for name, _ in n_names_by_nitrogen.get(n, [])) or ["\uffff"],
+                sorted(citation_order_key(name) for name, _ in n_names_by_nitrogen.get(n, [])) or [("\uffff",)],
             )
         )
         for rank, n_idx in enumerate(group):
@@ -569,6 +570,7 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
 
     n_names_by_nitrogen = {}
     excluded_atoms = set()
+    substituent_atoms = set()
     for n in amines:
         on_chain = [c for c in n_carbons_by_nitrogen[n] if c in chain_component]
         if len(on_chain) != 1:
@@ -579,15 +581,12 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
         extra_roots = [c for c in n_carbons_by_nitrogen[n] if c not in chain_component]
         names = []
         for root in extra_roots:
-            root_component = set(components.get(root, ()))
-            if any(a in root_component and b in root_component for a, b, _ in bonds):
-                raise UnsupportedStructure(
-                    "an unsaturated N-substituent alongside another coexisting amine "
-                    "nitrogen is not supported yet"
-                )
-            names.append(name_branch(graph, root, n, halogens, mol=mol))
-            excluded_atoms |= root_component
+            names.append(name_branch(graph, root, n, halogens, mol=mol, unsaturated=True))
+            excluded_atoms |= set(components.get(root, ()))
+            substituent_atoms |= _reachable(graph, root, n)
         n_names_by_nitrogen[n] = names
+    if not ring_atoms <= substituent_atoms:
+        raise UnsupportedStructure("a ring outside the N-substituents of the amines is not supported by this naming path")
 
     parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
     parent_bonds = [b for b in bonds if b[0] in parent_carbon_graph and b[1] in parent_carbon_graph]
@@ -597,6 +596,8 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
         mol=mol, n_names_by_nitrogen=n_names_by_nitrogen,
     )
     if stereo is not None:
+        if not all(_stereo_on_parent(mol, element, best_position_of) for element in stereo):
+            raise UnsupportedStructure("a stereo element of an N-substituent is not cited by this naming path")
         labels = []
         for kind, idx, code in stereo:
             if kind == "atom":
@@ -609,6 +610,14 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
+
+
+def _stereo_on_parent(mol, element, position_of):
+    kind, idx, _ = element
+    if kind == "atom":
+        return idx in position_of
+    bond = mol.GetBondWithIdx(idx)
+    return bond.GetBeginAtomIdx() in position_of and bond.GetEndAtomIdx() in position_of
 
 
 def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
@@ -1098,12 +1107,12 @@ def name_amine(mol) -> str:
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     has_secondary_or_tertiary = any(len(n_carbons_by_nitrogen[n]) > 1 for n in amines)
-    if has_secondary_or_tertiary and num_rings > 0:
+    if has_secondary_or_tertiary and num_rings > 0 and len(amines) < 2:
         raise UnsupportedStructure(
             "a secondary/tertiary amine nitrogen on or attached to a ring "
             "is out of scope for this module"
         )
-    if num_rings == 0:
+    if num_rings == 0 or has_secondary_or_tertiary:
         # No ring is ever involved past this point, so a specified C=C
         # double-bond E/Z element may coexist with a specified tetrahedral
         # stereocenter (P-91.3), mirroring `_ketone.py`'s identical
