@@ -129,15 +129,12 @@ def test_ring_double_bond_stereo(smiles, expected):
         ("C1CC/C=C/CCC#CCCCC1", "(1E)-cyclotridec-1-en-5-yne"),
         ("C1=CC=CC=CC=CC=CC=CC=C1", "cyclotetradeca-1,3,5,7,9,11,13-heptaene"),
         ("C1=C\\C=C/C=C\\C=C/C=C\\1", "(1Z,3Z,5Z,7Z,9E)-cyclodeca-1,3,5,7,9-pentaene"),
+        pytest.param("C1CC/C=C\\CC=CCCCC1", "(1Z)-cyclododeca-1,4-diene", id="unspecified_ring_double_bond_gets_no_descriptor"),
+        pytest.param("C1=CCCCC/C=C/CC1", "(5E)-cyclodeca-1,5-diene", id="specified_bond_numbered_after_the_unspecified_one"),
     ],
 )
 def test_large_unsaturated_carbocycles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_ring_double_bond_stereo_partly_unspecified_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC/C=C\\CC=CCCCC1")
 
 
 @pytest.mark.parametrize(

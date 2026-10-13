@@ -286,12 +286,8 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
                     "a specified E/Z double bond alongside an exocyclic multiple bond is not supported yet (see P-93)"
                 )
             ring_bond_indices = {mol.GetBondBetweenAtoms(a, b).GetIdx() for a, b, _ in bonds}
-            if any(idx not in ring_bond_indices for idx, _ in bond_stereo) or len(bond_stereo) != sum(
-                1 for e in stereo_elements if e.type == Chem.StereoType.Bond_Double
-            ):
-                raise UnsupportedStructure(
-                    "a ring where not every stereogenic double bond is specified is not supported yet (see P-93.5.1.4.1)"
-                )
+            if any(idx not in ring_bond_indices for idx, _ in bond_stereo):
+                raise UnsupportedStructure("an E/Z double bond outside the ring is not supported yet (see P-93)")
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
