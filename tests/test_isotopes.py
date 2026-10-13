@@ -268,6 +268,8 @@ def test_unplaceable_isotope_label_is_never_dropped(smiles):
         pytest.param("[2H]N(C)C(=O)OC", "methyl N-methyl(N-2H)carbamate", id="carbamate_nitrogen_deuterium_beside_a_substituent"),
         pytest.param("[2H]NC(=O)NC", "N-methyl(N'-2H1)urea", id="urea_labelled_nitrogen_is_the_primed_one_when_substituted"),
         pytest.param("[2H]NC(N)=O", "(N-2H1)urea", id="urea_labelled_nitrogen_is_unprimed_when_equivalent"),
+        pytest.param("CCN(C)[13C](=O)O", "ethyl(methyl)(13C)carbamic acid", id="carbamic_acid_carbon_nuclide_after_prefixes"),
+        pytest.param("N#[13C]O", "(13C)cyanic acid", id="cyanic_acid_carbon_nuclide"),
         pytest.param("CC(=O)O[2H]", "(O-2H)acetic acid", id="acid_hydroxyl_deuterium"),
         pytest.param("CCC(=O)O[2H]", "(O-2H)propanoic acid", id="acid_hydroxyl_deuterium_on_a_chain"),
         pytest.param("Clc1ccc(N([2H])[2H])cc1", "4-chloro(N-2H2)aniline", id="group_label_after_prefixes"),
