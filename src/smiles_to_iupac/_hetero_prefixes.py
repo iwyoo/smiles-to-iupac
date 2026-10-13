@@ -1093,15 +1093,29 @@ def _chalcogen_amido(graph, root, others, mol):
     keep = {root}.union(*(_side(graph, n, root) for n in acyl))
     if rest:
         keep |= _side(graph, rest[0], root)
-    if any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in map(mol.GetAtomWithIdx, keep)) or any(
-        b.GetStereo() != Chem.BondStereo.STEREONONE
-        for b in mol.GetBonds()
-        if b.GetBeginAtomIdx() in keep and b.GetEndAtomIdx() in keep
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    labelled = {a: context["labels"][a] for a in keep if context and a in context["labels"] and a not in context["consumed"]}
+    if (
+        any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in map(mol.GetAtomWithIdx, keep))
+        or any(
+            b.GetStereo() != Chem.BondStereo.STEREONONE
+            for b in mol.GetBonds()
+            if b.GetBeginAtomIdx() in keep and b.GetEndAtomIdx() in keep
+        )
+        or any(entry["H"] or not entry["skeleton"] for entry in labelled.values())
     ):
         return None
     fragment = Chem.RWMol(mol)
     for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
         fragment.RemoveAtom(index)
+    order = sorted(keep)
+    nitrogen = fragment.GetAtomWithIdx(order.index(root))
+    nitrogen.SetNoImplicit(False)
+    nitrogen.SetNumExplicitHs(0)
+    for atom, entry in labelled.items():
+        fragment.GetAtomWithIdx(order.index(atom)).SetIsotope(int(re.match(r"\d+", entry["skeleton"]).group()))
     fragment = fragment.GetMol()
     try:
         Chem.SanitizeMol(fragment)
@@ -1110,8 +1124,10 @@ def _chalcogen_amido(graph, root, others, mol):
         return None
     if not name.endswith("amide") or _acylated_nitrogens(fragment) > len(acyl):
         return None
+    if labelled:
+        context["consumed"].update(labelled)
     prefix = name[:-1] + "o"
-    return prefix, any(part in prefix for part in ("-", "ane", "benzene"))
+    return prefix, bool(labelled) or any(part in prefix for part in ("-", "ane", "benzene"))
 
 
 def _name_with_principal(fragment, principal):

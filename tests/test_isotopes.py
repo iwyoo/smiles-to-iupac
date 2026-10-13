@@ -211,6 +211,18 @@ def test_descriptor_follows_the_prefixes_of_a_substituted_retained_acid(smiles, 
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("CC(=O)[15NH]CC(=O)O", "[(15N)acetamido]acetic acid", id="nitrogen_of_an_acylamino_prefix"),
+        pytest.param("CC(=O)[15NH][C@@H](C)C(=O)O", "(2S)-2-[(15N)acetamido]propanoic acid", id="stereocentre_beside_the_labelled_prefix"),
+        pytest.param("CC(=O)[15N](C)CC(=O)O", "[N-methyl(15N)acetamido]acetic acid", id="substituted_nitrogen_of_the_prefix"),
+    ],
+)
+def test_nuclide_on_the_nitrogen_of_an_acylamino_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("OC=[18O]", "(O-18O)formic acid"),
     ],
 )
