@@ -937,15 +937,18 @@ def _component_acid(mol, atoms, centers):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
+    match_cip_labels(mol, acid, dict(enumerate(sorted(atoms))))
     for atom in acid.GetAtoms():
         if atom.GetAtomicNum() in (15, 16):
             # the descriptor of a stereogenic acid centre is cited in front of the anion, not inside the acid name
             atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     # P-14.3.4.1 lists no anhydride, so the substituent locants of the acid piece stay cited
     token = CITE_SUBSTITUENT_LOCANTS.set(True)
+    systematic = SYSTEMATIC_ACID_PROBE.set(True)
     try:
         return _free_acid_name(acid)
     finally:
+        SYSTEMATIC_ACID_PROBE.reset(systematic)
         CITE_SUBSTITUENT_LOCANTS.reset(token)
 
 
