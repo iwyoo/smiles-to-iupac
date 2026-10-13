@@ -626,9 +626,16 @@ def test_phenyl_directly_attached_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_thiocyanate_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CSCCSC#N")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("N#CSCCSC#N", "ethane-1,2-diyl dithiocyanate", id="chain"),
+        pytest.param("N#C[Se]Cc1ccc(C[Se]C#N)cc1", "1,4-phenylenebis(methylene) diselenocyanate", id="polyol_group_named_as_in_an_acetate"),
+        pytest.param("N#COC[C@H](C)OC#N", "(2S)-propane-1,2-diyl dicyanate", id="stereocentre_of_the_organyl_group"),
+    ],
+)
+def test_cyanic_esters_of_a_polyol(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_phenyl_thiocyanate():

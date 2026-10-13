@@ -234,11 +234,6 @@ def test_phenyl_directly_attached_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_selenocyanate_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#C[Se]CC[Se]C#N")
-
-
 def test_phenyl_selenocyanate():
     assert smiles_to_iupac("c1ccccc1[Se]C#N") == "phenyl selenocyanate"  # CID 555340
 
@@ -540,11 +535,6 @@ def test_substituted_benzenetellurinic_acid():
 )
 def test_tellurinic_acid_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_two_tellurocyanate_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#C[Te]CC[Te]C#N")
 
 
 def test_phenyl_tellurocyanate():

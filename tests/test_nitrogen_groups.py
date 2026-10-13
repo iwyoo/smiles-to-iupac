@@ -317,11 +317,6 @@ def test_n_methyl_cyclic_r_group():
     assert smiles_to_iupac("CNC(=O)OC1CCCCC1") == "cyclohexyl methylcarbamate"
 
 
-def test_two_cyanate_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#COCCOC#N")
-
-
 def test_phenyl_cyanate():
     assert smiles_to_iupac("c1ccccc1OC#N") == "phenyl cyanate"  # CID 70740
 
