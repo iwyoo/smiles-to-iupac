@@ -225,6 +225,17 @@ def test_symmetric_anhydride(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NCC(=O)OC(=O)CC", "aminoacetic propanoic anhydride", id="retained_amino_acid_name_is_not_cited"),
+        pytest.param("CC(=O)OC(=O)[C@@H](N)C", "acetic (2S)-2-aminopropanoic anhydride", id="descriptor_of_the_amino_acid_part"),
+    ],
+)
+def test_mixed_anhydride_with_an_amino_acid_component(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("CC(C)C(=O)OC(=O)C(C)C", "2-methylpropanoic anhydride", id="branched_symmetric_anhydride"),
