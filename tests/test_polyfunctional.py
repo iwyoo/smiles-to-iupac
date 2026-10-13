@@ -1729,6 +1729,31 @@ def test_geminal_groups_of_one_carbon_are_one_multiplied_suffix(smiles, expected
         pytest.param("C(=O)(O)CC1=C(C2=CC=CC=C2C=C1CC(=O)O)CCC(=O)O", "1-(2-carboxyethyl)naphthalene-2,3-diacetic acid", id="most_identical_chains_form_the_parent"),
         pytest.param("C1(CCCCC1)C(CO)C1=CC2=CC=CC=C2C=C1", "β-cyclohexylnaphthalene-2-ethanol", id="senior_ring_is_the_cyclic_component"),
         pytest.param("O=CCCCCCCC=1C=C(C=O)C=CC1", "3-formylbenzeneheptanal", id="one_group_of_the_principal_kind_on_the_ring"),
+        pytest.param("O[C@H](C)Cc1ccccc1", "(αR)-α-methylbenzeneethanol", id="side_chain_stereocentre_under_a_greek_letter"),
+        pytest.param(
+            "O[C@H](C)C[C@H]1CCCC[C@@H]1C", "(αR,1R,2S)-α,2-dimethylcyclohexaneethanol", id="greek_letter_and_ring_descriptors_in_one_set"
+        ),
+        pytest.param(
+            "OCCc1ccccc1[C@H](C)Cl", "2-[(1S)-1-chloroethyl]benzeneethanol", id="stereocentre_of_a_substituent_cited_in_its_own_name"
+        ),
+        pytest.param("OC(=O)CC1CC/C=C/CCC1", "(4E)-cyclooct-4-ene-1-acetic acid", id="ring_double_bond_descriptor"),
+        pytest.param("OC(=O)Cc1ccc(cc1)-c1ccccc1", "[1,1\u2032-biphenyl]-4-acetic acid", id="ring_assembly_as_the_cyclic_component"),
+        pytest.param(
+            "OC(=O)C(C)c1ccc(cc1)-c1ccc(Cl)cc1",
+            "4\u2032-chloro-\u03b1-methyl[1,1\u2032-biphenyl]-4-acetic acid",
+            id="assembly_and_side_chain_prefixes_in_one_alphabetical_list",
+        ),
+        pytest.param(
+            "OC(=O)CC1CCC(CC1)C1CCCCC1", "[1,1\u2032-bi(cyclohexane)]-4-acetic acid", id="cycloalkane_assembly_keeps_its_final_e"
+        ),
+        pytest.param(
+            "OC(=O)Cc1ccc2ccccc2c1-c1c2ccccc2ccc1", "[1,1\u2032-binaphthalene]-2-acetic acid", id="assembly_of_fused_ring_systems"
+        ),
+        pytest.param(
+            "OC(=O)C(Cl)c1ccccc1C(C)C(=O)O",
+            "2-[carboxy(chloro)methyl]-\u03b1-methylbenzeneacetic acid",
+            id="side_chains_tied_in_count_ring_and_length_are_told_apart_by_their_prefixes",
+        ),
     ],
 )
 def test_conjunctive_names(smiles, expected):
@@ -1746,8 +1771,8 @@ def test_conjunctive_names(smiles, expected):
         pytest.param("OCC1=C(C=CC(=C1)O)O", id="several_groups_of_the_principal_kind_on_the_ring"),
         pytest.param("CC(=O)CCc1ccccc1", id="ketone_is_the_principal_group"),
         pytest.param("COC(=O)Cc1ccccc1", id="ester_is_the_principal_group"),
-        pytest.param("OC(=O)Cc1ccc(cc1)-c1ccccc1", id="ring_assembly_is_a_cyclic_component_of_its_own"),
-        pytest.param("O[C@H](C)Cc1ccccc1", id="stereodescriptors_are_not_cited"),
+        pytest.param("OC(=O)Cc1ccc(cc1)-c1ccc(CC(=O)O)cc1", id="side_chains_on_both_rings_of_an_assembly"),
+        pytest.param("OC(=O)Cc1ccc(cc1)-c1ccc(cc1)-c1ccccc1", id="assembly_of_three_rings"),
     ],
 )
 def test_no_conjunctive_name_where_p_15_6_2_excludes_it(smiles):

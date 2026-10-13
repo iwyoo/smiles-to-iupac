@@ -8,11 +8,16 @@ from collections import namedtuple
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents
-from ._diester_ring_diyl import PARENT_START, _system_of, evaluate_skeleton
-from ._ring_system_seniority import ring_seniority_key
+from ._common import (
+    KEEP_ASSEMBLY_ENDING, UnsupportedStructure, adjacency, alpha_sort_key, assembly_join, assign_cip_labels,
+    group_substituents, halogen_substituents,
+)
+from ._diester_ring_diyl import PARENT_START, _stereo_locant, _system_of, evaluate_skeleton
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._parent_locants import locant_key
+from ._polyfunctional import assembly_substituent
+from ._ring_system_seniority import ring_seniority_key
+from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
 
 _GREEK = "αβγδεζηθικλμνξοπρστυφχψω"
 _Class = namedtuple("_Class", "name query offset probe")
@@ -48,6 +53,8 @@ _Chain = namedtuple("_Chain", "path ring_atom rings atoms")
 _MARK = "\u00a7"
 _SUPERSCRIPT = "\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079"
 _ORGANIC = {1, 5, 6, 7, 8, 9, 14, 15, 16, 17, 34, 35, 52, 53}
+_ASSEMBLY_TAIL = re.compile(r"(?P<core>.+)-(?P<spot>\d+[a-z]*\u2032*(?:\([^)]*\))?)-yl")
+_DESCRIPTOR_LEAD = re.compile(r"\([^()]*\)-")
 _TAIL = re.compile(r"(?P<core>.+?)-(?P<locants>[\d,]+(?:\([^)]*\))?)-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?\u00a7")
 
 
@@ -82,15 +89,19 @@ def conjunctive_names(mol, name_parent):
     klass = _principal_class(mol) if mol.GetRingInfo().NumRings() else None
     if klass is None:
         return []
-    if any(e.specified == Chem.StereoSpecified.Specified for e in Chem.FindPotentialStereo(mol)):
-        raise UnsupportedStructure("the stereodescriptors of a conjunctive name are not cited yet")
     graph = adjacency(mol)
     anchors = {m[0] for m in mol.GetSubstructMatches(klass.query)}
     chains = [chain for anchor in sorted(anchors) if (chain := _side_chain(mol, graph, klass, anchor)) is not None]
     if not chains:
         return []
-    selected = _chosen_chains(mol, graph, klass, anchors, chains)
-    return [] if selected is None else [(_assemble(mol, graph, klass, selected, name_parent), "P-15.6.1.1")]
+    options = _chosen_chains(mol, graph, klass, anchors, chains)
+    if options is None:
+        return []
+    built = [_assemble(mol, graph, klass, anchors, selected, name_parent) for selected in options]
+    best = min(built, key=lambda b: b[0])
+    if len({name for key, name in built if key == best[0]}) > 1:
+        raise UnsupportedStructure("several side chains are equally senior as the conjunctive parent")
+    return [(best[1], "P-15.6.1.1")]
 
 
 def _principal_class(mol):
@@ -190,7 +201,7 @@ def _chain_substituents(mol, graph, klass, chain, anchors):
 
 def _chosen_chains(mol, graph, klass, anchors, chains):
     """The identical side chains of one cyclic component that express the most principal groups, then the senior ring and
-    the longer chain (P-15.6.1.5, P-15.6.1.6)."""
+    the longer chain (P-15.6.1.5, P-15.6.1.6); several selections are returned when these criteria leave a tie."""
     groups = {}
     for chain in chains:
         found = _chain_substituents(mol, graph, klass, chain, anchors)
@@ -204,24 +215,36 @@ def _chosen_chains(mol, graph, klass, anchors, chains):
         return -len(item[1]), ring_seniority_key(mol, item[0][0]), -item[0][1]
 
     ranked = sorted(groups.items(), key=rank)
-    if len(ranked) > 1 and rank(ranked[0]) == rank(ranked[1]):
-        raise UnsupportedStructure("several side chains are equally senior as the conjunctive parent")
-    return ranked[0][1]
+    return [group[1] for group in ranked if rank(group) == rank(ranked[0])]
 
 
-def _require_no_assembly(mol, graph, atoms):
-    """Identical ring systems joined by a single bond form a ring assembly, which is a cyclic component of its own."""
+def _assembly_partner(mol, graph, atoms):
+    """The atoms of the identical ring system joined to `atoms` by a single bond, which together form a ring assembly
+    (P-28), else None."""
     skeleton = Chem.MolFragmentToSmiles(mol, atomsToUse=sorted(atoms), canonical=True)
     for a in atoms:
         for n in graph[a]:
             if n not in atoms and mol.GetAtomWithIdx(n).IsInRing():
                 other = _system_of(mol, n)[1]
                 if Chem.MolFragmentToSmiles(mol, atomsToUse=sorted(other), canonical=True) == skeleton:
-                    raise UnsupportedStructure("the cyclic component is a ring assembly")
+                    return other
+    return None
 
 
-def _assemble(mol, graph, klass, selected, name_parent):
+def _locant_text(locant):
+    return re.sub(r"^(\d+)", lambda m: m.group(1) + "\u2032" * locant.primes, str(locant.number))
+
+
+def _assemble(mol, graph, klass, anchors, selected, name_parent):
+    """(key, name): the key ranks alternative selections by the prefixes of the whole name (P-45.2.1 to P-45.4)."""
     chains = [chain for chain, _ in selected]
+    skeleton = set(chains[0].atoms) | {a for chain in chains for a in chain.path}
+    roots = [n for a in skeleton for n in graph[a] if n not in skeleton]
+    with cited_branch_stereo(mol, graph, skeleton, roots):
+        return _assembled(mol, graph, klass, anchors, chains, name_parent)
+
+
+def _assembled(mol, graph, klass, anchors, chains, name_parent):
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     rings, atoms = chains[0].rings, chains[0].atoms
@@ -233,13 +256,66 @@ def _assemble(mol, graph, klass, selected, name_parent):
         blocked |= branch
     count = len(chains)
     attach = [chain.ring_atom for chain in chains]
-    _require_no_assembly(mol, graph, atoms)
     if sum(m[0] in atoms for m in mol.GetSubstructMatches(_DIRECT[klass.name])) > 1:
         raise UnsupportedStructure("P-15.6.2 (e): several groups of the principal kind on the ring system")
+    partner = _assembly_partner(mol, graph, atoms)
+    if partner is None:
+        grouped, core, locants, position_of, ring_labels, saturated_ring = _ring_part(
+            mol, graph, rings, atoms, attach, blocked, halogens, aromatic
+        )
+    else:
+        if count > 1 or any(
+            (other := _side_chain(mol, graph, klass, anchor)) is not None and other.ring_atom in partner for anchor in anchors
+        ):
+            raise UnsupportedStructure("several side chains on a ring assembly")
+        grouped, core, locants, position_of, ring_labels = _assembly_part(
+            mol, graph, chains[0], atoms | partner, blocked, halogens, aromatic
+        )
+        saturated_ring = False
+    order = sorted(range(count), key=lambda k: position_of[chains[k].ring_atom])
+    if count > len(_SUPERSCRIPT) - 1:
+        raise UnsupportedStructure("too many identical side chains for superscript locants")
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    chain_labels = []
+    for rank, k in enumerate(order, 1):
+        for position, name, compound in sorted(_chain_substituents(mol, graph, klass, chains[k], anchors)):
+            mark = _Mark(position, rank if count > 1 else 0)
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(mark)
+        for i, index in enumerate(chains[k].path):
+            if i >= klass.offset and probe.GetAtomWithIdx(index).HasProp("_CIPCode"):
+                chain_labels.append((_Mark(i - klass.offset, rank if count > 1 else 0), probe.GetAtomWithIdx(index).GetProp("_CIPCode")))
+    _require_every_stereo_element_cited(mol, atoms | {a for chain in chains for a in chain.path}, blocked, graph)
+    descriptor = ""
+    if chain_labels or ring_labels:
+        cited = [f"{mark}{code}" for mark, code in sorted(chain_labels, key=lambda item: item[0].order)]
+        cited += [f"{locant}{code}" for locant, code in ring_labels]
+        descriptor = f"({','.join(cited)})-"
+    prefixes = format_substituent_prefixes(grouped)
+    cited = "" if (core == "benzene" or saturated_ring) and count == 1 else f"-{locants}-"
+    chain = re.sub(r"-1-(?=ol$|thiol$|amine$)", "", name_parent(klass.probe(len(chains[0].path))))
+    side = chain if count == 1 else _multiplied(count, chain, len(chains[0].path))
+    if partner is None:
+        body = f"{prefixes}{'-' if prefixes and core[0].isdigit() else ''}{core}{cited}{side}"
+    else:
+        body = assembly_join(prefixes, f"{core}{cited}{side}")
+    return _prefix_key(grouped), descriptor + body
+
+
+def _ring_part(mol, graph, rings, atoms, attach, blocked, halogens, aromatic):
+    """(prefix groups, cyclic component name, attachment locants, positions, stereo labels, saturated monocycle)."""
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _MARK)
-    if found is None or found[3]:
+    if found is None:
         raise UnsupportedStructure("this cyclic component has no supported numbering")
-    group_name, position_of = found[1], found[2]
+    group_name, position_of, ring_stereo = found[1], found[2], found[3]
+    ring_labels = []
+    if ring_stereo:
+        if any(code.startswith("(") for _, code in ring_stereo):
+            raise UnsupportedStructure("this stereodescriptor of the cyclic component is not cited with a locant")
+        group_name = group_name[_DESCRIPTOR_LEAD.match(group_name).end():]
+        ring_labels = sorted(
+            ((_stereo_locant(a, position_of), code) for a, code in ring_stereo), key=lambda item: locant_key(item[0])
+        )
     start = PARENT_START.get()
     ring_subs = {}
     for a in atoms:
@@ -256,23 +332,71 @@ def _assemble(mol, graph, klass, selected, name_parent):
     if tail is None and not benzene:
         raise UnsupportedStructure("the group name of the cyclic component has no recognized attachment locants")
     core = "benzene" if benzene else tail.group("core")
-    order = sorted(range(count), key=lambda k: position_of[chains[k].ring_atom])
-    if count > len(_SUPERSCRIPT) - 1:
-        raise UnsupportedStructure("too many identical side chains for superscript locants")
-    for rank, k in enumerate(order, 1):
-        for position, name, compound in selected[k][1]:
-            mark = _Mark(position, rank if count > 1 else 0)
-            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(mark)
-    prefixes = format_substituent_prefixes(grouped)
+    locants = ",".join(str(x) for x in sorted(position_of[a] for a in attach)) if benzene else tail.group("locants")
     saturated_ring = len(rings) == 1 and all(
         mol.GetAtomWithIdx(a).GetAtomicNum() == 6 and mol.GetAtomWithIdx(a).GetHybridization() == Chem.HybridizationType.SP3
         for a in atoms
     )
-    locants = ",".join(str(x) for x in sorted(position_of[a] for a in attach)) if benzene else tail.group("locants")
-    cited = "" if (benzene or saturated_ring) and count == 1 else f"-{locants}-"
-    chain = re.sub(r"-1-(?=ol$|thiol$|amine$)", "", name_parent(klass.probe(len(chains[0].path))))
-    side = chain if count == 1 else _multiplied(count, chain, len(chains[0].path))
-    return f"{prefixes}{'-' if prefixes and core[0].isdigit() else ''}{core}{cited}{side}"
+    return grouped, core, locants, position_of, ring_labels, saturated_ring
+
+
+def _assembly_part(mol, graph, chain, assembly_atoms, blocked, halogens, aromatic):
+    """The same parts for a ring assembly, read from the name of the assembly as a substituent group entered at the ring
+    atom the side chain ends at (P-28, P-15.6.1.2)."""
+    for element in Chem.FindPotentialStereo(mol):
+        if element.specified == Chem.StereoSpecified.Specified and element.centeredOn in assembly_atoms:
+            raise UnsupportedStructure("a stereo element of a ring assembly is not cited with a locant")
+    place = {}
+    token = KEEP_ASSEMBLY_ENDING.set(True)
+    try:
+        named = assembly_substituent(
+            mol, graph, chain.ring_atom, chain.path[-1], halogens, aromatic, place=place, place_monocycles=True
+        )
+    finally:
+        KEEP_ASSEMBLY_ENDING.reset(token)
+    if named is None or "locants" not in place:
+        raise UnsupportedStructure("this ring assembly has no supported group name")
+    name = named[0].replace("'", "\u2032")
+    core = name[place["start"]:]
+    tail = _ASSEMBLY_TAIL.fullmatch(core)
+    if tail is None:
+        raise UnsupportedStructure("the group name of the ring assembly has no recognized attachment locant")
+    position_of = {a: _locant_text(loc) for a, loc in place["locants"].items()}
+    ring_subs = {}
+    for a in assembly_atoms:
+        for n in graph[a]:
+            if n not in assembly_atoms and n not in blocked:
+                ring_subs.setdefault(position_of[a], []).append(name_branch(graph, n, a, halogens, aromatic, mol=mol))
+    grouped = group_substituents(ring_subs)
+    if assembly_join(format_substituent_prefixes(grouped), core) != name:
+        raise UnsupportedStructure("the prefixes of the ring assembly are not those of its group name")
+    return grouped, tail.group("core"), tail.group("spot"), position_of, []
+
+
+def _prefix_key(grouped):
+    """P-45.2.1 more prefixes, P-45.2.2 lower locant set, P-45.2.3 lower locants in order of citation, P-45.4 earlier in
+    alphanumerical order; a Greek letter locant of the side chain ranks before a numeral."""
+
+    def order(locant):
+        return (0, *locant.order) if isinstance(locant, _Mark) else (1, *locant_key(locant))
+
+    names = sorted(grouped, key=alpha_sort_key)
+    all_locants = sorted(order(x) for info in grouped.values() for x in info["locants"])
+    cited = [sorted(order(x) for x in grouped[n]["locants"]) for n in names]
+    return -len(all_locants), all_locants, cited, [alpha_sort_key(n) for n in names]
+
+
+def _require_every_stereo_element_cited(mol, skeleton, blocked, graph):
+    """A specified element must lie in the skeleton or wholly in a substituent, where a name cites it."""
+    for element in Chem.FindPotentialStereo(mol):
+        if element.specified != Chem.StereoSpecified.Specified:
+            continue
+        if element.type == Chem.StereoType.Atom_Tetrahedral:
+            continue
+        bond = mol.GetBondWithIdx(element.centeredOn)
+        ends = {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()}
+        if len(ends & skeleton) == 1:
+            raise UnsupportedStructure("a stereodefined double bond joins the skeleton and a substituent")
 
 
 def _multiplied(count, chain, length):
