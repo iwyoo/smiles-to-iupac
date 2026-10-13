@@ -20,7 +20,7 @@ from ._common import (
     substituent_locant_set_and_citation,
     unsaturation_suffix,
 )
-from ._locant_omission import omits_all_locants
+from ._locant_omission import has_single_arrangement, omits_all_locants
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
 # alpha_sort_key lives in _common.py now; re-imported here (not redefined)
@@ -1489,6 +1489,7 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
             grouped,
             tert_butyl=_is_tert_butyl(graph, root, coming_from, halogens, mol),
             omit_locants=omits_all_locants(mol, chain, grouped, single_kind=False, free_atoms={coming_from}),
+            unambiguous=len(chain) == 2 and len(ene) + len(yne) == 1 and bool(grouped) and has_single_arrangement(mol, chain_set),
         )
         multiple = sorted(ene + yne)
         stereo_rank = _branch_stereo_rank(_branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}))
@@ -1522,7 +1523,7 @@ def _carries_label(root, atoms):
     return bool(context) and any(a in context["labels"] for a in [root, *atoms])
 
 
-def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, tert_butyl, omit_locants=False):
+def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, tert_butyl, omit_locants=False, unambiguous=False):
     if tert_butyl and suffix == "yl" and not ene and not yne:
         return "tert-butyl", False
     if length == 1 and list(grouped) == ["phenyl"] and len(grouped["phenyl"]["locants"]) == 1:
@@ -1537,7 +1538,7 @@ def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, te
             prefix = ""
     if not prefix:
         prefix = format_substituent_prefixes(
-            grouped, omit_locants=(length == 1), omit_all=omit_locants and root_position == 1 and not (ene or yne)
+            grouped, omit_locants=(length == 1 or unambiguous), omit_all=omit_locants and root_position == 1 and not (ene or yne)
         ) if grouped else ""
     multiple = len(ene) + len(yne)
     if not multiple:
@@ -1549,7 +1550,7 @@ def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, te
         stem = alkane_name(length)[:-3]
         if length == 2 and multiple == 1:
             bond = stem + ("en" if ene else "yn")
-            base = f"{bond}-{root_position}-{suffix}" if grouped else bond + suffix
+            base = f"{bond}-{root_position}-{suffix}" if grouped and not unambiguous else bond + suffix
         else:
             body, needs_a = unsaturation_suffix(ene, yne)
             base = f"{stem}{'a' if needs_a else ''}-{body[:-1]}-{root_position}-{suffix}"

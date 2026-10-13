@@ -1427,6 +1427,11 @@ def test_carbamate_esters_are_the_parent_of_polyfunctional_molecules(smiles, exp
             "2-(3-hydroxy-3-methylbutyl)-5,6-dimethyl-3-[2-(1,3-oxazol-5-yl)ethen-1-yl]benzene-1,4-diol",
             id="heteroaryl_ethenyl_on_a_diol",
         ),
+        pytest.param("OC(=O)c1ccc(cc1)C=C=O", "4-(oxoethenyl)benzoic acid", id="oxo_has_one_place_on_ethenyl"),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)C(F)=C=O", "4-[fluoro(oxo)ethenyl]benzoic acid", id="no_other_arrangement_of_two_prefixes_on_ethenyl"
+        ),
+        pytest.param("OC(=O)c1ccc(cc1)C=CCl", "4-(2-chloroethen-1-yl)benzoic acid", id="halogen_can_move_so_locants_stay"),
     ],
 )
 def test_unsaturated_substituents_carry_heteroatoms_and_heterocycles(smiles, expected):
