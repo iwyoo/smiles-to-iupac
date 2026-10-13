@@ -920,6 +920,9 @@ def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
         pytest.param("CSCSSSCSC", "bis[(methylsulfanyl)methyl]trisulfane", id="other_sulfur_units_stay_in_the_prefixes_of_the_polysulfane"),
         pytest.param("CSSSCCSSSCC", "ethyl[2-(methyltrisulfanyl)ethyl]trisulfane", id="different_end_groups_leave_a_substitutive_name"),
         pytest.param("ClCSSSCCSSSCCl", "1,1'-(ethane-1,2-diyl)bis[3-(chloromethyl)trisulfane]", id="compound_end_group_nests_the_marks"),
+        pytest.param("ClSSSC", "chloro(methyl)trisulfane", id="halogen_end_of_a_homogeneous_run"),
+        pytest.param("ClSSBr", "bromo(chloro)disulfane", id="pair_with_halogen_ends_only_is_the_parent"),
+        pytest.param("OCCSSSCl", "2-(chlorotrisulfanyl)ethan-1-ol", id="hydroxy_on_an_arm_outranks_the_run_as_parent"),
     ],
 )
 def test_hydrogen_terminated_chalcogen_chains_are_parent_hydrides_with_suffixes(smiles, expected):
@@ -1056,6 +1059,8 @@ def test_skeletal_chalcogen_with_nonstandard_bonding_number_keeps_lambda(smiles,
         pytest.param("C[Se][Se]CCSSC", "1-(methyldiselanyl)-2-(methyldisulfanyl)ethane", id="mixed_diselanyl_and_disulfanyl_on_ethane"),
         pytest.param("CC(C)[Se][Se]CCC", "1-[(propan-2-yl)diselanyl]propane", id="branched_diselanyl_prefix"),
         pytest.param("CSSCCSSC", "1,2-bis(methyldisulfanyl)ethane", id="two_disulfanyl_prefixes"),
+        pytest.param("BrSSC", "(bromodisulfanyl)methane", id="halogen_on_the_far_end_of_a_disulfanyl_prefix"),
+        pytest.param("I[Te][Te]CC", "(iododitellanyl)ethane", id="halogen_on_a_ditellanyl_prefix"),
         pytest.param("CSOCC", "[(methylsulfanyl)oxy]ethane", id="sulfur_oxygen_pair_prefix"),
         pytest.param("COSC1CCCCC1", "(methoxysulfanyl)cyclohexane", id="alkoxysulfanyl_prefix_on_a_ring"),
         pytest.param("C1(=CC=CC=C1)[Se][Te]C1=CC=CC=C1", "[(phenylselanyl)tellanyl]benzene", id="selenium_tellurium_pair_prefix"),

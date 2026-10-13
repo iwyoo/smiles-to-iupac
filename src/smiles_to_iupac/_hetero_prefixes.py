@@ -137,7 +137,8 @@ def _dichalcogenide_only(mol):
             len(ends) != 2
             or any(a.GetDegree() != 2 or a.IsInRing() for a in atoms)
             or any(sum(n.GetIdx() in run for n in a.GetNeighbors()) > 2 for a in atoms)
-            or any(not any(n.GetAtomicNum() in hosts for n in e.GetNeighbors()) for e in ends)
+            or any(not any(n.GetAtomicNum() in (*hosts, 9, 17, 35, 53) for n in e.GetNeighbors()) for e in ends)
+            or not any(n.GetAtomicNum() in hosts for e in ends for n in e.GetNeighbors())
             or (len(run) >= 3 and len({a.GetAtomicNum() for a in atoms}) == 1)
         ):
             return False
@@ -559,14 +560,17 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
     if tail:
         end = mol.GetAtomWithIdx(tail[0])
         hydride_end = end.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not end.IsInRing()
-        if (end.GetAtomicNum() != 6 and not hydride_end) or (
+        if halogens and tail[0] in halogens:
+            organyl = (halogens[tail[0]], False)
+        elif (end.GetAtomicNum() != 6 and not hydride_end) or (
             end.GetAtomicNum() == 6
             and is_functional_carbon(mol, tail[0])
             and not _thioacyl(mol, tail[0])
             and not (_is_cyanide_carbon(mol, tail[0], run[-1]) and atoms[-1].GetAtomicNum() == atoms[-2].GetAtomicNum())
         ):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
-        organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
+        else:
+            organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
     elif len(run) == 2 and _on_carbon(graph, mol, first, second) and not any(
         mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *_OXYGEN_PEROXOL)
     ):
