@@ -158,6 +158,14 @@ def test_polyamine_n_locants_and_ring_parents(smiles, expected):
         pytest.param(
             "CCN(C)CNCC", "N,N'-diethyl-N-methylmethanediamine", id="geminal_diamine_unprimed_nitrogen_has_more_substituents"
         ),
+        pytest.param(
+            "C=CCNCNC(C)C",
+            "N-(propan-2-yl)-N'-(prop-2-en-1-yl)methanediamine",
+            id="geminal_diamine_unsaturated_substituent_cited_in_alphanumerical_order",
+        ),
+        pytest.param(
+            "C1CCCCC1NCNCC", "N-cyclohexyl-N'-ethylmethanediamine", id="geminal_diamine_ring_substituent_on_nitrogen"
+        ),
         pytest.param("NCCNCNCCN", "N1,N1'-methylenedi(ethane-1,2-diamine)", id="methylene_joins_diamine_nitrogens"),
         pytest.param(
             "Nc1ccc(NCNc2ccc(N)cc2)cc1", "N1,N1'-methylenedi(benzene-1,4-diamine)", id="methylene_joins_aryl_diamine"
