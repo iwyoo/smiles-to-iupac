@@ -1570,10 +1570,18 @@ def assign_cip_labels(mol):
             bond.SetProp("_CIPCode", _ENANTIOMORPHIC_BOND_CODE[bond.GetProp("_CIPCode")])
 
 
+_OPPOSITE_BOND_STEREO = {
+    Chem.BondStereo.STEREOE: Chem.BondStereo.STEREOZ,
+    Chem.BondStereo.STEREOZ: Chem.BondStereo.STEREOE,
+    Chem.BondStereo.STEREOCIS: Chem.BondStereo.STEREOTRANS,
+    Chem.BondStereo.STEREOTRANS: Chem.BondStereo.STEREOCIS,
+}
+
+
 def match_cip_labels(original, copy):
-    """Inverts the chirality tag of each tetrahedral centre of `copy` whose CIP label differs from the label of the atom
-    with the same index in `original`, so that a name built from the copy cites the descriptors of the structure itself
-    (P-92.1.4)."""
+    """Inverts the chirality tag of each tetrahedral centre and the stereo of each double bond of `copy` whose CIP label
+    differs from the label of the atom or bond with the same indices in `original`, so that a name built from the copy
+    cites the descriptors of the structure itself (P-92.1.4, P-93.5.1)."""
     reference, rewritten = Chem.Mol(original), Chem.Mol(copy)
     assign_cip_labels(reference)
     assign_cip_labels(rewritten)
@@ -1582,6 +1590,14 @@ def match_cip_labels(original, copy):
         if idx < reference.GetNumAtoms() and atom.HasProp("_CIPCode") and reference.GetAtomWithIdx(idx).HasProp("_CIPCode"):
             if atom.GetProp("_CIPCode") != reference.GetAtomWithIdx(idx).GetProp("_CIPCode"):
                 copy.GetAtomWithIdx(idx).InvertChirality()
+    for bond in rewritten.GetBonds():
+        begin, end = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        known = reference.GetBondBetweenAtoms(begin, end) if max(begin, end) < reference.GetNumAtoms() else None
+        if known is not None and bond.HasProp("_CIPCode") and known.HasProp("_CIPCode") and bond.GetProp("_CIPCode") != known.GetProp("_CIPCode"):
+            target = copy.GetBondWithIdx(bond.GetIdx())
+            target.SetStereoAtoms(*target.GetStereoAtoms())
+            target.SetStereo(_OPPOSITE_BOND_STEREO[target.GetStereo()])
+            Chem.SetDoubleBondNeighborDirections(copy)
 
 
 def specified_stereocenters(mol):

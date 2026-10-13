@@ -44,6 +44,8 @@ def test_acetal_stereocenter(smiles, expected):
         pytest.param("C=CC(=O)Cl", "prop-2-enoyl chloride", id="unsaturated_acyl_halide"),
         pytest.param("CC(C)CC(=O)Cl", "3-methylbutanoyl chloride", id="branched_substituent"),
         pytest.param("CC(C[C@H](C)Cl)C(=O)Cl", "(4S)-4-chloro-2-methylpentanoyl chloride", id="branch_stereocenter_cites_the_specified_elements"),
+        pytest.param("CC/C=C(/C(F)(F)F)C(=O)Cl", "(2Z)-2-(trifluoromethyl)pent-2-enoyl chloride", id="descriptor_ranks_the_halide_not_the_acid"),
+        pytest.param("CC[C@H](C=S)CS", "(2S)-2-(sulfanylmethyl)butanethial", id="thial_outranks_the_sulfanylmethyl_group"),
     ],
 )
 def test_unsaturated_acyl_halide_and_related(smiles, expected):
