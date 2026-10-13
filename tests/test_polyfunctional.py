@@ -414,6 +414,7 @@ def test_peroxol_ranks_after_the_chalcogenols_and_before_their_peroxol_analogues
         pytest.param("COc1ccc(C(=O)N2CCCCC2)cc1", "(4-methoxyphenyl)(piperidin-1-yl)methanone", id="aroyl_ring_nitrogen_pseudoketone"),
         pytest.param("CC(=O)N1CCN(c2ccccc2)CC1", "1-(4-phenylpiperazin-1-yl)ethan-1-one", id="acyl_ring_nitrogen_with_aryl_on_other_nitrogen"),
         pytest.param("CC(C)C(=O)N1CCCC1C", "2-methyl-1-(2-methylpyrrolidin-1-yl)propan-1-one", id="branched_acyl_substituted_ring"),
+        pytest.param("CCC(=O)N1CCN=C1C", "1-(2-methyl-4,5-dihydro-1H-imidazol-1-yl)propan-1-one", id="acyl_ring_nitrogen_beside_an_in_ring_double_bond_to_nitrogen"),
     ],
 )
 def test_branched_alkoxy_r_and_related(smiles, expected):
