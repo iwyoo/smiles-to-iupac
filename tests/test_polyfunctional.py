@@ -1,5 +1,5 @@
 import pytest
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import smiles_to_alternative_names, smiles_to_iupac
 from smiles_to_iupac._coexisting_groups import name_via_senior_acyclic
 from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._seniority import SUFFIX_CLASS_RANK
@@ -1706,3 +1706,49 @@ def test_ester_on_a_substituent_beside_a_free_acid(smiles, expected):
 )
 def test_geminal_groups_of_one_carbon_are_one_multiplied_suffix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1(=CC=CC=C1)CC(=O)O", "benzeneacetic acid", id="acid_chain_on_benzene_without_locant"),
+        pytest.param("C1(CCCCC1)CO", "cyclohexanemethanol", id="alcohol_chain_on_cycloalkane"),
+        pytest.param("OCCCc1ccc2ccccc2c1", "naphthalene-2-propanol", id="fused_ring_attachment_locant"),
+        pytest.param("S1C(=NC=C1)CC(=O)O", "1,3-thiazole-2-acetic acid", id="heteroring_attachment_locant"),
+        pytest.param("OCCN1CCCC1", "pyrrolidine-1-ethanol", id="chain_on_a_ring_nitrogen"),
+        pytest.param("CC1=CC2=CN(C=C2C=C1C)CC(=O)O", "5,6-dimethyl-2H-isoindole-2-acetic acid", id="ring_substituents_and_indicated_hydrogen"),
+        pytest.param("OC(=O)CN1C=CC=CC1", "pyridine-1(2H)-acetic acid", id="added_hydrogen_after_the_attachment_locant"),
+        pytest.param("ClC(CO)CC1=CC2=CC=CC=C2C=C1", "β-chloronaphthalene-2-propanol", id="greek_letter_substituent"),
+        pytest.param("C1(=CC=CC=C1)CCC(CCC)O", "α-propylbenzenepropanol", id="substituent_on_the_carbon_of_the_principal_group"),
+        pytest.param("OCCC(C)c1ccc2ccccc2c1", "γ-methylnaphthalene-2-propanol", id="chain_extension_is_a_substituent"),
+        pytest.param("N#CCc1ccccc1", "benzeneacetonitrile", id="nitrile_chain"),
+        pytest.param("NCCc1ccccc1", "benzeneethanamine", id="amine_chain"),
+        pytest.param("C1=C(C(=CC2=CC=CC=C12)CC(=O)O)CC(=O)O", "naphthalene-2,3-diacetic acid", id="identical_chains"),
+        pytest.param("N1=C(C(=CC=C1)CCCCCCCCCC(=O)O)CCCCCCCCCC(=O)O", "pyridine-2,3-di(decanoic acid)", id="multiplied_chain_name_enclosed"),
+        pytest.param("OC(=O)C(C)c1ccccc1C(C)C(=O)O", "α¹,α²-dimethylbenzene-1,2-diacetic acid", id="superscripts_number_identical_chains"),
+        pytest.param("C(=O)(O)CC1=C(C2=CC=CC=C2C=C1CC(=O)O)CCC(=O)O", "1-(2-carboxyethyl)naphthalene-2,3-diacetic acid", id="most_identical_chains_form_the_parent"),
+        pytest.param("C1(CCCCC1)C(CO)C1=CC2=CC=CC=C2C=C1", "β-cyclohexylnaphthalene-2-ethanol", id="senior_ring_is_the_cyclic_component"),
+        pytest.param("O=CCCCCCCC=1C=C(C=O)C=CC1", "3-formylbenzeneheptanal", id="one_group_of_the_principal_kind_on_the_ring"),
+    ],
+)
+def test_conjunctive_names(smiles, expected):
+    # P-15.6.1, P-15.6.3
+    assert [a.name for a in smiles_to_alternative_names(smiles) if a.kind == "conjunctive"] == [expected]
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("C1(CCCC1)=CC(=O)O", id="double_bond_to_the_ring"),
+        pytest.param("OC(=O)CSc1ccccc1", id="heteroatom_in_the_side_chain"),
+        pytest.param("C1(CCCCC1)C(C(=O)O)CCCC(=O)O", id="two_principal_groups_on_the_chain"),
+        pytest.param("OCCc1ccccc1C(=O)O", id="senior_group_on_the_ring"),
+        pytest.param("OCC1=C(C=CC(=C1)O)O", id="several_groups_of_the_principal_kind_on_the_ring"),
+        pytest.param("CC(=O)CCc1ccccc1", id="ketone_is_the_principal_group"),
+        pytest.param("COC(=O)Cc1ccccc1", id="ester_is_the_principal_group"),
+        pytest.param("OC(=O)Cc1ccc(cc1)-c1ccccc1", id="ring_assembly_is_a_cyclic_component_of_its_own"),
+        pytest.param("O[C@H](C)Cc1ccccc1", id="stereodescriptors_are_not_cited"),
+    ],
+)
+def test_no_conjunctive_name_where_p_15_6_2_excludes_it(smiles):
+    assert [a for a in smiles_to_alternative_names(smiles) if a.kind == "conjunctive"] == []
