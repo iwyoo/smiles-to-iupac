@@ -1,7 +1,7 @@
 import re
 
 import pytest
-from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_alternative_names, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
@@ -1351,3 +1351,22 @@ def test_substituent_prefixes_keep_multiple_bonds_and_heteroatoms(smiles, expect
 def test_locants_are_omitted_when_no_isomer_can_be_generated(smiles, expected):
     # P-14.3.4.4
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCC(OC)OC", "propanal dimethyl acetal", id="acetal"),
+        pytest.param("CCOC1(OC)CCCCC1", "cyclohexanone ethyl methyl ketal", id="ketal_substituents_alphanumerically"),
+        pytest.param("CCC1OCCO1", "propanal ethylene acetal", id="cyclic_acetal"),
+        pytest.param("CCC1OCCCO1", "propanal propane-1,3-diyl acetal", id="cyclic_acetal_longer_alkylene"),
+        pytest.param("CCCC(O)OCC", "butanal ethyl hemiacetal", id="hemiacetal"),
+        pytest.param("CCCCC(SC)SC", "pentanal dimethyl dithioacetal", id="dithioacetal"),
+        pytest.param("CCC(SCC)OC", "propanal S-ethyl O-methyl monothioacetal", id="element_symbols_for_different_substituents"),
+        pytest.param("CCOC1(SCC)CCCC1", "cyclopentanone diethyl monothioketal", id="identical_substituents_need_no_element_symbol"),
+        pytest.param("CCSC1([SeH])CCCC1", "cyclopentanone S-ethyl selenothiohemiketal", id="mixed_chalcogen_hemiketal"),
+    ],
+)
+def test_functional_modifier_names_of_acetals(smiles, expected):
+    # P-66.6.5.1 to P-66.6.5.4
+    assert [a.name for a in smiles_to_alternative_names(smiles) if a.kind == "functional-modifier"] == [expected]

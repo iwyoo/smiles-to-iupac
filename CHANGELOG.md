@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `smiles_to_alternative_names()` and `smiles-to-iupac --alternatives` return the
+  general-nomenclature alternatives to the preferred name, starting with
+  functional-modifier names (oximes, hydrazones, azines, semicarbazones,
+  acetals, ketals and hemiacetals).
+
 ## 0.1.0 (alpha)
 
 First public release.

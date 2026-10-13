@@ -4,7 +4,7 @@ import re
 import tokenize
 from rdkit import Chem
 from rdkit.Chem import RWMol
-from smiles_to_iupac import NonPreferredNameWarning, __version__, smiles_to_iupac
+from smiles_to_iupac import AlternativeName, NonPreferredNameWarning, __version__, smiles_to_alternative_names, smiles_to_iupac
 from smiles_to_iupac.__main__ import main
 from smiles_to_iupac._common import UnsupportedStructure, adjacency
 from smiles_to_iupac._numerals import numerical_term
@@ -129,6 +129,42 @@ def test_continues_after_error(capsys):
     assert exit_code != 0
     assert "CC\tethane" in captured.out
     assert "not_a_smiles" in captured.err
+
+
+def test_alternatives_flag_prints_kind_and_name(capsys):
+    assert main(["--alternatives", "CCC=NO", "CCO"]) == 0
+    assert capsys.readouterr().out == "CCC=NO\tfunctional-modifier\tpropanal oxime\n"
+
+
+def test_alternative_names_label_kind_and_rule_and_keep_the_pin():
+    assert smiles_to_alternative_names("CCC=NO") == [AlternativeName("functional-modifier", "propanal oxime", "P-68.3.1.1.2")]
+    assert smiles_to_iupac("CCC=NO") == "N-hydroxypropan-1-imine"
+    with pytest.raises(ValueError):
+        smiles_to_alternative_names("not_a_smiles")
+    with pytest.raises(TypeError):
+        smiles_to_alternative_names(None)
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("CCO", id="no_derivative_group"),
+        pytest.param("CC=NOCC(=O)O", id="senior_group_in_the_substituent"),
+        pytest.param("CC=[15N]O", id="isotope_would_be_lost"),
+        pytest.param("CC[C@H](C)/C=N/O", id="configuration_beside_another_stereo_element"),
+        pytest.param("C/C(=N\\O)/C(C)=N/O", id="configurations_of_several_groups"),
+        pytest.param("C/C=N/N=C/C", id="azine_configuration"),
+        pytest.param("COC1OCCCC1", id="ring_through_the_acetal_carbon"),
+        pytest.param("CC=NNC(=O)c1ccccc1", id="acylhydrazone_other_than_semicarbazone"),
+        pytest.param("ON=CCC=NN", id="two_classes_in_one_molecule"),
+        pytest.param("C[N+](C)(C)CC=NO", id="charged_atom_outside_a_nitro_group"),
+        pytest.param("CC(c1ccccc1)=NN=CC", id="azine_component_with_a_ring_beside_the_carbonyl"),
+        pytest.param("CC1CCCCC1=NN=C1CCC(C)CC1", id="azine_components_of_equal_class_and_ring_seniority"),
+        pytest.param("CC(=NO)C(=O)C(C)=O", id="parent_locants_tie_between_both_chain_ends"),
+    ],
+)
+def test_no_functional_modifier_name_where_the_class_word_would_mislead(smiles):
+    assert smiles_to_alternative_names(smiles) == []
 
 
 P = "P(c1ccccc1)(c1ccccc1)c1ccccc1"

@@ -121,6 +121,24 @@ with warnings.catch_warnings(record=True) as caught:
     )
 ```
 
+### Alternative names
+
+`smiles_to_iupac` returns one name, the preferred one where the Blue Book
+defines it. The general-nomenclature names the Blue Book allows next to it are
+returned by `smiles_to_alternative_names`, each labelled by kind and rule:
+
+```python
+from smiles_to_iupac import smiles_to_alternative_names
+
+smiles_to_alternative_names("CCC=NO")
+# [AlternativeName(kind='functional-modifier', name='propanal oxime', rule='P-68.3.1.1.2')]
+```
+
+Kinds so far: `functional-modifier` (oxime, hydrazone, azine, semicarbazone,
+acetal, ketal and hemiacetal class names, P-15.2.2, P-66.6.5, P-68.3.1). The
+list is empty when no alternative applies. On the command line,
+`smiles-to-iupac --alternatives CCC=NO` prints `<kind>\t<name>` lines.
+
 ### Errors
 
 | Exception | Meaning |
