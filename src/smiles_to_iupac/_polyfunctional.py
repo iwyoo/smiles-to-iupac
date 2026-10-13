@@ -491,11 +491,23 @@ def _ring_nitrogen_acyl(mol, nitrogen, carbonyl):
             if not bond.IsInRing():
                 return False
         elif bond.GetBondTypeAsDouble() != 1.0 or not (
-            (n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx()))
+            (n.GetAtomicNum() == 6 and (not is_functional_carbon(mol, n.GetIdx()) or _ring_skeleton_carbon(mol, n, nitrogen)))
             or (n.GetAtomicNum() in _RING_HETERO_NEIGHBORS and n.IsInRing() and not n.GetFormalCharge())
         ):
             return False
     return True
+
+
+def _ring_skeleton_carbon(mol, carbon, nitrogen):
+    """A ring carbon whose only multiple bonds to heteroatoms lie inside the ring of `nitrogen` (C2 of a 4,5-dihydro-1H-imidazole):
+    it is a member of the ring parent, not a group of its own."""
+    rings = [set(r) for r in mol.GetRingInfo().AtomRings() if nitrogen.GetIdx() in r and carbon.GetIdx() in r]
+    return bool(rings) and all(
+        b.GetBondTypeAsDouble() == 1.0
+        or b.GetOtherAtom(carbon).GetAtomicNum() == 6
+        or any(b.GetOtherAtomIdx(carbon.GetIdx()) in ring for ring in rings)
+        for b in carbon.GetBonds()
+    )
 
 
 def _sulfonyl_group(mol, s_idx, attached):
