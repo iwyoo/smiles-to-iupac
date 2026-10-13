@@ -859,6 +859,16 @@ def test_ring_stereodescriptors_are_cited_once(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("CCC/C(=C\\OC)CC", "(3Z)-3-(methoxymethylidene)hexane", id="ylidene_ether_beside_a_longer_chain"),
+    ],
+)
+def test_ylidene_double_bond_is_cited_for_the_chosen_parent_only(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("O/N=C1/CC[C@@H](C)CC1", "(1seqCis,4R)-N-hydroxy-4-methylcyclohexan-1-imine", id="seqcis"),
         pytest.param("O/N=C1/CC[C@H](C)CC1", "(1seqTrans,4S)-N-hydroxy-4-methylcyclohexan-1-imine", id="seqtrans"),
         pytest.param("C/C=C1/C[C@H](C)C[C@@H](C)C1", "(3R,5R)-1-ethylidene-3,5-dimethylcyclohexane", id="ring_paths_alike"),
