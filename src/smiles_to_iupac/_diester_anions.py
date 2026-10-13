@@ -71,6 +71,8 @@ def cip_labels(mol, side, chain_double_bonds=False):
         else:
             bond = mol.GetBondWithIdx(element.centeredOn)
             inside = bond.GetBeginAtomIdx() in side and bond.GetEndAtomIdx() in side
+            if element.specified != Chem.StereoSpecified.Specified and _has_bare_cumulated_end(bond):
+                continue
         if inside:
             in_side.append(element)
     specified = [e for e in in_side if e.specified == Chem.StereoSpecified.Specified]
@@ -102,6 +104,15 @@ def cip_labels(mol, side, chain_double_bonds=False):
                 raise UnsupportedStructure("could not determine a CIP label for a ring double bond")
             labels.append(((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), bond.GetProp("_CIPCode")))
     return labels
+
+
+def _has_bare_cumulated_end(bond):
+    """An end atom whose only other bonds are double has no substituent to tell the two sides apart, as the carbon of
+    N=C=O does."""
+    return any(
+        atom.GetTotalNumHs() == 0 and all(b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds() if b.GetIdx() != bond.GetIdx())
+        for atom in (bond.GetBeginAtom(), bond.GetEndAtom())
+    )
 
 
 def _is_double_bond(mol, element):
