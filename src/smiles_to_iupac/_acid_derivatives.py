@@ -571,6 +571,38 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     return " ".join(part for part in (_pendant_text(mol, graph, pendants), diyl, anion_text) if part)
 
 
+_ACETATE_TAIL = re.compile(r"(di|tri|tetra|penta|hexa)acetate$")
+
+
+def _cyanic_polyester(mol, esters, acid_pieces):
+    """P-65.6.3.2.2, P-65.6.3.3.7.2.1: 'propane-1,3-diyl dithiocyanate'. The organyl group joining identical cyanic acid
+    anions is named as in the acetate of the same polyol, whose cyano-chalcogen groups stand in for the acetyloxy ones; the
+    anion word then replaces 'acetate'."""
+    from .core import smiles_to_iupac
+
+    if any((_center(mol, l.center) or ("",))[0] != "cyanic" or len(l.chain) != 1 for l in esters):
+        return None
+    if len({mol.GetAtomWithIdx(l.chain[0]).GetAtomicNum() for l in esters}) != 1:
+        return None
+    proxy = Chem.RWMol(mol)
+    for l in esters:
+        proxy.GetAtomWithIdx(l.chain[0]).SetAtomicNum(8)
+        nitrogen = next(n.GetIdx() for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetAtomicNum() == 7)
+        proxy.GetAtomWithIdx(nitrogen).SetAtomicNum(8)
+        proxy.GetBondBetweenAtoms(l.center, nitrogen).SetBondType(Chem.BondType.DOUBLE)
+        proxy.AddBond(l.center, proxy.AddAtom(Chem.Atom(6)), Chem.BondType.SINGLE)
+    proxy = proxy.GetMol()
+    Chem.SanitizeMol(proxy)
+    match_cip_labels(mol, proxy)
+    name = smiles_to_iupac(Chem.MolToSmiles(proxy))
+    tail = _ACETATE_TAIL.search(name)
+    if tail is None:
+        return None
+    link = esters[0]
+    pieces, owner = _fragments(mol, [(link.chain[-1], link.far)])
+    acid = _acid_name(mol, pieces[owner[link.center]], [link.chain[-1]])
+    return name[: tail.start()] + tail.group(1) + anion_name(acid, letters_in_anion=False)
+
 def _ester_pieces(mol, esters):
     frags, owner = _fragments(mol, [(l.chain[-1], l.far) for l in esters])
     acid_pieces, r_pieces = {}, {}
@@ -754,6 +786,9 @@ def name_ester(mol, links):
     graph = adjacency(mol)
     frags, owner, acid_pieces, r_pieces = _ester_pieces(mol, esters)
     if len(acid_pieces) > 1:
+        cyanic = _cyanic_polyester(mol, esters, acid_pieces)
+        if cyanic is not None:
+            return cyanic
         suffixed = _suffixed_links(mol, frags, acid_pieces)
         multiplicative = _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces, suffixed)
         if multiplicative is not None:
