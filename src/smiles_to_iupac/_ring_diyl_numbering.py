@@ -1190,6 +1190,8 @@ def _bridged_numberings(mol, skeleton_atoms):
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
         stem = parent.stem
         modified = {a for a in capable if position_of[a] in hydro or position_of[a] in ih} | (accommodated & capable)
+        # an oxo position that carries indicated hydrogen leaves the system partly modified (P-58.2.3.1.2)
+        modified -= {a for a in accommodated & capable if position_of[a] in ih}
         fully_saturated = bool(hydro) and capable <= modified
 
         def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, stem=stem, full=fully_saturated):
