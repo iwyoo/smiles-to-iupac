@@ -427,6 +427,18 @@ def test_ester_outside_the_parent_acid_is_a_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-14.3.4.4, P-65.6.3.2.1: locants of a mixed diester are cited when moving the substituent or an ester group gives an isomer
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CCOC(=O)CC(O)C(=O)OC", "4-ethyl 1-methyl 2-hydroxybutanedioate", id="substituent_breaks_the_symmetry"),
+        pytest.param("CCOC(=O)C(O)C(O)C(=O)OC", "ethyl methyl 2,3-dihydroxybutanedioate", id="symmetric_substitution_needs_no_locants"),
+    ],
+)
+def test_mixed_diester_of_a_substituted_diacid_cites_its_locants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
