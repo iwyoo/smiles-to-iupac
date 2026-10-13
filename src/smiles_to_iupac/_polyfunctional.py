@@ -72,7 +72,7 @@ from ._ring_diyl_numbering import OMIT_SUFFIX_LOCANT, _exocyclic_oxo
 from ._ring_system_seniority import ring_seniority_key
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import SULFONYL_CENTRES, SULFONYL_GROUP_NAMES, carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
-from ._retained_acids import retained_chain_acid, single_site_prefixes
+from ._retained_acids import retained_chain_acid, single_site_prefixes, split_retained_prefix
 from ._hydroperoxide import peroxol_suffix
 from ._locant_omission import has_single_arrangement, omits_all_locants, omits_group_locants
 from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
@@ -6106,7 +6106,7 @@ def _evaluate(
         if retained is None and attach is None and spec.anion and spec.center == "C" and length == 1 and set(grouped) == {"carboxy"}:
             retained = "hydrogen oxalate"
         if retained is not None:
-            prefix, body, tail = "", retained, ""
+            (prefix, body), tail = split_retained_prefix(grouped, retained), ""
         elif spec.center == "C":
             word, tail = chain_suffix(spec, count)
             body = name_from_substituents(length, ene, yne, word)
@@ -6118,7 +6118,7 @@ def _evaluate(
     elif principal == "acid":
         retained = None if attach is not None else retained_chain_acid(grouped, length, ene, yne, count, "acid")
         if retained is not None:
-            prefix, body, tail = "", retained, ""
+            (prefix, body), tail = split_retained_prefix(grouped, retained), ""
         else:
             body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, "oic")), " acid"
             if attach is not None and length == 2 and count == 1 and not ene and not yne:

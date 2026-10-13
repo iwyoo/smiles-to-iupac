@@ -197,6 +197,20 @@ def test_isotope_on_ring_parent(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("[2H]C([2H])(C(=O)O)c1ccccc1", "phenyl(2,2-2H2)acetic acid", id="acid"),
+        pytest.param("[2H][C@@H](C(=O)O)C1CCCC1", "(2R)-cyclopentyl(2-2H1)acetic acid", id="stereo_prefix_stays_in_front"),
+        pytest.param("[2H]C([2H])(C(=O)Cl)c1ccccc1", "phenyl(2,2-2H2)acetyl chloride", id="acyl_halide"),
+        pytest.param("[2H]C([2H])(C(=O)OC)c1ccccc1", "methyl phenyl(2,2-2H2)acetate", id="ester"),
+        pytest.param("[2H]C([2H])(C(=O)O)c1ccc(Cl)cc1", "(4-chlorophenyl)(2,2-2H2)acetic acid", id="compound_prefix"),
+    ],
+)
+def test_descriptor_follows_the_prefixes_of_a_substituted_retained_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("OC=[18O]", "(O-18O)formic acid"),
     ],
 )

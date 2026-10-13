@@ -41,6 +41,13 @@ def single_site_prefixes(grouped):
     return "".join(parts)
 
 
+def split_retained_prefix(grouped, retained):
+    """(substituent prefixes, retained stem) of a name from `retained_chain_acid`, so that the stem alone is the
+    parent word a nuclide descriptor goes in front of (P-82.2.1)."""
+    lead = single_site_prefixes(grouped)
+    return (lead, retained[len(lead):]) if lead and retained.startswith(lead) else ("", retained)
+
+
 def retained_chain_acid(grouped, chain_length, ene_locants, yne_locants, count, family):
     """Name of an acid, anion or acyl group on a one- or two-carbon chain with
     a retained name, or None; `family` is 'acid', 'anion', 'acyl' or 'acylium'."""
