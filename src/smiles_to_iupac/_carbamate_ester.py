@@ -9,9 +9,10 @@ is cited as substituent groups: the alkyl group of the ester before the word, th
 from rdkit import Chem
 
 from ._common import assign_cip_labels
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents
+from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
 from ._multiplicative_text import enclose
-from ._substituents import BRANCH_STEREO, format_mononuclear_prefixes, name_branch
+from ._substituents import BRANCH_STEREO, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _CARBAMATE = Chem.MolFromSmarts("[NX3;!R]-[CX3;!R](=O)-[OX2;!R]-[#6]")
 _SENIOR_TO_CARBAMATE = [
@@ -59,6 +60,10 @@ def _arm_name(mol, graph, root, parent, halogens, aromatic, codes):
 
 def name_carbamate_ester(mol) -> str:
     """The name of a molecule whose senior group is one acyclic carbamate ester, else raises."""
+    labels = {}
+    split = split_isotopes(mol)
+    if split is not None:
+        mol, labels, _ = split
     if len(Chem.GetMolFrags(mol)) != 1 or any(
         a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()
     ):
@@ -95,6 +100,12 @@ def name_carbamate_ester(mol) -> str:
     if len(covered) != mol.GetNumAtoms():
         raise UnsupportedStructure("an atom of the molecule lies outside the carbamate and its substituents")
     alkyl_text = enclose(alkyl_name[0]) if alkyl_name[1] and " " in alkyl_name[0] else alkyl_name[0]
+    if labels:
+        if set(labels) != {nitrogen}:
+            raise UnsupportedStructure("only the nitrogen of a carbamate ester can carry a nuclide label here")
+        nuclides = nitrogen_hydrogen_descriptor(mol, {nitrogen: ("N", labels[nitrogen])})
+        prefixes = format_substituent_prefixes(group_substituents({"N": entries})) if entries else ""
+        return f"{alkyl_text} {prefixes}{nuclides}carbamate"
     if not entries:
         return f"{alkyl_text} carbamate"
     if len(entries) == 1 and entries[0][1]:
