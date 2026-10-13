@@ -4977,8 +4977,11 @@ def _ring_linker_name(mol, graph, stereo):
             _, _, parts = _select(unit, attach)
         except UnsupportedStructure:
             continue
+        ring_stereo = [element for element in stereo if _stereo_within(element, ring_set)]
+        if len(ring_stereo) != len(stereo) or any(kind != "atom" for kind, _, _ in ring_stereo):
+            raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
         if spec is not None:
-            linker = name_ring_component(mol, ring, attachments, [], None)
+            linker = name_ring_component(mol, ring, attachments, [], None, stereo=ring_stereo)
         else:
             from ._diester_ring_diyl import evaluate_skeleton
 
@@ -4996,12 +4999,10 @@ def _ring_linker_name(mol, graph, stereo):
                 linker = (phane, True) if phane else None
         if linker is None:
             continue
-        if stereo:
-            raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
         prefix, body, tail, locant = parts[:4]
         lead = f"{locant},{locant}'-" if locant is not None else ""
         text = prefix + body
-        linker_text = f"({linker[0]})" if linker[1] else enclose(linker[0])
+        linker_text = f"({linker[0]})" if linker[1] and not ring_stereo else enclose(linker[0])
         if prefix:
             return f"{lead}{linker_text}bis({text}){tail}"
         return f"{lead}{linker_text}di{unit_phrase(text, tail)}"

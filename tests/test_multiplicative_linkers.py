@@ -446,6 +446,18 @@ def test_chain_units_on_fused_and_composite_linkers(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC[C@H]1CCC[C@H]1CO", "[(1R,2S)-cyclopentane-1,2-diyl]dimethanol", id="r_takes_the_lower_locant"),
+        pytest.param("NC[C@H]1CCC[C@@H]1CN", "[(1S,2S)-cyclopentane-1,2-diyl]dimethanamine", id="amine_units"),
+        pytest.param("OC[C@H]1CCO[C@@H]1CO", "[(2S,3R)-oxolane-2,3-diyl]dimethanol", id="heteromonocycle_fixes_the_numbering"),
+    ],
+)
+def test_stereodescriptors_of_a_ring_linker_stand_inside_its_enclosing_marks(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 _ARYL_ACID = "OC(=O)c1ccc(cc1)"
 _ACID_ARYL = "c1ccc(cc1)C(=O)O"
 
