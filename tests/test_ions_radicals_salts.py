@@ -1868,6 +1868,26 @@ def test_cip_descriptor_of_a_stereogenic_azanium_or_phosphanium_centre(smiles, e
             "1-methyl-1-azoniabicyclo[2.2.1]heptane—bromide—sodium(1+) (1/1/1)",
             id="component_of_a_multi_component_adduct",
         ),
+        pytest.param(
+            "C1=C2C3=C([P+]4(C2=CC=C1)C1=C(C2=CC=CC=C24)C=CC=C1)C=CC=C3",
+            "9-phosphonia-9,9′-spirobi[fluorene]",
+            id="spiro_atom_of_two_fused_components",
+        ),
+        pytest.param(
+            "C[P+]1(C)c2ccc(O)cc2-c2ccccc21",
+            "9,9-dimethyl-9-phosphoniafluoren-3-ol",
+            id="fused_system_with_the_indicated_hydrogen_on_the_replaced_atom",
+        ),
+        pytest.param(
+            "C[As+]1(C)c2ccccc2Oc2ccccc21",
+            "9,9-dimethyl-10-oxa-9-arsoniaanthracene",
+            id="hydro_prefixes_of_two_replaced_atoms_and_the_element_order",
+        ),
+        pytest.param(
+            "c1ccc2c(c1)C[N+]1(C2)Cc2ccccc2C1",
+            "1,1′,3,3′-tetrahydro-2-azonia-2,2′-spirobi[indene]",
+            id="hydro_prefixes_stay_before_the_replacement_prefix",
+        ),
     ],
 )
 def test_ionic_skeletal_replacement_prefixes(smiles, expected):
@@ -1880,6 +1900,8 @@ def test_ionic_skeletal_replacement_prefixes(smiles, expected):
     [
         pytest.param("C[N+]12CCC(CC1)C2CO", id="senior_group_on_a_side_chain"),
         pytest.param("C[N+]12CCC(CC1)C2NC", id="substituted_amine_as_the_senior_group"),
+        pytest.param("c1ccc2c(c1)[S+](C)c1ccccc12", id="aromatic_heteroatom_of_a_fusion_name"),
+        pytest.param("c1ccc2c(c1)[S+]=CCSC=C2", id="multiply_bonded_heteroatom_of_a_fused_ring"),
         pytest.param("C[N+]1(C)CCCCC1", id="no_replacement_prefix_in_the_name"),
         pytest.param("C1CC2CCC1[Si-]2(C)C", id="bonding_number_without_an_ionic_prefix"),
     ],
