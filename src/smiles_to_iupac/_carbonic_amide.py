@@ -4,6 +4,7 @@ diamide."""
 
 from rdkit import Chem
 
+from ._cited_group import cited_group
 from ._common import adjacency, halogen_substituents, is_nitro_nitrogen
 from ._numerals import numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
@@ -13,12 +14,17 @@ _CARBON_AND_HALOGEN = {6, 9, 17, 35, 53}
 _MAXIMUM_CARBONIC_UNITS = 4
 
 
-def _plain(mol):
+def _has_stereo(mol):
+    return any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) or any(
+        b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
+    )
+
+
+def _plain(mol, stereo=False):
     return (
         len(Chem.GetMolFrags(mol)) == 1
         and not any(a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms())
-        and not any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms())
-        and not any(b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds())
+        and (stereo or not _has_stereo(mol))
     )
 
 
@@ -60,12 +66,15 @@ def _hydrocarbon_arms(mol, graph, nitrogen, skip):
         if nitrogen in arm or covered & arm or not all(plain_arm_atom(mol.GetAtomWithIdx(i)) for i in arm):
             return None
         covered |= arm
-        names.append(name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol, unsaturated=True))
+        if _has_stereo(mol):
+            names.append(cited_group(mol, graph, root, nitrogen))
+        else:
+            names.append(name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol, unsaturated=True))
     return names, covered
 
 
 def cyanamide_name(mol):
-    if not _plain(mol):
+    if not _plain(mol, stereo=True):
         return None
     graph = adjacency(mol)
     for atom in mol.GetAtoms():
