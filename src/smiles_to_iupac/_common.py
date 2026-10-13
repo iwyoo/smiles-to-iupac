@@ -1578,21 +1578,27 @@ _OPPOSITE_BOND_STEREO = {
 }
 
 
-def match_cip_labels(original, copy):
+def match_cip_labels(original, copy, origin=None):
     """Inverts the chirality tag of each tetrahedral centre and the stereo of each double bond of `copy` whose CIP label
-    differs from the label of the atom or bond with the same indices in `original`, so that a name built from the copy
-    cites the descriptors of the structure itself (P-92.1.4, P-93.5.1)."""
+    differs from the label of the atom or bond it stands for in `original`, so that a name built from the copy
+    cites the descriptors of the structure itself (P-92.1.4, P-93.5.1). `origin` maps an atom index of `copy` to the
+    index of its atom in `original` (the same index by default)."""
     reference, rewritten = Chem.Mol(original), Chem.Mol(copy)
     assign_cip_labels(reference)
     assign_cip_labels(rewritten)
+
+    def source(idx):
+        found = idx if origin is None else origin.get(idx)
+        return found if found is not None and found < reference.GetNumAtoms() else None
+
     for atom in rewritten.GetAtoms():
-        idx = atom.GetIdx()
-        if idx < reference.GetNumAtoms() and atom.HasProp("_CIPCode") and reference.GetAtomWithIdx(idx).HasProp("_CIPCode"):
-            if atom.GetProp("_CIPCode") != reference.GetAtomWithIdx(idx).GetProp("_CIPCode"):
-                copy.GetAtomWithIdx(idx).InvertChirality()
+        known = source(atom.GetIdx())
+        if known is not None and atom.HasProp("_CIPCode") and reference.GetAtomWithIdx(known).HasProp("_CIPCode"):
+            if atom.GetProp("_CIPCode") != reference.GetAtomWithIdx(known).GetProp("_CIPCode"):
+                copy.GetAtomWithIdx(atom.GetIdx()).InvertChirality()
     for bond in rewritten.GetBonds():
-        begin, end = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        known = reference.GetBondBetweenAtoms(begin, end) if max(begin, end) < reference.GetNumAtoms() else None
+        begin, end = source(bond.GetBeginAtomIdx()), source(bond.GetEndAtomIdx())
+        known = reference.GetBondBetweenAtoms(begin, end) if begin is not None and end is not None else None
         if known is not None and bond.HasProp("_CIPCode") and known.HasProp("_CIPCode") and bond.GetProp("_CIPCode") != known.GetProp("_CIPCode"):
             target = copy.GetBondWithIdx(bond.GetIdx())
             target.SetStereoAtoms(*target.GetStereoAtoms())

@@ -267,7 +267,8 @@ def _capped_acid(mol, keep, caps):
 
 def _acid_name(mol, keep, caps):
     """Name of the free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`."""
-    acid, _ = _capped_acid(mol, keep, caps)
+    acid, index = _capped_acid(mol, keep, caps)
+    match_cip_labels(mol, acid, {i: idx for idx, i in index.items()})
     for atom in acid.GetAtoms():
         if atom.GetAtomicNum() in (15, 16):
             # the descriptor of a stereogenic acid centre is cited in front of the anion, not inside the acid name

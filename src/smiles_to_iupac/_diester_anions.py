@@ -7,7 +7,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import assign_cip_labels
+from ._common import assign_cip_labels, match_cip_labels
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -194,6 +194,7 @@ def _general_anion(mol, graph, match, component):
         rw.RemoveAtom(idx)
     sub = rw.GetMol()
     Chem.SanitizeMol(sub)
+    match_cip_labels(mol, sub, dict(enumerate(sorted(component))))
     acid_name = smiles_to_iupac(Chem.MolToSmiles(sub))
     if not acid_name.endswith("ic acid"):
         raise UnsupportedStructure("the acyl group's parent acid has no 'ic acid' name to convert to an anion")

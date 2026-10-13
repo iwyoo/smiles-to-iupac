@@ -382,6 +382,17 @@ def test_ester_acyl_stereocenter(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("COC(=O)CC[C@@H]1CCC(=O)O1", "methyl 3-[(2S)-5-oxooxolan-2-yl]propanoate", id="alkyl_group_outranks_the_ring_path"),
+        pytest.param("C/C=C(/C(=O)OC)C(=O)OCC", "ethyl (2Z)-2-(methoxycarbonyl)but-2-enoate", id="double_bond_ranked_through_the_alkyl_groups"),
+    ],
+)
+def test_descriptors_are_assigned_on_the_ester_not_on_its_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("COC(=O)C(c1ccccc1)c1ccccc1", "methyl diphenylacetate"),
         ("O=C(OC)c1ccc(Cc2ccccc2)cc1", "methyl 4-benzylbenzoate"),
         ("CC(=O)OCc1ccc(Cl)cc1", "(4-chlorophenyl)methyl acetate"),
