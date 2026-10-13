@@ -432,6 +432,16 @@ def _skeletal_linker_name(mol, graph, arms, span):
     return f"{lead}{linker}{multiplier_word(2, False)}{unit_phrase(text, tail)}"
 
 
+def _bare_groups_on_one_ring_atom(mol, kind, edges, arms):
+    """Principal groups with one carbon each on a single atom of a ring are a multiplied suffix of the ring parent, not
+    units of a multiplicative name (P-65.1.2.2.2, P-66.1.1.1.1.3)."""
+    return (
+        kind == "ring"
+        and len({x for x, _, _ in edges}) == 1
+        and all(sum(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in atoms) == 1 for _, _, atoms in arms)
+    )
+
+
 def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
@@ -534,7 +544,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     except DecompositionRejected:
         return None
     except UnsupportedStructure:
-        if len({o for _, _, o in edges[center]}) > 1:
+        if len({o for _, _, o in edges[center]}) > 1 or _bare_groups_on_one_ring_atom(mol, kind, edges[center], arms):
             return None
         raise
     if count == 2:
