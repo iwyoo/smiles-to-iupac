@@ -25,6 +25,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
+from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._peptide import has_peptide_shape, name_peptide
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
@@ -788,7 +789,7 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
     # Acyl/substituent namers re-name the same fragment hundreds of times while ranking candidates.
     if not nested() or FORCED_BRANCH_NAMES.get():
         return _name_unabridged(smiles)
-    key = (smiles, SYSTEMATIC_ACID_PROBE.get())
+    key = (smiles, SYSTEMATIC_ACID_PROBE.get(), CITE_SUBSTITUENT_LOCANTS.get())
     entry = _NESTED_NAMES.get(key)
     if entry is None:
         start = reason_count()

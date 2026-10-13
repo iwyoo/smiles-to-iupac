@@ -811,7 +811,13 @@ def name_ester(mol, links):
         cited, hydrogen_positions = polycarbonic
     else:
         cited = _ester_locants(mol, acid_atoms, per_link, free_centers) if (len(named) > 1 or free) and len(chosen) + free > 1 else None
-        if cited is None:
+        if cited is not None:
+            token = CITE_SUBSTITUENT_LOCANTS.set(True)
+            try:
+                anion = anion_name(_acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen]), letters_in_anion=False)
+            finally:
+                CITE_SUBSTITUENT_LOCANTS.reset(token)
+        else:
             cited = _diphosphate_locants(mol, acid_atoms, per_link, free_centers)
     entries = [
         (name, compound, count, cited[name] if cited else letters) for name, (count, compound, letters) in named.items()
@@ -826,17 +832,14 @@ def _ester_locants(mol, acid_atoms, per_link, free_centers):
     """{organyl name: acid locants} when the acid positions are not equivalent (P-65.6.3.2.2: '16-ethyl 18-methyl
     yohimban-16,18-dicarboxylate'), else None."""
     ends = {a for l, _ in per_link for a in l.chain}
-    core = [
-        a
-        for a in acid_atoms
-        if a not in ends
-        and not (
-            mol.GetAtomWithIdx(a).GetAtomicNum() in _SYMBOL
-            and mol.GetAtomWithIdx(a).GetDegree() == 1
-            and mol.GetAtomWithIdx(a).GetTotalNumHs() == 1
-        )
-    ]
     centers = sorted({l.center for l, _ in per_link} | set(free_centers))
+    free_groups = {
+        n.GetIdx()
+        for c in free_centers
+        for n in mol.GetAtomWithIdx(c).GetNeighbors()
+        if n.GetAtomicNum() in _SYMBOL and n.GetDegree() == 1 and n.GetTotalNumHs() == 1
+    }
+    core = [a for a in acid_atoms if a not in ends and a not in free_groups]
     locants, symmetric = _locants_of(mol, core, centers, with_symmetry=True)
     if symmetric:
         return None
