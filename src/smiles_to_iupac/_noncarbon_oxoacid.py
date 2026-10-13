@@ -228,6 +228,11 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
     return None
 
 
+def _ring_nitrogen(atom):
+    """A ring nitrogen on the acid centre is a substituent group (piperidin-1-yl), not an amid ligand (P-67.1.2.4.2)."""
+    return atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetFormalCharge() and not atom.GetIsotope()
+
+
 def _parse(mol, centre):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -238,9 +243,10 @@ def _parse(mol, centre):
     hydrogens = centre.GetTotalNumHs()
     for neighbor in centre.GetNeighbors():
         order = mol.GetBondBetweenAtoms(centre.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble()
-        if neighbor.GetAtomicNum() == 6 and order == 1.0 and not _plain_tree(mol, graph, neighbor.GetIdx(), centre.GetIdx()):
+        group = order == 1.0 and (neighbor.GetAtomicNum() == 6 or _ring_nitrogen(neighbor))
+        if group and not _plain_tree(mol, graph, neighbor.GetIdx(), centre.GetIdx()):
             return None
-        if neighbor.GetAtomicNum() == 6 and order == 1.0 and not any(
+        if group and not any(
             p for p, _, _ in _PSEUDOHALIDE_PATTERNS if any(m[0] == neighbor.GetIdx() for m in mol.GetSubstructMatches(p))
         ):
             organyl.append(neighbor)

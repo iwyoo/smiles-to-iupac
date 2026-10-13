@@ -269,6 +269,8 @@ def test_free_mononuclear_oxoacids(smiles, expected):
         ("CC[Sb](=O)(O)CC", "diethylstibinic acid"),
         ("O=P(Cl)(Cl)Cl", "phosphoryl trichloride"),
         ("O=P(c1ccccc1)(Cl)Cl", "phenylphosphonic dichloride"),
+        ("O=P(Cl)(Cl)N1CCCCC1", "(piperidin-1-yl)phosphonic dichloride"),
+        ("O=P(N)(N)N1CCCCC1C(=O)O", "1-phosphorodiamidoylpiperidine-2-carboxylic acid"),
         ("CCP(=S)(CC)Cl", "diethylphosphinothioic chloride"),
         ("CN(C)P(=O)(N(C)C)N(C)C", "hexamethylphosphoric triamide"),
         ("CN(C)P(=O)(C)C", "N,N,P,P-tetramethylphosphinic amide"),
