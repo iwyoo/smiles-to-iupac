@@ -517,6 +517,8 @@ def test_smiles_to_iupac_unsaturated(smiles, expected):
         pytest.param("CC=C/C=C\\CCC", "(4Z)-octa-2,4-diene", id="unspecified_double_bond_takes_no_descriptor"),
         pytest.param("C/C=C/C=CC", "(2E)-hexa-2,4-diene", id="equal_numberings_give_the_lower_locant_to_the_cited_bond"),
         pytest.param("C/C=C/C=C\\C", "(2Z,4E)-hexa-2,4-diene", id="z_takes_the_lower_locant_when_numberings_are_equal"),
+        pytest.param("CCC/C(=C/C)CC", "(2E)-3-ethylhex-2-ene", id="equally_long_chain_that_leaves_the_cited_bond_out"),
+        pytest.param("C=CC/C(=C\\C)CCC", "(4Z)-4-ethylidenehept-1-ene", id="longer_chain_turns_the_cited_bond_into_an_ylidene"),
     ],
 )
 def test_smiles_to_iupac_ez_double_bond(smiles, expected):

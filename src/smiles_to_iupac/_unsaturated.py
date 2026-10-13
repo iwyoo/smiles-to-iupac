@@ -243,7 +243,11 @@ def name_acyclic_unsaturated(mol) -> str:
             substituents = substituents_for_chain(graph, candidate, halogens, mol=mol, unsaturated=True)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            cited = sorted(min(position_of[a] for a in _bond_atoms(mol, idx)) for _, idx, _ in bond_stereo)
+            cited = sorted(
+                locant
+                for _, idx, _ in bond_stereo
+                if (locant := bond_locant(candidate, _bond_atoms(mol, idx))) is not None
+            )
             key = (key, stereo_locant_rank(mol, bond_stereo, position_of), cited)
             if best_key is None or key < best_key:
                 best_key, best_name, best_candidate = key, name, candidate
