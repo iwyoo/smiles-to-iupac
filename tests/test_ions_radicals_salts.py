@@ -1153,6 +1153,12 @@ def test_iminium_and_mixed_ionic_centres(smiles, expected):
         pytest.param("C[N+](C)(C)CC[N+](C)(C)C", "N1,N1,N1,N2,N2,N2-hexamethylethane-1,2-bis(aminium)", id="quaternary_bis_aminium"),
         pytest.param("C[NH2+]CC[NH2+]C", "N1,N2-dimethylethane-1,2-bis(aminium)", id="secondary_bis_aminium"),
         pytest.param("[NH3+]CC(C(=O)O)C[NH3+]", "2-carboxypropane-1,3-bis(aminium)", id="bis_aminium_with_a_prefix_group"),
+        pytest.param("C[Si](C)(C)[NH3+]", "1,1,1-trimethylsilanaminium", id="aminium_on_a_silane_parent"),
+        pytest.param(
+            "C[Si](C)(C)[NH2+][SiH2][NH2+][Si](C)(C)C",
+            "N,N'-bis(trimethylsilyl)silanebis(aminium)",
+            id="bis_aminium_on_a_silane_parent_with_n_substituents",
+        ),
         pytest.param("C1C[NH2+]CC[NH2+]1.[Cl-].[Cl-]", "piperazine-1,4-diium dichloride", id="dication_salt"),
     ],
 )

@@ -1357,6 +1357,11 @@ def _plain_oxy_group(mol, atom):
     )
 
 
+def _hydride_centre(atom):
+    """An acyclic neutral atom of a mononuclear parent hydride other than carbon (silane, germane, ...)."""
+    return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not atom.IsInRing() and not atom.GetFormalCharge()
+
+
 def _aminium_base(mol, ignore=frozenset()):
     """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
     (a cation outranks every acid, P-41), else None; the charges of an azoxy group are not ammonium charges."""
@@ -1370,12 +1375,13 @@ def _aminium_base(mol, ignore=frozenset()):
             or nitrogen.IsInRing()
             or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
             or any(
-                (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n))
+                (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n) and not _hydride_centre(n))
                 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
                 or _double_oxygens(mol, n.GetIdx())
                 for n in nitrogen.GetNeighbors()
             )
-            or not any(n.GetAtomicNum() == 6 for n in nitrogen.GetNeighbors())
+            or not any(n.GetAtomicNum() == 6 or _hydride_centre(n) for n in nitrogen.GetNeighbors())
+            or (nitrogen.GetTotalNumHs() == 0 and any(_hydride_centre(n) for n in nitrogen.GetNeighbors()))
         ):
             return None
     if all(n.GetTotalNumHs() == 0 for n in charged):
