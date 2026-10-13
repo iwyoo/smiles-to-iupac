@@ -1850,6 +1850,24 @@ def test_cip_descriptor_of_a_stereogenic_azanium_or_phosphanium_centre(smiles, e
         pytest.param("C[B-]1(C)CC2(CCCCC2)CC1", "2,2-dimethyl-2-boranuidaspiro[4.5]decane", id="uida"),
         pytest.param("C1CCCC[PH2-]12CCCCC2", "6λ5-phosphanuidaspiro[5.5]undecane", id="uida_keeps_the_lambda_parent"),
         pytest.param("C1CC2CCC1[P-]2", "7-phosphanidabicyclo[2.2.1]heptane", id="ida"),
+        pytest.param("C[N+]12CCC(CC1)C2O", "1-methyl-1-azoniabicyclo[2.2.1]heptan-7-ol", id="hydroxy_becomes_the_suffix"),
+        pytest.param("C[N+]12CC(=O)C(CC1)C2", "1-methyl-1-azoniabicyclo[2.2.1]heptan-3-one", id="oxo_becomes_the_suffix"),
+        pytest.param(
+            "C[N+]12CCC(CC1)C2C(=O)O", "1-methyl-1-azoniabicyclo[2.2.1]heptane-7-carboxylic acid", id="carboxy_becomes_the_suffix"
+        ),
+        pytest.param("O[C@H]1C[N+]2(C)CCC1CC2", "(3R)-1-methyl-1-azoniabicyclo[2.2.2]octan-3-ol", id="descriptor_stays_with_the_ring"),
+        pytest.param("C[B-]1(C)CC2(CCC(O)CC2)CC1", "2,2-dimethyl-2-boranuidaspiro[4.5]decan-8-ol", id="anionic_prefix_beside_a_suffix"),
+        pytest.param("C[N+]12CCN(CC1)C2", "1-methyl-1-azonia-4-azabicyclo[2.2.1]heptane", id="charged_and_neutral_atoms_of_one_element"),
+        pytest.param(
+            "C[N+]12CCN(CC1)C(O)C2",
+            "4-methyl-4-azonia-1-azabicyclo[2.2.2]octan-2-ol",
+            id="numbering_by_the_suffix_instead_of_the_ionic_ending",
+        ),
+        pytest.param(
+            "C[N+]12CCC(CC1)C2.[Br-].[Na+]",
+            "1-methyl-1-azoniabicyclo[2.2.1]heptane—bromide—sodium(1+) (1/1/1)",
+            id="component_of_a_multi_component_adduct",
+        ),
     ],
 )
 def test_ionic_skeletal_replacement_prefixes(smiles, expected):
@@ -1860,8 +1878,8 @@ def test_ionic_skeletal_replacement_prefixes(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("C[N+]12CCN(CC1)C2", id="charged_and_neutral_heteroatoms_of_one_element"),
-        pytest.param("C[N+]12CCC(CC1)C2O", id="hydroxy_would_become_the_suffix"),
+        pytest.param("C[N+]12CCC(CC1)C2CO", id="senior_group_on_a_side_chain"),
+        pytest.param("C[N+]12CCC(CC1)C2NC", id="substituted_amine_as_the_senior_group"),
         pytest.param("C[N+]1(C)CCCCC1", id="no_replacement_prefix_in_the_name"),
         pytest.param("C1CC2CCC1[Si-]2(C)C", id="bonding_number_without_an_ionic_prefix"),
     ],
