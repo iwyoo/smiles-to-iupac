@@ -46,7 +46,22 @@ def _key(mol, atoms, attach):
 _DOUBLY_BONDED_PAIRS = (7, 14, 15, 32, 33, 50, 51, 82, 83)
 
 
-def _is_linker_atom(mol, atom):
+def _acyl_carbon(carbon):
+    return any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(carbon).GetAtomicNum() == 8 and b.GetOtherAtom(carbon).GetDegree() == 1
+        for b in carbon.GetBonds()
+    )
+
+
+def _acyl_branch(graph, carbon, nitrogen):
+    """The atoms of the acyl group on `carbon` seen from `nitrogen`, or none when they close a ring back to it."""
+    atoms = _arm(graph, carbon, nitrogen)
+    return set() if nitrogen in atoms else atoms
+
+
+def _is_linker_atom(mol, atom, acyl_prefixes=frozenset()):
+    """`acyl_prefixes`: the carbons that a nitrogen linker may carry as acyl groups, cited as prefixes of the linker
+    because a group senior to the amide is the principal one (P-41, P-65.1)."""
     if atom.GetAtomicNum() not in _LINKER_ELEMENTS or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
         return False
     if atom.GetDegree() < 2 or atom.GetNumRadicalElectrons():
@@ -69,7 +84,8 @@ def _is_linker_atom(mol, atom):
         if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen and not sulfonyl_oxygen:
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()) and not imine_nitrogen:
-            if not _diacyl_carbon(mol, other, atom):
+            acyl_prefix = atom.GetAtomicNum() == 7 and other.GetIdx() in acyl_prefixes
+            if not acyl_prefix and not _diacyl_carbon(mol, other, atom):
                 return False
     return True
 
@@ -953,10 +969,24 @@ def _chain_multiplicative_name(mol, stereo):
                 return name
         return None
     principal, anchors, heads = found
+    from ._polyfunctional import _SENIORITY
+
+    acyl_prefixes = (
+        frozenset(
+            a.GetIdx()
+            for a in mol.GetAtoms()
+            if _acyl_carbon(a)
+            and not any(
+                _acyl_branch(graph, a.GetIdx(), n.GetIdx()) & anchors for n in a.GetNeighbors() if n.GetAtomicNum() == 7
+            )
+        )
+        if _SENIORITY.index(principal) < _SENIORITY.index("amide")
+        else frozenset()
+    )
     linkers = {
         a.GetIdx()
         for a in mol.GetAtoms()
-        if _is_linker_atom(mol, a) and not (principal == "amine" and a.GetAtomicNum() == 7)
+        if _is_linker_atom(mol, a, acyl_prefixes) and not (principal == "amine" and a.GetAtomicNum() == 7)
     }
     candidates, nitrogen = {}, {}
     for r in range(mol.GetNumAtoms()):

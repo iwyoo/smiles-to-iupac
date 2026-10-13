@@ -107,6 +107,17 @@ def test_diacyl_and_diamido_linking_groups_and_oxamoylamino(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("CC(=O)N(CC(=O)O)CC(=O)O", "2,2'-(acetylazanediyl)diacetic acid"),
+        ("CC(=O)N(CC(N)=O)CC(N)=O", "2-[acetyl(2-amino-2-oxoethyl)amino]acetamide"),
+    ],
+)
+def test_acyl_group_on_a_linking_nitrogen_is_a_prefix_only_under_a_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("[SiH3][SiH2]C[SiH2][SiH3]", "1,1'-methylenebis(disilane)"),
         ("F[Si](F)(F)[Si](F)(F)C[Si](F)(F)[Si](F)(F)F", "1,1'-methylenebis(pentafluorodisilane)"),
         ("C([SiH2][SiH2]C)[SiH2][SiH2]C", "1,1'-methylenebis(2-methyldisilane)"),
