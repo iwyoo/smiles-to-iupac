@@ -3112,11 +3112,20 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not is_functional_carbon(mol, a.GetIdx())
     }
     best = None
+    stereo_context = BRANCH_STEREO.get()
+    used_before = set(stereo_context["used"]) if stereo_context else set()
+    best_used = set()
     for path in _paths(graph, eligible):
         for chain in (path, path[::-1]):
+            if stereo_context:
+                stereo_context["used"] &= used_before
             candidate = _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo)
             if best is None or candidate[0] < best[0]:
                 best = candidate
+                best_used = set(stereo_context["used"]) - used_before if stereo_context else set()
+    if stereo_context:
+        stereo_context["used"] &= used_before
+        stereo_context["used"] |= best_used
     if best is None:
         raise UnsupportedStructure("no chain carbons")
     return best
