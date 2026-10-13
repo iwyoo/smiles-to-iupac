@@ -697,6 +697,7 @@ def test_sugar_substituent_is_glycosyl_only_when_linked_at_the_anomeric_carbon(s
             "α-D-fructopyranose β-D-fructopyranose 1,2\u2032:1\u2032,2-dianhydride",
             id="intermolecular_dianhydride",
         ),
+        pytest.param("N=C[C@H]1CC[C@@H](C=O)O1", "2,5-anhydro-3,4,6-trideoxy-6-imino-L-erythro-hexose", id="terminal_imine_restored_to_a_hydroxymethyl_group"),
     ],
 )
 def test_intramolecular_anhydro_sugars(smiles, expected):
