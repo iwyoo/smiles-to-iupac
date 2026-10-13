@@ -647,6 +647,8 @@ def test_phenyl_thiocyanate():
     [
         ("CC(=S)O", "ethanethioic O-acid"),
         ("O=CS", "methanethioic S-acid"),
+        ("O=C(S)C(C)Oc1ccccc1", "2-phenoxypropanethioic S-acid"),
+        ("O=C(S)C(C)Sc1ccccc1", "2-(phenylsulfanyl)propanethioic S-acid"),
     ],
 )
 def test_thioic_acid(smiles, expected):
