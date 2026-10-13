@@ -1,7 +1,7 @@
 """Two identical nitrogen-bearing parents joined through their nitrogen atoms by an alkanediyl group (P-62.2.5.2):
 N1,N1'-methylenedi(ethane-1,2-diamine), N',N'''-(ethane-1,2-diyl)diacetohydrazide.
-Amine parents are only joined multiplicatively through methylene; a longer chain between two amine nitrogens
-is itself a diamine parent (P-62.2.4.1.2), and so is a methylene between two monoamine nitrogens (methanediamine)."""
+Amine parents are only joined multiplicatively through methylene (N,N'-methylenediethanamine, P-62.2.5.1); a longer chain
+between two amine nitrogens is itself a diamine parent (P-62.2.4.1.2)."""
 
 import re
 
@@ -12,6 +12,7 @@ from ._multiplicative_text import unit_phrase
 from ._numerals import alkane_name
 
 _MARKER = "tert-butyl"
+_NITROGEN_PREFIX = re.compile(r"amino|anilino|imino")
 _MARKER_LOCANT = re.compile(r"((?:N['′]*\d*,)*N['′]*\d*)-(?:\d+[a-z]*-)?" + _MARKER)
 
 
@@ -28,7 +29,11 @@ def _is_imine_nitrogen(atom):
 
 def _is_attach_nitrogen(atom):
     return _is_imine_nitrogen(atom) or (
-        atom.GetAtomicNum() == 7 and not atom.IsInRing() and atom.GetTotalNumHs() == 1 and atom.GetDegree() == 2
+        atom.GetAtomicNum() == 7
+        and not atom.IsInRing()
+        and atom.GetTotalNumHs() + atom.GetDegree() == 3
+        and atom.GetTotalNumHs() <= 1
+        and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds())
     )
 
 
@@ -90,6 +95,16 @@ def _fragment(mol, atoms, attach, marked):
     return Chem.MolToSmiles(fragment)
 
 
+def _has_heteroatom_neighbor(nitrogen, methylene):
+    return any(
+        n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors() if n.GetIdx() != methylene.GetIdx()
+    )
+
+
+def _starts_with_locant(unit_name):
+    return unit_name[0].isdigit() or unit_name.startswith("N")
+
+
 def _nth_locant(token, index, nitrogens_per_unit):
     letters = token[1:]
     digits = re.sub(r"['′]", "", letters)
@@ -132,14 +147,16 @@ def name_nitrogen_methylene_multiplicative(mol):
         found = _MARKER_LOCANT.search(marked_name)
         if _MARKER in unit_name or (nitrogens > 1 and found is None):
             continue
-        if len(path) > 1 and not unit_name.endswith(("hydrazide", "imine")):
+        if nitrogens == 1 and (_NITROGEN_PREFIX.search(unit_name) or _has_heteroatom_neighbor(pair[0], path[0])):
             continue
-        if nitrogens == 1 and len(path) == 1 and unit_name.endswith(("amine", "aniline")):
+        if len(path) > 1 and not unit_name.endswith(("hydrazide", "imine")):
             continue
         token = "N" if nitrogens == 1 else found.group(1).split(",")[-1]
         locants = ",".join(_nth_locant(token, k, nitrogens) for k in range(2))
         central = "methylene" if len(path) == 1 else f"({alkane_name(len(path))}-1,{len(path)}-diyl)"
-        if unit_name.endswith("imine") and _imine_carbon_with_ring_substituent(plain[0]):
+        if _starts_with_locant(unit_name) or (
+            unit_name.endswith("imine") and _imine_carbon_with_ring_substituent(plain[0])
+        ):
             return f"{locants}-{central}bis({unit_name})"
         return f"{locants}-{central}di{unit_phrase(unit_name, '')}"
     return None
