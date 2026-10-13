@@ -706,15 +706,35 @@ def _name_isotope_label(mol) -> str:
     return _name_labelled_substituents(mol)
 
 
+def _same_descriptors(mol, clean, index):
+    """Whether every stereo element has the same CIP descriptor with and without the nuclides (P-92.1.4)."""
+    labelled, plain = Chem.Mol(mol), Chem.Mol(clean)
+    assign_cip_labels(labelled)
+    assign_cip_labels(plain)
+    atoms = {index[a.GetIdx()]: a.GetProp("_CIPCode") for a in labelled.GetAtoms() if a.HasProp("_CIPCode")}
+    bonds = {
+        frozenset((index[b.GetBeginAtomIdx()], index[b.GetEndAtomIdx()])): b.GetProp("_CIPCode")
+        for b in labelled.GetBonds()
+        if b.HasProp("_CIPCode")
+    }
+    return atoms == {a.GetIdx(): a.GetProp("_CIPCode") for a in plain.GetAtoms() if a.HasProp("_CIPCode")} and bonds == {
+        frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())): b.GetProp("_CIPCode") for b in plain.GetBonds() if b.HasProp("_CIPCode")
+    }
+
+
 def _name_labelled_substituents(mol):
     """Any parent named without its nuclides whose labelled atoms all sit in substituent groups that cite them."""
     from ._isotope_labels import split_isotopes
     from ._substituents import ISOTOPE_LABELS
 
     split = split_isotopes(mol)
-    if split is None or any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in split[0].GetAtoms()):
+    if split is None:
         raise UnsupportedStructure("this isotopically modified structure is not supported yet")
-    clean, labels, _ = split
+    clean, labels, index = split
+    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) and not _same_descriptors(
+        mol, clean, index
+    ):
+        raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
     context = {"labels": labels, "consumed": set(), "mol": clean}
     token = ISOTOPE_LABELS.set(context)
     try:

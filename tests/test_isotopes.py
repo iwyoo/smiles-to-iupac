@@ -223,6 +223,20 @@ def test_nuclide_on_the_nitrogen_of_an_acylamino_prefix(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("[2H]C([2H])([2H])C(=O)NC(C)C(=O)O", "N-[(2H3)acetyl]alanine", id="every_hydrogen_of_the_acyl_group_modified"),
+        pytest.param("[3H]CC(=O)NC(C)C(=O)O", "N-[(2-3H1)acetyl]alanine", id="locant_kept_beside_remaining_hydrogens"),
+        pytest.param(
+            "[2H]C([2H])([2H])C(=O)N[C@H](CC(C)C)C(=O)O", "N-[(2H3)acetyl]-D-leucine", id="configuration_unchanged_by_the_acyl_label"
+        ),
+    ],
+)
+def test_nuclide_on_the_acyl_group_of_an_acylated_amino_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("OC=[18O]", "(O-18O)formic acid"),
     ],
 )
