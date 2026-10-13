@@ -428,6 +428,11 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
             "2-[(2-chloroethyl)(methyl)amino]-2-deoxy-β-D-glucopyranose",
             id="compound_amino_prefix_is_bracketed",
         ),
+        pytest.param(
+            "O=C[C@@]1(O)O[C@H](CO)[C@@H](O)[C@H]1O",
+            "(2S,3R,4S,5R)-2,3,4-trihydroxy-5-(hydroxymethyl)oxolane-2-carbaldehyde",
+            id="ring_of_a_ketoaldose_is_not_a_ketose",
+        ),
         pytest.param("C[C@@]1(O)[C@@H](CO)O[C@@H](O)[C@@H]1O", "3-C-methyl-β-D-ribofuranose", id="c_substituent_keeps_the_configuration_of_the_centre"),        pytest.param("O=C[C@@H](OC(=O)c1ccccc1)[C@@H](OC(=O)c1ccccc1)[C@H](OC(=O)c1ccccc1)[C@H](OC(=O)c1ccccc1)COC(=O)c1ccccc1", "D-mannose 2,3,4,5,6-pentabenzoate", id="open_chain_polyester"),
         pytest.param("C([C@@H]1[C@H]([C@H]([C@@H](O1)O)O)O)O", "β-D-ribofuranose", id="plain_pentofuranose"),
         pytest.param("OP(O)(=O)OC[C@H]1O[C@](O)(COP(O)(O)=O)[C@@H](O)[C@@H]1O", "β-D-fructofuranose 1,6-bis(dihydrogen phosphate)", id="ketose_with_multiplied_esters"),
