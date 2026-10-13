@@ -285,6 +285,7 @@ from ._common import (
     carbon_adjacency,
     chain_bond_locants,
     group_substituents,
+    substituent_locant_set_and_citation,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
@@ -1333,7 +1334,7 @@ def _hetero_ring_five_membered_1_3(mol):
     return het1, het2
 
 
-def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones, substituent_atoms=frozenset()):
+def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones, substituents=None):
     """(best_locants, position_of) for the five-membered 1,3-two-heteroatom
     ring shape -- `position_of` is the full {atom_idx: locant} mapping for
     whichever numbering direction produced `best_locants`, exposed so a
@@ -1353,9 +1354,10 @@ def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones, sub
     always sits on the bridging carbon (locant 2) regardless of
     direction, so both candidates tie on the ketone locant and the choice
     falls through to P-14.5.2's next criterion -- lowest locants to the
-    full set of substituents cited by prefix (`substituent_atoms`, ring
+    full set of substituents cited by prefix (`substituents`, ring
     carbon and/or N alike), e.g. '4-methylimidazolidin-2-one' (PubChem
-    CID 97832), not '5-methyl...'. Only the direction that reaches the
+    CID 97832), not '5-methyl...', then to the one cited first in
+    alphanumerical order (P-31.1.4.3.4). Only the direction that reaches the
     other heteroatom via the bridging carbon (locant 2) is considered in
     either case -- the opposite direction would misnumber the other
     heteroatom to locant 4 instead of 3, contradicting the ring's own
@@ -1375,7 +1377,11 @@ def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones, sub
 
     def sort_key(result):
         locants, position_of = result
-        return locants, sorted(position_of[atom] for atom in substituent_atoms)
+        by_position = {}
+        for atom, entry in (substituents or {}).items():
+            by_position.setdefault(position_of[atom], []).append(entry)
+        locant_set, _, citation_locants = substituent_locant_set_and_citation(group_substituents(by_position))
+        return locants, locant_set, citation_locants
 
     if elements_by_atom[het1] == elements_by_atom[het2]:
         a, b = candidate(het1, het2), candidate(het2, het1)
@@ -1401,7 +1407,7 @@ def _name_five_membered_1_3_ring_ketone(mol, het1, het2):
             "saturated ring (P-22.2.1)"
         )
     best_locants, position_of = _five_membered_1_3_numbering(
-        mol, het1, het2, elements_by_atom, ketones, set(n_substituents)
+        mol, het1, het2, elements_by_atom, ketones, n_substituents
     )
     name = _hetero_ring_ketone_name(stem, best_locants)
     if not n_substituents:

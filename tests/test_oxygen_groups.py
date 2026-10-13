@@ -779,6 +779,14 @@ def test_five_membered_1_3_ring_ketone_names(smiles, expected):
         pytest.param("O=C1N(C(C)C)C(=O)CN1", "3-(propan-2-yl)imidazolidine-2,4-dione", id="branched_n_substituent"),
         pytest.param("O=C1N(CCO)C(=O)CN1", "3-(2-hydroxyethyl)imidazolidine-2,4-dione", id="substituted_n_substituent"),
         pytest.param("O=C1NC(C)CN1", "4-methylimidazolidin-2-one", id="single_ketone_ring_carbon_substituent_tie_break"),
+        pytest.param(
+            "CCC1OC(=O)OC1C", "4-ethyl-5-methyl-1,3-dioxolan-2-one", id="equal_locant_sets_cite_the_first_prefix_lowest"
+        ),
+        pytest.param(
+            "CC[C@@H]1OC(=O)O[C@@H]1C",
+            "(4S,5R)-4-ethyl-5-methyl-1,3-dioxolan-2-one",
+            id="descriptors_follow_the_alphabetical_tie_break",
+        ),
         pytest.param("O=C1OCC[Se]1", "1,3-oxaselenolan-2-one", id="wrong_element_pair"),
     ],
 )
