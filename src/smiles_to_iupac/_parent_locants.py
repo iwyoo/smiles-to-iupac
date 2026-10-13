@@ -7,7 +7,7 @@ from ._common import UnsupportedStructure, adjacency
 from ._diester_ring_diyl import _system_of, evaluate_skeleton
 
 _MAX_AUTOMORPHISMS = 50000
-_LOCANT = re.compile(r"(\d+)([a-z]*)('*)")
+_LOCANT = re.compile(r"(\d+)([a-z]*)([\'′]*)")
 _CHAIN_GROUP = re.compile(
     r"(?P<stem>.+)-(?P<locants>\d+(?:,\d+)*)-(?P<multiplier>(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca|undeca|dodeca)?)yl"
 )

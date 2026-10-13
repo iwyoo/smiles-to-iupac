@@ -9,8 +9,10 @@ from rdkit import Chem
 
 from ._anion_center import _PARENTS
 from ._common import UnsupportedStructure, adjacency
-from ._diester_ring_diyl import _system_of, evaluate_skeleton
+from ._diester_ring_diyl import PARENT_START, _system_of, evaluate_skeleton
+from ._fused_numbering import HETERO_RANK
 from ._numerals import alkane_name
+from ._parent_locants import locant_key
 
 _NEUTRAL = {
     5: "bora", 7: "aza", 8: "oxa", 9: "fluora", 13: "alumina", 14: "sila", 15: "phospha", 16: "thia", 17: "chlora",
@@ -29,6 +31,10 @@ _ITEM = re.compile(
     rf"(?=-\d|[a-z]*cyclo(?:\[|(?:{_STEMS})an)|[a-z]*spiro\[|(?:{_STEMS})ane?$)"
 )
 _LOCANT = re.compile(r"(\d+)(?:λ(\d+))?")
+_DESCRIPTOR_LEAD = re.compile(r"\([^()]*\)-")
+_HYDRO = re.compile(r"\d+[a-z]*′*(?:,\d+[a-z]*′*)*-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?hydro-?")
+_INDICATED = re.compile(r"(\d+[a-z]*)H(?:,(\d+[a-z]*)H)*-")
+_LOCANT_H = re.compile(r"(\d+[a-z]*)H")
 
 # (suffix, group, index of the skeleton atom, indices of the atoms the suffix stands for), most senior first (P-41)
 _CLASSES = tuple(
@@ -151,14 +157,85 @@ def _from_structure(mol, charge):
         raise UnsupportedStructure("the charged atoms are not all skeletal atoms of one ring system")
     rings, system = found
     suffix, attach, leaving = _principal_group(fragment, system)
-    named = evaluate_skeleton(fragment, adjacency(fragment), "ring", rings, system, attach, leaving, suffix)
+    try:
+        named = evaluate_skeleton(fragment, adjacency(fragment), "ring", rings, system, attach, leaving, suffix)
+    except UnsupportedStructure:
+        named = None
+    if named is not None:
+        described = {named[2][a]: _describe(fragment, a) for a in charged}
+        text, seen, _ = _ionize(named[1], lambda locant, z, lam: described.get(locant))
+        if seen == set(described):
+            return text
+    return _from_carbocycle(fragment, charged, found, (suffix, attach, leaving))
+
+
+def _from_carbocycle(fragment, charged, found, group):
+    """P-25.5.1.1 with P-73.4: a ring system named by fusion or spiro nomenclature takes the replacement prefixes of its
+    heteroatoms in front of the name of the carbocycle, whose numbering is not altered, as in
+    '9-phosphonia-9,9′-spirobi[fluorene]'; the heteroatoms take the lowest locants the carbocycle numbering leaves."""
+    rings, system = found
+    suffix, attach, leaving = group
+    hetero = [a for a in sorted(system) if fragment.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    if len(rings) < 2:
+        raise UnsupportedStructure("a monocycle takes its name from the heteroatom, not from a carbocycle")
+    prefixes = {}
+    for a in hetero:
+        atom = fragment.GetAtomWithIdx(a)
+        z = atom.GetAtomicNum()
+        if z not in _NEUTRAL or atom.GetIsAromatic() or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+            raise UnsupportedStructure("an aromatic, multiply bonded or unlisted heteroatom is named by fusion nomenclature")
+        described = _describe(fragment, a)
+        if a in charged:
+            text, lam = _ionic(*described)
+        else:
+            text, lam = _NEUTRAL[z], None if described[1] == _PARENTS[z][1] else -1
+        if lam is not None:
+            raise UnsupportedStructure("a nonstandard bonding number needs the lambda convention here")
+        prefixes[a] = (HETERO_RANK[atom.GetSymbol()], a not in charged, text)
+    editable = Chem.RWMol(fragment)
+    for a in hetero:
+        atom = editable.GetAtomWithIdx(a)
+        atom.SetAtomicNum(6)
+        atom.SetFormalCharge(0)
+        atom.SetNumExplicitHs(0)
+        atom.SetNoImplicit(False)
+    analog = editable.GetMol()
+    Chem.SanitizeMol(analog)
+    analog_rings, analog_system = _system_of(analog, hetero[0])
+    named = evaluate_skeleton(
+        analog, adjacency(analog), "ring", analog_rings, analog_system, attach, leaving, suffix,
+        key_centers=tuple((a, "ium") for a in hetero),
+    )
     if named is None:
-        raise UnsupportedStructure("this ring system has no supported numbering")
-    described = {named[2][a]: _describe(fragment, a) for a in charged}
-    text, seen, _ = _ionize(named[1], lambda locant, z, lam: described.get(locant))
-    if seen != set(described):
-        raise UnsupportedStructure("a charged atom has no replacement prefix in the name of its ring system")
-    return text
+        raise UnsupportedStructure("the carbocycle has no supported numbering")
+    group_name = named[1]
+    replaced = {str(named[2][a]) for a in hetero}
+    if any(not x.isalnum() for x in replaced):
+        raise UnsupportedStructure("a heteroatom shared by spiro components is cited with its unprimed locant only")
+    by_prefix = {}
+    for a in hetero:
+        by_prefix.setdefault(prefixes[a], []).append(str(named[2][a]))
+    pieces = []
+    for (_, _, text), locants in sorted(by_prefix.items()):
+        if len(locants) not in _COUNT:
+            raise UnsupportedStructure("too many heteroatoms of one prefix")
+        pieces.append(f"{','.join(sorted(locants, key=locant_key))}-{_COUNT[len(locants)]}{text}")
+    start = PARENT_START.get() + (len(_DESCRIPTOR_LEAD.match(group_name).group(0)) if named[3] else 0)
+    tail = group_name[start:].removeprefix("-")
+    added = ""
+    while match := _HYDRO.match(tail) or _INDICATED.match(tail):
+        item = match.group(0)
+        if match.re is _INDICATED:
+            kept = [x for x in _LOCANT_H.findall(item) if x not in replaced]
+            item = ",".join(f"{x}H" for x in kept) + "-" if kept else ""
+        else:
+            if all(x in replaced for x in item.rsplit("-", 2)[0].split(",")):
+                item = ""
+        added += item
+        tail = tail[match.end():]
+    inserted = "-".join(pieces) + ("-" if tail[:1].isdigit() else "")
+    body = added + ("-" if added and not added.endswith("-") else "") + inserted + tail
+    return group_name[:start] + ("-" if start and body[:1].isdigit() else "") + body
 
 
 def _cation_fragment(mol, charge):
