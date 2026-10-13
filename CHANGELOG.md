@@ -6,7 +6,8 @@
   general-nomenclature alternatives to the preferred name, starting with
   functional-modifier names (oximes, hydrazones, azines, semicarbazones,
   acetals, ketals and hemiacetals) and ionic skeletal replacement prefixes
-  (azonia, thionia, azanylia, boranuida, phosphanida, ...).
+  (azonia, thionia, azanylia, boranuida, phosphanida, ...) and conjunctive
+  names (benzeneacetic acid, naphthalene-2-propanol, ...).
 
 ## 0.1.0 (alpha)
 

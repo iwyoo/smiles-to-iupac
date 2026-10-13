@@ -6,6 +6,7 @@ from typing import NamedTuple
 
 from rdkit import Chem, rdBase
 
+from ._conjunctive import conjunctive_names
 from ._functional_modifier import functional_modifier_names
 from ._ionic_prefix import ionic_prefix_names
 from .core import _parse_smiles, smiles_to_iupac
@@ -17,7 +18,11 @@ class AlternativeName(NamedTuple):
     rule: str
 
 
-_GENERATORS = (("functional-modifier", functional_modifier_names), ("ionic-prefix", ionic_prefix_names))
+_GENERATORS = (
+    ("functional-modifier", functional_modifier_names),
+    ("ionic-prefix", ionic_prefix_names),
+    ("conjunctive", conjunctive_names),
+)
 
 
 def smiles_to_alternative_names(smiles: str) -> list[AlternativeName]:
