@@ -164,6 +164,10 @@ def cyanic_acid_name(chain):
 _ANION_ENDING = re.compile(r"ic(?: [A-Za-z,]+-acid| acid)?(\)?)$")
 
 
+def _labelled(atom, name):
+    return f"({atom.GetIsotope()}C){name}" if atom.GetIsotope() else name
+
+
 def _anionic(name):
     return _ANION_ENDING.sub(lambda m: "ate" + (m.group(1) or ""), name)
 
@@ -176,7 +180,7 @@ def carbonic_anion_center(mol, idx):
 def _find(mol):
     centers, cyano = [], []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetTotalNumHs():
+        if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetTotalNumHs():
             continue
         neighbors = list(atom.GetNeighbors())
         triples = [n for n in neighbors if _bond(mol, atom.GetIdx(), n.GetIdx()) == 3.0 and n.GetAtomicNum() == 7 and n.GetDegree() == 1]
@@ -290,7 +294,7 @@ def name_carbonic_family(mol):
         found = chain or ionic
         if found is None or len(found[1]) + 2 != mol.GetNumAtoms():
             raise UnsupportedStructure("this cyanic acid derivative is not an acid")
-        name = cyanic_acid_name(found[0])
+        name = _labelled(atom, cyanic_acid_name(found[0]))
         return _anionic(name) if ionic is not None else name
     x, ligands, amino, imine_n = None, [], None, None
     owned = {center}
@@ -340,6 +344,7 @@ def name_carbonic_family(mol):
     if set(range(mol.GetNumAtoms())) - owned != branch:
         raise UnsupportedStructure("atoms outside the carbonic acid group and its nitrogen substituents")
     name = carbonic_acid_name(x, ligands, amino=amino is not None)
+    name = _labelled(atom, name)
     if anions:
         name = _anionic(name)
         if hydrogens:
