@@ -14,6 +14,7 @@ from ._carbohydrate import _D_2_KETOSE_PATTERNS, _D_ALDOSE_PATTERNS, _FLIP_CIP
 from ._cited_group import cited_group, subtree
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, numerical_term
 from ._inositol_derivative import ester_anion, ester_words
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 
 _HALOGENS = {9: "fluoro", 17: "chloro", 35: "bromo", 53: "iodo"}
@@ -393,7 +394,7 @@ def glycosamine_name(core, deoxy_locants, amino):
 
 
 def _enclose(name, compound):
-    return f"({name})" if compound and not name.startswith("(") else name
+    return enclose(name) if compound else name
 
 
 def _segment(locants, name, kind, compound):
