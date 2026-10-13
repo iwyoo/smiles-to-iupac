@@ -63,6 +63,25 @@ def _amide_nitrogen(mol, atom, center):
     )
 
 
+def _ring_nitrogen_group(atom):
+    """A ring nitrogen bonded to the acid centre is a substituent group (piperidin-1-yl), not an amid infix, and counts as
+    an atom of a parent hydride for the acid stem (P-67.1.2.4.2)."""
+    return atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetFormalCharge() and not atom.GetIsotope()
+
+
+def _ring_system(mol, root):
+    """The atoms of the ring system that contains `root`."""
+    system = set()
+    pending = [set(ring) for ring in mol.GetRingInfo().AtomRings() if root in ring]
+    while pending:
+        ring = pending.pop()
+        if ring <= system:
+            continue
+        system |= ring
+        pending += [set(other) for other in mol.GetRingInfo().AtomRings() if system & set(other) and not set(other) <= system]
+    return system
+
+
 def _ligands(mol, center):
     """([=X atoms], [XH atoms], [carbon neighbours], [halide groups], [amide nitrogens]) of the acid centre, or None if it
     has any other neighbour."""
@@ -85,6 +104,8 @@ def _ligands(mol, center):
             replacers.append(neighbor)
         elif z == 7 and order == 1.0 and _amide_nitrogen(mol, neighbor, center):
             amides.append(neighbor)
+        elif order == 1.0 and _ring_nitrogen_group(neighbor):
+            carbon.append(neighbor)
         else:
             return None
     return oxo, hydroxy, carbon, replacers, amides
@@ -116,7 +137,12 @@ def _acid_parts(mol):
     ligand_atoms = {x.GetIdx() for x in chalcogens} | {center.GetIdx()} | {n.GetIdx() for n in amides}
     for neighbor in replacers:
         ligand_atoms |= _replacer(mol, center, neighbor)[1]
-    if any(a.GetAtomicNum() not in (6, *HALOGEN_PREFIXES) for a in mol.GetAtoms() if a.GetIdx() not in ligand_atoms):
+    ring_hetero = set().union(*(_ring_system(mol, n.GetIdx()) for n in carbon if n.GetAtomicNum() == 7))
+    if any(
+        a.GetAtomicNum() not in (6, *HALOGEN_PREFIXES) and a.GetIdx() not in ring_hetero
+        for a in mol.GetAtoms()
+        if a.GetIdx() not in ligand_atoms
+    ):
         return None
     return center, oxo, hydroxy, carbon, pentavalent, replacers, amides
 
@@ -166,7 +192,7 @@ def name_functional_replacement_oxoacid(mol) -> str:
         word += "ic acid"
     else:
         word = (word[:-1] if word.endswith("o") and pieces else word) + "ous acid"
-    if len(chalcogens) >= 3 and len({a.GetAtomicNum() for a in chalcogens}) > 1:
+    if len({a.GetAtomicNum() for a in chalcogens}) > 1 and (len(chalcogens) >= 3 or pentavalent):
         # the replacing atoms that carry hydrogen, else the oxygens that do (P-67.1.2.4.1)
         cited = [a.GetAtomicNum() for a in hydroxy if a.GetAtomicNum() != 8] or [a.GetAtomicNum() for a in hydroxy]
         word = word[: -len("acid")] + ",".join(_CHALCOGENS[z] for z in sorted(cited, key=lambda z: _ORDER[z])) + "-acid"
