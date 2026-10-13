@@ -6,6 +6,7 @@ import re
 from itertools import product
 
 from ._free_valence import SUFFIX_OF_ORDER, valence_word
+from ._common import KEEP_ASSEMBLY_ENDING
 from ._common import assembly_join, multiplied_word, ring_cycle, superscript_locant
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, numberings
@@ -215,7 +216,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         ring_word = "phenyl" if spec.kind == "benzene" else spec.parent
 
     def parent(elide):
-        word = ring_word[:-1] if elide and ring_word.endswith("e") else ring_word
+        word = ring_word[:-1] if elide and not KEEP_ASSEMBLY_ENDING.get() and ring_word.endswith("e") else ring_word
         word = f"({word})" if re.search(r"[\d\[-]", word) else word
         return f"{junction_str}-{_LATIN[count]}{word}"
 

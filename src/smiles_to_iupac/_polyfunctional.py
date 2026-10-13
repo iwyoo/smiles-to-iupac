@@ -14,6 +14,7 @@ import re
 from rdkit import Chem, rdBase
 from rdkit.Chem import CanonicalRankAtoms
 
+from ._common import KEEP_ASSEMBLY_ENDING
 from ._common import assign_cip_labels
 from ._common import (
     alphanumerical_name_key,
@@ -3479,7 +3480,7 @@ def _assembly_base(specs, locants, join, elide, ylidene=False):
     if ylidene:
         return f"{spots}-bi({spec.parent[:-3]}ylidene)"
     parent = spec.parent
-    stem = parent[:-1] if elide and parent.endswith("e") else parent
+    stem = parent[:-1] if elide and not KEEP_ASSEMBLY_ENDING.get() and parent.endswith("e") else parent
     marked = spec.hetero is None or re.search(r"[\d\[-]", stem)
     return f"{spots}-bi({stem})" if marked else f"{spots}-bi{stem}"
 
@@ -3505,7 +3506,7 @@ def _assembly_spec(mol, graph, ring, replaceable=False):
     return RingSpec(cycle, found[0], hetero, name=found[1], fixed=options)
 
 
-def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms, place=None):
+def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms, place=None, place_monocycles=False):
     """(name, True) of a substituent group made of two identical directly
     joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise. For a group of fused, chained or von
     Baeyer components `place`, a dict, receives the locant of every ring atom and the offset of the assembly name in the
@@ -3572,7 +3573,10 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     enes = f"{ending[:-1]}-" if ending else ""
     core = _assembly_replacement(mol, specs, locants) + f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
     core = _assembly_group_label(mol, graph, ring_atoms, root, locants, core)
-    return (assembly_join(prefix, core)), True
+    name = assembly_join(prefix, core)
+    if place is not None and place_monocycles:
+        place.update(locants={a: PrimedLocant(*loc) for a, loc in locants.items()}, start=len(name) - len(core), atoms=ring_atoms)
+    return name, True
 
 
 def _assembly_group_label(mol, graph, ring_atoms, root, locants, core):

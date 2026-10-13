@@ -8,6 +8,7 @@ from itertools import product
 
 from rdkit import Chem
 
+from ._common import KEEP_ASSEMBLY_ENDING
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -299,7 +300,7 @@ def _assemble(mol, graph, halogens, aromatic_atoms, core, principal, occurrences
     }
 
     def ring_word(elide):
-        stem = parent[:-1] if elide and parent.endswith("e") else parent
+        stem = parent[:-1] if elide and not KEEP_ASSEMBLY_ENDING.get() and parent.endswith("e") else parent
         return f"bi({stem})" if count == 2 else f"{_MULTIPLIER[count]}{stem}"
 
     best_key, best = None, None

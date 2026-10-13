@@ -5,6 +5,7 @@ import itertools
 import re
 
 
+from ._common import KEEP_ASSEMBLY_ENDING
 from ._common import UnsupportedStructure, assembly_join
 from ._multiplicative_ring import _SUFFIX_WORDS
 from ._common import multiplied_word
@@ -334,7 +335,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     primed_join = join[1] if unprimed_join == join[0] else join[0]
     spots = f"{locants[unprimed_join][1]},{_primed(locants[primed_join][1], 1)}"
     def base(elide):
-        text = stem[:-1] if (elide or ylidene) and stem.endswith("e") else stem
+        text = stem[:-1] if (elide or ylidene) and not KEEP_ASSEMBLY_ENDING.get() and stem.endswith("e") else stem
         if ylidene:
             text += "ylidene"
         inner = f"bi({text})" if re.search(r"[\d\[-]|cyclo", text) else f"bi{text}"
