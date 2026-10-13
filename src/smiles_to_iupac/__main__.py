@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from smiles_to_iupac import __version__, smiles_to_iupac
+from smiles_to_iupac import __version__, smiles_to_alternative_names, smiles_to_iupac
 
 
 def main(argv=None):
@@ -15,6 +15,11 @@ def main(argv=None):
     )
     parser.add_argument("smiles", nargs="+", help="one or more SMILES strings")
     parser.add_argument(
+        "--alternatives",
+        action="store_true",
+        help="print the general-nomenclature alternatives to the preferred name as '<kind>\\t<name>' lines",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=__version__,
@@ -25,12 +30,16 @@ def main(argv=None):
     had_error = False
     for smiles in args.smiles:
         try:
-            name = smiles_to_iupac(smiles)
+            if args.alternatives:
+                lines = [f"{alt.kind}\t{alt.name}" for alt in smiles_to_alternative_names(smiles)]
+            else:
+                lines = [smiles_to_iupac(smiles)]
         except (ValueError, NotImplementedError) as e:
             had_error = True
             print(f"{smiles}: {e}", file=sys.stderr)
             continue
-        print(name if single else f"{smiles}\t{name}")
+        for line in lines:
+            print(line if single else f"{smiles}\t{line}")
 
     return 1 if had_error else 0
 

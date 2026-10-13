@@ -1,5 +1,5 @@
 import pytest
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import smiles_to_alternative_names, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
@@ -2149,3 +2149,36 @@ def test_azine_ylidenes_that_differ_in_configuration_are_not_ordered():
 
 def test_stereodefined_ring_amine_with_a_chalcogen_in_its_n_substituent():
     assert smiles_to_iupac("CSCCN[C@H]1CCOC1") == "(3S)-N-[2-(methylsulfanyl)ethyl]oxolan-3-amine"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCC=NO", "propanal oxime", id="oxime"),
+        pytest.param("CCC=NOCC", "propanal O-ethyloxime", id="oxime_o_substituent"),
+        pytest.param("O/N=C(\\c1ccc(Cl)cc1)c1ccccc1", "(Z)-(4-chlorophenyl)(phenyl)methanone oxime", id="configuration_of_the_c_n_bond"),
+        pytest.param("CC(=NO)C(C)=NO", "butane-2,3-dione dioxime", id="every_carbonyl_converted"),
+        pytest.param("CC(=NOc1ccccc1)CC(C)=NOc1ccccc1", "pentane-2,4-dione bis(O-phenyloxime)", id="multiplied_substituted_unit"),
+        pytest.param("CC(=NO)C(C)=O", "butane-2,3-dione oxime", id="equivalent_carbonyls_need_no_locant"),
+        pytest.param("CC(=NO)C(=O)CC", "pentane-2,3-dione 2-oxime", id="unbranched_chain_locant"),
+        pytest.param("CC(C)=NN(C)C", "acetone dimethylhydrazone", id="hydrazone_with_retained_parent_name"),
+        pytest.param(
+            "CC=NNc1ccc(cc1[N+](=O)[O-])[N+](=O)[O-]",
+            "acetaldehyde (2,4-dinitrophenyl)hydrazone",
+            id="hydrazone_compound_substituent_with_nitro_charges",
+        ),
+        pytest.param("CC(C)=NN=C(C)C", "acetone azine", id="symmetrical_azine"),
+        pytest.param("CCC(C)=NN=C1CCCCC1", "cyclohexanone butan-2-ylidenehydrazone", id="azine_ring_component_senior"),
+        pytest.param("C1CCCCC1=NN=C1CCCC1", "cyclohexanone cyclopentylidenehydrazone", id="azine_larger_ring_component_senior"),
+        pytest.param("CCC=NN=CC", "propanal ethylidenehydrazone", id="azine_longer_chain_component_senior"),
+        pytest.param("CC(C)=NNC(N)=O", "acetone semicarbazone", id="semicarbazone"),
+        pytest.param(
+            "CCCC(c1ccccc1)=NNC(=S)N(c1ccccc1)c1ccccc1",
+            "1-phenylbutan-1-one 4,4-diphenylthiosemicarbazone",
+            id="chalcogen_semicarbazone_with_locants",
+        ),
+    ],
+)
+def test_functional_modifier_names_of_imine_derivatives(smiles, expected):
+    # P-15.2.2, P-68.3.1.1.2, P-68.3.1.2.2, P-68.3.1.2.3, P-68.3.1.2.5
+    assert [a.name for a in smiles_to_alternative_names(smiles) if a.kind == "functional-modifier"] == [expected]
