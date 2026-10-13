@@ -347,6 +347,10 @@ def test_heterones_of_group_14_15_16_atoms(smiles, expected):
             id="see_saw_spiro_centre_with_primed_index",
         ),
         pytest.param("C[S@TB1](F)(Cl)Br", "(SS-4-24-A)-bromo(chloro)(fluoro)(methyl)-λ4-sulfane", id="see_saw"),
+        pytest.param("CC[I@TB1](Cl)Br", "(TS-3-2)-bromo(chloro)(ethyl)-λ3-iodane", id="t_shape_stem_ligand"),
+        pytest.param(
+            "CO[I@TB1]1OC(=O)c2ccccc12", "(TS-3-3)-1-methoxy-1λ3,2-benziodoxol-3(1H)-one", id="t_shape_ring_centre_with_aryl_stem"
+        ),
         pytest.param("F[P@OH1](Cl)(Br)(I)C", "(SPY-5-24-C)-bromo(chloro)(fluoro)(iodo)(methyl)-λ5-phosphane", id="square_pyramid"),
     ],
 )
@@ -364,6 +368,11 @@ def test_octahedral_spiro_index_cites_the_unprimed_number_first():
 def test_lone_pair_on_the_axis_is_not_a_see_saw():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1(C)O[S@TB3]2(OC(C)(C)c3ccccc32)c2ccccc12")
+
+
+def test_lone_pair_on_the_axis_is_not_a_t_shape():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CO[I@TB5]1OC(=O)c2ccccc12")
 
 
 @pytest.mark.parametrize(

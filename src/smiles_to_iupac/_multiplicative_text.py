@@ -30,7 +30,7 @@ def nesting_text(text):
 
 
 _CODE = r"(?:\d+[a-z]?['\u2032]*)?(?:[RSEZrsMPmp]|seqCis|seqTrans)"
-_DESCRIPTOR = re.compile(rf"\((?:{_CODE}(?:,{_CODE})*|(?:T|SP|SS|TBPY|OC|SPY)-[\dA-Z\u2032-]+)\)-")
+_DESCRIPTOR = re.compile(rf"\((?:{_CODE}(?:,{_CODE})*|(?:T|TS|SP|SS|TBPY|OC|SPY)-[\dA-Z\u2032-]+)\)-")
 
 
 def _mark_index(core):

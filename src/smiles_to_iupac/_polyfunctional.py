@@ -3142,7 +3142,7 @@ def _fused_plain_parent(mol, graph, rings):
 
 _DESCRIPTOR = (
     r"(?:\d+[a-z]*['\u2032]*(?:\(\d+[a-z]*['\u2032]*\))?)?"
-    r"(?:[RSEZrsMPmp]|seqCis|seqTrans|\((?:TBPY-5|OC-6|SPY-5|SS-4)-\d+['\u2032]*(?:-[AC])?\))"
+    r"(?:[RSEZrsMPmp]|seqCis|seqTrans|\((?:TBPY-5|OC-6|SPY-5|SS-4|TS-3)-\d+['\u2032]*(?:-[AC])?\))"
 )
 _ALL_DESCRIPTORS = re.compile(rf"[(\[]{_DESCRIPTOR}(?:,{_DESCRIPTOR})*[)\]]-")
 
