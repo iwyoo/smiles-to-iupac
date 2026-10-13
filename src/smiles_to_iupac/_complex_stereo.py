@@ -1,7 +1,7 @@
 """Stereodescriptors of metal complexes (Red Book IR-9.3, P-93.3): polyhedral
 symbol, configuration index (CIP-ranked ligating atoms, priming for chelates)
 and C/A or Delta/Lambda chirality, read off idealised coordinates for
-T-4, SP-4, SS-4, TBPY-5, SPY-5 and OC-6, also per metal in polynuclear complexes.
+T-4, SP-4, SS-4, TS-3, TBPY-5, SPY-5 and OC-6, also per metal in polynuclear complexes.
 """
 
 import itertools
@@ -335,6 +335,8 @@ def complex_stereo_descriptor(mol, metal_idx, metals=()):
     }.get(tag)
     if kind is None and not tetrahedral:
         raise UnsupportedStructure("this coordination geometry is not supported here")
+    if kind == "TB" and len(nbrs) == 3:
+        return _t_shape_descriptor(mol, metal_idx, nbrs, base, int(metal.GetProp("_chiralPermutation")), metals)
     vacant = not tetrahedral and len(nbrs) == _VACANT_SITES.get(kind, 0)
     polyhedron = list(nbrs)
     if vacant:
@@ -374,6 +376,18 @@ def complex_stereo_descriptor(mol, metal_idx, metals=()):
     index = "".join(_fmt(k) for k in index_keys)
     parts = [symbol_name] + ([index] if index else []) + ([symbol] if symbol else [])
     return "-".join(parts)
+
+
+def _t_shape_descriptor(mol, metal_idx, nbrs, base, permutation, metals):
+    """'TS-3-n': n is the priority number of the ligand on the stem of the T, the one not on the axis (P-93.3.3.3). RDKit's
+    permutation numbers the three ligands first and the two vacant sites last."""
+    axis = _TB[permutation][0]
+    sites = dict(enumerate(nbrs))
+    if not set(axis) <= set(sites):
+        raise UnsupportedStructure("a lone pair on the axis of a trigonal bipyramid is not a T-shape")
+    (stem,) = [atom for site, atom in sites.items() if site not in axis]
+    numberings = [{d: (base[d], primes.get(d, 0)) for d in nbrs} for primes in _priming_assignments(mol, metal_idx, nbrs, metals)]
+    return "TS-3-" + _fmt(min(number[stem] for number in numberings))
 
 
 def _skew_line_symbol(mol, metal_idx, donors, coords, metals=()):
