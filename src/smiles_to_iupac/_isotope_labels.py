@@ -111,3 +111,15 @@ def descriptor(labels, position_of, single_position, extra=(), capacity=None, so
         symbol = f"{nuclide}{subscript}"
         groups.append(symbol if unlocated or not locants else f"{','.join(locants)}-{symbol}")
     return "(" + ",".join(groups) + ")"
+
+
+def nitrogen_hydrogen_descriptor(mol, labelled):
+    """'(N-2H1)': the descriptor of hydrogen nuclides on the nitrogens of a characteristic group, each cited with its
+    letter locant in front of the parent it modifies (P-82.2.5). `labelled`: {nitrogen: (locant, label entry)}."""
+    items = []
+    for atom, (locant, entry) in labelled.items():
+        if entry["skeleton"] or not entry["H"]:
+            raise UnsupportedStructure("only hydrogen nuclides on the nitrogen of this group are supported")
+        for nuclide, count in entry["H"].items():
+            items.append((nuclide, locant, count, mol.GetAtomWithIdx(atom).GetTotalNumHs() > 1))
+    return descriptor({}, {}, False, extra=items)

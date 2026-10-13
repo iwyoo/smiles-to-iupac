@@ -46,6 +46,7 @@ from rdkit import Chem
 
 from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
+from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
 from ._substituents import format_substituent_prefixes
 
 
@@ -133,7 +134,39 @@ def _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx):
     return None
 
 
+def _labelled_urea_name(mol, labels):
+    """N-substituted urea with hydrogen nuclides on its nitrogens: the labelled nitrogen takes the unprimed locant when
+    the two are otherwise equivalent (P-82.2.5, P-14.3.5)."""
+    core = _urea_core(mol)
+    if core is None or len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("only a plain urea core can carry nuclide labels on its nitrogens here")
+    carbon_idx, (n1_idx, n2_idx) = core
+    if set(labels) - {n1_idx, n2_idx} or _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx) is not None:
+        raise UnsupportedStructure("only the two nitrogens of a plain urea can carry nuclide labels here")
+    (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 8)
+    n1_names, n2_names = n_substituent_names(
+        mol, adjacency(mol), {carbon_idx, oxygen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx, junior_groups=True
+    )
+    if n1_names == n2_names:
+        first = n1_idx in labels or n2_idx not in labels
+    else:
+        first = unprimed_first(n1_names, n2_names)
+    (unprimed, primed), (unprimed_names, primed_names) = (
+        ((n1_idx, n2_idx), (n1_names, n2_names)) if first else ((n2_idx, n1_idx), (n2_names, n1_names))
+    )
+    locant = {unprimed: "N", primed: "N'"}
+    nuclides = nitrogen_hydrogen_descriptor(mol, {n: (locant[n], entry) for n, entry in sorted(labels.items(), key=lambda i: locant[i[0]])})
+    positions = {"N": unprimed_names, "N'": primed_names}
+    prefixes = format_substituent_prefixes(group_substituents({k: v for k, v in positions.items() if v}))
+    return f"{prefixes}{nuclides}urea"
+
+
 def name_urea(mol, atomic_num=8) -> str:
+    split = split_isotopes(mol)
+    if split is not None:
+        if atomic_num != 8:
+            raise UnsupportedStructure("nuclide labels on a chalcogenourea are not supported yet")
+        return _labelled_urea_name(*split[:2])
     core = _urea_core(mol, atomic_num)
     if core is None:
         raise UnsupportedStructure(
