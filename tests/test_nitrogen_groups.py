@@ -2161,6 +2161,18 @@ def test_stereodefined_ring_amine_with_a_chalcogen_in_its_n_substituent():
         pytest.param("CC(=NOc1ccccc1)CC(C)=NOc1ccccc1", "pentane-2,4-dione bis(O-phenyloxime)", id="multiplied_substituted_unit"),
         pytest.param("CC(=NO)C(C)=O", "butane-2,3-dione oxime", id="equivalent_carbonyls_need_no_locant"),
         pytest.param("CC(=NO)C(=O)CC", "pentane-2,3-dione 2-oxime", id="unbranched_chain_locant"),
+        pytest.param("ON=C1CC(C)C(=O)CC1", "2-methylcyclohexane-1,4-dione 4-oxime", id="ring_numbered_by_its_substituent"),
+        pytest.param("ON=C1C(=O)c2ccccc2C=C1", "naphthalene-1,2-dione 2-oxime", id="fused_ring_locant"),
+        pytest.param("CC(=NO)C(=O)C(C)=O", "pentane-2,3,4-trione 2-oxime", id="tied_chain_ends_take_the_lower_locant"),
+        pytest.param("O=CC(C)CC=NO", "2-methylbutanedial 4-oxime", id="branched_chain_aldehyde"),
+        pytest.param("O=Cc1ccc(C=NO)c(C)c1", "2-methylbenzene-1,4-dicarbaldehyde 1-oxime", id="ring_aldehyde_locant_of_the_ring_atom"),
+        pytest.param(
+            "CC(=NO)CC(=NOC)CC(=NOCC)C",
+            "heptane-2,4,6-trione 2-(O-ethyloxime) 4-(O-methyloxime) 6-oxime",
+            id="different_units_tied_ends_lowest_locant_to_the_first_cited",
+        ),
+        pytest.param("CC/C(=N/O)/C(=N/O)C", "(2E,3Z)-pentane-2,3-dione dioxime", id="configurations_of_several_groups"),
+        pytest.param("CC[C@H](C)/C=N/O", "(1E,2S)-2-methylbutanal oxime", id="configuration_beside_a_parent_stereocentre"),
         pytest.param("CC(C)=NN(C)C", "acetone dimethylhydrazone", id="hydrazone_with_retained_parent_name"),
         pytest.param(
             "CC=NNc1ccc(cc1[N+](=O)[O-])[N+](=O)[O-]",

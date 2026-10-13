@@ -151,8 +151,6 @@ def test_alternative_names_label_kind_and_rule_and_keep_the_pin():
         pytest.param("CCO", id="no_derivative_group"),
         pytest.param("CC=NOCC(=O)O", id="senior_group_in_the_substituent"),
         pytest.param("CC=[15N]O", id="isotope_would_be_lost"),
-        pytest.param("CC[C@H](C)/C=N/O", id="configuration_beside_another_stereo_element"),
-        pytest.param("C/C(=N\\O)/C(C)=N/O", id="configurations_of_several_groups"),
         pytest.param("C/C=N/N=C/C", id="azine_configuration"),
         pytest.param("COC1OCCCC1", id="ring_through_the_acetal_carbon"),
         pytest.param("CC=NNC(=O)c1ccccc1", id="acylhydrazone_other_than_semicarbazone"),
@@ -160,7 +158,9 @@ def test_alternative_names_label_kind_and_rule_and_keep_the_pin():
         pytest.param("C[N+](C)(C)CC=NO", id="charged_atom_outside_a_nitro_group"),
         pytest.param("CC(c1ccccc1)=NN=CC", id="azine_component_with_a_ring_beside_the_carbonyl"),
         pytest.param("CC1CCCCC1=NN=C1CCC(C)CC1", id="azine_components_of_equal_class_and_ring_seniority"),
-        pytest.param("CC(=NO)C(=O)C(C)=O", id="parent_locants_tie_between_both_chain_ends"),
+        pytest.param("CC(SC)(SC)C(=O)CC", id="chalcogen_acetal_needing_parent_locants"),
+        pytest.param("C/C(=N\\O[C@H](C)CC)C(=O)CC", id="stereo_element_inside_the_leaving_part"),
+        pytest.param("CC(=NO)C1CCCCC1=O", id="derivative_group_outside_the_numbered_parent"),
     ],
 )
 def test_no_functional_modifier_name_where_the_class_word_would_mislead(smiles):
