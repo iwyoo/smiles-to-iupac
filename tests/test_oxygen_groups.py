@@ -1365,6 +1365,20 @@ def test_locants_are_omitted_when_no_isomer_can_be_generated(smiles, expected):
         pytest.param("CCC(SCC)OC", "propanal S-ethyl O-methyl monothioacetal", id="element_symbols_for_different_substituents"),
         pytest.param("CCOC1(SCC)CCCC1", "cyclopentanone diethyl monothioketal", id="identical_substituents_need_no_element_symbol"),
         pytest.param("CCSC1([SeH])CCCC1", "cyclopentanone S-ethyl selenothiohemiketal", id="mixed_chalcogen_hemiketal"),
+        pytest.param(
+            "CCOC1(OCC)CCC(OC)(OC)CC1", "cyclohexane-1,4-dione 1,1-diethyl 4,4-dimethyl diketal", id="diketal_with_parent_locants"
+        ),
+        pytest.param(
+            "CCOC1(OC)CCC(OC)(OC)CC1",
+            "cyclohexane-1,4-dione 1-ethyl 1,4,4-trimethyl diketal",
+            id="locants_of_a_substituent_shared_by_both_ketal_carbons",
+        ),
+        pytest.param("CCOC1(OCC)CCC(OCC)(OCC)CC1", "cyclohexane-1,4-dione tetraethyl diketal", id="every_carbonyl_a_ketal"),
+        pytest.param(
+            "C1OC2(CCC3(CC2)OCCCO3)OC1",
+            "cyclohexane-1,4-dione 1-(ethylene ketal) 4-(propane-1,3-diyl ketal)",
+            id="cyclic_ketals_cited_with_locants",
+        ),
     ],
 )
 def test_functional_modifier_names_of_acetals(smiles, expected):

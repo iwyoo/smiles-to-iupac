@@ -3,6 +3,7 @@ followed by a class word, as in propanal oxime, acetone semicarbazone or butanal
 The derivative group is replaced by C=O, the parent carbonyl compound is named by the engine, and the
 substituents of the leaving part are named as separate modifier words."""
 
+import re
 from collections import namedtuple
 
 from rdkit import Chem
@@ -11,6 +12,7 @@ from rdkit.Chem import rdCIPLabeler
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._diester_ring_diyl import _system_of
 from ._numerals import alkane_name, multiplying_prefix
+from ._parent_locants import locant_key, parent_numberings
 from ._ring_system_seniority import ring_seniority_key
 from ._substituents import (
     format_mononuclear_prefixes,
@@ -20,7 +22,8 @@ from ._substituents import (
     wrap_marks,
 )
 
-_Group = namedtuple("_Group", "kind carbons leaving unit core stereo", defaults=(None,))
+_Group = namedtuple("_Group", "kind carbons leaving unit core stereo bond", defaults=(None, None))
+_Acetal = namedtuple("_Acetal", "entries bridge elements term")
 
 _CHALCOGEN_SYMBOLS = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CHALCOGEN_WORDS = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
@@ -35,7 +38,6 @@ _RULES = {
     "chalcogen hemiacetal": "P-66.6.5.4",
 }
 
-_IMINE_KINDS = ("oxime", "hydrazone", "semicarbazone")
 _SENIOR_TO_CARBONYL = tuple(
     Chem.MolFromSmarts(smarts)
     for smarts in (
@@ -81,24 +83,91 @@ def functional_modifier_names(mol, name_parent):
             raise UnsupportedStructure("several azine groups")
         return [_azine_name(context, groups[0], name_parent)]
     parent, converted = _restore(mol, groups)
-    locants = _require_unambiguous(parent, converted, allow_locants=groups[0].kind in _IMINE_KINDS)
-    if len({group.unit for group in groups}) > 1:
-        raise UnsupportedStructure("the parent locants of different derivative groups are not available")
-    modifier = _modifier(groups)
-    if locants:
-        modifier = f"{','.join(map(str, locants))}-{modifier}"
-    return [(f"{_descriptor(mol, groups)}{_parent_name(parent, name_parent)} {modifier}", _rule(groups[0]))]
+    principal = _principal_carbonyls(parent, converted)
+    display, systematic = _parent_names(parent, name_parent)
+    labels = {group.carbons[0]: group.stereo for group in groups if group.stereo}
+    if labels:
+        _require_citable_stereo(mol, groups)
+    in_modifier = _locants_required(parent, converted, principal) or len({group.unit for group in groups}) > 1
+    in_descriptor = bool(labels) and len(_descriptor_items(display)) + len(labels) > 1
+    locants = _choose_locants(parent, groups, principal, systematic) if in_modifier or in_descriptor else None
+    name = _with_descriptors(display, labels, locants)
+    return [(f"{name} {_modifier(groups, locants if in_modifier else None)}", _rule(groups[0]))]
 
 
-def _descriptor(mol, groups):
-    """'(E)-' or '(Z)-' for a lone stereodefined C=N bond; locants would be needed for any further stereo element."""
-    labels = [group.stereo for group in groups if group.stereo]
+_DESCRIPTOR_ITEM = re.compile(r"(\d+[a-z]*'*)([RSEZ])")
+_LEADING_DESCRIPTOR = re.compile(r"\(([^()]*)\)-")
+_DESCRIPTOR_RANK = {"Z": 0, "E": 1}
+
+
+def _descriptor_items(parent_name):
+    match = _LEADING_DESCRIPTOR.match(parent_name)
+    if match is None:
+        return []
+    items = match.group(1).split(",")
+    if not all(_DESCRIPTOR_ITEM.fullmatch(item) for item in items):
+        raise UnsupportedStructure("the stereodescriptors of the parent are not simple locant-descriptor pairs")
+    return items
+
+
+def _with_descriptors(parent_name, labels, locants):
+    """P-93.4.2.1.3: the E/Z label of each C=N bond joins the descriptors of the parent, cited by the locant of its
+    carbon; a lone descriptor of the whole name carries no locant."""
     if not labels:
-        return ""
-    specified = [e for e in Chem.FindPotentialStereo(mol) if e.specified == Chem.StereoSpecified.Specified]
-    if len(groups) > 1 or len(specified) > 1:
-        raise UnsupportedStructure("the stereodescriptors need the locants of the parent")
-    return f"({labels[0]})-"
+        return parent_name
+    items = _descriptor_items(parent_name)
+    rest = parent_name[_LEADING_DESCRIPTOR.match(parent_name).end():] if items else parent_name
+    if not items and len(labels) == 1:
+        return f"({next(iter(labels.values()))})-{rest}"
+    items += [f"{locants[carbon]}{label}" for carbon, label in labels.items()]
+    items.sort(key=lambda item: locant_key(_DESCRIPTOR_ITEM.fullmatch(item).group(1)))
+    return f"({','.join(items)})-{rest}"
+
+
+def _require_citable_stereo(mol, groups):
+    """Stereo elements of the parent are named with it; one inside a leaving part would be lost."""
+    leaving = set().union(*(group.leaving for group in groups))
+    own = {group.bond for group in groups}
+    for element in Chem.FindPotentialStereo(mol):
+        if element.specified != Chem.StereoSpecified.Specified:
+            continue
+        if element.type == Chem.StereoType.Bond_Double:
+            if element.centeredOn in own:
+                continue
+            bond = mol.GetBondWithIdx(element.centeredOn)
+            atoms = {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()}
+        else:
+            atoms = {element.centeredOn}
+        if atoms & leaving:
+            raise UnsupportedStructure("a stereo element of the leaving part cannot be cited with the parent")
+
+
+def _choose_locants(parent, groups, principal, systematic):
+    """{derivative carbon: parent locant} of the numbering among the tied ones that cites the derivative groups
+    lowest, then the substituent words first in alphanumerical order lowest (P-31.1.4.2.4, P-31.1.4.3.4)."""
+    in_parent = {atom.GetIntProp("_origin"): atom.GetIdx() for atom in parent.GetAtoms() if atom.HasProp("_origin")}
+    best = None
+    for numbering in parent_numberings(parent, principal, systematic):
+        if any(in_parent[c] not in numbering for group in groups for c in group.carbons):
+            continue
+        locants = {c: numbering[in_parent[c]] for group in groups for c in group.carbons}
+        labelled = sorted((g for g in groups if g.stereo), key=lambda g: locant_key(locants[g.carbons[0]]))
+        key = (
+            sorted(locant_key(locants[c]) for c in locants),
+            _citation_key(groups, locants),
+            [_DESCRIPTOR_RANK[g.stereo] for g in labelled],
+        )
+        if best is None or key < best[0]:
+            best = key, locants
+    if best is None:
+        raise UnsupportedStructure("the parent locants of the derivatized groups are not available")
+    return best[1]
+
+
+def _citation_key(groups, locants):
+    parts, _ = _modifier_parts(groups)
+    ordered = sorted(parts, key=lambda part: alpha_sort_key(part[2]))
+    return [sorted(locant_key(locants[c]) for c in carbons) for _, carbons, _ in ordered]
 
 
 class _Context:
@@ -179,7 +248,7 @@ def _imine_derivative(context, carbon, nitrogen, bond):
     label = _configuration(context.mol, bond)
     if label and group.kind == "azine":
         raise UnsupportedStructure("the configuration of an azine C=N bond is not cited")
-    return group._replace(stereo=label)
+    return group._replace(stereo=label, bond=bond.GetIdx())
 
 
 def _configuration(mol, bond):
@@ -263,18 +332,18 @@ def _acetal_group(context, atom):
     elements = tuple(sorted(y.GetAtomicNum() for y in ys))
     hemi = None in roots
     bridge = None
+    entries = ()
     if not hemi and y2.GetIdx() in _reach(context.graph, [y1.GetIdx()], {c}):
         bridge = _bridge_name(context, c, y1.GetIdx(), y2.GetIdx())
         leaving = _leaving(context, c, [y1.GetIdx(), y2.GetIdx()])
-        words = bridge
     else:
         leaving = set()
         for y in ys:
             leaving |= _leaving(context, c, [y.GetIdx()])
         named = [None if r is None else context.substituent(r, y.GetIdx()) + (y.GetAtomicNum(),) for r, y in zip(roots, ys)]
-        words = _substituent_words([e for e in named if e is not None], elements)
+        entries = tuple(sorted(e for e in named if e is not None))
     term = ("hemi" if hemi else "") + ("acetal" if atom.GetTotalNumHs() else "ketal")
-    unit = f"{words} {_chalcogen_class(elements)}{term}"
+    unit = _Acetal(entries, bridge, elements, term)
     kind = ("chalcogen " if elements != (8, 8) else "") + ("hemiacetal" if hemi else "acetal")
     return _Group(kind, (c,), leaving, unit, frozenset({c, y1.GetIdx(), y2.GetIdx()}))
 
@@ -336,42 +405,9 @@ def _restore(mol, groups):
     return parent, _restored_atoms(parent)
 
 
-def _require_unambiguous(parent, converted, allow_locants=False):
-    """Locants of the derivatized carbonyls, or None when none are needed: a single group on equivalent carbonyls,
-    or every carbonyl, is cited without them. Only an unbranched acyclic skeleton can be numbered here."""
-    principal = _principal_carbonyls(parent, converted)
-    if len(converted) == len(principal) or (len(converted) == 1 and not _inequivalent(parent, principal)):
-        return None
-    locants = _chain_locants(parent, principal, converted) if allow_locants else None
-    if locants is None:
-        raise UnsupportedStructure("the parent locants of the derivatized groups are not available")
-    return locants
-
-
-def _chain_locants(parent, principal, converted):
-    """Locants of `converted` on an unbranched acyclic carbon skeleton numbered from the end that gives the
-    principal groups the lower set (P-31.1.4.2.4); None when the skeleton is otherwise shaped or both ends tie."""
-    carbons = [a for a in parent.GetAtoms() if a.GetAtomicNum() == 6]
-    degree = {a.GetIdx(): sum(n.GetAtomicNum() == 6 for n in a.GetNeighbors()) for a in carbons}
-    if parent.GetRingInfo().NumRings() or max(degree.values()) > 2:
-        return None
-    end = next(i for i, d in degree.items() if d <= 1)
-    order, previous = [end], None
-    while True:
-        onward = [n.GetIdx() for n in parent.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetAtomicNum() == 6 and n.GetIdx() != previous]
-        if not onward:
-            break
-        previous = order[-1]
-        order.append(onward[0])
-    if len(order) != len(carbons):
-        return None
-    forward = {a: i + 1 for i, a in enumerate(order)}
-    backward = {a: len(order) - i for i, a in enumerate(order)}
-    lows = sorted(forward[a] for a in principal), sorted(backward[a] for a in principal)
-    if lows[0] == lows[1]:
-        return None
-    chosen = forward if lows[0] < lows[1] else backward
-    return sorted(chosen[a] for a in converted)
+def _locants_required(parent, converted, principal):
+    """A single group on equivalent carbonyls, or every carbonyl, is cited without parent locants."""
+    return not (len(converted) == len(principal) or (len(converted) == 1 and not _inequivalent(parent, principal)))
 
 
 def _require_plain_groups(mol, groups):
@@ -398,9 +434,11 @@ def _inequivalent(parent, principal):
     return len({ranks[a] for a in principal}) > 1
 
 
-def _parent_name(parent, name_parent):
+def _parent_names(parent, name_parent):
+    """(name cited in the result, systematic name): general nomenclature keeps acetone and the like (P-64.2.1.2)."""
     smiles = Chem.MolToSmiles(parent)
-    return _GENERAL_NAMES.get(smiles) or name_parent(smiles)
+    systematic = name_parent(smiles)
+    return _GENERAL_NAMES.get(smiles) or systematic, systematic
 
 
 def _rule(group):
@@ -415,27 +453,76 @@ def _repeat(count, unit, simple):
     return multiplying_prefix(count, compound=True) + wrap_marks(unit)
 
 
-def _modifier(groups):
-    kind, count, unit = groups[0].kind, len(groups), groups[0].unit
-    if kind in ("acetal", "chalcogen acetal", "hemiacetal", "chalcogen hemiacetal"):
-        if count > 1:
-            raise UnsupportedStructure("the parent locants of several acetal carbons are not available")
-        return unit
+_ACETAL_KINDS = ("acetal", "chalcogen acetal", "hemiacetal", "chalcogen hemiacetal")
+
+
+def _modifier(groups, locants):
+    """The modifier words after the parent; with `locants` ({carbon: parent locant}) each word is cited with the
+    locants of the carbons it belongs to (P-66.6.5.1.1: '1,1-diethyl 4,4-dimethyl diketal')."""
+    parts, tail = _modifier_parts(groups)
+    parts.sort(key=lambda part: alpha_sort_key(part[2]))
+    if locants is None:
+        words = " ".join(text for text, _, _ in parts)
+    else:
+        if isinstance(groups[0].unit, _Acetal) and groups[0].unit.elements != (8, 8):
+            raise UnsupportedStructure("the parent locants of chalcogen acetal carbons are not available")
+        words = " ".join(_cited(text, carbons, locants) for text, carbons, _ in parts)
+    return f"{words} {tail}" if tail else words
+
+
+def _cited(text, carbons, locants):
+    cited = ",".join(str(locants[c]) for c in sorted(carbons, key=lambda c: locant_key(locants[c])))
+    return f"{cited}-{text if text.endswith(')') or not re.search(r'[- ]', text) else f'({text})'}"
+
+
+def _modifier_parts(groups):
+    """([(word, derivative carbons it applies to, word without multiplier)], class word shared by the words)."""
+    kind = groups[0].kind
+    carbons_of = {}
+    for group in groups:
+        carbons_of.setdefault(group.unit, []).extend(group.carbons)
+    if kind not in _ACETAL_KINDS:
+        return [_unit_part(*_unit_base(kind, unit), carbons) for unit, carbons in carbons_of.items()], ""
+    if any(unit.bridge or unit.elements != (8, 8) for unit in carbons_of):
+        return [_unit_part(_acetal_text(unit), False, carbons) for unit, carbons in carbons_of.items()], ""
+    terms = {unit.term for unit in carbons_of}
+    if len(terms) > 1:
+        raise UnsupportedStructure("acetal and ketal carbons on one parent")
+    by_name = {}
+    for unit, carbons in carbons_of.items():
+        for name, compound, _ in unit.entries:
+            by_name.setdefault(name, (compound, []))[1].extend(carbons)
+    parts = [(multiplied_prefix(len(c), name, compound), c, name) for name, (compound, c) in by_name.items()]
+    term = terms.pop()
+    return parts, (multiplying_prefix(len(groups)) + term if len(groups) > 1 else term)
+
+
+def _acetal_text(unit):
+    words = unit.bridge or _substituent_words(list(unit.entries), unit.elements)
+    return f"{words} {_chalcogen_class(unit.elements)}{unit.term}"
+
+
+def _unit_part(base, simple, carbons):
+    return _repeat(len(carbons), base, simple), carbons, base
+
+
+def _unit_base(kind, unit):
+    """(text of one derivative group, whether a multiplier is added without enclosing marks)."""
     if kind == "oxime":
         if unit is None:
-            return _repeat(count, "oxime", True)
+            return "oxime", True
         name, compound = unit
-        return _repeat(count, f"O-{wrap_marks(name) if compound else name}oxime", False)
+        return f"O-{wrap_marks(name) if compound else name}oxime", False
     if kind == "hydrazone":
         cluster = format_mononuclear_prefixes(list(unit)) if unit else ""
-        return _repeat(count, cluster + "hydrazone", not cluster)
+        return cluster + "hydrazone", not cluster
     chalcogen, entries = unit
     grouped = {}
     for locant, name, compound in entries:
         info = grouped.setdefault(name, {"locants": [], "compound": compound})
         info["locants"].append(locant)
     cluster = format_substituent_prefixes(grouped) if grouped else ""
-    return _repeat(count, cluster + chalcogen + "semicarbazone", not cluster)
+    return cluster + chalcogen + "semicarbazone", not cluster
 
 
 def _azine_name(context, group, name_parent):
@@ -446,10 +533,12 @@ def _azine_name(context, group, name_parent):
     if len(pieces) != 2:
         raise UnsupportedStructure("a ring runs through the azine group")
     for piece in pieces:
-        _require_unambiguous(piece, _restored_atoms(piece))
+        converted = _restored_atoms(piece)
+        if _locants_required(piece, converted, _principal_carbonyls(piece, converted)):
+            raise UnsupportedStructure("the parent locants of the azine carbons are not available")
     smiles = [Chem.MolToSmiles(piece) for piece in pieces]
     if smiles[0] == smiles[1]:
-        return f"{_parent_name(pieces[0], name_parent)} azine", _RULES["azine"]
+        return f"{_parent_names(pieces[0], name_parent)[0]} azine", _RULES["azine"]
     keys = [_component_key(piece) for piece in pieces]
     if keys[0] == keys[1]:
         raise UnsupportedStructure("the senior component of an unsymmetrical azine is not decided by class or ring")
@@ -458,7 +547,7 @@ def _azine_name(context, group, name_parent):
         pair for pair in group.unit if pair[0] == _origin(pieces[1 - senior])
     )
     ylidene, _ = name_branch(context.graph, carbon, nitrogen, context.halogens, context.aromatic, mol=context.mol)
-    return f"{_parent_name(pieces[senior], name_parent)} {ylidene}hydrazone", _RULES["azine"]
+    return f"{_parent_names(pieces[senior], name_parent)[0]} {ylidene}hydrazone", _RULES["azine"]
 
 
 def _restored_atoms(parent):
