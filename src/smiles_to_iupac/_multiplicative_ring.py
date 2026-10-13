@@ -19,6 +19,7 @@ from ._common import (
     heteroaromatic_monocycle_name,
     multiplied_word,
     ring_cycle,
+    stereo_locant_rank,
     unsaturation_suffix,
 )
 from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS
@@ -341,11 +342,14 @@ def _branch_key(mol, ring_atoms, root):
     return Chem.MolFragmentToSmiles(mol, atomsToUse=sorted(seen), rootedAtAtom=root)
 
 
-def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name_function=None, directed=None, first=None):
+def name_ring_component(
+    mol, ring_atoms, attachments, groups, suffix_group, name_function=None, directed=None, first=None, stereo=()
+):
     """(name, has_prefix) of a monocyclic ring used as a linker component, or
     None. `attachments`: [(ring_atom, external_atom)] for each free valence;
     `directed`: (unit_side_atom, center_side_atom) for a concatenated arm,
-    where the unit-side atom takes the lowest locant (P-15.3.1.2.2.4)."""
+    where the unit-side atom takes the lowest locant (P-15.3.1.2.2.4); `stereo`: (kind, atom, code) entries of the ring
+    atoms, cited with the ring locants in front of the name (P-93.4.1)."""
     spec = spec_of(mol, ring_atoms)
     if spec is None:
         return _ring_system_component(mol, ring_atoms, attachments, directed, first)
@@ -371,6 +375,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
             multiple_locants(spec, locants),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
+            stereo_locant_rank(mol, stereo, locants),
         )
         if best is None or key < best[0]:
             best = (key, locants)
@@ -392,7 +397,11 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
         if centers:
             body = _with_anion_centers(body, [(locants[a], w) for a, w in centers])
     prefix_text = _prefix_text(entries, locants)
-    return _join(prefix_text, body), bool(prefix_text)
+    name = _join(prefix_text, body)
+    if stereo:
+        descriptors = ",".join(f"{locant}{code}" for locant, code in sorted((locants[atom], code) for _, atom, code in stereo))
+        return f"({descriptors})-{name}", True
+    return name, bool(prefix_text)
 
 
 def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
