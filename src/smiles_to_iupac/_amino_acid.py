@@ -519,7 +519,7 @@ def has_amino_acid_shape(mol) -> bool:
 
 def _substituent_prefixes(mol, graph, substituents):
     from ._common import halogen_substituents
-    from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
+    from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, format_substituent_prefixes, name_branch
 
     halogens = halogen_substituents(mol)
     aromatic = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
@@ -534,10 +534,13 @@ def _substituent_prefixes(mol, graph, substituents):
     }
     context = {"atoms": atoms, "bonds": bonds, "used": set()}
     grouped = {}
+    labels = ISOTOPE_LABELS.get()
     token = BRANCH_STEREO.set(context)
     try:
         for locant, site, root in substituents:
+            cited = set(labels["consumed"]) if labels else set()
             name, compound = name_branch(graph, root, site, halogens, aromatic, mol)
+            compound = compound or bool(labels and labels["consumed"] - cited)
             grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     finally:
         BRANCH_STEREO.reset(token)
