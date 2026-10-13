@@ -89,6 +89,10 @@ class ChalcogenoicAcid:
         (acid_carbon, label, double_atom, single_atom) = matches[0]
         acid_atom_idxs = {acid_carbon.GetIdx(), double_atom.GetIdx(), single_atom.GetIdx()}
         if any(
+            a.GetIdx() not in acid_atom_idxs and a.GetAtomicNum() in (8, self.atomic_num) for a in mol.GetAtoms()
+        ):
+            raise UnsupportedStructure("an oxy or chalcogenyl link outside the acid group is named by the polyfunctional route")
+        if any(
             a not in acid_atom_idxs
             and b not in acid_atom_idxs
             and not (a in aromatic_ring_atoms and b in aromatic_ring_atoms)
