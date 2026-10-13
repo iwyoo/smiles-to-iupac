@@ -277,7 +277,12 @@ def _restore(mol, graph, skeleton, decorations):
         elif kind in ("ether", "ester"):
             removed |= subtree(graph, root, x)
         elif kind == "C":
-            removed |= subtree(graph, root, carbon)
+            # The substituent becomes an explicit H at its own bond position so the centre keeps its geometry (P-102.5.6.3.1).
+            editable.GetAtomWithIdx(root).SetAtomicNum(1)
+            editable.GetAtomWithIdx(root).SetIsAromatic(False)
+            for n in graph[root]:
+                if n != carbon:
+                    removed |= subtree(graph, n, root)
     if skeleton.ring:
         editable.GetAtomWithIdx(skeleton.hetero).SetAtomicNum(8)
     for atom in editable.GetAtoms():
@@ -285,8 +290,7 @@ def _restore(mol, graph, skeleton, decorations):
         atom.SetNumExplicitHs(0)
     for index in sorted(removed, reverse=True):
         editable.RemoveAtom(index)
-    restored = editable.GetMol()
-    Chem.SanitizeMol(restored)
+    restored = Chem.RemoveHs(editable.GetMol())
     return restored, {a.GetIntProp("_orig"): a.GetIdx() for a in restored.GetAtoms() if a.GetIntProp("_orig") >= 0}
 
 
