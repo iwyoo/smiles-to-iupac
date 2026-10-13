@@ -135,8 +135,10 @@ smiles_to_alternative_names("CCC=NO")
 ```
 
 Kinds so far: `functional-modifier` (oxime, hydrazone, azine, semicarbazone,
-acetal, ketal and hemiacetal class names, P-15.2.2, P-66.6.5, P-68.3.1). The
-list is empty when no alternative applies. On the command line,
+acetal, ketal and hemiacetal class names, P-15.2.2, P-66.6.5, P-68.3.1) and
+`ionic-prefix` (the `onia`, `ylia`, `ida` and `uida` skeletal replacement
+prefixes of charged heteroatoms, P-72.4, P-73.4). The list is empty when no
+alternative applies. On the command line,
 `smiles-to-iupac --alternatives CCC=NO` prints `<kind>\t<name>` lines.
 
 ### Errors

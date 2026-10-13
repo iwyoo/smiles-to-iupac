@@ -1,5 +1,5 @@
 import pytest
-from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_alternative_names, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
@@ -1837,3 +1837,34 @@ def test_bis_before_an_anion_that_di_would_misname(smiles, expected):
 def test_cip_descriptor_of_a_stereogenic_azanium_or_phosphanium_centre(smiles, expected):
     # P-93.2.2, P-93.5.4
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC[S+](C)CCOCCOCC[S+](C)CC", "3,12-dimethyl-6,9-dioxa-3,12-dithioniatetradecane", id="onia_on_a_chain_with_a_multiplied_suffix"),
+        pytest.param("C[N+]12CCC(CC1)C2.[Cl-]", "1-methyl-1-azoniabicyclo[2.2.1]heptane chloride", id="onia_on_von_baeyer_with_a_counter_ion"),
+        pytest.param("C1CCC[As+]12CCCC2", "5-arsoniaspiro[4.4]nonane", id="ylium_on_a_lambda_parent_becomes_onia"),
+        pytest.param("C1CC2CCC1[N+]2", "7-azanyliabicyclo[2.2.1]heptane", id="ylia"),
+        pytest.param("CCOP(=O)(C1CCCCC1)OCC[S+](C)CCCCCC", "4-cyclohexyl-8-methyl-4-oxo-3,5-dioxa-8-thionia-4λ5-phosphatetradecane", id="neutral_lambda_heteroatom_beside_onia"),
+        pytest.param("C[B-]1(C)CC2(CCCCC2)CC1", "2,2-dimethyl-2-boranuidaspiro[4.5]decane", id="uida"),
+        pytest.param("C1CCCC[PH2-]12CCCCC2", "6λ5-phosphanuidaspiro[5.5]undecane", id="uida_keeps_the_lambda_parent"),
+        pytest.param("C1CC2CCC1[P-]2", "7-phosphanidabicyclo[2.2.1]heptane", id="ida"),
+    ],
+)
+def test_ionic_skeletal_replacement_prefixes(smiles, expected):
+    # P-15.4.1.4, P-72.4 method (2), P-73.4 method (2)
+    assert [a.name for a in smiles_to_alternative_names(smiles) if a.kind == "ionic-prefix"] == [expected]
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("C[N+]12CCN(CC1)C2", id="charged_and_neutral_heteroatoms_of_one_element"),
+        pytest.param("C[N+]12CCC(CC1)C2O", id="hydroxy_would_become_the_suffix"),
+        pytest.param("C[N+]1(C)CCCCC1", id="no_replacement_prefix_in_the_name"),
+        pytest.param("C1CC2CCC1[Si-]2(C)C", id="bonding_number_without_an_ionic_prefix"),
+    ],
+)
+def test_no_ionic_prefix_name_without_a_skeletal_replacement_name(smiles):
+    assert [a for a in smiles_to_alternative_names(smiles) if a.kind == "ionic-prefix"] == []
