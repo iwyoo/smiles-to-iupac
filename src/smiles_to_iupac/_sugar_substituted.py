@@ -272,6 +272,8 @@ def _restore(mol, graph, skeleton, decorations):
             editable.GetAtomWithIdx(x).SetAtomicNum(8)
             editable.GetAtomWithIdx(x).SetFormalCharge(0)
             editable.GetAtomWithIdx(x).SetIsAromatic(False)
+            if skeleton.position(carbon) != skeleton.anomeric:
+                editable.GetBondBetweenAtoms(carbon, x).SetBondType(Chem.BondType.SINGLE)
             for n in graph[x]:
                 if n != carbon:
                     removed |= subtree(graph, n, x)
