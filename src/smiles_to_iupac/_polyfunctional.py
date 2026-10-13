@@ -2694,6 +2694,36 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     return _finish(chain_best)
 
 
+def _isolated_candidates(evaluations):
+    """[(result, consumed nuclide labels)] of the evaluations that succeed. Each one starts from the same consumed set,
+    so the outcome never depends on the order in which equally senior parents are tried."""
+    from ._substituents import _labels_consumed
+
+    consumed = _labels_consumed()
+    base = set(consumed)
+    found = []
+    for evaluate in evaluations:
+        consumed.clear()
+        consumed.update(base)
+        try:
+            found.append((evaluate(), set(consumed)))
+        except UnsupportedStructure:
+            continue
+    consumed.clear()
+    consumed.update(base)
+    return found
+
+
+def _choose_isolated(candidates, key):
+    from ._substituents import _labels_consumed
+
+    result, gained = min(candidates, key=lambda c: key(c[0]))
+    consumed = _labels_consumed()
+    consumed.clear()
+    consumed.update(gained)
+    return result
+
+
 def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     """(sort key, result) for `ring` as the parent of a molecule without a
     principal group; the key ranks equally senior rings by their lowest
@@ -3052,8 +3082,12 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
                 bonded = any(mol.GetBondBetweenAtoms(a, b) is not None for a in first for b in second)
                 if bonded and _bare_key(mol, set(first)) == _bare_key(mol, set(second)):
                     raise UnsupportedStructure("identical rings joined directly form a ring assembly (P-28)")
-        candidates = [_plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo) for ring in tied]
-        return min(candidates, key=lambda c: c[0])[1]
+        candidates = _isolated_candidates(
+            [lambda ring=ring: _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo) for ring in tied]
+        )
+        if not candidates:
+            raise UnsupportedStructure("none of the equally senior rings has a supported name")
+        return _choose_isolated(candidates, key=lambda c: c[0])[1]
 
     eligible = {
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not is_functional_carbon(mol, a.GetIdx())
@@ -3915,17 +3949,17 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
     ranks = CanonicalRankAtoms(mol, breakTies=False)
     if len({ranks[next(iter(c[3]))[1]] for c in leading}) == 1:
         raise UnsupportedStructure("several rings bear the principal group; a multiplicative name is needed")
-    ranked = []
-    for candidate in leading:
-        try:
-            ranked.append(
-                _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, candidate)
+    ranked = _isolated_candidates(
+        [
+            lambda candidate=candidate: _ring_parent(
+                mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, candidate
             )
-        except UnsupportedStructure:
-            continue
+            for candidate in leading
+        ]
+    )
     if not ranked:
         raise UnsupportedStructure("several rings bear the principal group and none has a supported name")
-    count, found, _ = min(ranked, key=lambda r: r[2])
+    count, found, _ = _choose_isolated(ranked, key=lambda r: r[2])
     return count, found
 
 

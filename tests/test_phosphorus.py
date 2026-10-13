@@ -494,6 +494,7 @@ def test_phosphorothioate_salts_and_stereogenic_centre(smiles, expected):
         ("CCCC[N+](CCCC)(CCCC)CCCC.O=[S@](=[17O])([18O-])Oc1ccccc1", "N,N,N-tributylbutan-1-aminium (S)-[O-phenyl (17O1,18O1)sulfate]"),
         ("CO[S@](=S)(=O)c1ccccc1", "O-methyl (R)-(benzenesulfonothioate)"),
         ("Cc1ccc(cc1)[S@](=O)(=[18O])Cc1ccccc1", "1-methyl-4-[(R)-phenyl(18O1)methanesulfonyl]benzene"),
+        ("c1ccccc1C[S@](=O)(=[18O])c1ccc(C)cc1", "1-methyl-4-[(S)-phenyl(18O1)methanesulfonyl]benzene"),
     ],
 )
 def test_isotopically_modified_oxoacid_esters(smiles, expected):
