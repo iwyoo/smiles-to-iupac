@@ -429,6 +429,16 @@ def test_ester_outside_the_parent_acid_is_a_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)C1(C(=O)O)CCOCC1", "oxane-4,4-dicarboxylic acid", id="two_acid_groups_on_one_atom_of_a_heteroring"),
+    ],
+)
+def test_geminal_suffix_groups_on_a_heteromonocycle(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-14.3.4.4, P-65.6.3.2.1: locants of a mixed diester are cited when moving the substituent or an ester group gives an isomer
 @pytest.mark.parametrize(
     "smiles,expected",
