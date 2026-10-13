@@ -213,10 +213,16 @@ def test_isotope_descriptor_before_retained_acid_name(smiles, expected):
         pytest.param("O=C(c1ccccc1)[13CH3]", "1-phenyl(2-13C)ethan-1-one", id="isotope_in_parent_after_substituent_prefix"),
         pytest.param("Cc1cccnc1[13CH3]", "2-(13C)methyl-3-methylpyridine", id="isotopic_substituent_cited_before_unmodified_one"),
         pytest.param("CC(=O)Nc1ccc([131I])cc1", "N-[4-(131I)iodophenyl]acetamide", id="isotopic_halogen_inside_a_ring_substituent"),
+        pytest.param("[2H]C([2H])([2H])OC(=O)/C=C/C(C)C", "(2H3)methyl (2E)-4-methylpent-2-enoate", id="alkyl_label_stays_off_the_acid_branch"),
     ],
 )
 def test_isotopic_descriptor_follows_the_unmodified_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
+    smiles_to_iupac("[2H]C([2H])([2H])OC(=O)/C=C/C(C)C")
+    assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
 @pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1C(=O)[13CH3]"])
