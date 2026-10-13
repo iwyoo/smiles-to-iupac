@@ -6,7 +6,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, match_cip_labels
 
 # element -> (chain suffix, ring suffix tail after 'carbo', formyl-type prefix)
 _GROUP = {
@@ -75,6 +75,7 @@ def name_chalcogen_aldehyde(mol) -> str:
         healed.GetAtomWithIdx(x).SetAtomicNum(8)
     healed = healed.GetMol()
     Chem.SanitizeMol(healed)
+    match_cip_labels(mol, healed)
     from .core import _smiles_to_iupac_unabridged
 
     healed_name = _smiles_to_iupac_unabridged(Chem.MolToSmiles(healed))
