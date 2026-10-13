@@ -835,6 +835,9 @@ def test_isocyanate(smiles, expected):
         ("C1CCC(N=C=O)CC1", "isocyanatocyclohexane"),
         ("C=CCN=C=O", "3-isocyanatoprop-1-ene"),
         ("O=C=NCN=C=O", "diisocyanatomethane"),
+        pytest.param(
+            "O=C=NC[C@@H]1CCCCO1", "(2S)-2-(isocyanatomethyl)oxane", id="cumulated_bond_is_not_an_unspecified_stereo_element"
+        ),
     ],
 )
 def test_isocyanate_on_ring_unsaturated_and_repeated(smiles, expected):
