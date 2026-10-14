@@ -582,7 +582,10 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         if stereo:
             return None
         chain_unit = _substituted_chain_unit(mol, graph, roots[0], parts_atoms[0]) if unit_kind == "hydride" else None
-        text = chain_unit or _unit_name_by_pipeline(units[0][0], unit_kind)
+        if unit_kind == "urea":
+            text = _urea_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
+        else:
+            text = chain_unit or _unit_name_by_pipeline(units[0][0], unit_kind)
         if text is None:
             return None
         lead = ""
@@ -596,6 +599,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             return f"{lead}{_linker_text(branches, central, arm_parts)}{multiplier_word(count, False)}{unit_phrase(text, '')}"
         if unit_kind in ("amide", "amine", "imine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
+        elif unit_kind == "urea":
+            lead = ",".join("N" + "'" * (2 * i) for i in range(count)) + "-"
         elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
         linker = _linker_text(branches, central, arm_parts)
@@ -605,7 +610,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             return f"{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
         if (
             unit_kind == "hydride"
-            or text.startswith(("N-", "di", "tri", "tetra"))
+            or text.startswith(("N-", "N'", "di", "tri", "tetra", "thio", "seleno", "telluro"))
             or any(ch.isdigit() or ch in "- " for ch in text)
         ):
             return f"{lead}{linker}{multiplier_word(count, True)}({text})"
@@ -699,6 +704,10 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return name if name.endswith("diamine") else None
     if unit_kind == "phosphonic":
         return name if name in _CENTER_ACIDS else None
+    if unit_kind == "centre_acid":
+        return name if _CENTRE_ACID.search(name) else None
+    if unit_kind == "carbamic":
+        return name if _CARBAMIC_ACID.search(name) else None
     if unit_kind == "anion":
         return name if re.search(r"(?:ide|uide|ate)$", name) else None
     return name if name.endswith(_HYDRIDE_ENDINGS) else None
@@ -979,6 +988,146 @@ def _phosphonic_candidates(mol, graph):
     return candidates
 
 
+_CENTRE_ACID = re.compile(r"(?:bor|phosph|ars|stib)(?:on|in)(?:ic|ous) acid$")
+_CARBAMIC_ACID = re.compile(r"carbam\w*ic (?:[A-Za-z,]+-)?acid$|carbam\w*ic acid$")
+_UREA_STEMS = {8: "urea", 16: "thiourea", 34: "selenourea", 52: "tellurourea"}
+
+
+def _terminal(atom, symbol, hydrogens=None):
+    return (
+        atom.GetAtomicNum() == symbol
+        and atom.GetDegree() == 1
+        and not atom.GetFormalCharge()
+        and (hydrogens is None or atom.GetTotalNumHs() == hydrogens)
+    )
+
+
+def _unit_arms(mol, graph, attach, roots):
+    """(attach, root, unit atoms) for each carbon `root` that could be the linking atom of the unit at `attach`."""
+    found = []
+    for root in roots:
+        atoms = _arm(graph, attach, root)
+        if root not in atoms:
+            found.append((attach, root, atoms))
+    return found
+
+
+def _acid_centre_candidates(mol, graph):
+    """Boronic, borinic, phosphinic and phosphinous acid groups (and the arsenic and antimony analogues) joined through
+    carbon: the centre keeps its hydroxy group(s) and one carbon substituent in the unit (P-67.1.1, P-68.1.4)."""
+    from ._phosphonic_acid import _SENIOR_ACIDS
+
+    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+        return {}
+    candidates = {}
+    for center in mol.GetAtoms():
+        if center.GetAtomicNum() not in (5, 15, 33, 51) or center.GetFormalCharge() or center.IsInRing():
+            continue
+        neighbors = list(center.GetNeighbors())
+
+        def bonded(order, group):
+            return [n for n in neighbors if group(n) and mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == order]
+
+        hydroxyl = bonded(1.0, lambda n: _terminal(n, 8, 1))
+        oxo = bonded(2.0, lambda n: _terminal(n, 8, 0))
+        carbons = bonded(1.0, lambda n: n.GetAtomicNum() == 6)
+        if len(hydroxyl) + len(oxo) + len(carbons) != len(neighbors):
+            continue
+        if center.GetAtomicNum() == 5:
+            fits = not oxo and hydroxyl and len(hydroxyl) + len(carbons) == 3
+        else:
+            fits = len(carbons) == 2 and len(hydroxyl) == 1 and len(oxo) <= 1
+        if not fits:
+            continue
+        for found in _unit_arms(mol, graph, center.GetIdx(), [n.GetIdx() for n in carbons]):
+            candidates.setdefault(_key(mol, found[2], found[0]), []).append(found)
+    return candidates
+
+
+def _carbamic_core(mol, nitrogen):
+    """The carbon of a carbamic or carbamodithioic acid group on `nitrogen`, with its chalcogen atoms, or None."""
+    for carbon in nitrogen.GetNeighbors():
+        if carbon.GetAtomicNum() != 6 or carbon.GetFormalCharge() or carbon.GetDegree() != 3:
+            continue
+        doubly = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() in (8, 16) and _terminal(n, n.GetAtomicNum(), 0)
+                  and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+        singly = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() in (8, 16) and _terminal(n, n.GetAtomicNum(), 1)
+                  and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0]
+        if len(doubly) == 1 and len(singly) == 1:
+            return {carbon.GetIdx(), doubly[0].GetIdx(), singly[0].GetIdx()}
+    return None
+
+
+def _urea_core(mol, nitrogen):
+    """{carbon, chalcogen, far nitrogen} of a urea or thiourea group whose near nitrogen is `nitrogen`, or None."""
+    for carbon in nitrogen.GetNeighbors():
+        if carbon.GetAtomicNum() != 6 or carbon.GetFormalCharge() or carbon.GetDegree() != 3 or carbon.IsInRing():
+            continue
+        chalcogen = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() in _UREA_STEMS and _terminal(n, n.GetAtomicNum(), 0)
+                     and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+        far = [n for n in carbon.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx() and n.GetAtomicNum() == 7 and not n.GetFormalCharge()
+               and not n.IsInRing() and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0]
+        if len(chalcogen) == 1 and len(far) == 1:
+            return {carbon.GetIdx(), chalcogen[0].GetIdx(), far[0].GetIdx()}
+    return None
+
+
+def _nitrogen_unit_candidates(mol, graph, core_of, senior):
+    """Groups of the form R-N(-R')-core joined through the carbon `root` of the nitrogen: `core_of` finds the core atoms
+    of the group, and `senior` tells whether a class that outranks the group is present."""
+    candidates, cores = {}, set()
+    for nitrogen in mol.GetAtoms():
+        if nitrogen.GetAtomicNum() != 7 or nitrogen.IsInRing() or nitrogen.GetFormalCharge() or nitrogen.GetIsotope():
+            continue
+        core = core_of(mol, nitrogen)
+        if core is None:
+            continue
+        cores |= core | {nitrogen.GetIdx()}
+        roots = [
+            n.GetIdx()
+            for n in nitrogen.GetNeighbors()
+            if n.GetAtomicNum() == 6 and n.GetIdx() not in core and not is_functional_carbon(mol, n.GetIdx())
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        ]
+        for found in _unit_arms(mol, graph, nitrogen.GetIdx(), roots):
+            candidates.setdefault(_key(mol, found[2], found[0]), []).append(found)
+    return {} if senior(mol, cores) else candidates
+
+
+def _senior_to_carbamic(mol, cores):
+    from ._chalcogenourea import _SENIOR_TO_UREA
+
+    return any(match[0] not in cores for query in (_SENIOR_TO_UREA[0], _SENIOR_TO_UREA[-1]) for match in mol.GetSubstructMatches(query))
+
+
+def _senior_to_urea(mol, cores):
+    from ._chalcogenourea import has_group_senior_to_urea
+
+    return has_group_senior_to_urea(mol, cores)
+
+
+def _urea_unit_text(mol, graph, attach, root, atoms):
+    """'urea', 'N'-methylurea', 'thiourea': the unit joined at the near nitrogen `attach`, which takes the locant N
+    (P-66.1.6.1.1.2); the far nitrogen takes N'."""
+    from ._common import group_substituents
+    from ._substituents import format_substituent_prefixes
+
+    core = _urea_core(mol, mol.GetAtomWithIdx(attach))
+    if core is None:
+        return None
+    carbon = next(a for a in core if mol.GetAtomWithIdx(a).GetAtomicNum() == 6)
+    chalcogen = next(a for a in core if mol.GetAtomWithIdx(a).GetAtomicNum() in _UREA_STEMS)
+    far = next(a for a in core if a not in (carbon, chalcogen))
+    halogens = halogen_substituents(mol)
+    entries = {}
+    for locant, nitrogen, excluded in (("N", attach, (root, carbon)), ("N'", far, (carbon,))):
+        for n in graph[nitrogen]:
+            if n not in excluded:
+                entries.setdefault(locant, []).append(name_branch(graph, n, nitrogen, halogens, mol=mol, unsaturated=True))
+    prefix = format_substituent_prefixes(group_substituents(entries)) if entries else ""
+    return prefix + _UREA_STEMS[mol.GetAtomWithIdx(chalcogen).GetAtomicNum()]
+
+
 def chain_multiplicative_name(mol, stereo):
     name = _chain_multiplicative_name(mol, stereo)
     return name.replace("(1,2-dioxoethane-1,2-diyl)", "oxalyl") if name else name
@@ -992,6 +1141,15 @@ def _chain_multiplicative_name(mol, stereo):
         name = _attempt(mol, graph, stereo, arms, "phosphonic")
         if name is not None:
             return name
+    for kind, candidates in (
+        ("centre_acid", _acid_centre_candidates(mol, graph)),
+        ("carbamic", _nitrogen_unit_candidates(mol, graph, _carbamic_core, _senior_to_carbamic)),
+        ("urea", _nitrogen_unit_candidates(mol, graph, _urea_core, _senior_to_urea)),
+    ):
+        for arms in _rank_candidates(candidates, None):
+            name = _attempt(mol, graph, stereo, arms, kind)
+            if name is not None:
+                return name
     found = _principal_atoms(mol)
     heterone_oxygens = chalcogen_chain_oxygen_count(mol)
     if heterone_oxygens:

@@ -216,6 +216,30 @@ def test_diamine_parents_joined_through_nitrogen_by_a_linking_group(smiles, expe
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("OB(O)c1ccc(B(O)O)cc1", "(1,4-phenylene)bis(boronic acid)", id="boronic_acids"),
+        pytest.param("CB(O)CCB(C)O", "(ethane-1,2-diyl)bis(methylborinic acid)", id="borinic_acids"),
+        pytest.param("CP(=O)(O)CCP(=O)(O)C", "(ethane-1,2-diyl)bis(methylphosphinic acid)", id="phosphinic_acids"),
+        pytest.param("CP(O)CCP(C)O", "(ethane-1,2-diyl)bis(methylphosphinous acid)", id="phosphinous_acids"),
+        pytest.param("OC(=O)N(C)CCN(C)C(=O)O", "(ethane-1,2-diyl)bis(methylcarbamic acid)", id="carbamic_acids_with_a_substituent"),
+        pytest.param("SC(=S)Nc1ccc(NC(=S)S)cc1", "(1,4-phenylene)bis(carbamodithioic acid)", id="carbamodithioic_acids"),
+        pytest.param("NC(=O)NCCNC(N)=O", "N,N''-(ethane-1,2-diyl)diurea", id="ureas"),
+        pytest.param("CNC(=O)NCCNC(=O)NC", "N,N''-(ethane-1,2-diyl)bis(N'-methylurea)", id="far_nitrogen_substituent"),
+        pytest.param("NC(=O)N(C)CCN(C)C(N)=O", "N,N''-(ethane-1,2-diyl)bis(N-methylurea)", id="joined_nitrogen_substituent"),
+        pytest.param("NC(=S)Nc1ccc(NC(N)=S)cc1", "N,N''-(1,4-phenylene)bis(thiourea)", id="thioureas_take_bis"),
+    ],
+)
+def test_identical_functional_parent_units_on_one_skeleton_are_multiplied(smiles, expected):
+    # P-15.3.1.1(d), P-16.3.6; P-66.1.6.1.1.1: urea takes the locants N and N', not numbers
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_dithiocarboxy_prefix_is_enclosed_before_amino():
+    assert smiles_to_iupac("SC(=S)NCC(=S)S") == "[(dithiocarboxy)amino]ethane(dithioic acid)"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("C[O]1CC[O](C)->[Pt]<-1([Cl])[Cl]", "dichlorido(1,2-dimethoxyethane-κ2O,O')platinum"),
         (
             "C1C[O]2->[K]3456<-[O]1CC[O]->3CC[O]->4CC[O]->5CC[O]->6CC2",
