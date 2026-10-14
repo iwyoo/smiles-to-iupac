@@ -1394,8 +1394,8 @@ def name_acyl_halide(mol, links):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
-    if not drop:
-        match_cip_labels(mol, acid)
+    survivors = [i for i in range(mol.GetNumAtoms()) if i not in drop]
+    match_cip_labels(mol, acid, dict(enumerate(survivors)))
     from .core import smiles_to_iupac
 
     acid_text = smiles_to_iupac(Chem.MolToSmiles(acid))

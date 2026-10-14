@@ -821,6 +821,19 @@ def test_imidoyl_prefix_with_a_disubstituted_amino_nitrogen_cites_its_descriptor
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=O)/C(C#N)=N/O", "(1E)-N-hydroxy-2-oxopropanimidoyl cyanide"),
+        ("CC(=O)/C(C#N)=N\\O", "(1Z)-N-hydroxy-2-oxopropanimidoyl cyanide"),
+        ("O=C/C(C#N)=N/O", "(1E)-N-hydroxy-2-oxoethanimidoyl cyanide"),
+        ("O=CC(=NO)O", "N-hydroxy-2-oxoethanimidic acid"),
+    ],
+)
+def test_imidoyl_cyanide_descriptor_ranks_the_acyl_ligand_above_cyano(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_phenyl_chain_imine():
     assert smiles_to_iupac("c1ccccc1CC=N") == "2-phenylethan-1-imine"
     assert smiles_to_iupac("c1ccccc1CCC=N") == "3-phenylpropan-1-imine"
