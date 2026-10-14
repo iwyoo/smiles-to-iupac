@@ -22,6 +22,9 @@ _JUNCTION_IODO = re.compile(r"(?:^|(?<=[-(\[{]))(\d+[a-z]?)-iodo")
 def _neutral_copy(mol):
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
+        if atom.GetFormalCharge() < 0:
+            atom.SetNoImplicit(True)
+            atom.SetNumExplicitHs(atom.GetTotalNumHs() - atom.GetFormalCharge())
         atom.SetFormalCharge(0)
     neutral = editable.GetMol()
     neutral.UpdatePropertyCache(strict=False)
@@ -41,8 +44,8 @@ def _decompose(mol, centres):
         elif idx in {a for a in core_of}:
             continue
         else:
-            if centre.GetAtomicNum() not in _ACYCLIC_CENTRES:
-                raise UnsupportedStructure("this acyclic cationic centre is not a multiplied parent cation")
+            if centre.GetAtomicNum() not in _ACYCLIC_CENTRES or centre.GetFormalCharge() < 0:
+                raise UnsupportedStructure("this acyclic ionic centre is not a multiplied parent ion")
             core = {idx}
         if any(a in core_of for a in core):
             continue
@@ -109,19 +112,28 @@ def _decompose(mol, centres):
 
 
 def _backbone(mol, linker, anchors):
-    """The linking group without the substituents hanging off it: leaf atoms are peeled until only the paths between
-    the anchors and the rings on them remain."""
+    """The linking group without the substituents hanging off it: leaf atoms and ring systems joined by one bond are
+    peeled until only the paths between the anchors and the rings on them remain."""
     remaining = set(linker)
-    peel = [a for a in remaining if a not in anchors and sum(1 for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in remaining) <= 1]
-    while peel:
-        atom = peel.pop()
-        if atom not in remaining:
-            continue
-        remaining.discard(atom)
-        for n in mol.GetAtomWithIdx(atom).GetNeighbors():
-            m = n.GetIdx()
-            if m in remaining and m not in anchors and sum(1 for k in mol.GetAtomWithIdx(m).GetNeighbors() if k.GetIdx() in remaining) <= 1:
-                peel.append(m)
+    systems = [set(system) for system in _ring_systems(mol)]
+    changed = True
+    while changed:
+        changed = False
+        for atom in sorted(remaining):
+            if atom not in anchors and sum(1 for n in mol.GetAtomWithIdx(atom).GetNeighbors() if n.GetIdx() in remaining) <= 1:
+                remaining.discard(atom)
+                changed = True
+        for system in systems:
+            if system <= remaining and not system & anchors:
+                bonds = sum(
+                    1
+                    for a in system
+                    for n in mol.GetAtomWithIdx(a).GetNeighbors()
+                    if n.GetIdx() in remaining and n.GetIdx() not in system
+                )
+                if bonds <= 1:
+                    remaining -= system
+                    changed = True
     return remaining
 
 
@@ -172,10 +184,52 @@ def _unit_text(mol, unit):
     return UnitText(text, locant, substituted or not has_locants, has_locants)
 
 
+def _name_ring_pair(mol, centres):
+    """Two identical ring systems joined by one bond, each with the same anionic centres (P-28.2.1, P-72.7): 'bi' with the
+    junction locants and the unit named as the anion, 2,2'-bi(1H-pyrrol-1-ide)."""
+    from ._multiplicative_text import enclose
+
+    systems = _ring_systems(mol)
+    if len(systems) != 2 or any(not any(c.GetIdx() in system for system in systems) for c in centres):
+        return None
+    joins = [
+        b
+        for b in mol.GetBonds()
+        if {b.GetBeginAtomIdx() in systems[0], b.GetEndAtomIdx() in systems[0]} == {True, False}
+        and (b.GetBeginAtomIdx() in systems[1] or b.GetEndAtomIdx() in systems[1])
+    ]
+    if len(joins) != 1 or joins[0].GetBondTypeAsDouble() != 1.0 or joins[0].GetIsAromatic():
+        return None
+    bond = joins[0]
+    units = []
+    for i, (start, other) in enumerate(((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), (bond.GetEndAtomIdx(), bond.GetBeginAtomIdx()))):
+        core = next(system for system in systems if start in system)
+        atoms, stack = {start}, [start]
+        while stack:
+            for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+                if n.GetIdx() not in atoms and n.GetIdx() != other:
+                    atoms.add(n.GetIdx())
+                    stack.append(n.GetIdx())
+        units.append(_Unit(("U", i), frozenset(core), frozenset(atoms), start, other, ""))
+    if len(units[0].atoms) + len(units[1].atoms) != mol.GetNumAtoms():
+        return None
+    texts = [_unit_text(mol, unit) for unit in units]
+    if texts[0].text != texts[1].text or None in (texts[0].junction_locant, texts[1].junction_locant):
+        raise UnsupportedStructure("the two ring systems of an assembly must be identical")
+    first, second = sorted((str(t.junction_locant) for t in texts), key=lambda locant: (int(re.match(r"\d+", locant).group()), locant))
+    text = texts[0].text
+    unit = enclose(text) if re.search(r"[\d,-]", text) else text
+    return f"{first},{second}'-bi{unit}"
+
+
 def name_cation_assembly(mol):
     centres = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
-    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() != 1 for a in centres):
-        raise UnsupportedStructure("an assembly of parent cations needs one fragment of singly charged centres")
+    if len(Chem.GetMolFrags(mol)) != 1 or len({a.GetFormalCharge() for a in centres}) != 1 or centres[0].GetFormalCharge() not in (1, -1):
+        raise UnsupportedStructure("an assembly of parent ions needs one fragment of singly charged centres of one sign")
+    if centres[0].GetFormalCharge() < 0:
+        pair = _name_ring_pair(mol, centres)
+        if pair is not None:
+            return pair
     if specified_stereo_elements(mol):
         raise UnsupportedStructure("stereodescriptors in an assembly of parent cations are not supported yet")
     units, linker = _decompose(mol, centres)
