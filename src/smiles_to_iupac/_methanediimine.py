@@ -19,15 +19,16 @@ _PREFIX_ELEMENTS = {6, 8, 14, 16, *HALOGEN_PREFIXES}
 _SENIOR_GROUPS = [
     Chem.MolFromSmarts(smarts)
     for smarts in (
-        "[CX3](=O)[OX2H1]",
+        "[CX3](=[O,S,Se,Te])[OX2H1,SX2H1,SeX2H1,TeX2H1]",
         "[SX4,SX3](=O)[OX2H1]",
-        "[CX3](=O)[OX2][#6]",
+        "[CX3](=[O,S,Se,Te])[OX2,SX2,SeX2,TeX2][#6]",
         "[SX4](=O)(=O)[OX2][#6]",
-        "[CX3](=O)[F,Cl,Br,I]",
-        "[CX3](=O)[NX3]",
+        "[CX3](=[O,S,Se,Te])[F,Cl,Br,I]",
+        "[CX3](=[O,S,Se,Te])[NX3,NX2]",
+        "[SX4](=O)(=O)[NX3,NX2]",
         "[CX2]#[NX1]",
-        "[CX3H1](=O)",
-        "[#6][CX3](=O)[#6]",
+        "[CX3H1](=[O,S,Se,Te])",
+        "[#6][CX3](=[O,S,Se,Te])[#6]",
         "[OX2H1][CX4,c]",
         "[SX2H1][#6]",
         "[NX3;!$(N~[!#6;!#1]);!$(N[CX3]=[O,S,N])]([#6])",

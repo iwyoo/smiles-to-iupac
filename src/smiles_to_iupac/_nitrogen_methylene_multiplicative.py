@@ -1,5 +1,6 @@
 """Two identical nitrogen-bearing parents joined through their nitrogen atoms by an alkanediyl group (P-62.2.5.2):
-N1,N1'-methylenedi(ethane-1,2-diamine), N',N'''-(ethane-1,2-diyl)diacetohydrazide.
+N1,N1'-methylenedi(ethane-1,2-diamine), N',N'''-(ethane-1,2-diyl)diacetohydrazide, or by methanediylidene between two amide
+nitrogens (P-15.3): N,N'-(methanediylidene)diacetamide.
 Amine parents are only joined multiplicatively through methylene (N,N'-methylenediethanamine, P-62.2.5.1); a longer chain
 between two amine nitrogens is itself a diamine parent (P-62.2.4.1.2)."""
 
@@ -63,7 +64,23 @@ def _arms(mol):
                 following = next(n for n in current.GetNeighbors() if n.GetIdx() != previous.GetIdx())
                 previous, current = current, following
             if path and _is_attach_nitrogen(current) and start.GetIdx() < current.GetIdx():
-                yield path, [start, current]
+                yield path, [start, current], None
+    for start in mol.GetAtoms():
+        if not _is_imine_nitrogen(start):
+            continue
+        for center in start.GetNeighbors():
+            ends = [n for n in center.GetNeighbors() if n.GetIdx() != start.GetIdx()]
+            if (
+                center.GetAtomicNum() == 6
+                and not center.IsInRing()
+                and center.GetDegree() == 2
+                and len(ends) == 1
+                and _is_imine_nitrogen(ends[0])
+                and start.GetIdx() < ends[0].GetIdx()
+                and mol.GetBondBetweenAtoms(start.GetIdx(), center.GetIdx()).GetBondTypeAsDouble() == 2.0
+                and mol.GetBondBetweenAtoms(center.GetIdx(), ends[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+            ):
+                yield [center], [start, ends[0]], "(methanediylidene)"
 
 
 def _side(mol, blocked, nitrogen):
@@ -126,7 +143,7 @@ def name_nitrogen_methylene_multiplicative(mol):
         return None
     if any(a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
-    for path, pair in _arms(mol):
+    for path, pair, ylidene_linker in _arms(mol):
         blocked = {a.GetIdx() for a in path}
         sides = [_side(mol, blocked, n) for n in pair]
         if sides[0] & sides[1] or len(sides[0]) + len(sides[1]) + len(path) != mol.GetNumAtoms():
@@ -149,11 +166,13 @@ def name_nitrogen_methylene_multiplicative(mol):
             continue
         if nitrogens == 1 and (_NITROGEN_PREFIX.search(unit_name) or _has_heteroatom_neighbor(pair[0], path[0])):
             continue
-        if len(path) > 1 and not unit_name.endswith(("hydrazide", "imine")):
+        if ylidene_linker is not None and not unit_name.endswith("amide"):
+            continue
+        if ylidene_linker is None and len(path) > 1 and not unit_name.endswith(("hydrazide", "imine")):
             continue
         token = "N" if nitrogens == 1 else found.group(1).split(",")[-1]
         locants = ",".join(_nth_locant(token, k, nitrogens) for k in range(2))
-        central = "methylene" if len(path) == 1 else f"({alkane_name(len(path))}-1,{len(path)}-diyl)"
+        central = ylidene_linker or ("methylene" if len(path) == 1 else f"({alkane_name(len(path))}-1,{len(path)}-diyl)")
         if _starts_with_locant(unit_name) or (
             unit_name.endswith("imine") and _imine_carbon_with_ring_substituent(plain[0])
         ):

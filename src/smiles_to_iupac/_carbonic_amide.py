@@ -89,7 +89,10 @@ def cyanamide_name(mol):
         amino = next(n for n in atom.GetNeighbors() if n.GetIdx() != terminal.GetIdx())
         if terminal.GetAtomicNum() != 7 or terminal.GetDegree() != 1 or amino.GetAtomicNum() != 7:
             continue
-        if amino.IsInRing() or amino.GetIsAromatic() or any(b.GetBondTypeAsDouble() != 1.0 for b in amino.GetBonds()):
+        if amino.IsInRing() or amino.GetIsAromatic() or any(
+            b.GetBondTypeAsDouble() != 1.0 and not (b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(amino).GetAtomicNum() == 6)
+            for b in amino.GetBonds()
+        ):
             continue
         betas = [n for n in amino.GetNeighbors() if n.GetAtomicNum() == 7]
         if len(betas) > 1:
