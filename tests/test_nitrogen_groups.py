@@ -886,17 +886,6 @@ def test_phenyl_isocyanide_chain():
     assert smiles_to_iupac("c1ccccc1CC[N+]#[C-]") == "(2-isocyanoethyl)benzene"
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[O-][N+](=O)OCCCO[N+](=O)[O-]", id="two_nitrate_groups_raises"),
-    ],
-)
-def test_phenyl_isocyanide_unsaturation_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_nitro_unaffected():
     assert smiles_to_iupac("C[N+](=O)[O-]") == "nitromethane"
 
@@ -985,15 +974,33 @@ def test_nitrite_ester_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-65.6.3.2.2, P-67.1.3.2: identical nitrate or nitrite groups on one organyl group are multiplied like acetate groups
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("O=NOCCCON=O", id="two_nitrite_groups_raises"),
+        pytest.param("O=[N+]([O-])OCCO[N+](=O)[O-]", "ethane-1,2-diyl dinitrate", id="dinitrate"),
+        pytest.param("CC(CO[N+](=O)[O-])O[N+](=O)[O-]", "propane-1,2-diyl dinitrate", id="vicinal_dinitrate"),
+        pytest.param("O=[N+]([O-])OCC(CO[N+](=O)[O-])O[N+](=O)[O-]", "propane-1,2,3-triyl trinitrate", id="trinitrate"),
+        pytest.param(
+            "O=[N+]([O-])OCC(CO[N+](=O)[O-])(CO[N+](=O)[O-])CO[N+](=O)[O-]",
+            "2,2-bis[(nitrooxy)methyl]propane-1,3-diyl dinitrate",
+            id="fourth_nitrate_group_is_a_nitrooxy_prefix",
+        ),
+        pytest.param("O=[N+]([O-])OC1CCCCC1O[N+](=O)[O-]", "cyclohexane-1,2-diyl dinitrate", id="ring_diyl"),
+        pytest.param("O=[N+]([O-])Oc1ccccc1O[N+](=O)[O-]", "1,2-phenylene dinitrate", id="arylene"),
+        pytest.param("OCC(CO[N+](=O)[O-])O[N+](=O)[O-]", "3-hydroxypropane-1,2-diyl dinitrate", id="alcohol_beside_the_dinitrate"),
+        pytest.param("O=NOCCCCCCON=O", "hexane-1,6-diyl dinitrite", id="dinitrite"),
+        pytest.param("O=NOCC(O)CON=O", "2-hydroxypropane-1,3-diyl dinitrite", id="alcohol_beside_the_dinitrite"),
+        pytest.param("O=NOC[C@H](C)ON=O", "(2S)-propane-1,2-diyl dinitrite", id="stereocentre_of_the_organyl_group"),
     ],
 )
-def test_multiple_fragments_raises_and_related_raise(smiles):
+def test_identical_nitrate_and_nitrite_groups_are_multiplied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_nitrate_beside_a_nitrite_is_not_multiplied():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("O=[N+]([O-])OCCON=O")
 
 
 @pytest.mark.parametrize(

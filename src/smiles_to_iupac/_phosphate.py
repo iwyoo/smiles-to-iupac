@@ -47,11 +47,13 @@ phosphite ester case (no P=O, P(III) instead of P(V)) via
 `format_ester_words`, exported for `_phosphite.py` to reuse.
 """
 
+import re
+
 from rdkit import Chem
 
 from collections import Counter
 
-from ._common import assign_cip_labels
+from ._common import assign_cip_labels, match_cip_labels
 from ._multiplicative_text import enclose
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_nitro_nitrogen
 from ._numerals import multiplying_prefix
@@ -132,6 +134,53 @@ def allowed_outside_oxygen(oxygen, anionic) -> bool:
         )
         return anionic or not acyl
     return False
+
+
+_ACETATE_ENDING = re.compile(r"(di|tri|tetra|penta|hexa|hepta|octa)acetate$")
+
+
+def name_polyester_through_acetates(mol, centers, word, prefix):
+    """P-65.6.3.2.2: 'propane-1,2,3-triyl trinitrate'. The organyl group joining identical nitrate or nitrite groups is
+    named as in the acetate of the same polyol, whose acetyloxy groups stand in for the nitrogen ester groups; `word`
+    replaces 'acetate' and `prefix` the 'acetyloxy' groups cited on the organyl group."""
+    from .core import smiles_to_iupac
+
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    proxy = Chem.RWMol(mol)
+    for center in centers:
+        terminals = sorted(
+            (n.GetIdx() for n in mol.GetAtomWithIdx(center).GetNeighbors() if n.GetDegree() == 1),
+            key=lambda idx: mol.GetBondBetweenAtoms(center, idx).GetBondTypeAsDouble() != 2.0,
+        )
+        proxy.GetAtomWithIdx(center).SetAtomicNum(6)
+        proxy.GetAtomWithIdx(center).SetFormalCharge(0)
+        proxy.GetAtomWithIdx(terminals[0]).SetFormalCharge(0)
+        proxy.GetBondBetweenAtoms(center, terminals[0]).SetBondType(Chem.BondType.DOUBLE)
+        if len(terminals) == 2:
+            proxy.GetAtomWithIdx(terminals[1]).SetAtomicNum(6)
+            proxy.GetAtomWithIdx(terminals[1]).SetFormalCharge(0)
+            proxy.GetAtomWithIdx(terminals[1]).SetNoImplicit(False)
+            proxy.GetBondBetweenAtoms(center, terminals[1]).SetBondType(Chem.BondType.SINGLE)
+        else:
+            proxy.AddBond(center, proxy.AddAtom(Chem.Atom(6)), Chem.BondType.SINGLE)
+    proxy = proxy.GetMol()
+    Chem.SanitizeMol(proxy)
+    name = smiles_to_iupac(Chem.MolToSmiles(proxy))
+    matched = Chem.Mol(proxy)
+    match_cip_labels(mol, matched)
+    if Chem.MolToSmiles(matched) != Chem.MolToSmiles(proxy):
+        # a changed CIP order rewrites R/S descriptors, but a configurational name (a sugar) follows the geometry
+        cited = smiles_to_iupac(Chem.MolToSmiles(matched))
+        if re.search(r"\b\d+[a-z]?[RSEZ]\b", cited):
+            name = cited
+    ending = _ACETATE_ENDING.search(name)
+    if ending is None:
+        raise UnsupportedStructure("the acetate of this polyol is not a multiplied ester name")
+    name = (name[: ending.start()] + ending.group(1) + word).replace("acetyloxy", prefix)
+    if "acetate" in name or "acetyloxy" in name:
+        raise UnsupportedStructure("this polyol keeps an acetate group in its name")
+    return name
 
 
 def check_ester_organyl(mol, group_atoms):
