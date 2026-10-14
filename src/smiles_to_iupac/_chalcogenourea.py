@@ -67,11 +67,15 @@ _SENIOR_TO_UREA = [
 ]
 
 
-def has_group_senior_to_urea(mol, core_atoms):
+def has_group_senior_to_urea(mol, core_atoms, hydrazide_junior=False):
     """A carboxylic or sulfonic acid, ester, acid halide, amide or amidine outside the urea core, or a charge other
-    than a nitro group's: the class that outranks urea as the parent (P-41, P-66.1.6.1.1.5)."""
+    than a nitro group's: the class that outranks urea as the parent (P-41, P-66.1.6.1.1.5). With `hydrazide_junior`
+    an acyl or sulfonyl group on a nitrogen of the core makes a hydrazide, which ranks below an amidine (P-41)."""
     for query in _SENIOR_TO_UREA:
-        if any(match[0] not in core_atoms for match in mol.GetSubstructMatches(query)):
+        if any(
+            match[0] not in core_atoms and not (hydrazide_junior and match[-1] in core_atoms)
+            for match in mol.GetSubstructMatches(query)
+        ):
             return True
     return any(
         a.GetFormalCharge() and a.GetIdx() not in core_atoms and not is_nitro_nitrogen(mol, a.GetIdx()) and not any(
@@ -108,7 +112,7 @@ def _named_groups(mol, graph, halogens, nitrogens, roots, core_atoms):
         return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
 
 
-def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False):
+def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False, hydrazide_junior=False):
     """One list of substituent names per nitrogen of `nitrogens`, for every atom outside `core_atoms`
     (P-66.1.4.1); raises when a ring fuses into the core or a non-halogen
     acyclic heteroatom is present, unless `junior_groups` lets groups junior to the amide be prefixes."""
@@ -129,7 +133,7 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_gr
         )
     halogens = halogen_substituents(mol)
     if junior_groups:
-        if has_group_senior_to_urea(mol, core_atoms):
+        if has_group_senior_to_urea(mol, core_atoms, hydrazide_junior):
             raise UnsupportedStructure("a group senior to the urea is the parent, not an N-substituent")
         if any(
             mol.GetAtomWithIdx(idx).GetAtomicNum() not in _UREA_SUBSTITUENT_ELEMENTS and not mol.GetAtomWithIdx(idx).IsInRing()

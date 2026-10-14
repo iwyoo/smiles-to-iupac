@@ -102,9 +102,15 @@ def _urea_core(mol, atomic_num=8):
     return None
 
 
-def _is_hydrazine_tail(mol, atom, exclude_idx):
+def _is_sulfonyl_sulfur(atom):
+    return atom.GetAtomicNum() == 16 and atom.GetDegree() == 4 and sum(
+        1 for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1
+    ) == 2
+
+
+def _is_hydrazine_tail(mol, atom, exclude_idx, sulfonyl=False):
     """True if `atom` is the second nitrogen of a semicarbazide: bonded to the nitrogen at `exclude_idx` and to
-    carbon groups only, or to one ylidene carbon (a semicarbazone)."""
+    carbon groups (or a sulfonyl group with `sulfonyl`) only, or to one ylidene carbon (a semicarbazone)."""
     if atom.GetAtomicNum() != 7 or atom.GetIsAromatic() or atom.IsInRing():
         return False
     if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
@@ -113,7 +119,9 @@ def _is_hydrazine_tail(mol, atom, exclude_idx):
         return False
     others = [n for n in atom.GetNeighbors() if n.GetIdx() != exclude_idx]
     orders = [mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in others]
-    return all(n.GetAtomicNum() == 6 for n in others) and (orders == [2.0] or 2.0 not in orders and 3.0 not in orders)
+    return all(n.GetAtomicNum() == 6 or (sulfonyl and _is_sulfonyl_sulfur(n)) for n in others) and (
+        orders == [2.0] or 2.0 not in orders and 3.0 not in orders
+    )
 
 
 def has_urea_shape(mol) -> bool:

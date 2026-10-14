@@ -107,7 +107,7 @@ def _guanidine_core(mol, hydrazine=False):
             nn.GetIdx()
             for n in amino
             for nn in n.GetNeighbors()
-            if nn.GetIdx() != atom.GetIdx() and _is_hydrazine_tail(mol, nn, n.GetIdx())
+            if nn.GetIdx() != atom.GetIdx() and _is_hydrazine_tail(mol, nn, n.GetIdx(), sulfonyl=True)
         ]
         if len(tails) != hydrazine:
             continue
@@ -172,7 +172,7 @@ def _hydrazine_polycarboximidamide_name(mol, graph, hydrazine, groups):
     for _, carbon, imino, amino in groups:
         core |= {carbon, imino, amino}
     nitrogens = (*hydrazine, *(n for _, _, imino, amino in groups for n in (amino, imino)))
-    names = n_substituent_names(mol, graph, core, nitrogens, groups[0][1], junior_groups=True)
+    names = n_substituent_names(mol, graph, core, nitrogens, groups[0][1], junior_groups=True, hydrazide_junior=True)
     on_hydrazine = dict(zip(hydrazine, names))
     on_group = [(names[2 + 2 * i], names[3 + 2 * i]) for i in range(len(groups))]
     rank = {}
@@ -217,16 +217,26 @@ def _hydrazinecarboximidamide_name(mol, core):
     the hydrazine nitrogens (P-66.4.1.1, P-68.3.1.2.4)."""
     carbon_idx, imino_idx, amino = core
     graph = adjacency(mol)
-    alpha = next(n for n in amino if any(_is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n) for t in graph[n] if t != carbon_idx))
+    alpha = next(
+        n for n in amino if any(_is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n, sulfonyl=True) for t in graph[n] if t != carbon_idx)
+    )
     amide = next(n for n in amino if n != alpha)
-    tail = next(t for t in graph[alpha] if t != carbon_idx and _is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), alpha))
+    tail = next(
+        t for t in graph[alpha] if t != carbon_idx and _is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), alpha, sulfonyl=True)
+    )
     groups = _amidine_groups(mol, (alpha, tail))
     if any(match[0] not in {group[1] for group in groups} for match in mol.GetSubstructMatches(_AMIDINE_CARBON)):
         raise UnsupportedStructure("an amidine group away from the hydrazine nitrogens is not named with it (P-66.4.1.1)")
     if len(groups) > 1:
         return _hydrazine_polycarboximidamide_name(mol, graph, (alpha, tail), groups)
     names = n_substituent_names(
-        mol, graph, {carbon_idx, imino_idx, alpha, amide, tail}, (amide, imino_idx, alpha, tail), carbon_idx, junior_groups=True
+        mol,
+        graph,
+        {carbon_idx, imino_idx, alpha, amide, tail},
+        (amide, imino_idx, alpha, tail),
+        carbon_idx,
+        junior_groups=True,
+        hydrazide_junior=True,
     )
     grouped = group_substituents({k: v for k, v in zip(("N", "N'", 1, 2), names) if v})
     numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
