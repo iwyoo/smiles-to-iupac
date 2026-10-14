@@ -257,7 +257,9 @@ def format_mononuclear_prefixes(entries) -> str:
     parts = []
     for i, name in enumerate(ordered):
         count = counts[name]
-        if count > 1:
+        if count > 1 and (_CHALCOGEN_HYDRIDE_GROUP.match(name) or _MULTIPLIED_HETERO_STEM.match(name)):
+            parts.append(multiplying_prefix(count, compound=True) + wrap_marks(name))
+        elif count > 1:
             # P-16.5.1.3.1's own text: "the multiplicative prefixes are
             # not included in the parentheses" -- confirmed via the Blue
             # Book's own 'ethyldi(methyl)phosphane (PIN)' worked example
