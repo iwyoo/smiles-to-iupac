@@ -128,13 +128,15 @@ def _diacyl_carbon(mol, carbon, linker):
 
 
 def _principal_atoms(mol):
-    from ._polyfunctional import _SENIORITY, _group_of, _ring_occurrences
+    from ._polyfunctional import _SENIORITY, _group_of, _ring_occurrences, _substituted_amine_nitrogen
 
     groups = {}
     for atom in mol.GetAtoms():
         found = _group_of(mol, atom.GetIdx())
         if found is not None:
             groups.setdefault(found[0], {})[atom.GetIdx()] = found[1]
+        elif _substituted_amine_nitrogen(mol, atom) and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors()):
+            groups.setdefault("amine", {})[atom.GetIdx()] = {atom.GetIdx()}
     ring_groups = _ring_occurrences(mol)
     classes = set(groups) | {c for c, _, _ in ring_groups}
     principal = next((name for name in _SENIORITY if name in classes), None)
@@ -612,7 +614,11 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     try:
         _, _, parts = _select(unit, attach)
     except UnsupportedStructure:
-        return None
+        amine = None if stereo or unit_stereo else _amine_arm(unit, attach)
+        if amine is None:
+            return None
+        lead = ",".join(str(amine[1]) + "'" * i for i in range(count)) + "-"
+        return f"{lead}{linker}{multiplier_word(count, True)}({amine[0]})"
     if unit_stereo:
         parts, stereo_text = _stereo_arms(mol, unit_stereo, parts_atoms, units)
     prefix, body, tail, locant = parts[:4]
@@ -629,6 +635,23 @@ _CENTER_ACIDS = ("phosphonic acid", "arsonic acid", "stibonic acid", "phosphonou
 _HYDRIDE_ENDINGS = ("phosphane", "arsane", "silane", "germane", "stannane", "plumbane")
 _HYDRIDE_ORDER = (15, 33, 14, 32, 50, 82)
 _MULTIPLIED_HYDRIDE = re.compile(r"^(?:di|tri|tetra|penta|hexa|hepta|octa)(?:phosphane|arsane|silane|germane|stannane|plumbane)$")
+
+
+def _amine_arm(unit, attach_atom):
+    from ._polyfunctional import amine_unit_name
+
+    editable = Chem.RWMol(unit)
+    attach = next((a.GetIdx() for a in editable.GetAtoms() if a.GetAtomMapNum()), None)
+    if attach is None:
+        return None
+    for atom in editable.GetAtoms():
+        atom.SetAtomMapNum(0)
+    mol = editable.GetMol()
+    try:
+        Chem.SanitizeMol(mol)
+    except Chem.rdchem.MolSanitizeException:
+        return None
+    return amine_unit_name(mol, attach)
 
 
 def _unit_name_by_pipeline(unit, unit_kind):
