@@ -310,6 +310,18 @@ def test_fused_system_to_be_bridged_has_the_most_skeletal_atoms_and_a_saturated_
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("OC1C2CC3CC1C1C3C21", "octahydro-2,3-methanocyclopropa[cd]pentalen-1-ol", id="suffix_on_a_saturated_cage"),
+        pytest.param("CC1C2CC3CC1C1C3C21", "1-methyloctahydro-2,3-methanocyclopropa[cd]pentalene", id="substituent_locant_of_the_cage"),
+    ],
+)
+def test_saturated_bridged_cage_is_numbered_by_the_bridged_fusion_rules(smiles, expected):
+    # P-25.4.3: the bridge atom belongs to the parent name, so it takes no hydro prefix or added hydrogen
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("C1CC12CCC3(CC2)CCC3", "dispiro[2.2.3^6.2^3]undecane"),
         ("C1CCCC12CC3(CC2)CCCC3", "dispiro[4.1.4^7.2^5]tridecane"),
     ],

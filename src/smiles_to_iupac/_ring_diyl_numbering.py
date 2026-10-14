@@ -1316,6 +1316,20 @@ def _is_appendix3_system(mol, atoms):
         return _best_skeleton(fragment, False) is not None
     except Exception:
         return False
+def _bridged_parent_name(mol, skeleton_atoms, numberings):
+    """Whether the mancude parent behind these fusion numberings is a bridged fused name ('2,3-methanocyclopropa[cd]-
+    pentalene'): its atoms, the bridge included, are then numbered by the bridged fusion rules (P-25.4.3)."""
+    from ._fusion_bridged import bridged_parents
+
+    stem = numberings[0].parent_stem if numberings else ""
+    if not (stem[:1].isdigit() and is_bridged_fusion_system(mol, skeleton_atoms)):
+        return False
+    try:
+        return any(parent.stem == stem for parent in bridged_parents(mol, set(skeleton_atoms)))
+    except UnsupportedStructure:
+        return False
+
+
 def system_numberings(mol, graph, rings, skeleton_atoms):
     from ._polyspiro_union import has_spiro_union_shape, spiro_union_numberings
 
@@ -1332,7 +1346,9 @@ def system_numberings(mol, graph, rings, skeleton_atoms):
         return _fused_mancude(mol, skeleton_atoms)
     if is_hydro_fusion_system(mol, skeleton_atoms):
         try:
-            return _fused_mancude(mol, skeleton_atoms)
+            found = _fused_mancude(mol, skeleton_atoms)
+            if not _bridged_parent_name(mol, skeleton_atoms, found):
+                return found
         except UnsupportedStructure:
             pass
     if is_bridged_fusion_system(mol, skeleton_atoms):
