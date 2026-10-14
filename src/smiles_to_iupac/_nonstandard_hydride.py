@@ -4,10 +4,11 @@ may carry single-bonded carbon substituents ('dimethyl-λ4-sulfane')."""
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, multiplied_word
+from ._cited_group import cited_group
+from ._common import UnsupportedStructure, adjacency, multiplied_word
 from ._hetero_prefixes import AMINE_PATTERN
 from ._numerals import multiplying_prefix
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import format_mononuclear_prefixes
 
 _HYDRIDES = {
     5: ("borane", 3), 13: ("alumane", 3), 31: ("gallane", 3), 49: ("indigane", 3), 81: ("thallane", 3),
@@ -163,12 +164,10 @@ def name_nonstandard_hydride(mol) -> str:
     if skeletal is not None:
         return skeletal
     graph = adjacency(mol)
-    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     hydroxyls = [n for n in graph[center.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1]
     amines = [] if hydroxyls else [n for n in graph[center.GetIdx()] if _primary_amino(mol.GetAtomWithIdx(n))]
-    halogens = {a.GetIdx(): HALOGEN_PREFIXES[a.GetAtomicNum()] for a in mol.GetAtoms() if a.GetAtomicNum() in HALOGEN_PREFIXES}
     entries = [
-        name_branch(graph, n, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
+        cited_group(mol, graph, n, center.GetIdx())
         for n in graph[center.GetIdx()]
         if n not in hydroxyls and n not in amines
     ]
