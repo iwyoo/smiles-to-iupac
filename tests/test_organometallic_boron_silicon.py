@@ -855,14 +855,15 @@ def test_yl_ylidene_linker_multiplicative_names(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)C=C2CCCCC2CC(=O)O", "2,2'-(cyclohexan-1-yl-2-ylidene)diacetic acid"),
+        ("OC(=O)C=C2CCCCC2CC(=O)O", "[2-(carboxymethyl)cyclohexylidene]acetic acid"),
         (
             "OC(=O)CC1CCC(CC1)C1CCC(CC1)=CC(=O)O",
-            "2,2'-([1,1'-bi(cyclohexan)]-4-yl-4'-ylidene)diacetic acid",
+            "[4'-(carboxymethyl)[1,1'-bi(cyclohexan)]-4-ylidene]acetic acid",
         ),
     ],
 )
-def test_ring_yl_ylidene_linker_multiplicative_names(smiles, expected):
+def test_units_attached_to_a_ring_linker_by_a_single_and_a_double_bond_are_not_multiplied(smiles, expected):
+    # P-15.3.1.1: identical parent structures are attached by identical bonds
     assert smiles_to_iupac(smiles) == expected
 
 

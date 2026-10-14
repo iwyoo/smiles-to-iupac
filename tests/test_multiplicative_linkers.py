@@ -676,6 +676,11 @@ def test_identical_parents_with_substituted_units_hetero_rings_imine_and_ester_l
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_units_joined_to_the_linker_by_different_bonds_are_named_substitutively():
+    # P-15.3.1.1, P-15.3.4.1.1: an -N=CH-CH2-NH- linker is unsymmetrical
+    assert smiles_to_iupac("OCCN=CCNCCO") == "2-({2-[(2-hydroxyethyl)amino]ethylidene}amino)ethan-1-ol"
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
