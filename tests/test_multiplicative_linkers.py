@@ -32,6 +32,23 @@ def test_ring_and_assembly_components_inside_a_linker(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("CC(=O)c1ccc(C(C)=O)cc1", "1,1'-(1,4-phenylene)di(ethan-1-one)"),
+        ("CC(=O)c1cc(C(C)=O)cc(C(C)=O)c1", "1,1',1''-(benzene-1,3,5-triyl)tri(ethan-1-one)"),
+        ("CCC(=O)N1CCN(C(=O)CC)CC1", "1,1'-(piperazine-1,4-diyl)di(propan-1-one)"),
+        ("CC(=O)c1ccc(Oc2ccc(C(C)=O)cc2)cc1", "1,1'-[oxybis(4,1-phenylene)]di(ethan-1-one)"),
+        ("O=C(c1ccccc1)c1ccc(C(=O)c2ccccc2)cc1", "(1,4-phenylene)bis(phenylmethanone)"),
+        ("O=C(CC(=O)O)c1ccc(C(=O)CC(=O)O)cc1", "3,3'-(1,4-phenylene)bis(3-oxopropanoic acid)"),
+        ("CC[C@H](C)C(=O)c1ccc(C(=O)[C@H](C)CC)cc1", "(2R,2'S)-1,1'-(1,4-phenylene)bis(2-methylbutan-1-one)"),
+        ("CC(C)C(=O)OSSOC(=O)C(C)C", "1,1'-[disulfanediylbis(oxy)]bis(2-methylpropan-1-one)"),
+    ],
+)
+def test_acyl_arms_cut_from_a_ring_or_chalcogen_core_are_ketones_not_aldehydes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("C[C@H](O)CN(C)C[C@H](C)O", "(2S,2'S)-1,1'-(methylazanediyl)di(propan-2-ol)"),
         ("S(/C1=C/CCCCCC1)/C1=C/CCCCCC/1", "(1E,1'E)-1,1'-sulfanediyldi(cyclooct-1-ene)"),
         ("C1=C/[C@@H](CC[C@@H]2/C=C/CCCCC2)CCCCC/1", "(1E,1'E,3R,3'R)-3,3'-(ethane-1,2-diyl)di(cyclooct-1-ene)"),
