@@ -118,6 +118,7 @@ from ._ring_assembly_chain import (
     saturated_counterpart_kind,
     validate_hetero_ring_assembly_atoms,
 )
+from ._ring_extras import ring_stereo, stereo_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
 # 1H-pyrrole/1H-imidazole/1H-pyrazole's own P-28.2.3 indicated-hydrogen
@@ -402,6 +403,7 @@ def name_ring_assembly(mol, core) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
+    centres = ring_stereo(mol, ring_atoms, {a: a for a in ring_atoms}) if _has_chiral_tag(mol) else []
 
     best_key = None
     best_name = None
@@ -441,7 +443,15 @@ def name_ring_assembly(mol, core) -> str:
                     indicated_hydrogen_prefix=indicated_hydrogen_prefix,
                     hydro=hydro,
                 )
+                labels = sorted(((locants[atom], code) for atom, code in centres), key=lambda label: hydro_sort_key(label[0]))
+                # P-31.1.4.3.4: the lower locants go to R when the numberings otherwise tie
+                favoured = tuple(hydro_sort_key(locant) for locant, code in labels if code == "R")
+                key = (*key[:-1], favoured, stereo_prefix(labels) + key[-1])
                 if best_key is None or key < best_key:
                     best_key, best_name = key, key[-1]
 
     return best_name
+
+
+def _has_chiral_tag(mol):
+    return any(atom.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for atom in mol.GetAtoms())
