@@ -1400,6 +1400,7 @@ def test_substituent_prefixes_keep_multiple_bonds_and_heteroatoms(smiles, expect
         pytest.param("CC(=O)C(=O)C", "butane-2,3-dione", id="isomers_exist_for_the_suffix"),
         pytest.param("O=C(c1ccccc1)C(=O)C", "1-phenylpropane-1,2-dione", id="isomers_exist_for_the_prefix"),
         pytest.param("ClCC(=O)C(=O)CCl", "1,4-dichlorobutane-2,3-dione", id="isomers_exist_when_a_chlorine_moves"),
+        pytest.param("BrC(=O)C(=O)CC(=O)O", "4-bromo-3,4-dioxobutanoic acid", id="carbon_chain_beyond_two_keeps_locants"),
     ],
 )
 def test_locants_are_omitted_when_no_isomer_can_be_generated(smiles, expected):
