@@ -566,6 +566,32 @@ def test_ring_chalcogen_with_doubly_bonded_chalcogens_is_a_lambda_heterone(smile
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)C1CCS(=O)(=O)C1", "1,1-dioxo-1λ6-thiolane-3-carboxylic acid", id="sulfone_ring_beside_an_acid"),
+        pytest.param("N#CC1CCS(=O)CC1", "1-oxo-1λ4-thiane-4-carbonitrile", id="sulfoxide_ring_beside_a_nitrile"),
+        pytest.param("OC(=O)CC1CCS(=O)(=O)C1", "(1,1-dioxo-1λ6-thiolan-3-yl)acetic acid", id="sulfone_ring_as_a_substituent_group"),
+        pytest.param("OC(=O)C1CCS(=O)(=O)N1", "1,1-dioxo-1λ6,2-thiazolidine-3-carboxylic acid", id="hetero_ring_with_a_second_heteroatom"),
+        pytest.param("OC(=O)C1CC[Se](=O)(=O)C1", "1,1-dioxo-1λ6-selenolane-3-carboxylic acid", id="selenium_ring"),
+        pytest.param("OC(=O)C1CCS(=N)(=O)C1", "1-imino-1-oxo-1λ6-thiolane-3-carboxylic acid", id="imino_and_oxo_on_one_atom"),
+        pytest.param("OC(=O)C1CCP(=O)(C)CC1", "1-methyl-1-oxo-1λ5-phosphinane-4-carboxylic acid", id="phosphorus_ring"),
+        pytest.param("O=S1(=O)C=CC=C1C(=O)O", "1,1-dioxo-1H-1λ6-thiophene-2-carboxylic acid", id="mancude_ring_cites_the_indicated_hydrogen"),
+        pytest.param("OC(=O)c1ccc2S(=O)(=O)C=Cc2c1", "1,1-dioxo-1H-1λ6-benzothiophene-5-carboxylic acid", id="fused_mancude_ring"),
+        pytest.param("OC(=O)c1ccc2c(c1)S(=O)(=O)CC2", "1,1-dioxo-2,3-dihydro-1H-1λ6-benzothiophene-6-carboxylic acid", id="fused_ring_with_hydro_prefixes"),
+        pytest.param("OC(=O)c1ccc2c(c1)S(=O)(=O)c1ccccc1-2", "5,5-dioxo-5H-5λ6-dibenzo[b,d]thiophene-3-carboxylic acid", id="fused_ring_of_three_rings"),
+        pytest.param(
+            "OC(=O)c1ccc2c(c1)S(=O)(=O)c1ccccc1S2(=O)=O",
+            "5,5,10,10-tetraoxo-5λ6,10λ6-thianthrene-2-carboxylic acid",
+            id="two_sulfone_atoms_need_no_indicated_hydrogen",
+        ),
+    ],
+)
+def test_ring_heteroatom_oxo_and_imino_prefixes_cite_the_lambda_number(smiles, expected):
+    # P-63.6, P-64.4.2, P-14.1.3
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-68.4.3.6, P-21.1.2, P-22.2.2: the imino groups of a ring sulfoximide are prefixes beside the suffix 'one'
 @pytest.mark.parametrize(
     "smiles,expected",
