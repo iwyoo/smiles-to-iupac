@@ -458,18 +458,14 @@ def _chalcogen_ylidene_on(mol, atom, nitrogen):
 
 
 def _ring_nitrogen_substituent(mol, atom, nitrogen):
-    """A neutral three-bonded ring nitrogen joined to `nitrogen` by a single bond whose ring neighbors are plain carbons:
-    the N-substituent is a 'piperidin-1-yl'-type ring group, since the ring nitrogen cannot also be the group's own
-    nitrogen (P-62.2.1.3)."""
+    """A neutral three-bonded ring nitrogen joined to `nitrogen` by a single bond whose other neighbors are ring atoms:
+    the N-substituent is a 'piperidin-1-yl'- or '1H-pyrazol-1-yl'-type ring group, since the ring nitrogen cannot also
+    be the group's own nitrogen (P-62.2.1.3)."""
     if atom.GetAtomicNum() != 7 or not atom.IsInRing() or atom.GetFormalCharge() or atom.GetDegree() != 3:
         return False
     if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() != 1.0:
         return False
-    return all(
-        n.GetIdx() == nitrogen.GetIdx()
-        or (n.GetAtomicNum() == 6 and n.IsInRing())
-        for n in atom.GetNeighbors()
-    )
+    return all(n.GetIdx() == nitrogen.GetIdx() or n.IsInRing() for n in atom.GetNeighbors())
 
 
 def _amidine_ylidene(mol, atom, nitrogen):
