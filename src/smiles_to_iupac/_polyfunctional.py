@@ -5747,8 +5747,9 @@ def _amidine_nitrogens(mol, atom):
 
 
 def _acyclic_imine_nitrogen(mol, atom):
-    """The =N- atom of a C=N group (P-62.3) whose carbon has only carbon neighbours and whose nitrogen carries
-    hydrogen, a carbon group or an oxygen (an oxime or its ether, P-68.3.1.1.2); None otherwise."""
+    """The =N- atom of a C=N group (P-62.3) whose carbon has only carbon neighbours, or a ring nitrogen that makes the
+    group the imine of a pseudoketone (P-66.4.1.1), and whose nitrogen carries hydrogen, a carbon group or an oxygen
+    (an oxime or its ether, P-68.3.1.1.2); None otherwise."""
     carbon = atom.GetIdx()
     imines = [
         n
@@ -5764,7 +5765,7 @@ def _acyclic_imine_nitrogen(mol, atom):
     if nitrogen.GetDegree() > (3 if cationic else 2):
         return None
     if any(
-        n.GetAtomicNum() != 6 and not _nitro_or_nitroso(mol, n)
+        n.GetAtomicNum() != 6 and not _nitro_or_nitroso(mol, n) and not _ring_nitrogen_acyl(mol, n, carbon)
         for n in atom.GetNeighbors()
         if n.GetIdx() != nitrogen.GetIdx()
     ):
