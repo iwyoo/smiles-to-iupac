@@ -5404,6 +5404,8 @@ def _substituted_amine_nitrogen(mol, atom):
         return False
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
+    if AMINIUM.get() is True and not atom.GetFormalCharge() and not atom.HasProp("_cationic_amine"):
+        return False
     if any(
         n.GetAtomicNum() not in (6, 8, 16, 34, 52) and not _ring_nitrogen_parent(n) and not is_oxo_nitrogen(mol, n) and not _terminal_chalcogen_hydride(n)
         for n in atom.GetNeighbors()
