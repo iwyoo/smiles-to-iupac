@@ -6189,7 +6189,8 @@ def _imine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
                 if other_carbon != carbon
             ):
                 raise UnsupportedStructure("imine groups joined through nitrogen need a multiplicative name (P-15.3)")
-        located = ("N", anchor, carbon, tuple(a for a in graph[carbon] if a not in owned))
+        # an imine has no carbo suffix: a group beside the parent is a prefix, so its neighbours never locate its N
+        located = ("N", anchor, carbon, ())
         entries += [
             (*name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True), located)
             for n in subs

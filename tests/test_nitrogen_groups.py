@@ -1087,6 +1087,10 @@ def test_hydrazone_with_ring_or_substituted_nitrogen_is_ylidene_hydrazine(smiles
         ("C1CCCCC1=NO", "N-hydroxycyclohexanimine"),
         ("ClC1CCCCC1=NC", "2-chloro-N-methylcyclohexan-1-imine"),
         ("OC1CCCCC1=N", "2-iminocyclohexan-1-ol"),
+        pytest.param("CN=CC1CCCCC1=N", "2-(N-methylmethanimidoyl)cyclohexan-1-imine", id="n_substituent_stays_on_the_prefix"),
+        pytest.param(
+            "CN=CC1CCCCC1=NCC", "N-ethyl-2-(N-methylmethanimidoyl)cyclohexan-1-imine", id="parent_and_prefix_both_substituted"
+        ),
     ],
 )
 def test_ring_imine_and_oxime(smiles, expected):
