@@ -4,6 +4,7 @@
 import itertools
 import re
 
+from rdkit import Chem
 
 from ._common import KEEP_ASSEMBLY_ENDING
 from ._common import UnsupportedStructure, assembly_join
@@ -91,12 +92,26 @@ def _lit_hydrogens(mol, numbering):
     return [p for p in numbering.ih_positions if mol.GetAtomWithIdx(atom_of[p]).GetTotalNumHs() > 0]
 
 
-def _lit(mol, numbering, positions, monocycles):
+def _lit(mol, numbering, positions, monocycles, join=()):
     """Indicated-hydrogen positions of a component. A fused system keeps those its numbering names, minus junction atoms
     that lost their hydrogen (P-28.2.3). A monocycle takes every saturated ring carbon or NH that still has a hydrogen or
-    carries =O (a pseudoketone, P-64.3.1): the junction atoms and the positions of double bonds need none."""
+    a substituent in its place, or carries =O (a pseudoketone, P-64.3.1): the junction atoms and the positions of double
+    bonds need none. A ring without =O is read in its Kekule form, so the NH of an azole is saturated."""
     if not monocycles:
         return _lit_hydrogens(mol, numbering) + list(positions)
+    ring = set(numbering.position_of)
+    aromatic_is_double = any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtomIdx(a) not in ring
+        for a in ring
+        for b in mol.GetAtomWithIdx(a).GetBonds()
+    )
+    kekule = mol
+    if not aromatic_is_double:
+        kekule = Chem.Mol(mol)
+        try:
+            Chem.Kekulize(kekule)
+        except Chem.KekulizeException:
+            kekule, aromatic_is_double = mol, True
     found = []
     for atom_idx, position in numbering.position_of.items():
         atom = mol.GetAtomWithIdx(atom_idx)
@@ -104,16 +119,17 @@ def _lit(mol, numbering, positions, monocycles):
             continue
         oxo = False
         double = False
-        for bond in atom.GetBonds():
-            if bond.GetBondTypeAsDouble() == 2.0 or bond.GetIsAromatic():
-                other = bond.GetOtherAtom(atom)
+        for bond in kekule.GetAtomWithIdx(atom_idx).GetBonds():
+            if bond.GetBondTypeAsDouble() == 2.0 or (aromatic_is_double and bond.GetIsAromatic()):
+                other = bond.GetOtherAtom(kekule.GetAtomWithIdx(atom_idx))
                 if other.GetAtomicNum() in (8, 16, 34, 52) and other.GetDegree() == 1:
                     oxo = True
                 else:
                     double = True
         if double:
             continue
-        if atom.GetTotalNumHs() > 0 or (oxo and atom.GetAtomicNum() == 6):
+        replaced = sum(1 for n in atom.GetNeighbors() if n.GetIdx() not in ring and n.GetIdx() not in join)
+        if atom.GetTotalNumHs() > 0 or replaced or (oxo and atom.GetAtomicNum() == 6):
             found.append(position)
     return sorted(found)
 
@@ -295,7 +311,7 @@ def system_assembly(
                         else None
                     )
                     if found is None:
-                        found = _lit(mol, numbering, extra, monocycles), {}
+                        found = _lit(mol, numbering, extra, monocycles, join), {}
                     ih += [(n, p) for p in found[0]]
                     added.update({(n, p): (n, q) for p, q in found[1].items()})
                 ih.sort(key=_order)
