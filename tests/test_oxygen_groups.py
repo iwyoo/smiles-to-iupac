@@ -954,6 +954,13 @@ def test_acid_retained_names_and_parents(smiles, expected):
         ),
         pytest.param("NNS(=O)(=O)CC(=O)O", "(hydrazinesulfonyl)acetic acid", id="prefix_sulfonyl"),
         pytest.param("CNNS(=O)CC(=O)O", "(2-methylhydrazine-1-sulfinyl)acetic acid", id="prefix_substituted_sulfinyl"),
+        pytest.param("CN=C(O)NN", "N-methylhydrazinecarboximidic acid", id="imidic_acid_n_substituent"),
+        pytest.param("CN=C(O)NNC", "N,2-dimethylhydrazine-1-carboximidic acid", id="imidic_acid_n_and_hydrazine_substituents"),
+        pytest.param(
+            "CN=C(O)NNC(=NCC)O", "N1-ethyl-N2-methylhydrazine-1,2-dicarboximidic acid", id="imidic_acids_located_by_attachment"
+        ),
+        pytest.param("CSC(=NC#N)NN", "methyl N-cyanohydrazinecarboximidothioate", id="imidic_ester_n_substituent"),
+        pytest.param("CN=C(Cl)NN", "N-methylhydrazinecarboximidoyl chloride", id="imidoyl_halide_n_substituent"),
     ],
 )
 def test_hydrazine_parent_with_acid_group_suffix_or_prefix(smiles, expected):

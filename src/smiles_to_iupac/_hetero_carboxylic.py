@@ -83,15 +83,20 @@ def _hydrazine_acid(mol, found):
         suffix_locants = sorted(numbering.index(h) + 1 for _, _, h in found)
         prefix_locants = sorted(p for p, names in entries.items() for _ in names)
         ium_locants = [numbering.index(c) + 1 for c in cations]
+        # P-16.9.2: with several imidic groups the N locant carries the position of its attachment
+        for _, group, host in found:
+            locant = f"N{numbering.index(host) + 1}" if len(found) > 1 else "N"
+            for n in group.n_substituents:
+                entries.setdefault(locant, []).append(name_branch(graph, n, group.n_atom, halogens, mol=mol, unsaturated=True))
         options.append((ium_locants, suffix_locants, prefix_locants, format_substituent_prefixes(group_substituents(entries))))
-    ium_locants, suffix_locants, _, prefix = min(options)
+    ium_locants, suffix_locants, prefix_locants, prefix = min(options)
     spec = found[0][1].spec
     suffix = carbo_suffix(spec, len(found))
     suffix_text = "-" + ",".join(map(str, suffix_locants)) + "-"
     parent = "hydrazine" if len(pair) == 2 else multiplying_prefix(len(pair)) + "azane"
     if ium_locants:
         return f"{prefix}hydrazin-{ium_locants[0]}-ium{suffix_text}{suffix}"
-    bare = len(found) == 1 and not prefix and len(pair) == 2
+    bare = len(found) == 1 and not prefix_locants and len(pair) == 2
     return f"{prefix}{parent}{'' if bare else suffix_text}{suffix}"
 
 
