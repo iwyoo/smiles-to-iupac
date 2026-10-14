@@ -187,6 +187,11 @@ def center_kind(center, preferred):
     return _center_kind(center, _standard(center), preferred)
 
 
+def restored_hydrogens(center):
+    """Hydrons that the parent hydride of a two-connected ring nitrogen anion, an azolide, regains (P-72.2.2.2.3)."""
+    return -center.GetFormalCharge() if center.GetAtomicNum() == 7 and center.IsInRing() and center.GetDegree() == 2 else 0
+
+
 def _bond_count(atom):
     mol = Chem.Mol(atom.GetOwningMol())
     try:
@@ -248,7 +253,7 @@ def _name_skeletal_anion(mol, centers):
         hydrogens = atom.GetTotalNumHs()
         atom.SetFormalCharge(0)
         atom.SetNoImplicit(True)
-        atom.SetNumExplicitHs(hydrogens + (center.GetAtomicNum() == 7 and center.IsInRing() and center.GetDegree() == 2 and weight))
+        atom.SetNumExplicitHs(hydrogens + restored_hydrogens(center))
     neutral = editable.GetMol()
     neutral.UpdatePropertyCache(strict=False)
     graph = adjacency(neutral)

@@ -164,7 +164,7 @@ def _is_ammonium_prefix(atom):
 
 
 def marked_neutral(mol):
-    from ._anion_center import center_kind, is_center_atom
+    from ._anion_center import center_kind, is_center_atom, restored_hydrogens
 
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
@@ -186,7 +186,7 @@ def marked_neutral(mol):
         if center in others:
             word, lam = center_kind(center, preferred="uide" if len(centers) == 1 else "ide")
             atom.SetNoImplicit(True)
-            atom.SetNumExplicitHs(hydrogens)
+            atom.SetNumExplicitHs(hydrogens + restored_hydrogens(center))
             atom.SetProp("_anion_word", word)
             atom.SetProp("_anion_charge", str(charge))
             if lam:
@@ -269,6 +269,25 @@ def _anion_stereo(mol, neutral):
         STEREO_OF_ISOTOPOLOGUE.reset(token)
 
 
+def _ide_parent_name(mol):
+    """The name with the ring 'ide' centres as the parent and the anionic groups as prefixes, when that parent is senior
+    (P-72.7: as many anionic centres as a group parent can carry, then more 'ide' centres) and every anion is cited."""
+    from ._anion_center import _name_skeletal_anion
+
+    centers = anion_atoms(mol)
+    ide = [a for a in centers if not (_is_group_anion(a) or _is_carbanion(a))]
+    groups = [a for a in centers if _is_group_anion(a)]
+    if not ide or not groups or any(not a.IsInRing() for a in ide):
+        return None
+    if sum(-a.GetFormalCharge() for a in ide) < sum(-a.GetFormalCharge() for a in groups):
+        return None
+    try:
+        name = _name_skeletal_anion(mol, ide)
+    except UnsupportedStructure:
+        return None
+    return name if len(_ANION_TOKEN.findall(name)) >= len(centers) else None
+
+
 def _name_substitutive(mol):
     from ._anion_center import has_center_anion_shape, name_center_anion
     from ._anion_oxoacid import name_oxoacid_anion, oxoacid_center
@@ -284,6 +303,9 @@ def _name_substitutive(mol):
         return name_oxoacid_anion(mol, oxoacid)
     if has_center_anion_shape(mol) and (not _has_group_or_carbon(mol) or _ring_mixed_centers(mol)):
         return name_center_anion(mol)
+    ide_parent = _ide_parent_name(mol)
+    if ide_parent is not None:
+        return ide_parent
     neutral = marked_neutral(mol)
     ring_cations = [
         a
