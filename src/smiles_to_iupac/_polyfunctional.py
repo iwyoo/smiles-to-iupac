@@ -456,6 +456,28 @@ def _amidine_ylidene(mol, atom, nitrogen):
     )
 
 
+def _carbodiimide_ylidene(mol, atom, nitrogen):
+    """The central carbon of a carbodiimide drawn on `nitrogen`, cited as an [(organylimino)methylidene] prefix on the
+    amide (P-62.3.1.4, P-41)."""
+    rest = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    return (
+        len(rest) == 1
+        and rest[0].GetAtomicNum() == 7
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+        and not rest[0].GetFormalCharge()
+        and not rest[0].IsInRing()
+        and all(
+            mol.GetBondBetweenAtoms(rest[0].GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and (
+                n.GetAtomicNum() in (8, 14, 16, *HALOGEN_PREFIXES)
+                or n.GetAtomicNum() == 6
+            )
+            for n in rest[0].GetNeighbors()
+            if n.GetIdx() != atom.GetIdx()
+        )
+    )
+
+
 def _hydride_group_on_nitrogen(mol, atom, nitrogen, sibling_count):
     """An N-substituent that is a mononuclear hydride group (phosphanyl, silyl, boranyl ...) or, on a nitrogen with no
     other substituent, an ylidene of a hydride atom or of a plain carbon (P-66.1.1.4.3, P-68.1)."""
@@ -471,7 +493,9 @@ def _hydride_group_on_nitrogen(mol, atom, nitrogen, sibling_count):
     if order == 2.0 and sibling_count == 1:
         if atom.GetAtomicNum() == 6:
             return not _double_oxygens(mol, atom.GetIdx()) and (
-                not is_functional_carbon(mol, atom.GetIdx()) or _amidine_ylidene(mol, atom, nitrogen)
+                not is_functional_carbon(mol, atom.GetIdx())
+                or _amidine_ylidene(mol, atom, nitrogen)
+                or _carbodiimide_ylidene(mol, atom, nitrogen)
             )
         return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and atom.GetAtomicNum() != 7
     return False

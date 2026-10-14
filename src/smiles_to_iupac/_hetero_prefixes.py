@@ -35,8 +35,8 @@ _SENIOR_TO_SELENOL = [
         "[CX3](=O)[OX2H1]",
         "[CX3](=O)[OX2][#6]",
         "[CX3](=O)[OX2][OX2H1]",
-        "[CX3](=O)[NX3]",
-        "[CX3](=[S,Se])[NX3]",
+        "[CX3](=O)[NX3,NX2]",
+        "[CX3](=[S,Se])[NX3,NX2]",
         "[CX2]#[NX1]",
         "[CX3H1](=O)[#6]",
         "[#6][CX3](=O)[#6]",
@@ -1474,7 +1474,16 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
             from ._substituents import format_mononuclear_prefixes
 
             return format_mononuclear_prefixes(entries) + "methylidene", True
-    triple_n = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 3.0]
+    if (
+        mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0
+        and len(others) == 1
+        and not atom.IsInRing()
+        and mol.GetAtomWithIdx(others[0]).GetAtomicNum() == 7
+        and mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 2.0
+    ):
+        name, compound = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
+        return _enclose(name, compound) + "methylidene", True
+    triple_n =[n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 3.0]
     if triple_n and len(others) == 1:
         nitrile_oxide = _nitrile_oxide_prefix(mol, triple_n[0])
         if nitrile_oxide is not None:
