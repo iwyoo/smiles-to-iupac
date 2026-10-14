@@ -5148,6 +5148,7 @@ def _is_nitro_part(atom):
         oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
         return (
             len(oxygens) in (2, 3)
+            and not any(o.IsInRing() for o in oxygens)
             and sum(o.GetFormalCharge() for o in oxygens) == -1
             and atom.GetDegree() == 3
             and not atom.GetTotalNumHs()
