@@ -11,7 +11,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, assign_cip_labels
 from ._substituents import FORCED_BRANCH_NAMES, format_mononuclear_prefixes, name_branch
 
 _ONIUM_STEMS = {7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium", 34: "selanium", 52: "telluranium", 33: "arsanium"}
@@ -197,8 +197,29 @@ def _azoxy(mol, graph):
 
 def _azoxy_name(mol, graph):
     oxide_nitrogen, other_nitrogen, oxygen = _azoxy(mol, graph)
-    if any(b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()):
-        raise UnsupportedStructure("the configuration of the azoxy double bond is not cited yet")
+    code = _azoxy_double_bond_code(mol, oxide_nitrogen, other_nitrogen)
+    text = _azoxy_unstereo_name(mol, graph, oxide_nitrogen, other_nitrogen, oxygen)
+    return f"({code})-{text}" if code else text
+
+
+def _azoxy_double_bond_code(mol, oxide_nitrogen, other_nitrogen):
+    """The E or Z of the N=N bond, ranked with the oxide oxygen on its nitrogen and a lone pair last (P-93.4.2.1.1,
+    P-92.2.1); None when the bond is unspecified. Any other stereo element is not cited."""
+    specified = [b for b in mol.GetBonds() if b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)]
+    if not specified:
+        return None
+    pair = {oxide_nitrogen.GetIdx(), other_nitrogen.GetIdx()}
+    if len(specified) != 1 or {specified[0].GetBeginAtomIdx(), specified[0].GetEndAtomIdx()} != pair:
+        raise UnsupportedStructure("a stereo element of this azoxy compound other than its N=N bond is not cited yet")
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    bond = probe.GetBondBetweenAtoms(oxide_nitrogen.GetIdx(), other_nitrogen.GetIdx())
+    if not bond.HasProp("_CIPCode"):
+        raise UnsupportedStructure("could not determine a CIP E/Z label for the azoxy double bond")
+    return bond.GetProp("_CIPCode")
+
+
+def _azoxy_unstereo_name(mol, graph, oxide_nitrogen, other_nitrogen, oxygen):
     groups = []
     for nitrogen in (oxide_nitrogen, other_nitrogen):
         (root,) = [n for n in graph[nitrogen.GetIdx()] if n not in (oxygen.GetIdx(), oxide_nitrogen.GetIdx(), other_nitrogen.GetIdx())]
