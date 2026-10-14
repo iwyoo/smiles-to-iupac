@@ -1749,6 +1749,13 @@ def test_hydrazide_variants(smiles, expected):
         pytest.param("O=C(NNC)N1CCCCC1", "N'-methylpiperidine-1-carbohydrazide", id="hydrazide_group_on_a_ring_nitrogen"),
         pytest.param("C1CCCCN1NC(C)=O", "N-(piperidin-1-yl)acetamide", id="amide_nitrogen_on_a_ring_nitrogen"),
         pytest.param("C1CCCCN1NS(=O)(=O)C", "N-(piperidin-1-yl)methanesulfonamide", id="sulfonamide_nitrogen_on_a_ring_nitrogen"),
+        pytest.param("CC(=O)Nn1cccn1", "N-(1H-pyrazol-1-yl)acetamide", id="amide_nitrogen_on_a_pyrazole_nitrogen"),
+        pytest.param("CC(=O)Nn1ccc(C)n1", "N-(3-methyl-1H-pyrazol-1-yl)acetamide", id="substituted_azole_ring_group"),
+        pytest.param("CC(=O)Nn1cncn1", "N-(1H-1,2,4-triazol-1-yl)acetamide", id="amide_nitrogen_on_a_triazole_nitrogen"),
+        pytest.param("CC(=O)Nn1nnnc1", "N-(1H-tetrazol-1-yl)acetamide", id="amide_nitrogen_on_a_tetrazole_nitrogen"),
+        pytest.param("CC(=O)N(C)n1cccn1", "N-methyl-N-(1H-pyrazol-1-yl)acetamide", id="n_methyl_beside_the_azole_group"),
+        pytest.param("CS(=O)(=O)Nn1cccn1", "N-(1H-pyrazol-1-yl)methanesulfonamide", id="sulfonamide_nitrogen_on_a_pyrazole_nitrogen"),
+        pytest.param("CC(=O)NN1CCCO1", "N-(1,2-oxazolidin-2-yl)acetamide", id="amide_nitrogen_on_a_saturated_n_o_ring_nitrogen"),
         pytest.param("CC(=N)NN1CCCCC1", "N-(piperidin-1-yl)ethanimidamide", id="amidine_nitrogen_on_a_ring_nitrogen"),
         pytest.param("N=C(N)NN1CCCCC1", "N-(piperidin-1-yl)guanidine", id="guanidine_nitrogen_on_a_ring_nitrogen"),
         pytest.param(
