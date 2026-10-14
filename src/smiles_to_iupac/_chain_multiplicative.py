@@ -594,7 +594,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             if lead is None:
                 return None
             return f"{lead}{_linker_text(branches, central, arm_parts)}{multiplier_word(count, False)}{unit_phrase(text, '')}"
-        if unit_kind in ("amide", "amine"):
+        if unit_kind in ("amide", "amine", "imine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
@@ -603,6 +603,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             unit_kind == "hydride"
             or text.startswith(("N-", "di", "tri", "tetra"))
             or any(ch.isdigit() or ch in "- " for ch in text)
+            or (unit_kind == "imine" and _ring_on_imine_carbon(units[0][0]))
         ):
             return f"{lead}{linker}{multiplier_word(count, True)}({text})"
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
@@ -637,6 +638,17 @@ _HYDRIDE_ORDER = (15, 33, 14, 32, 50, 82)
 _MULTIPLIED_HYDRIDE = re.compile(r"^(?:di|tri|tetra|penta|hexa|hepta|octa)(?:phosphane|arsane|silane|germane|stannane|plumbane)$")
 
 
+def _ring_on_imine_carbon(unit):
+    """A ring joined to the carbon of the C=N group: 'bis(phenylmethanimine)' keeps the prefix from reading as 'diphenyl'."""
+    return any(
+        a.GetAtomicNum() == 6
+        and not a.IsInRing()
+        and any(n.IsInRing() for n in a.GetNeighbors())
+        and any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(a).GetAtomicNum() == 7 for b in a.GetBonds())
+        for a in unit.GetAtoms()
+    )
+
+
 def _amine_arm(unit, attach_atom):
     from ._polyfunctional import amine_unit_name
 
@@ -669,6 +681,8 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return None
     if unit_kind == "amide":
         return name if name.endswith("amide") else None
+    if unit_kind == "imine":
+        return name if name.endswith("imine") else None
     if unit_kind == "amine":
         single_nitrogen = sum(a.GetAtomicNum() == 7 for a in unit.GetAtoms()) == 1
         return name if single_nitrogen and name.endswith("amine") else None
@@ -1025,7 +1039,7 @@ def _chain_multiplicative_name(mol, stereo):
                     and bond.GetBondTypeAsDouble() in (1.0, 2.0)
                 )
                 target = candidates
-            elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide") and r in anchors:
+            elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide", "imine") and r in anchors:
                 other = mol.GetAtomWithIdx(h)
                 ok = bond.GetBondTypeAsDouble() == 1.0 and (
                     (other.GetAtomicNum() == 6 and not is_functional_carbon(mol, h))
@@ -1045,7 +1059,7 @@ def _chain_multiplicative_name(mol, stereo):
         if name is not None:
             return name
     for arms in _rank_candidates(nitrogen, anchors, heads, mol):
-        name = _attempt(mol, graph, stereo, arms, "amide")
+        name = _attempt(mol, graph, stereo, arms, "imine" if principal == "imine" else "amide")
         if name is not None:
             return name
     if principal == "amine":
