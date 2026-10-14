@@ -566,6 +566,25 @@ def test_ring_chalcogen_with_doubly_bonded_chalcogens_is_a_lambda_heterone(smile
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-68.4.3.6, P-21.1.2, P-22.2.2: the imino groups of a ring sulfoximide are prefixes beside the suffix 'one'
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=S1(=N)CCCC1", "1-imino-1λ6-thiolan-1-one", id="nh_on_a_five_membered_ring"),
+        pytest.param("O=S1(=N)CCC1", "1-imino-1λ6-thietan-1-one", id="nh_on_a_four_membered_ring"),
+        pytest.param("O=S1(=N)CCCCC1", "1-imino-1λ6-thian-1-one", id="nh_on_a_six_membered_ring"),
+        pytest.param("O=S1(=NC)CCC1", "1-(methylimino)-1λ6-thietan-1-one", id="alkyl_on_the_imino_nitrogen"),
+        pytest.param("O=S1(=NC(C)C)CCCC1", "1-[(propan-2-yl)imino]-1λ6-thiolan-1-one", id="branched_alkyl_on_the_imino_nitrogen"),
+        pytest.param("O=S1(=Nc2ccccc2)CCCC1", "1-(phenylimino)-1λ6-thiolan-1-one", id="aryl_on_the_imino_nitrogen"),
+        pytest.param("O=S1(=NC)CC(C)CC1", "3-methyl-1-(methylimino)-1λ6-thiolan-1-one", id="substituent_on_the_ring_carbon"),
+        pytest.param("O=S1(=N)CCOCC1", "4-imino-1,4λ6-oxathian-4-one", id="second_heteroatom_in_the_ring"),
+        pytest.param("S=S1(=N)CCCC1", "1-imino-1λ6-thiolane-1-thione", id="thione_beside_the_imino_prefix"),
+    ],
+)
+def test_imino_prefixes_of_a_ring_sulfoximide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-64.4.2, P-21.2.4.1, P-22.2.2, P-68.3.1: ring atoms of nonstandard bonding number and heteroatom groups on ring nitrogen
 @pytest.mark.parametrize(
     "smiles,expected",
@@ -1254,6 +1273,10 @@ def test_amino_prefix_with_a_sulfonyl_group_on_the_nitrogen(smiles, expected):
         pytest.param("O=S=Nc1ccccc1", "(phenylimino)-\u03bb4-sulfanone", id="sulfinylamine"),
         pytest.param("CN=S(=O)=O", "(methylimino)-\u03bb6-sulfanedione", id="sulfonylamine"),
         pytest.param("CS(C)(=O)=Nc1ccccc1", "dimethyl(phenylimino)-\u03bb6-sulfanone", id="sulfoximide"),
+        pytest.param("CS(=O)(=Nc1ncccc1)C", "dimethyl[(pyridin-2-yl)imino]-\u03bb6-sulfanone", id="heteroaryl_on_the_imino_nitrogen"),
+        pytest.param("CS(=O)(=Nc1nccs1)C", "dimethyl[(1,3-thiazol-2-yl)imino]-\u03bb6-sulfanone", id="heteroaryl_with_two_ring_heteroatoms"),
+        pytest.param("CS(=O)(=NO)C", "(hydroxyimino)di(methyl)-\u03bb6-sulfanone", id="hydroxy_on_the_imino_nitrogen"),
+        pytest.param("CS(=O)(=NN)C", "(aminoimino)di(methyl)-\u03bb6-sulfanone", id="amino_on_the_imino_nitrogen"),
         pytest.param("N=S(=N)(c1ccccc1)c1ccccc1", "diphenyl-\u03bb6-sulfanediimine", id="sulfonediimine_with_sulfur_groups_only"),
         pytest.param("CN=S=NCC", "ethyl(methyl)-\u03bb4-sulfanediimine", id="sulfur_diimide_without_locants"),
         pytest.param("N=S(=N)=N", "\u03bb6-sulfanetriimine", id="sulfur_triimide"),
@@ -1276,6 +1299,11 @@ def test_sulfimides_sulfoximides_and_sulfur_imides_on_the_lambda_sulfane_parent(
             "CS(C)(=O)=NS(=O)(=O)c1ccccc1",
             "N-[dimethyl(oxo)-\u03bb6-sulfanylidene]benzenesulfonamide",
             id="sulfoximide_under_a_sulfonamide",
+        ),
+        pytest.param("CS(=O)(=NC#N)C", "[dimethyl(oxo)-\u03bb6-sulfanylidene]cyanamide", id="sulfoximide_under_a_cyanamide"),
+        pytest.param("N#CN=S(C)C", "(dimethyl-\u03bb4-sulfanylidene)cyanamide", id="sulfimide_under_a_cyanamide"),
+        pytest.param(
+            "CS(=O)(=N[N+](=O)[O-])C", "[dimethyl(oxo)-\u03bb6-sulfanylidene]nitramide", id="sulfoximide_under_a_nitramide"
         ),
     ],
 )

@@ -4,6 +4,7 @@ amide', 'methyl(nitro)nitramide'), a halogen on P, As or Sb an acid halide ('met
 =N(O)OH or >N(O)OH an azinic acid ('ethylideneazinic acid'). Carbon groups are cited as prefixes without locants."""
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
+from ._chalcogen_imide import ylidene_group_atoms
 from ._hydride_chain import _is_pseudohalide_nitrogen
 from ._phosphonic_acid import CENTER_STEMS
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
@@ -80,11 +81,16 @@ def _nitrogen_amide(mol):
                 if all(a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()):
                     return centre, nitro, nitroso, carbons, amino
         pseudohalide = [n for n in others if _is_pseudohalide_nitrogen(n)]
+        ylidenes = {n.GetIdx(): ylidene_group_atoms(mol, n.GetIdx(), centre.GetIdx()) for n in others}
         if any(
-            (not _is_group_atom(n) and n not in pseudohalide) or _bond(mol, centre.GetIdx(), n.GetIdx()) != 1.0 for n in others
+            (not _is_group_atom(n) and n not in pseudohalide and not ylidenes[n.GetIdx()])
+            or _bond(mol, centre.GetIdx(), n.GetIdx()) != (2.0 if ylidenes[n.GetIdx()] else 1.0)
+            for n in others
         ):
             continue
         covered = {centre.GetIdx()}
+        for atoms in ylidenes.values():
+            covered |= atoms
         for group in (*nitro, *nitroso):
             covered |= {group.GetIdx(), *(o.GetIdx() for o in group.GetNeighbors())}
         for group in pseudohalide:

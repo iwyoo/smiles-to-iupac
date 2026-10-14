@@ -100,7 +100,8 @@ def cyanamide_name(mol):
         if terminal.GetAtomicNum() != 7 or terminal.GetDegree() != 1 or amino.GetAtomicNum() != 7:
             continue
         if amino.IsInRing() or amino.GetIsAromatic() or any(
-            b.GetBondTypeAsDouble() != 1.0 and not (b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(amino).GetAtomicNum() == 6)
+            b.GetBondTypeAsDouble() != 1.0
+            and not (b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(amino).GetAtomicNum() in (6, 16, 34, 52))
             for b in amino.GetBonds()
         ):
             continue
