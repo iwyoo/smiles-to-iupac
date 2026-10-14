@@ -361,6 +361,9 @@ def _replacement_text(replacements):
     return "-".join(pieces)
 
 
+_DICARBOXAMIDE = {8: "carboxamide", 16: "carbothioamide", 34: "carboselenoamide", 52: "carbotelluroamide"}
+
+
 def _nitro_atoms(mol):
     atoms = set()
     for atom in mol.GetAtoms():
@@ -370,19 +373,21 @@ def _nitro_atoms(mol):
 
 
 def _carbamoyl(mol, nitrogen, other):
-    """(carbonyl carbon, amide nitrogen) of the carbamoyl group C(=O)N on `nitrogen`, else None."""
+    """(carbonyl carbon, amide nitrogen) of the carbamoyl group C(=O)N or its chalcogen analogue on `nitrogen`, else None."""
     for carbon in nitrogen.GetNeighbors():
         if carbon.GetIdx() == other.GetIdx() or carbon.GetAtomicNum() != 6 or carbon.IsInRing() or carbon.GetDegree() != 3:
             continue
-        oxygen = _carbonyl_chalcogen(carbon)
+        chalcogen = _carbonyl_chalcogen(carbon)
         amides = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetIdx() != nitrogen.GetIdx()]
-        if oxygen is not None and oxygen.GetAtomicNum() == 8 and len(amides) == 1 and not amides[0].IsInRing():
+        if chalcogen is not None and len(amides) == 1 and not amides[0].IsInRing():
             return carbon, amides[0]
     return None
 
 
 def hydrazine_dicarboxamide_name(mol):
-    """Hydrazine-1,2-dicarboxamide with substituents on the hydrazine and amide nitrogens (P-66.1.7)."""
+    """Hydrazine-1,2-dicarboxamide with substituents on the hydrazine and amide nitrogens (P-66.1.7); two chalcogen
+    analogues of one kind give the dicarbothioamide, of two kinds the more senior is the suffix and the other a prefix
+    (P-65.1.5.1)."""
     nitro = _nitro_atoms(mol)
     if len(Chem.GetMolFrags(mol)) != 1 or any(
         (a.GetFormalCharge() and a.GetIdx() not in nitro) or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()
@@ -414,6 +419,9 @@ def _hydrazine_dicarboxamide(mol, graph, found, nitro):
     core = set()
     for nitrogen, (carbon, amide) in found:
         core |= {nitrogen.GetIdx(), carbon.GetIdx(), amide.GetIdx(), _carbonyl_chalcogen(carbon).GetIdx()}
+    elements = [_carbonyl_chalcogen(carbon).GetAtomicNum() for _, (carbon, _) in found]
+    senior = min(range(2), key=lambda i: elements[i])
+    mixed = elements[0] != elements[1]
     sides = []
     for nitrogen, (carbon, amide) in found:
         branches = []
@@ -437,15 +445,20 @@ def _hydrazine_dicarboxamide(mol, graph, found, nitro):
     if len(core) + sum(len(c) for _, c in sides) != mol.GetNumAtoms():
         return None
     best = None
-    for first, second in ((0, 1), (1, 0)):
+    for first, second in (((senior, 1 - senior),) if mixed else ((0, 1), (1, 0))):
         entries = []
         for position, index in ((1, first), (2, second)):
             hydrazine_names, amide_names = sides[index][0]
             entries.extend((position, name, compound) for name, compound in hydrazine_names)
-            entries.extend((f"N{position}", name, compound) for name, compound in amide_names)
+            if mixed and index != senior:
+                junior_nitrogen, (junior_carbon, _) = found[index]
+                name, compound = name_branch(graph, junior_carbon.GetIdx(), junior_nitrogen.GetIdx(), halogens, aromatic, mol=mol)
+                entries.append((position, name, compound))
+            else:
+                entries.extend((("N" if mixed else f"N{position}"), name, compound) for name, compound in amide_names)
         key = (
             tuple(sorted(loc for loc, _, _ in entries if isinstance(loc, int))),
-            tuple(sorted(int(loc[1:]) for loc, _, _ in entries if isinstance(loc, str))),
+            tuple(sorted(int(loc[1:] or 0) for loc, _, _ in entries if isinstance(loc, str))),
             tuple(sorted((name, str(loc)) for loc, name, _ in entries)),
         )
         if best is None or key < best[0]:
@@ -454,7 +467,9 @@ def _hydrazine_dicarboxamide(mol, graph, found, nitro):
     for locant, name, compound in best[1]:
         prefixes.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     head = format_substituent_prefixes(prefixes) if prefixes else ""
-    return f"{head}hydrazine-1,2-dicarboxamide"
+    if mixed:
+        return f"{head}hydrazine-1-{_DICARBOXAMIDE[elements[senior]]}"
+    return f"{head}hydrazine-1,2-di{_DICARBOXAMIDE[elements[0]]}"
 
 
 _HYDRAZIDE_INFIX = {8: "carbo", 16: "carbothio", 34: "carboseleno", 52: "carbotelluro"}
