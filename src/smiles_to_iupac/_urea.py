@@ -47,17 +47,18 @@ from rdkit import Chem
 from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
 from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
+from ._parent_choice import senior_parent_name
 from ._substituents import format_substituent_prefixes
 
 
+_CHALCOGENS = (8, 16, 34, 52)
+_UREA_WORD = {8: "urea", 16: "thiourea", 34: "selenourea", 52: "tellurourea"}
 _AMIDE_ENDING = {8: "carboxamide", 16: "carbothioamide", 34: "carboselenoamide", 52: "carbotelluroamide"}
 
 
-def _urea_core(mol, atomic_num=8):
-    """(carbon_idx, (nitrogen1_idx, nitrogen2_idx)) for the urea carbonyl
-    carbon and its two nitrogens, or None if the molecule isn't shaped like
-    a urea core at all (a carbon with exactly one double-bonded, terminal
-    oxygen and two singly-bonded nitrogens, each nitrogen bonded only to
+def _urea_cores(mol, atomic_num=8):
+    """Every (carbon_idx, (nitrogen1_idx, nitrogen2_idx)) for a urea carbonyl carbon and its two nitrogens (a carbon
+    with exactly one double-bonded, terminal chalcogen and two singly-bonded nitrogens, each nitrogen bonded only to
     that carbon and 0-2 carbons besides)."""
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
@@ -98,8 +99,11 @@ def _urea_core(mol, atomic_num=8):
         ]
         if max(len(t) for t in tails) > 1:
             continue
-        return atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
-    return None
+        yield atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
+
+
+def _urea_core(mol, atomic_num=8):
+    return next(_urea_cores(mol, atomic_num), None)
 
 
 def _is_sulfonyl_sulfur(atom):
@@ -126,6 +130,11 @@ def _is_hydrazine_tail(mol, atom, exclude_idx, sulfonyl=False):
 
 def has_urea_shape(mol) -> bool:
     return _urea_core(mol) is not None
+
+
+def senior_chalcogen(mol):
+    """The chalcogen of the most senior urea group present: urea above thiourea, selenourea and tellurourea (P-41)."""
+    return next((z for z in _CHALCOGENS if _urea_core(mol, z) is not None), None)
 
 
 def _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx):
@@ -175,18 +184,42 @@ def name_urea(mol, atomic_num=8) -> str:
         if atomic_num != 8:
             raise UnsupportedStructure("nuclide labels on a chalcogenourea are not supported yet")
         return _labelled_urea_name(*split[:2])
-    core = _urea_core(mol, atomic_num)
-    if core is None:
+    return name_cores(mol, atomic_num)
+
+
+def name_cores(mol, atomic_num):
+    """Name with the senior urea group of the chalcogen `atomic_num` as the parent (P-45.2.1, P-45.5)."""
+    cores = list(_urea_cores(mol, atomic_num))
+    if not cores:
         raise UnsupportedStructure(
             "no urea (H2N-C(=O)-NH2 or an N-substituted derivative) shape "
             "found; this module only handles urea and simple N-substituted "
             "ureas"
         )
-    carbon_idx, (n1_idx, n2_idx) = core
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    if len(cores) == 1:
+        return _core_name(mol, atomic_num, cores[0])[1]
+    by_carbon = {core[0]: core for core in cores}
+    return senior_parent_name(mol, list(by_carbon), lambda carbon: _core_name(mol, atomic_num, by_carbon[carbon]))
+
+
+def _junior_cores(mol, carbon_idx, nitrogens):
+    """Carbons of the other urea groups that are not acyl groups on the nitrogens of the parent urea, so they rank
+    equal to or below it (P-41) and are cited as N-substituents."""
+    return {
+        c
+        for z in _CHALCOGENS
+        for c, _ in _urea_cores(mol, z)
+        if c != carbon_idx and not {n.GetIdx() for n in mol.GetAtomWithIdx(c).GetNeighbors()} & nitrogens
+    }
+
+
+def _core_name(mol, atomic_num, core):
+    """(number of N-substituents, name) with `core` as the parent; every other urea group is an N-substituent."""
+    carbon_idx, (n1_idx, n2_idx) = core
     (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == atomic_num)
     amino_nitrogen_idx = _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx)
 
@@ -197,18 +230,23 @@ def name_urea(mol, atomic_num=8) -> str:
         core_atoms.update(tails)
         units = ((n1_idx, tails[0]), (n2_idx, tails[1]))
         names = n_substituent_names(mol, graph, core_atoms, (*units[0], *units[1]), carbon_idx, junior_groups=True)
-        return _hydrazinecarbohydrazide_name((names[0], names[1]), (names[2], names[3]), _HYDRAZIDE_ENDING[atomic_num])
+        return sum(map(len, names)), _hydrazinecarbohydrazide_name(
+            (names[0], names[1]), (names[2], names[3]), _HYDRAZIDE_ENDING[atomic_num]
+        )
     if amino_nitrogen_idx is not None:
         core_atoms.add(amino_nitrogen_idx)
         alpha, amide = (
             (n1_idx, n2_idx) if amino_nitrogen_idx in graph[n1_idx] else (n2_idx, n1_idx)
         )
-        amide_names, alpha_names, beta_names = n_substituent_names(
+        names = n_substituent_names(
             mol, graph, core_atoms, (amide, alpha, amino_nitrogen_idx), carbon_idx, junior_groups=True
         )
-        return _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, _AMIDE_ENDING[atomic_num])
-    n1_names, n2_names = n_substituent_names(mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx, junior_groups=True)
-    return f"{n_prefix(n1_names, n2_names)}urea"
+        return sum(map(len, names)), _hydrazinecarboxamide_name(*names, _AMIDE_ENDING[atomic_num])
+    n1_names, n2_names = n_substituent_names(
+        mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx, junior_groups=True,
+        junior_cores=_junior_cores(mol, carbon_idx, {n1_idx, n2_idx}),
+    )
+    return len(n1_names) + len(n2_names), f"{n_prefix(n1_names, n2_names)}{_UREA_WORD[atomic_num]}"
 
 
 def nitrogen_locants(mol):

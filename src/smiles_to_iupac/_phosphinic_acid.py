@@ -36,7 +36,8 @@ functional-replacement/infix variant.
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphonic_acid import CENTER_STEMS, acid_prefixes, require_phosphorus_acid_scope, senior_acid_centre
+from ._parent_choice import senior_parent_name
+from ._phosphonic_acid import CENTER_STEMS, acid_prefixes, require_phosphorus_acid_scope, senior_acid_centres
 from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 
@@ -79,19 +80,25 @@ def has_phosphinic_acid_shape(mol) -> bool:
 
 
 def name_phosphinic_acid(mol) -> str:
-    phosphorus = senior_acid_centre(mol, _phosphinic_acid_phosphorus_atoms(mol))
-    if phosphorus is None:
-        phosphorus_atoms = _phosphinic_acid_phosphorus_atoms(mol)
-        if len(phosphorus_atoms) != 1:
-            raise UnsupportedStructure("more than one phosphinic acid group is not supported yet")
-        (phosphorus,) = phosphorus_atoms
+    phosphorus_atoms = _phosphinic_acid_phosphorus_atoms(mol)
+    senior = senior_acid_centres(mol, phosphorus_atoms)
+    if not senior and len(phosphorus_atoms) != 1:
+        raise UnsupportedStructure("more than one phosphorus acid group of different classes is not supported yet")
+    senior = senior or phosphorus_atoms
 
-    require_phosphorus_acid_scope(mol, phosphorus)
-    group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
+    require_phosphorus_acid_scope(mol, senior[0])
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    if len(senior) == 1:
+        return _name_at(mol, senior[0])[1]
+    return senior_parent_name(mol, [p.GetIdx() for p in senior], lambda idx: _name_at(mol, mol.GetAtomWithIdx(idx)))
+
+
+def _name_at(mol, phosphorus):
+    """(number of substituent prefixes, name) with the phosphinic acid group at `phosphorus` as the parent."""
+    group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
     graph = adjacency(mol)
     roots = [n for n in graph[phosphorus.GetIdx()] if n not in group_oxygens]
     halogens = halogen_substituents(mol)
@@ -99,5 +106,4 @@ def name_phosphinic_acid(mol) -> str:
 
     with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
         entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
-    prefix = format_mononuclear_prefixes(entries)
-    return f"{prefix}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"
+    return len(entries), f"{format_mononuclear_prefixes(entries)}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"

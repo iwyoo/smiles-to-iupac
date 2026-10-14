@@ -133,6 +133,17 @@ def test_rejects_second_boronic_and_related_raise(smiles):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OB(O)CCB(C)O", "{2-[hydroxy(methyl)boranyl]ethyl}boronic acid", id="boronic_acid_outranks_borinic_acid"),
+        pytest.param("CB(O)CCB(CC)O", "{2-[ethyl(hydroxy)boranyl]ethyl}(methyl)borinic acid", id="unequal_borinic_acids_by_alphanumerical_order"),
+    ],
+)
+def test_boron_acids_of_different_units_choose_the_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("C[Re]([OH2])Cl", "aquachlorido(methyl)rhenium"),

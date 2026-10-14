@@ -91,19 +91,20 @@ def acid_centre_rank(mol, atom):
     return _ELEMENT_RANK[atom.GetAtomicNum()], _ACID_CLASS_RANK[(oxo, hydroxyl)]
 
 
-def senior_acid_centre(mol, candidates):
-    """The candidate whose acid is strictly senior to every other acid centre of the molecule, else None."""
+def senior_acid_centres(mol, candidates):
+    """The candidates whose acid is as senior as every other acid centre of the molecule (several when they tie)."""
     ranks = {}
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() in CENTER_STEMS:
             rank = acid_centre_rank(mol, atom)
             if rank is None:
-                return None
+                return []
             ranks[atom.GetIdx()] = rank
-    best = min((c for c in candidates if c.GetIdx() in ranks), key=lambda c: ranks[c.GetIdx()], default=None)
-    if best is None or sum(1 for r in ranks.values() if r <= ranks[best.GetIdx()]) != 1:
-        return None
-    return best
+    ranked = [c for c in candidates if c.GetIdx() in ranks]
+    best = min((ranks[c.GetIdx()] for c in ranked), default=None)
+    if best is None or best != min(ranks.values()):
+        return []
+    return [c for c in ranked if ranks[c.GetIdx()] == best]
 
 
 def require_phosphorus_acid_scope(mol, phosphorus):
@@ -112,7 +113,7 @@ def require_phosphorus_acid_scope(mol, phosphorus):
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    if senior_acid_centre(mol, [phosphorus]) is None and sum(a.GetAtomicNum() in CENTER_STEMS for a in mol.GetAtoms()) > 1:
+    if not senior_acid_centres(mol, [phosphorus]) and sum(a.GetAtomicNum() in CENTER_STEMS for a in mol.GetAtoms()) > 1:
         raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
     if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus acid")
@@ -154,12 +155,11 @@ def has_phosphonic_acid_shape(mol) -> bool:
 
 
 def name_phosphonic_acid(mol) -> str:
-    phosphorus = senior_acid_centre(mol, _phosphonic_acid_phosphorus_atoms(mol))
-    if phosphorus is None:
-        phosphorus_atoms = _phosphonic_acid_phosphorus_atoms(mol)
-        if len(phosphorus_atoms) != 1:
-            raise UnsupportedStructure("more than one phosphonic acid group is not supported yet")
-        (phosphorus,) = phosphorus_atoms
+    phosphorus_atoms = _phosphonic_acid_phosphorus_atoms(mol)
+    senior = senior_acid_centres(mol, phosphorus_atoms)
+    if len(senior) != 1 and len(phosphorus_atoms) != 1:
+        raise UnsupportedStructure("more than one phosphonic acid group is not supported yet")
+    phosphorus = senior[0] if len(senior) == 1 else phosphorus_atoms[0]
 
     require_phosphorus_acid_scope(mol, phosphorus)
     group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}

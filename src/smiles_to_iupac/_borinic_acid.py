@@ -30,7 +30,8 @@ group, and any chalcogen-replacement analogue.
 
 from rdkit import Chem
 
-from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON
+from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON, boron_acid_parent
+from ._parent_choice import senior_parent_name
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
@@ -64,16 +65,20 @@ def has_borinic_acid_shape(mol) -> bool:
 
 
 def name_borinic_acid(mol) -> str:
+    from ._boronic_acid import _boronic_acid_boron_atoms
+
     boron_atoms = _borinic_acid_boron_atoms(mol)
-    if len(boron_atoms) != 1:
-        raise UnsupportedStructure("more than one borinic acid group is not supported yet")
-    (boron,) = boron_atoms
+    if not boron_atoms:
+        raise UnsupportedStructure("no borinic acid group")
+    if _boronic_acid_boron_atoms(mol):
+        raise UnsupportedStructure("a boronic acid group outranks the borinic acid (P-42.3)")
+    borons = {a.GetIdx() for a in boron_atoms}
 
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         atomic_num = atom.GetAtomicNum()
-        if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx():
+        if atomic_num == _BORON and atom.GetIdx() not in borons:
             raise UnsupportedStructure("more than one boron atom is not supported yet")
         if atomic_num not in (1, 6, 8, _BORON, *HALOGEN_PREFIXES):
             raise UnsupportedStructure(
@@ -81,19 +86,25 @@ def name_borinic_acid(mol) -> str:
                 "oxygen and a halogen substituent are not supported yet"
             )
 
-    group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
     if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the borinic acid")
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    if len(borons) == 1:
+        return _name_at(mol, boron_atoms[0])[1]
+    return senior_parent_name(mol, sorted(borons), lambda idx: _name_at(mol, mol.GetAtomWithIdx(idx)))
+
+
+def _name_at(mol, boron):
+    """(number of substituent prefixes, name) with the borinic acid group at `boron` as the parent."""
+    group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
     graph = adjacency(mol)
     roots = [n for n in graph[boron.GetIdx()] if n not in group_oxygens]
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
-    with cited_stereo_around(mol, boron.GetIdx()):
+    with boron_acid_parent(), cited_stereo_around(mol, boron.GetIdx()):
         entries = [name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
-    prefix = format_mononuclear_prefixes(entries)
-    return f"{prefix}borinic acid"
+    return len(entries), f"{format_mononuclear_prefixes(entries)}borinic acid"

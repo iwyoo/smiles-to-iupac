@@ -9,7 +9,6 @@ from rdkit import Chem
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
-    adjacency,
     group_substituents,
     halogen_substituents,
     is_nitro_nitrogen,
@@ -67,13 +66,16 @@ _SENIOR_TO_UREA = [
 ]
 
 
-def has_group_senior_to_urea(mol, core_atoms, hydrazide_junior=False):
+def has_group_senior_to_urea(mol, core_atoms, hydrazide_junior=False, junior_cores=frozenset()):
     """A carboxylic or sulfonic acid, ester, acid halide, amide or amidine outside the urea core, or a charge other
     than a nitro group's: the class that outranks urea as the parent (P-41, P-66.1.6.1.1.5). With `hydrazide_junior`
-    an acyl or sulfonyl group on a nitrogen of the core makes a hydrazide, which ranks below an amidine (P-41)."""
+    an acyl or sulfonyl group on a nitrogen of the core makes a hydrazide, which ranks below an amidine (P-41).
+    `junior_cores` are carbons of urea groups ranking equal to or below the parent urea (P-41, P-45.2)."""
     for query in _SENIOR_TO_UREA:
         if any(
-            match[0] not in core_atoms and not (hydrazide_junior and match[-1] in core_atoms)
+            match[0] not in core_atoms
+            and match[0] not in junior_cores
+            and not (hydrazide_junior and match[-1] in core_atoms)
             for match in mol.GetSubstructMatches(query)
         ):
             return True
@@ -112,7 +114,9 @@ def _named_groups(mol, graph, halogens, nitrogens, roots, core_atoms):
         return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
 
 
-def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False, hydrazide_junior=False):
+def n_substituent_names(
+    mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False, hydrazide_junior=False, junior_cores=frozenset()
+):
     """One list of substituent names per nitrogen of `nitrogens`, for every atom outside `core_atoms`
     (P-66.1.4.1); raises when a ring fuses into the core or a non-halogen
     acyclic heteroatom is present, unless `junior_groups` lets groups junior to the amide be prefixes."""
@@ -133,7 +137,7 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_gr
         )
     halogens = halogen_substituents(mol)
     if junior_groups:
-        if has_group_senior_to_urea(mol, core_atoms, hydrazide_junior):
+        if has_group_senior_to_urea(mol, core_atoms, hydrazide_junior, junior_cores):
             raise UnsupportedStructure("a group senior to the urea is the parent, not an N-substituent")
         if any(
             mol.GetAtomWithIdx(idx).GetAtomicNum() not in _UREA_SUBSTITUENT_ELEMENTS and not mol.GetAtomWithIdx(idx).IsInRing()
@@ -185,41 +189,13 @@ def unprimed_first(n1_names, n2_names):
 @dataclass(frozen=True)
 class Chalcogenourea:
     atomic_num: int
-    symbol: str
-    word: str
-
-    def _core(self, mol):
-        from ._urea import _urea_core
-
-        return _urea_core(mol, self.atomic_num)
 
     def has_shape(self, mol) -> bool:
-        return self._core(mol) is not None
+        from ._urea import senior_chalcogen
+
+        return senior_chalcogen(mol) == self.atomic_num
 
     def name(self, mol) -> str:
-        word = self.word
-        core = self._core(mol)
-        if core is None:
-            raise UnsupportedStructure(
-                f"no {word} (H2N-C(={self.symbol})-NH2 or an N-substituted derivative) "
-                f"shape found; this module only handles {word} and simple "
-                f"N-substituted {word}s"
-            )
-        carbon_idx, (n1_idx, n2_idx) = core
+        from ._urea import name_cores
 
-        if len(Chem.GetMolFrags(mol)) > 1:
-            raise UnsupportedStructure("multi-fragment structures are not supported yet")
-
-        from ._urea import _semicarbazide_amino_nitrogen, name_urea
-
-        if _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx) is not None:
-            return name_urea(mol, self.atomic_num)
-
-        (chalcogen_idx,) = (
-            n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == self.atomic_num
-        )
-        graph = adjacency(mol)
-        n1_names, n2_names = n_substituent_names(
-            mol, graph, {carbon_idx, chalcogen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx, junior_groups=True
-        )
-        return f"{n_prefix(n1_names, n2_names)}{word}"
+        return name_cores(mol, self.atomic_num)

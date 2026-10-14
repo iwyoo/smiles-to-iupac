@@ -4,6 +4,7 @@ amino, nitro, cyano, formyl, carboxy, carbamoyl, alkoxycarbonyl and acyl.
 `name_branch` calls `hetero_branch_name` before it walks a carbon chain.
 """
 
+import contextlib
 import contextvars
 import re
 
@@ -26,6 +27,7 @@ _MULTIPLE_TARGETS = {7, 8, 16, 34, 52}
 # groups they describe outrank the parent and the engine must decline rather than cite them as prefixes.
 EXTENDED_PREFIXES = contextvars.ContextVar("extended_prefixes", default=False)
 IMINE_PARENT = contextvars.ContextVar("imine_parent", default=False)
+BORON_ACID_PARENT = contextvars.ContextVar("boron_acid_parent", default=False)
 CHALCOGEN_PREFIXES = {16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 
 
@@ -2020,6 +2022,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         atom.GetAtomicNum() == 5
         and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others)
         and not RADICAL_PARENT.get()
+        and not BORON_ACID_PARENT.get()
         and not any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON)
     ):
         raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
@@ -2032,6 +2035,16 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if bonding > valence:
         return (prefix + "-" if prefix else "") + f"λ{bonding}-" + base, True
     return prefix + base, bool(entries)
+
+
+@contextlib.contextmanager
+def boron_acid_parent():
+    """A boronic or borinic acid is the parent, so a junior boron acid group is cited as a boranyl prefix (P-42.3)."""
+    token = BORON_ACID_PARENT.set(True)
+    try:
+        yield
+    finally:
+        BORON_ACID_PARENT.reset(token)
 
 
 ACIDS_SENIOR_TO_BORON = [
