@@ -4,14 +4,16 @@ diamide."""
 
 from rdkit import Chem
 
+from ._chalcogenourea import n_substituent_names
 from ._cited_group import cited_group
-from ._common import adjacency, halogen_substituents, is_nitro_nitrogen
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_nitro_nitrogen
 from ._numerals import numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
 
 _CHALCOGEN = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
 _CARBON_AND_HALOGEN = {6, 9, 17, 35, 53}
 _MAXIMUM_CARBONIC_UNITS = 4
+_IMIDIC_DERIVATIVE = Chem.MolFromSmarts("[CX3;!R](=[NX2;!R])[NX3,OX2,SX2]")
 
 
 def _has_stereo(mol):
@@ -92,6 +94,19 @@ def cyanamide_name(mol):
         betas = [n for n in amino.GetNeighbors() if n.GetAtomicNum() == 7]
         if len(betas) > 1:
             continue
+        if not betas:
+            if mol.HasSubstructMatch(_IMIDIC_DERIVATIVE):
+                continue
+            try:
+                (names,) = n_substituent_names(
+                    mol, graph, {atom.GetIdx(), terminal.GetIdx(), amino.GetIdx()}, (amino.GetIdx(),), atom.GetIdx(), junior_groups=True
+                )
+            except UnsupportedStructure:
+                continue
+            grouped = {}
+            for name, compound in names:
+                grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(1)
+            return (format_substituent_prefixes(grouped, omit_locants=True) if grouped else "") + "cyanamide"
         found = _hydrocarbon_arms(mol, graph, amino.GetIdx(), {atom.GetIdx(), *(b.GetIdx() for b in betas)})
         if found is None:
             continue
