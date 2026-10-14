@@ -1235,6 +1235,13 @@ def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expe
         pytest.param("CC=NN(C)C(N)=N", "2-ethylidene-1-methylhydrazine-1-carboximidamide", id="aminoguanidine_hydrazone_with_a_substituent"),
         pytest.param("CNC(=N)NN", "N-methylhydrazinecarboximidamide", id="substituent_on_the_amidine_amino_nitrogen"),
         pytest.param("CN=C(N)NN", "N'-methylhydrazinecarboximidamide", id="substituent_on_the_amidine_imino_nitrogen"),
+        # P-41: an amidine outranks a hydrazide, so an acyl or sulfonyl group on the hydrazine nitrogens is a prefix
+        pytest.param("NC(=N)NNC(C)=O", "2-acetylhydrazine-1-carboximidamide", id="acyl_on_the_terminal_hydrazine_nitrogen"),
+        pytest.param("CNC(=N)NNC(C)=O", "2-acetyl-N-methylhydrazine-1-carboximidamide", id="acyl_with_a_substituent_on_the_amidine"),
+        pytest.param("NC(=N)N(C)NC(C)=O", "2-acetyl-1-methylhydrazine-1-carboximidamide", id="acyl_beside_a_substituent_on_the_amidine_hydrazine_nitrogen"),
+        pytest.param("NC(=N)NNC(=O)c1ccccc1", "2-benzoylhydrazine-1-carboximidamide", id="aroyl_on_the_terminal_hydrazine_nitrogen"),
+        pytest.param("NC(=N)NNS(C)(=O)=O", "2-(methanesulfonyl)hydrazine-1-carboximidamide", id="sulfonyl_on_the_terminal_hydrazine_nitrogen"),
+        pytest.param("NC(=O)NNC(C)=O", "N'-carbamoylacetohydrazide", id="urea_keeps_the_acyl_hydrazide_as_the_parent"),
         # P-66.4.1.4.1, P-66.4.1.4.2: several amidines on a hydrazine; N and N' carry the position of the group, geminal groups continue N'', N'''
         pytest.param("NC(=N)NNC(=N)N", "hydrazine-1,2-dicarboximidamide", id="amidine_on_each_hydrazine_nitrogen"),
         pytest.param("CCNC(=N)NN(C)C(N)=N", "N2-ethyl-1-methylhydrazine-1,2-dicarboximidamide", id="hydrazine_substituent_fixes_the_numbering"),
