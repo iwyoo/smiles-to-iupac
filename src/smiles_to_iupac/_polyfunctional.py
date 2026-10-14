@@ -4364,6 +4364,8 @@ def _boranyl_nitrogens(mol):
             continue
         carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
         hydrides = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in MONONUCLEAR_HYDRIDES]
+        if hydrides and len(carbons) == 1 and _amidine_nitrogens(mol, carbons[0]) is not None:
+            continue
         if hydrides and len(carbons) == 1 and len(carbons) + len(hydrides) == atom.GetDegree():
             nitrogens.append((atom.GetIdx(), carbons[0].GetIdx(), [h.GetIdx() for h in hydrides]))
         elif atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2 and len(carbons) == 1:
@@ -5614,7 +5616,8 @@ def _amidine_nitrogens(mol, atom):
     imino, amino = imino[0], amino[0]
     if any(n.GetFormalCharge() or n.IsInRing() or n.GetIsAromatic() for n in (imino, amino)):
         return None
-    for nitrogen, allowed in ((imino, (6, 8, 9, 17, 35, 53)), (amino, (6, 8, 9, 17, 35, 53))):
+    allowed = (6, 8, 9, 17, 35, 53, *(z for z in MONONUCLEAR_HYDRIDES if z not in (7, 8, 16, 34, 52)))
+    for nitrogen in (imino, amino):
         for n in nitrogen.GetNeighbors():
             if n.GetIdx() == carbon:
                 continue

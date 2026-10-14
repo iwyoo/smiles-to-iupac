@@ -1092,6 +1092,8 @@ def test_ring_imine_and_oxime(smiles, expected):
         pytest.param("NC(=N)NOCC", "N-ethoxyguanidine", id="alkoxy_group_on_a_guanidine_nitrogen"),
         pytest.param("N=C(N)c1ccccc1C(=N)N", "benzene-1,2-dicarboximidamide", id="ring_diamidine"),
         pytest.param("CC(=NC)N(C)C", "N,N,N'-trimethylethanimidamide", id="n_and_n_prime_substituents"),
+        pytest.param("CC(=N[Si](C)(C)C)N[Si](C)(C)C", "N,N'-bis(trimethylsilyl)ethanimidamide", id="hydride_groups_on_both_amidine_nitrogens"),
+        pytest.param("CC(=N[Si](C)(C)C)NC", "N-methyl-N'-(trimethylsilyl)ethanimidamide", id="hydride_group_beside_a_carbon_group"),
         pytest.param("NC(=N)CC(=N)N", "propanediimidamide", id="chain_diamidine"),
         pytest.param("CC(=N)CN=CC", "1-(ethylideneamino)propan-2-imine", id="second_imine_as_ylideneamino_prefix"),
         pytest.param(
