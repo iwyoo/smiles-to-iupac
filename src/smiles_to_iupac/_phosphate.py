@@ -53,7 +53,7 @@ from collections import Counter
 
 from ._common import assign_cip_labels
 from ._multiplicative_text import enclose
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_nitro_nitrogen
 from ._numerals import multiplying_prefix
 from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import BRANCH_STEREO, name_branch, prefix_multiplier
@@ -132,6 +132,28 @@ def allowed_outside_oxygen(oxygen, anionic) -> bool:
         )
         return anionic or not acyl
     return False
+
+
+def check_ester_organyl(mol, group_atoms):
+    """Raise unless every atom outside the ester group `group_atoms` of a nitrate or nitrite belongs to an organyl group
+    whose substituents rank below the ester (P-41): hydroxy, ether, oxo, amino, nitrile, nitro, sulfide, halogen and the
+    rings with nitrogen, oxygen or sulfur; an acid, another ester or an anhydride outranks it."""
+    nitro = set()
+    for atom in mol.GetAtoms():
+        if atom.GetIdx() not in group_atoms and is_nitro_nitrogen(mol, atom.GetIdx()):
+            nitro |= {atom.GetIdx(), *(n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 8)}
+    for atom in mol.GetAtoms():
+        if atom.GetIdx() in group_atoms or atom.GetIdx() in nitro:
+            continue
+        if atom.GetIsotope() or atom.GetFormalCharge():
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        z = atom.GetAtomicNum()
+        if z == 8 and not allowed_outside_oxygen(atom, False):
+            raise UnsupportedStructure("an acid or another ester outranks the nitrogen acid ester")
+        if z == 16 and (atom.GetDegree() > 2 or any(n.GetAtomicNum() == 8 for n in atom.GetNeighbors())):
+            raise UnsupportedStructure("a sulfur group outranking the ester is not supported here")
+        if z not in (1, 6, 7, 8, 16, *HALOGEN_PREFIXES):
+            raise UnsupportedStructure("this element in the organyl group of the ester is not supported yet")
 
 
 def has_phosphate_shape(mol) -> bool:
