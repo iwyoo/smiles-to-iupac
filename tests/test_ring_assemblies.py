@@ -397,6 +397,41 @@ def test_different_rings_joined_nitrogen_to_nitrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-62.2.2, P-62.2.4.1.2, P-28.2.1: the substituents on the nitrogen of an amine of a ring assembly take the locant N, with the number and primes of the group for a diamine
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CNc1ccc(-c2ccccc2)cc1", "N-methyl[1,1'-biphenyl]-4-amine", id="secondary_amine"),
+        pytest.param("CN(C)c1ccc(-c2ccccc2)cc1", "N,N-dimethyl[1,1'-biphenyl]-4-amine", id="tertiary_amine"),
+        pytest.param("CCNc1ccc(-c2ccccc2)cc1", "N-ethyl[1,1'-biphenyl]-4-amine", id="ethyl_on_nitrogen"),
+        pytest.param("CNc1cccc(-c2ccccc2)c1", "N-methyl[1,1'-biphenyl]-3-amine", id="amine_at_position_3"),
+        pytest.param("CNc1ccccc1-c1ccccc1", "N-methyl[1,1'-biphenyl]-2-amine", id="amine_at_position_2"),
+        pytest.param("CNc1ccc(-c2ccccc2)cc1C", "N,3-dimethyl[1,1'-biphenyl]-4-amine", id="ring_substituent_beside_the_n_prefix"),
+        pytest.param("CNc1ccc(-c2ccccc2)cc1Cl", "3-chloro-N-methyl[1,1'-biphenyl]-4-amine", id="alphanumerical_order_with_n"),
+        pytest.param("c1ccc(Nc2ccc(-c3ccccc3)cc2)cc1", "N-phenyl[1,1'-biphenyl]-4-amine", id="assembly_outranks_a_single_ring"),
+        pytest.param("c1ccc(Nc2ccccc2-c2ccccc2)cc1", "N-phenyl[1,1'-biphenyl]-2-amine", id="phenyl_on_the_nitrogen_at_position_2"),
+        pytest.param("CN(c1ccccc1)c1ccc(-c2ccccc2)cc1", "N-methyl-N-phenyl[1,1'-biphenyl]-4-amine", id="two_groups_on_the_nitrogen"),
+        pytest.param("CNc1ccc(-c2ccncc2)cc1", "N-methyl-4-(pyridin-4-yl)aniline", id="different_rings_are_not_an_assembly"),
+        pytest.param("CNC1(C2CC2)CC1", "N-methyl[1,1'-bi(cyclopropan)]-1-amine", id="cycloalkane_assembly"),
+        pytest.param("FCCNC1(C2CC2)CC1", "N-(2-fluoroethyl)[1,1'-bi(cyclopropan)]-1-amine", id="substituted_group_on_the_nitrogen"),
+        pytest.param("CNC1(C2CCCC2)CCCC1", "N-methyl[1,1'-bi(cyclopentan)]-1-amine", id="five_membered_rings"),
+        pytest.param("CNc1ccc(-c2ccc(NC)cc2)cc1", "N4,N4'-dimethyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_one_group_on_each_nitrogen"),
+        pytest.param(
+            "CN(C)c1ccc(-c2ccc(N(C)C)cc2)cc1", "N4,N4,N4',N4'-tetramethyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_two_groups_on_each_nitrogen"
+        ),
+        pytest.param("CCNc1ccc(-c2ccc(NC)cc2)cc1", "N4'-ethyl-N4-methyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_different_groups"),
+        pytest.param("CNc1ccc(-c2ccc(N)cc2)cc1", "N4'-methyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_with_one_primary_group"),
+        pytest.param("CNc1ccc(-c2ccc(O)cc2)cc1", "4'-(methylamino)[1,1'-biphenyl]-4-ol", id="alcohol_outranks_the_amine"),
+        pytest.param("CNc1ccc2ccccc2c1-c1ccc2ccccc2c1", "N-methyl[1,2'-binaphthalen]-2-amine", id="fused_system_assembly"),
+        pytest.param(
+            "CNc1ccc2ccccc2c1-c1c(NC)ccc2ccccc12", "N2,N2'-dimethyl[1,1'-binaphthalene]-2,2'-diamine", id="fused_system_assembly_diamine"
+        ),
+    ],
+)
+def test_substituted_amines_of_a_ring_assembly(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

@@ -70,7 +70,9 @@ def _unit_systems(mol, graph, frees, within):
     return systems
 
 
-def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None, place=None):
+def chain_assembly(
+    mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None, place=None, n_names=()
+):
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free`
     = (root, coming_from) or a list of such pairs (within the atom set `within`); None when `mol` is not such
     an assembly."""
@@ -200,6 +202,10 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     for info in grouped.values():
         info["locants"].sort(key=lambda loc: (loc[0], float(str(loc[1]).rstrip("abcdefghijklmnopqrstuvwxyz") or 0), str(loc[1])))
         info["locants"] = [_cite(loc) for loc in info["locants"]]
+    if n_names:
+        from ._polyfunctional import assembly_n_names
+
+        grouped = assembly_n_names(grouped, n_names, {a: CompositeLocant(*loc) for a, loc in locants.items()}, len(occurrences))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     junction_str = ":".join(f"{_cite(a)},{_cite(b)}" for a, b in junction_text)
     ih_text = ""

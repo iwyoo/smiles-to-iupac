@@ -201,7 +201,10 @@ def _split_added(numbering, frees):
     return hydro, []
 
 
-def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, ring_suffix=None, within=None, place=None):
+def system_assembly(
+    mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, ring_suffix=None, within=None, place=None,
+    n_names=(),
+):
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free`
     = (root, coming_from); None when `mol` is not two identical fused systems joined by one bond."""
     from ._diester_ring_diyl import _isotope_key
@@ -322,6 +325,10 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(_cite(locants[r]))
     for info in grouped.values():
         info["locants"].sort(key=lambda text: (int(re.match(r"\d+", text).group()), text.count(chr(39))))
+    if n_names:
+        from ._polyfunctional import assembly_n_names
+
+        grouped = assembly_n_names(grouped, n_names, {a: PrimedLocant(*loc) for a, loc in locants.items()}, len(occurrences))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     ih_text = (",".join(f"{_primed(p, n)}H" for n, p in ih) + "-") if ih else ""
     hydro_prefix = ""
