@@ -561,11 +561,14 @@ def name_nitrile(mol) -> str:
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
     if aromatic_rings is not None:
         union = set().union(*aromatic_rings)
-        anchors = [
-            next(iter(adjacency(mol)[n])) for n in _validate_and_collect_nitriles(mol, aromatic_ring_atoms=union)
-        ]
+        nitrogens = _validate_and_collect_nitriles(mol, aromatic_ring_atoms=union)
+        anchors = [next(iter(adjacency(mol)[n])) for n in nitrogens]
         host = ring_hosting_anchors(mol, adjacency(mol), aromatic_rings, anchors)
         if host is not None:
+            if len(nitrogens) != 1:
+                raise UnsupportedStructure(
+                    "more than one nitrile group alongside several aromatic rings is not supported yet"
+                )
             return _name_benzonitrile(mol, host, union)
         return _name_phenyl_chain_nitrile(mol, union)
     ring_info = mol.GetRingInfo()
