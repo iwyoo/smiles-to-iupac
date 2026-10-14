@@ -259,6 +259,8 @@ def test_nitrile_imide_still_and_related_raise(smiles):
         pytest.param("CC#[N+][N-]C", "2-ethylidyne-1-methylhydrazin-2-ium-1-ide", id="nitrile_imide"),
         pytest.param("CN=[N+](C)[N-]C", "1,2,3-trimethyltriaz-2-en-2-ium-1-ide", id="azo_imide"),
         pytest.param("c1ccccc1N=[N+]([O-])c1ccccc1", "diphenyldiazene oxide", id="symmetric_azoxy"),
+        pytest.param("c1ccccc1/N=[N+](\\[O-])c1ccccc1", "(Z)-diphenyldiazene oxide", id="azoxy_descriptor_ranks_the_oxide_oxygen"),
+        pytest.param("CC/N=[N+](/[O-])C", "(E)-1-ethyl-2-methyldiazene 2-oxide", id="azoxy_descriptor_with_the_oxide_locant"),
         pytest.param("Clc1ccccc1N=[N+]([O-])c1ccccc1", "1-(2-chlorophenyl)-2-phenyldiazene 2-oxide", id="azoxy_with_the_oxide_locant"),
         pytest.param("[O-]C(=O)c1ccc(cc1)N=[N+]([O-])c1ccccc1", "4-(2-oxo-2-phenyl-2λ5-diazenyl)benzoate", id="azoxy_prefix_beside_a_carboxylate"),
         pytest.param("[O-]C(=O)CCN=[N+]([O-])c1ccccc1", "3-(2-oxo-2-phenyl-2λ5-diazenyl)propanoate", id="azoxy_prefix_on_a_chain_anion"),
