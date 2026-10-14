@@ -1221,6 +1221,7 @@ def test_ium_and_ylium_centres_in_one_ring_system(smiles, expected):
         pytest.param("C1=C(C=C[N+]2=CC=CC=C12)C(=[NH2+])N", "5λ5-quinolizin-5-ylium-2-carboximidamidium", id="lambda_ylium_ring_then_carboximidamidium"),
         pytest.param("c1cc([NH3+])c[n+]2ccccc12", "5λ5-quinolizin-5-ylium-3-aminium", id="lambda_ylium_ring_then_aminium"),
         pytest.param("C[n+]1ccc(N(C)C)cc1", "4-(dimethylamino)-1-methylpyridin-1-ium", id="neutral_substituted_amine_is_a_prefix_of_the_ring_cation"),
+        pytest.param("CCNc1cc[n+](CC[NH3+])cc1", "2-[4-(ethylamino)pyridin-1-ium-1-yl]ethan-1-aminium", id="neutral_substituted_amine_beside_a_cationic_amine_is_a_prefix"),
     ],
 )
 def test_skeletal_cationic_centre_with_a_cationic_suffix(smiles, expected):
