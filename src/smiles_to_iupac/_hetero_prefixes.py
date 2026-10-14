@@ -438,7 +438,10 @@ def _acyl_from_acid_name(mol, graph, carbon, from_atom):
             if n != from_atom and n not in atoms:
                 atoms.add(n)
                 stack.append(n)
-    if from_atom in atoms or any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
+    if from_atom in atoms or any(
+        mol.GetAtomWithIdx(a).GetFormalCharge() and not (mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and mol.GetAtomWithIdx(a).GetFormalCharge() == 1)
+        for a in atoms
+    ):
         raise UnsupportedStructure("this acyl group is not supported yet")
     name = _acyl_prefix(mol, atoms, carbon, from_atom)
     _mark_stereo_used(mol, graph, carbon, from_atom)
