@@ -412,7 +412,6 @@ def _name_acyclic_amide(
     stereo=None,
     extra_names=None,
     required_atoms=frozenset(),
-    extra_excluded_carbons=frozenset(),
     phenyl_atoms=frozenset(),
     n_hydroxy_oxygen=None,
 ):
@@ -429,14 +428,7 @@ def _name_acyclic_amide(
     `extra_names`/`required_atoms`: same coexisting-group injection point
     as `_ketone.py`'s `_name_acyclic_ketone`, reused by `_amide_amine.py`
     via `_coexisting_groups.py` -- both empty/None by default so existing
-    callers are unaffected. `extra_excluded_carbons`: additional carbon
-    atoms to remove from the principal-chain search graph before picking
-    the longest chain, merged with the N-alkyl substituents' own excluded
-    atoms below -- `_ether_amide.py` passes a coexisting ether's alkoxy-
-    branch component here, the same reason and pattern as
-    `_thiol.py`/`_ketone.py`/`_aldehyde.py`'s `carbon_graph` parameter (PR
-    #428-430), just expressed as atoms-to-remove instead of a whole
-    replacement graph since this function already builds its own."""
+    callers are unaffected."""
     graph = adjacency(mol)
     halogens = {
         **halogen_substituents(mol),
@@ -497,7 +489,7 @@ def _name_acyclic_amide(
     # in the carbon-only graph; the whole subtree must be removed before
     # picking the longest chain, or a longer N-substituent (e.g.
     # N-butylacetamide) would be mistaken for the acyl chain itself.
-    excluded_carbons = n_substituent_atoms | extra_excluded_carbons
+    excluded_carbons = n_substituent_atoms
     carbon_graph = {
         k: [n for n in v if n not in excluded_carbons]
         for k, v in full_carbon_graph.items()

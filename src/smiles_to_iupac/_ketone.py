@@ -524,7 +524,7 @@ def _one_locants(position_of, ketones, graph):
     return locants
 
 def _best_acyclic_ketone_candidate(
-    mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
+    mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
 ):
     """(best_name, best_position_of) -- the winning chain numbering and its
     fully-formatted name, factored out of `_name_acyclic_ketone` (which
@@ -542,18 +542,10 @@ def _best_acyclic_ketone_candidate(
     reimplement this function's chain search/candidate selection.
     `required_atoms`: additional carbon atoms (e.g. every demoted amine's
     own carbon neighbor) that a candidate chain must also carry -- both
-    empty/None by default so existing callers are unaffected.
-    `carbon_graph`: the carbon-only graph to search for the principal
-    chain -- defaults to `carbon_adjacency(mol)` (unchanged behavior);
-    `_ether_ketone.py` passes one with a coexisting ether's alkoxy-branch
-    component already removed, mirroring `_thiol.py`'s identical
-    `carbon_graph` parameter (PR #428) and for the same reason: an ether
-    oxygen isn't itself a carbon, so its alkoxy branch would otherwise
-    form a separate component that could wrongly outrank the real
-    ketone-bearing chain in `longest_chains`' global-diameter search."""
+    empty/None by default so existing callers are unaffected."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}, **(extra_names or {})}
-    chains = all_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
+    chains = all_chains(carbon_adjacency(mol))
     stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []
@@ -603,7 +595,7 @@ def _best_acyclic_ketone_candidate(
 
 
 def _name_acyclic_ketone(
-    mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
+    mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
 ):
     """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
     from `specified_stereo_elements`/`specified_stereocenters` -- if given,
@@ -617,9 +609,9 @@ def _name_acyclic_ketone(
     "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant order
     (P-91.3, including when both kinds coexist -- only reachable from the
     acyclic caller, see `name_ketone`). See `_best_acyclic_ketone_candidate`
-    for `extra_names`/`required_atoms`/`carbon_graph`."""
+    for `extra_names`/`required_atoms`."""
     best_name, best_position_of = _best_acyclic_ketone_candidate(
-        mol, ketones, hydroxyls, bonds, stereo, extra_names, required_atoms, carbon_graph
+        mol, ketones, hydroxyls, bonds, stereo, extra_names, required_atoms
     )
     if stereo is not None:
         labels = []
