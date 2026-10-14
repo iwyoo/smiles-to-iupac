@@ -2854,7 +2854,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         or any(
             mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() != 1.0
             for n in neighbors
-            if mol.GetAtomWithIdx(n).GetAtomicNum() != 6
+            if mol.GetAtomWithIdx(n).GetAtomicNum() != 6 and not _junior_hydride_atom(mol, n, z)
         )
     ):
         return None
@@ -2925,6 +2925,25 @@ def _amine_count(name):
     """The number of amine suffixes of a hydride name: boranamine 1, boranediamine 2 (P-44.1.1)."""
     match = re.search(r"(di|tri|tetra)amine$", name)
     return {"di": 2, "tri": 3, "tetra": 4}[match.group(1)] if match else int(name.endswith("amine"))
+
+
+def _azane_ylidyne_parent(mol, graph, halogens, aromatic_atoms):
+    """A nitrogen joined by a triple bond to a mononuclear hydride atom is the senior hydride, azane (P-44.1.2): N#P is
+    'phosphanylidyneazane'."""
+    from ._substituents import format_mononuclear_prefixes
+
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 7 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetDegree() != 1:
+            continue
+        other = atom.GetNeighbors()[0]
+        if (
+            other.GetAtomicNum() in MONONUCLEAR_HYDRIDES
+            and not other.IsInRing()
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), other.GetIdx()).GetBondTypeAsDouble() == 3.0
+        ):
+            entry = name_branch(graph, other.GetIdx(), atom.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            return format_mononuclear_prefixes([entry]) + "azane"
+    return None
 
 
 _HYDROXYLAMINE_PREFIX = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
@@ -3045,6 +3064,9 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         hydroxylamine = _hydroxylamine_parent(mol, graph, halogens, aromatic_atoms)
         if hydroxylamine is not None:
             return ((0,), hydroxylamine, (None, None, None, 0, {}, False))
+        azane = _azane_ylidyne_parent(mol, graph, halogens, aromatic_atoms)
+        if azane is not None:
+            return ((0,), azane, (None, None, None, 0, {}, False))
     centers = [] if ring_cation else [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
     if centers and _ring_outranks_hydrides(mol, centers):
         centers = []

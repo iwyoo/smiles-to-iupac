@@ -14,7 +14,9 @@ _CENTERS = {
     15: "phosphane", 33: "arsane", 51: "stibane", 83: "bismuthane",
     16: "sulfane", 34: "selane", 52: "tellane",
 }
-_STANDARD_VALENCE = {14: 4, 32: 4, 50: 4, 82: 4, 15: 3, 33: 3, 51: 3, 83: 3, 16: 2, 34: 2, 52: 2}
+_STANDARD_VALENCE = {
+    14: 4, 32: 4, 50: 4, 82: 4, 15: 3, 33: 3, 51: 3, 83: 3, 16: 2, 34: 2, 52: 2, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3,
+}
 _YLIDENE_ONLY = {16, 34, 52}
 _SUFFIX = {8: "one", 16: "thione", 34: "selone", 52: "tellone"}
 _SENIOR = [
@@ -101,6 +103,7 @@ _IMINE_CENTERS = {
     14: "silanimine", 32: "germanimine", 50: "stannanimine", 82: "plumbanimine",
     15: "phosphanimine", 33: "arsanimine", 51: "stibanimine", 83: "bismuthanimine",
     16: "sulfanimine", 34: "selanimine", 52: "tellanimine",
+    5: "boranimine", 13: "alumanimine", 31: "gallanimine", 49: "indiganimine", 81: "thallanimine",
 }
 
 
