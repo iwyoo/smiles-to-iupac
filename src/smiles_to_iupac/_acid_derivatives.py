@@ -318,15 +318,21 @@ def _phosphorous_acid_name(acid):
     P=O analogue, whose retained 'phosphinic'/'phosphonic' name becomes '-ous'; None for any other piece."""
     from .core import smiles_to_iupac
 
-    phosphorus = [
-        a
-        for a in acid.GetAtoms()
-        if a.GetAtomicNum() == 15 and any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in a.GetNeighbors())
-    ]
+    def hydroxy_of(center):
+        return [
+            n
+            for n in center.GetNeighbors()
+            if n.GetAtomicNum() == 8
+            and n.GetDegree() == 1
+            and not n.GetFormalCharge()
+            and acid.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        ]
+
+    phosphorus = [a for a in acid.GetAtoms() if a.GetAtomicNum() == 15 and not a.GetFormalCharge() and hydroxy_of(a)]
     if len(phosphorus) != 1 or phosphorus[0].GetDegree() + phosphorus[0].GetTotalNumHs() != 3:
         return None
     center = phosphorus[0]
-    hydroxy = [n for n in center.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
+    hydroxy = hydroxy_of(center)
     organics = [n for n in center.GetNeighbors() if n.GetAtomicNum() in (6, 15)]
     if len(hydroxy) + len(organics) == center.GetDegree() and (len(hydroxy), len(organics)) in ((2, 1), (1, 2)):
         oxidised = Chem.RWMol(acid)
