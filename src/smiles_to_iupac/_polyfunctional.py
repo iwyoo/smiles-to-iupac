@@ -353,7 +353,22 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
     ) or (
         rest[0].GetAtomicNum() == 7 and not rest[0].GetFormalCharge() and not rest[0].IsInRing()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
-        and _plain_nitrogen_substituents(mol, rest[0], atom.GetIdx())
+        and _carbamimidoyl_nitrogen_substituents(mol, rest[0], atom.GetIdx())
+    )
+
+
+def _carbamimidoyl_nitrogen_substituents(mol, nitrogen, origin):
+    """Whether every neighbour of `nitrogen` other than `origin` is a plain carbon group or a further carbamimidoyl group
+    (the N'-carbamimidoylcarbamimidoyl prefix of a condensed guanidine)."""
+    return all(
+        (
+            n.GetAtomicNum() in (6, 7, 8, *HALOGEN_PREFIXES)
+            and not is_functional_carbon(mol, n.GetIdx())
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        )
+        or _carbamimidoyl_on(mol, n, nitrogen)
+        for n in nitrogen.GetNeighbors()
+        if n.GetIdx() != origin
     )
 
 
