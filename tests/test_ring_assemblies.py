@@ -151,6 +151,21 @@ def test_4_chlorobiphenyl_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("c1cc(-c2cc[nH]n2)n[nH]1", "1H,1'H-3,3'-bipyrazole", id="nh_azoles_cite_the_indicated_hydrogen"),
+        pytest.param("Cc1c[nH]nc1-c1n[nH]cc1C", "4,4'-dimethyl-1H,1'H-3,3'-bipyrazole", id="carbon_substituent_precedes_indicated_hydrogen"),
+        pytest.param("Cn1ccnc1-c1ncc[nH]1", "1-methyl-1H,1'H-2,2'-biimidazole", id="substituted_nitrogen_keeps_its_indicated_hydrogen"),
+        pytest.param("c1c[nH]c(n1)-c1cnc[nH]1", "1H,3'H-2,4'-biimidazole", id="lowest_attachment_locant_before_indicated_hydrogen"),
+        pytest.param("Cn1nccc1-c1ccnn1C", "2,2'-dimethyl-2H,2'H-3,3'-bipyrazole", id="substituted_nitrogen_beside_the_junction"),
+    ],
+)
+def test_azole_assembly_cites_the_indicated_hydrogen_of_both_rings(smiles, expected):
+    # P-28.2.1, P-28.2.3, P-58.2.1
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("C1=CCCCC1C1=CCCCC1C1=CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-1¹,2²,3²-triene"),
         ("C1CC=CCC1C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexan]-1³-ene"),
         ("C1CCCCC1=C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexan]-1¹(2¹)-ene"),
