@@ -2158,6 +2158,8 @@ def _azoxy_group(graph, root, halogens, aromatic_atoms, mol, order, others):
 
 
 DIAZENYL_PREFIX = contextvars.ContextVar("diazenyl_prefix", default=False)
+# a nitrogen ring and a diazene are of one class (P-41); the ring is the parent and the diazene a prefix (P-44.1.2.2)
+_RING_NITROGEN = Chem.MolFromSmarts("[#7;R]")
 
 
 def _diazenyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol, order, others):
@@ -2167,7 +2169,7 @@ def _diazenyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol, ord
         order != 1.0
         or len(others) != 1
         or mol.GetAtomWithIdx(root).GetFormalCharge()
-        or not (DIAZENYL_PREFIX.get() or _has_senior_principal_group(mol))
+        or not (DIAZENYL_PREFIX.get() or _has_senior_principal_group(mol) or mol.HasSubstructMatch(_RING_NITROGEN))
     ):
         return None
     far = others[0]
