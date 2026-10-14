@@ -34,7 +34,6 @@ def test_ring_and_assembly_components_inside_a_linker(smiles, expected):
     [
         ("CC(=O)c1ccc(C(C)=O)cc1", "1,1'-(1,4-phenylene)di(ethan-1-one)"),
         ("CNCc1ccc(CNC)cc1", "1,1'-(1,4-phenylene)bis(N-methylmethanamine)"),
-        ("CCNCc1ccc(CNCC)cc1", "N-({4-[(ethylamino)methyl]phenyl}methyl)ethanamine"),
         ("CC(=O)c1cc(C(C)=O)cc(C(C)=O)c1", "1,1',1''-(benzene-1,3,5-triyl)tri(ethan-1-one)"),
         ("CCC(=O)N1CCN(C(=O)CC)CC1", "1,1'-(piperazine-1,4-diyl)di(propan-1-one)"),
         ("CC(=O)c1ccc(Oc2ccc(C(C)=O)cc2)cc1", "1,1'-[oxybis(4,1-phenylene)]di(ethan-1-one)"),
@@ -45,6 +44,21 @@ def test_ring_and_assembly_components_inside_a_linker(smiles, expected):
     ],
 )
 def test_acyl_arms_cut_from_a_ring_or_chalcogen_core_are_ketones_not_aldehydes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCNCc1ccc(CNCC)cc1", "N,N'-[1,4-phenylenebis(methylene)]diethanamine"),
+        ("CCN(C)Cc1ccc(CN(C)CC)cc1", "N,N'-[1,4-phenylenebis(methylene)]bis(N-methylethanamine)"),
+        ("c1ccccc1NCc1ccc(CNc2ccccc2)cc1", "N,N'-[1,4-phenylenebis(methylene)]dianiline"),
+        ("CCNCCCCNCC", "N1,N4-diethylbutane-1,4-diamine"),
+    ],
+)
+def test_amine_parents_joined_through_nitrogen_are_multiplied_only_when_they_outnumber_the_substitutive_parent(
+    smiles, expected
+):
     assert smiles_to_iupac(smiles) == expected
 
 

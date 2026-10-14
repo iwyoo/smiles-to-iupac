@@ -702,7 +702,7 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return name if name.endswith("imine") else None
     if unit_kind == "amine":
         single_nitrogen = sum(a.GetAtomicNum() == 7 for a in unit.GetAtoms()) == 1
-        return name if single_nitrogen and name.endswith("amine") else None
+        return name if single_nitrogen and name.endswith(("amine", "aniline")) else None
     if unit_kind == "polyamine":
         return name if name.endswith("diamine") else None
     if unit_kind == "phosphonic":
@@ -773,7 +773,7 @@ def anion_multiplicative_name(mol, centers):
     return None
 
 
-def _rank_candidates(candidates, anchors, heads=None, mol=None):
+def _rank_candidates(candidates, anchors, heads=None, mol=None, strict=False):
     ranked = []
     for key, arms in candidates.items():
         if len(arms) < 2:
@@ -786,7 +786,10 @@ def _rank_candidates(candidates, anchors, heads=None, mol=None):
                     covered = set().union(*(a[2] for a in subset))
                     if any(not anchors & a[2] for a in subset):
                         continue
-                    if not anchors <= covered and not _beats_substitutive(mol, heads, covered):
+                    if strict:
+                        if len(heads & covered) <= _most_groups_on_one_parent(mol, heads):
+                            continue
+                    elif not anchors <= covered and not _beats_substitutive(mol, heads, covered):
                         continue
                 ranked.append((-size, key, list(subset)))
     ranked.sort(key=lambda item: item[:2])
@@ -803,6 +806,87 @@ def _beats_substitutive(mol, heads, covered):
     except UnsupportedStructure:
         return True
     return isinstance(key[0], int) and len(heads & covered) > -key[0]
+
+
+def _most_groups_on_one_parent(mol, heads):
+    """The most principal groups one acyclic carbon chain or one ring system carries as suffixes; a parent that
+    carries as many as the multiplied names express is the parent (P-44.1.1, P-62.2.4.1.3)."""
+    graph = adjacency(mol)
+
+    def weight(atom):
+        return sum(1 for n in graph[atom] if n in heads)
+
+    best = max(
+        (sum(weight(a) for a in system) for system in (_ring_system_of(mol, a.GetIdx()) for a in mol.GetAtoms() if a.IsInRing()) if system),
+        default=0,
+    )
+    chain = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
+
+    def downward(atom, parent):
+        nonlocal best
+        legs = sorted((downward(n, atom) for n in graph[atom] if n in chain and n != parent), reverse=True)
+        best = max(best, weight(atom) + sum(legs[:2]))
+        return weight(atom) + (legs[0] if legs else 0)
+
+    seen = set()
+    for start in sorted(chain):
+        if start not in seen:
+            stack, component = [start], {start}
+            while stack:
+                for n in graph[stack.pop()]:
+                    if n in chain and n not in component:
+                        component.add(n)
+                        stack.append(n)
+            seen |= component
+            downward(start, None)
+    return best
+
+
+def _chain_depth(mol, graph, atom, parent):
+    best = 0
+    for n in graph[atom]:
+        neighbor = mol.GetAtomWithIdx(n)
+        if n != parent and neighbor.GetAtomicNum() == 6 and not neighbor.IsInRing():
+            best = max(best, _chain_depth(mol, graph, n, atom))
+    return 1 + best
+
+
+def _side_rank(mol, graph, nitrogen, carbon):
+    """(ring bound to nitrogen, carbons of the longest chain through `carbon`): the order in which P-44.1.2.2 and
+    P-44.3 choose the amine parent among the groups on the nitrogen."""
+    if mol.GetAtomWithIdx(carbon).IsInRing():
+        return (1, 0)
+    depths = sorted(
+        (
+            _chain_depth(mol, graph, n, carbon)
+            for n in graph[carbon]
+            if n != nitrogen and mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and not mol.GetAtomWithIdx(n).IsInRing()
+        ),
+        reverse=True,
+    )
+    return (0, 1 + sum(depths[:2]))
+
+
+def _amine_nitrogen_arm(mol, graph, nitrogen, linked):
+    """The amine parent held by `nitrogen` is multiplied through that nitrogen when the groups it keeps outrank the
+    acyclic carbon `linked` that joins it to the linking group (P-62.2.5.1, P-44.3)."""
+    atom = mol.GetAtomWithIdx(nitrogen)
+    if (
+        atom.IsInRing()
+        or atom.GetFormalCharge()
+        or atom.GetIsotope()
+        or atom.GetNumRadicalElectrons()
+        or atom.GetDegree() < 2
+        or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
+    ):
+        return False
+    other = mol.GetAtomWithIdx(linked)
+    if other.GetAtomicNum() != 6 or other.IsInRing() or is_functional_carbon(mol, linked):
+        return False
+    kept = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() != linked]
+    if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or is_functional_carbon(mol, n) for n in kept):
+        return False
+    return max(_side_rank(mol, graph, nitrogen, n) for n in kept) > _side_rank(mol, graph, nitrogen, linked)
 
 
 def _bare_chain(graph, root, senior_atoms, arm_atoms):
@@ -1197,7 +1281,7 @@ def _chain_multiplicative_name(mol, stereo):
         for a in mol.GetAtoms()
         if _is_linker_atom(mol, a, acyl_prefixes) and not (principal == "amine" and a.GetAtomicNum() == 7)
     }
-    candidates, nitrogen = {}, {}
+    candidates, nitrogen, amine_nitrogen = {}, {}, {}
     for r in range(mol.GetNumAtoms()):
         atom = mol.GetAtomWithIdx(r)
         if atom.IsInRing():
@@ -1218,6 +1302,9 @@ def _chain_multiplicative_name(mol, stereo):
                     or (other.GetAtomicNum() not in (6, 7) and h in linkers)
                 )
                 target = nitrogen
+            elif atom.GetAtomicNum() == 7 and principal == "amine" and r in anchors:
+                ok = _amine_nitrogen_arm(mol, graph, r, h)
+                target = amine_nitrogen
             else:
                 continue
             if ok:
@@ -1232,6 +1319,10 @@ def _chain_multiplicative_name(mol, stereo):
             return name
     for arms in _rank_candidates(nitrogen, anchors, heads, mol):
         name = _attempt(mol, graph, stereo, arms, "imine" if principal == "imine" else "amide")
+        if name is not None:
+            return name
+    for arms in _rank_candidates(amine_nitrogen, anchors, heads, mol, strict=True):
+        name = _attempt(mol, graph, stereo, arms, "amine")
         if name is not None:
             return name
     if principal == "amine":
