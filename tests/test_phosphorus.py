@@ -118,6 +118,10 @@ def test_asymmetric_substituents():
     assert smiles_to_iupac("CC(C)P(C)(=O)O") == "methyl(propan-2-yl)phosphinic acid"
 
 
+def test_unequal_phosphinic_acids_choose_the_parent_by_alphanumerical_order():
+    assert smiles_to_iupac("CP(=O)(O)CCP(=O)(O)CC") == "ethyl{2-[hydroxy(methylphosphonoyl)]ethyl}phosphinic acid"
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [

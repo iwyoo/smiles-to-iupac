@@ -1483,6 +1483,21 @@ def test_ureas_with_further_substituents_and_ureas_beneath_senior_groups(smiles,
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("NC(=O)NCCNC(=O)NCC", "N-[2-(carbamoylamino)ethyl]-N'-ethylurea", id="urea_with_more_substituents_is_the_parent"),
+        pytest.param("c1ccccc1NC(=O)NCCNC(=O)NC", "N-{2-[(methylcarbamoyl)amino]ethyl}-N'-phenylurea", id="equal_substituent_counts_by_alphanumerical_order"),
+        pytest.param("NC(=O)NCCNC(=S)NCC", "{2-[(ethylcarbamothioyl)amino]ethyl}urea", id="urea_outranks_thiourea"),
+        pytest.param("CCNC(=O)NCC(C)NC(=O)NCC", "N,N''-(propane-1,2-diyl)bis(N'-ethylurea)", id="identical_units_stay_multiplicative_on_an_unsymmetrical_linker"),
+        pytest.param("OC(=O)NCCN(C)C(=O)O", "[2-(carboxyamino)ethyl](methyl)carbamic acid", id="carbamic_acid_beside_carbamic_acid"),
+        pytest.param("OC(=O)NCCC(=O)O", "3-(carboxyamino)propanoic acid", id="carboxylic_acid_outranks_carbamic_acid"),
+    ],
+)
+def test_unequal_units_of_one_class_choose_the_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         pytest.param("CN(C)N=O", "dimethylnitrous amide", id="nitroso_on_amine_nitrogen"),

@@ -2,11 +2,7 @@
 
 from ._chalcogenourea import Chalcogenourea
 
-_THIOUREA = Chalcogenourea(
-    atomic_num=16,
-    symbol="S",
-    word="thiourea",
-)
+_THIOUREA = Chalcogenourea(atomic_num=16)
 
 has_thiourea_shape = _THIOUREA.has_shape
 name_thiourea = _THIOUREA.name

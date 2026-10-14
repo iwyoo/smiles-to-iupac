@@ -9,6 +9,7 @@ from rdkit import Chem
 
 from ._acid_lexicon import _INFIX, _MULTIPLIER, _peroxo_word
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._parent_choice import senior_parent_name
 from ._retained_acids import single_site_prefixes
 from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
 
@@ -178,6 +179,11 @@ def carbonic_anion_center(mol, idx):
 
 
 def _find(mol):
+    found = _centres(mol)
+    return found[0] if len(found) == 1 else None
+
+
+def _centres(mol):
     centers, cyano = [], []
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetTotalNumHs():
@@ -199,14 +205,14 @@ def _find(mol):
     if len(found) > 1:
         found = [c for c in found if not _acyl_on_other_center(mol, c, found)]
     if len(found) > 1:
-        acids = [c for c in found if _has_hydroxy(mol, c) and not any(n.GetAtomicNum() == 6 for n in mol.GetAtomWithIdx(c).GetNeighbors())]
-        if len(acids) == 1:
+        acids = [c for c in found if _is_acid_centre(mol, c)]
+        if acids:
             found = acids
     if len(found) > 1:
         rest = [c for c in found if not _is_urea_core(mol, c)]
         if len(rest) == 1 and _has_acid_ligand(mol, rest[0]):
             found = rest
-    return found[0] if len(found) == 1 else None
+    return found
 
 
 def _acyl_on_other_center(mol, idx, centers):
@@ -243,6 +249,10 @@ def _has_acid_ligand(mol, idx):
         _bond(mol, idx, n.GetIdx()) == 1.0 and (_chain(mol, idx, n) is not None or _chain(mol, idx, n, ion=True) is not None)
         for n in mol.GetAtomWithIdx(idx).GetNeighbors()
     )
+
+
+def _is_acid_centre(mol, idx):
+    return _has_hydroxy(mol, idx) and not any(n.GetAtomicNum() == 6 for n in mol.GetAtomWithIdx(idx).GetNeighbors())
 
 
 def _has_hydroxy(mol, idx):
@@ -285,11 +295,35 @@ def _imine_slot(mol, center, n):
     raise UnsupportedStructure("this imine nitrogen is not supported on a carbonic acid")
 
 
+_CARBOXYLIC_ACID = [Chem.MolFromSmarts("[CX3](=O)([OX2H1])[#6]"), Chem.MolFromSmarts("[CX3H1](=O)[OX2H1]")]
+
+
+def _class_rank(mol, idx):
+    """P-43.1(a): the acid with more oxygen atoms on the centre, then S, Se and Te, is senior."""
+    elements = [n.GetAtomicNum() for n in mol.GetAtomWithIdx(idx).GetNeighbors()]
+    return tuple(-elements.count(z) for z in _SYMBOL)
+
+
 def name_carbonic_family(mol):
-    """Name of a molecule that is one carbonic, carbamic or cyanic acid analogue with organyl groups only on nitrogen."""
-    center = _find(mol)
-    if center is None or len(Chem.GetMolFrags(mol)) != 1:
+    """Name of a molecule that is one carbonic, carbamic or cyanic acid analogue with organyl groups only on nitrogen;
+    with several, the senior acid is the parent and the others are N-substituents."""
+    centres = _centres(mol)
+    if not centres or len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("no single carbonic or cyanic acid group")
+    if not any(a.GetFormalCharge() for a in mol.GetAtoms()) and any(
+        match[0] not in centres for query in _CARBOXYLIC_ACID for match in mol.GetSubstructMatches(query)
+    ):
+        raise UnsupportedStructure("a carboxylic acid outranks the carbonic acid group (P-41)")
+    if len(centres) == 1:
+        return _name_at(mol, centres[0])[1]
+    if not all(_is_acid_centre(mol, c) for c in centres):
+        raise UnsupportedStructure("no single carbonic or cyanic acid group")
+    senior = min(_class_rank(mol, c) for c in centres)
+    return senior_parent_name(mol, [c for c in centres if _class_rank(mol, c) == senior], lambda c: _name_at(mol, c))
+
+
+def _name_at(mol, center):
+    """(number of N-substituents, name) with the acid group at `center` as the parent."""
     graph = adjacency(mol)
     atom = mol.GetAtomWithIdx(center)
     if any(_bond(mol, center, n.GetIdx()) == 3.0 for n in atom.GetNeighbors()):
@@ -300,7 +334,7 @@ def name_carbonic_family(mol):
         if found is None or len(found[1]) + 2 != mol.GetNumAtoms():
             raise UnsupportedStructure("this cyanic acid derivative is not an acid")
         name = _labelled(atom, cyanic_acid_name(found[0]))
-        return _anionic(name) if ionic is not None else name
+        return 0, _anionic(name) if ionic is not None else name
     x, ligands, amino, imine_n = None, [], None, None
     owned = {center}
     anions = hydrogens = 0
@@ -357,7 +391,8 @@ def name_carbonic_family(mol):
         name = _anionic(name)
         if hydrogens:
             name = f"{'hydrogen' if hydrogens == 1 else 'dihydrogen'} {name}"
-    return _nitrogen_prefixes(mol, graph, center, amino, imine_n, x) + name
+    count, prefixes = _nitrogen_prefixes(mol, graph, center, amino, imine_n, x)
+    return count, prefixes + name
 
 
 def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
@@ -372,8 +407,9 @@ def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
                 if m != center:
                     name, compound = name_branch(graph, m, root, halogens, mol=mol)
                     entries.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    count = sum(len(entry["locants"]) for entry in entries.values())
     if not entries:
-        return ""
+        return count, ""
     if amino is not None and imine_n is None and x in ("O", "S", "Se", "Te"):
-        return single_site_prefixes(entries)
-    return format_substituent_prefixes(entries)
+        return count, single_site_prefixes(entries)
+    return count, format_substituent_prefixes(entries)

@@ -31,8 +31,9 @@ analogue (thioboronic acid etc.).
 from rdkit import Chem
 
 from ._acid_groups import acid_group_at
+from ._borinic_acid import _borinic_acid_boron_atoms
 from ._multiplicative_text import enclose
-from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON
+from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON, boron_acid_parent
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import cited_stereo_around, name_branch
 
@@ -71,12 +72,13 @@ def name_boronic_acid(mol) -> str:
     if len(boron_atoms) != 1:
         raise UnsupportedStructure("more than one boronic acid group is not supported yet")
     (boron,) = boron_atoms
+    junior_boron = {a.GetIdx() for a in _borinic_acid_boron_atoms(mol)}
 
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         atomic_num = atom.GetAtomicNum()
-        if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx():
+        if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx() and atom.GetIdx() not in junior_boron:
             raise UnsupportedStructure("more than one boron atom is not supported yet")
         if atomic_num not in (1, 6, 7, 8, 16, _BORON, *HALOGEN_PREFIXES):
             raise UnsupportedStructure(
@@ -98,7 +100,7 @@ def name_boronic_acid(mol) -> str:
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
-    with cited_stereo_around(mol, boron.GetIdx()):
+    with boron_acid_parent(), cited_stereo_around(mol, boron.GetIdx()):
         name, is_compound = name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol)
     prefix = enclose(name) if is_compound else name
     return f"{prefix}boronic acid"
