@@ -5742,7 +5742,7 @@ def _amidine_nitrogens(mol, atom):
                 continue
             if n.GetAtomicNum() not in allowed or n.GetFormalCharge():
                 return None
-            if is_functional_carbon(mol, n.GetIdx()) and not (nitrogen is amino and _imidoyl_carbon(mol, n, nitrogen)):
+            if is_functional_carbon(mol, n.GetIdx()) and not _imidoyl_carbon(mol, n, nitrogen):
                 return None
     if imino.GetDegree() > 2 or amino.GetDegree() > 3:
         return None

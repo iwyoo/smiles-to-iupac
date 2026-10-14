@@ -42,6 +42,7 @@ _SENIOR_TO_SELENOL = [
         "[#6][CX3](=O)[#6]",
         "[#6][CX3](=S)[#6]",
         "[CX3](=[O,S,Se,Te])[NX2]=[NX2]",
+        "[CX3;!R](=[NX2;!R])[NX3;!R]",
         "[#6][CX3](=O)[O,S,Se,Te;X2][O,S,Se,Te;X2][O,S,Se,Te;X2]",
         "[#6][CX3](=O)[OX2][NX3;!R]",
         "[OX2H1][#6;!$([#6]=O)]",
@@ -1436,7 +1437,19 @@ def _chain_amidine_ylidene(mol, graph, root, coming_from):
             and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors() if n.GetIdx() != root)
             for a in amino
         )
-        and all(n.GetAtomicNum() == 6 for n in mol.GetAtomWithIdx(coming_from).GetNeighbors() if n.GetIdx() != root)
+        and all(
+            n.GetAtomicNum() == 6 or _sulfonyl_centre(mol, n)
+            for n in mol.GetAtomWithIdx(coming_from).GetNeighbors()
+            if n.GetIdx() != root
+        )
+    )
+
+
+def _sulfonyl_centre(mol, atom):
+    """An S, Se or Te atom carrying an oxo group: the nitrogen it binds belongs to a sulfonamide, senior to an amidine."""
+    return atom.GetAtomicNum() in (16, 34, 52) and any(
+        n.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
     )
 
 

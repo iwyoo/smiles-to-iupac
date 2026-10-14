@@ -1413,6 +1413,8 @@ def test_n_alkoxy_and_n_aryloxy_amides(smiles, expected):
         pytest.param("CC(=O)NC(=N)C", "N-(ethanimidoyl)acetamide", id="imidoyl_on_amide_nitrogen"),
         pytest.param("CC(=O)N=C(N)N", "N-(diaminomethylidene)acetamide", id="acyl_guanidine_is_an_amide"),
         pytest.param("CC(=O)N=C(C)N", "N-(1-aminoethylidene)acetamide", id="amidine_ylidene_chain_end_on_amide_nitrogen"),
+        pytest.param("CC(N)=NS(C)(=O)=O", "N-(1-aminoethylidene)methanesulfonamide", id="amidine_ylidene_chain_end_on_sulfonamide_nitrogen"),
+        pytest.param("CC(N)=NCC=N", "N'-(2-iminoethyl)ethanimidamide", id="imino_prefix_beneath_an_amidine"),
         pytest.param("CC(=O)N=C1SC=CN1C", "N-(3-methyl-1,3-thiazol-2(3H)-ylidene)acetamide", id="ring_ylidene_on_amide_nitrogen"),
     ],
 )
@@ -1680,6 +1682,7 @@ def test_hydrazidines_and_carbonic_amidrazones(smiles, expected):
     "smiles,expected",
     [
         ("CC(=N)NC(=N)C", "N-ethanimidoylethanimidamide"),
+        ("CC(N)=NC(C)=N", "N'-ethanimidoylethanimidamide"),
         ("CCC(=N)NC(=N)C", "N-ethanimidoylpropanimidamide"),
         ("N=C(c1ccccc1)NC(=N)c1ccccc1", "N-benzenecarboximidoylbenzenecarboximidamide"),
         ("CCNC(=N)SSC(=N)NC", "N-ethylcarbamimidic N-methylcarbamimidic dithioperoxyanhydride"),
