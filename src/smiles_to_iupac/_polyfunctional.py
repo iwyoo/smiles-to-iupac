@@ -4193,6 +4193,9 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         and not any(a.GetFormalCharge() for a in amine_nitrogens)
         and not _share_chain_backbone(mol, graph, amine_nitrogens)
     ):
+        named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
+        if named is not None:
+            return named
         return _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens)
     if len(amine_nitrogens) > 1 and not primaries and not ISOTOPE_LABELS.get() and not SUBSTITUTED_AMINE_PREFIX.get():
         named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
@@ -4335,12 +4338,11 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
             return None
         carbons[i] = attached[0]
         arms[i] = [x for x in graph[i] if x not in backbone]
-    if len(set(carbons.values())) != len(carbons):
-        return None
     keep = sorted(backbone | indexes)
     editable = Chem.RWMol(mol)
-    for position, i in enumerate(sorted(indexes), start=1):
-        editable.GetAtomWithIdx(carbons[i]).SetAtomMapNum(position)
+    position_of_carbon = {c: position for position, c in enumerate(sorted(set(carbons.values())), start=1)}
+    for i in indexes:
+        editable.GetAtomWithIdx(carbons[i]).SetAtomMapNum(position_of_carbon[carbons[i]])
         editable.GetAtomWithIdx(i).SetBoolProp("_cut_amine_n", True)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
         editable.RemoveAtom(idx)
@@ -4356,10 +4358,10 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
     for a in parent.GetAtoms():
         a.SetAtomMapNum(0)
     n_names = []
-    for position, i in enumerate(sorted(indexes), start=1):
+    for i in sorted(indexes):
         for arm in arms[i]:
             name, compound = name_branch(graph, arm, i, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-            n_names.append((name, compound, ("N", mapped[position])))
+            n_names.append((name, compound, ("N", mapped[position_of_carbon[carbons[i]]], i)))
     try:
         with _renumbered_branch_stereo(keep):
             result = _select(parent, None, n_names)

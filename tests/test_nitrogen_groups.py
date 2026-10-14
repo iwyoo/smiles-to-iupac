@@ -125,6 +125,8 @@ def test_polyamines_of_a_ring_and_acyclic_amine_nitrogens(smiles, expected):
         pytest.param("CCNC(C)NCC", "N1,N'1-diethylethane-1,1-diamine", id="geminal_same_substituents"),
         pytest.param("NCCNc1ccccc1", "N1-phenylethane-1,2-diamine", id="chain_parent_with_aryl_on_nitrogen"),
         pytest.param("CNc1ccc(N)cc1", "N1-methylbenzene-1,4-diamine", id="ring_parent_n_substituted"),
+        pytest.param("CNC1CCC(NC)CC1", "N1,N4-dimethylcyclohexane-1,4-diamine", id="saturated_ring_parent_with_both_nitrogens_substituted"),
+        pytest.param("CNC1(NC)CCOCC1", "N4,N'4-dimethyloxane-4,4-diamine", id="geminal_primed_nitrogen_locants_on_a_ring"),
         pytest.param(
             "Nc1ccc(Nc2ccc(Nc3ccccc3)cc2)cc1",
             "N1-(4-aminophenyl)-N4-phenylbenzene-1,4-diamine",
