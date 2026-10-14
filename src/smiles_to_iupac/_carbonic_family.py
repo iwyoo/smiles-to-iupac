@@ -339,7 +339,9 @@ def name_carbonic_family(mol):
         raise UnsupportedStructure("no =X atom")
     if any(kind != "Y" for kind, _ in ligands) and (len([1 for kind, _ in ligands if kind != "Y"]) + (amino is not None)) > 1:
         raise UnsupportedStructure("two non-hydroxy positions make an acyl halide, not an acid")
-    if amino is not None and any(mol.GetAtomWithIdx(m).GetAtomicNum() == 7 for m in graph[amino] if m != center):
+    if amino is not None and any(
+        mol.GetAtomWithIdx(m).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(m).IsInRing() for m in graph[amino] if m != center
+    ):
         raise UnsupportedStructure("an amino group bearing another nitrogen is a hydrazine parent")
     branch = set()
     for root in (amino, imine_n):
