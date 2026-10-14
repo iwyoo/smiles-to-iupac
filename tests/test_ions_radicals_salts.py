@@ -1073,6 +1073,8 @@ def test_radical_ions_named_through_the_filled_ion(smiles, expected):
         pytest.param("[O-]c1cc2ccccc2cc1C(=O)[O-]", "3-oxidonaphthalene-2-carboxylate", id="oxido_prefix"),
         pytest.param("[O-]CC[NH3+]", "2-azaniumylethan-1-olate", id="ammonium_prefix_on_an_olate"),
         pytest.param("[S-]CC[N+](C)(C)C", "2-(trimethylazaniumyl)ethane-1-thiolate", id="ammonium_prefix_on_a_thiolate"),
+        pytest.param("[O-]C(=O)C[NH2+]CC(=O)[O-]", "[(carboxylatomethyl)azaniumyl]acetate", id="cationic_centre_between_identical_carboxylates"),
+        pytest.param("[O-]C(=O)C[NH+](CC(=O)[O-])CC(=O)[O-]", "[bis(carboxylatomethyl)azaniumyl]acetate", id="cationic_centre_between_three_identical_carboxylates"),
         pytest.param("[O-]CCC1=CC=C[CH-]1", "2-(2-oxidoethyl)cyclopenta-2,4-dien-1-ide", id="ide_ring_outranks_an_olate_chain"),
         pytest.param("[O-]CCc1cccc[c-]1", "2-(2-oxidoethyl)benzen-1-ide", id="benzenide_outranks_an_olate_chain"),
         pytest.param("[CH-2]c1ccc[cH-]1", "(cyclopenta-3,5-dien-2-id-1-yl)methanediide", id="ring_ide_prefix_on_a_diide_parent"),

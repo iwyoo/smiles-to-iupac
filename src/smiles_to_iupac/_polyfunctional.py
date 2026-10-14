@@ -4589,6 +4589,9 @@ def _identical_group_units(mol, graph, group_atoms):
             neighbor = mol.GetAtomWithIdx(other)
             if neighbor.GetAtomicNum() == 6 and not neighbor.IsInRing():
                 continue
+            if neighbor.GetFormalCharge() > 0:
+                # P-74.1.3: a cationic centre is cited as a prefix of the anionic parent, never as a linking group
+                continue
             atoms = _arm_atoms(graph, root, other)
             if other in atoms or not atoms & group_atoms or not atoms - group_atoms:
                 continue
