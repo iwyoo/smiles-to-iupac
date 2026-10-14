@@ -21,6 +21,7 @@ def test_isotope_descriptor_before_a_one_carbon_retained_name(smiles, expected):
     [
         pytest.param("[2H]CC", "(2H1)ethane", id="one_deuterium_on_ethane"),
         pytest.param("[3H]C", "(3H1)methane", id="tritiated_methane"),
+        pytest.param("[1H]C([2H])([2H])[2H]", "(1H1,2H3)methane", id="protium_cited_before_deuterium"),
     ],
 )
 def test_ethane_deuterium_and_tritium(smiles, expected):
