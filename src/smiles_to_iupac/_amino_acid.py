@@ -372,13 +372,14 @@ def _match(mol):
             frag = _skeleton_after_cuts(mol, cuts)
             if frag is None:
                 continue
-            name, alpha, side_chain, _ = _match_skeleton(frag)
-            if alpha is None:
-                alpha = frag.GetSubstructMatch(_GLYCINE)[1]
+            name, frag_alpha, side_chain, _ = _match_skeleton(frag)
+            if frag_alpha is None:
+                frag_alpha = frag.GetSubstructMatch(_GLYCINE)[1]
             to_orig = {a.GetIdx(): a.GetIntProp("_orig") for a in frag.GetAtoms()}
-            alpha = to_orig[alpha]
+            alpha = to_orig[frag_alpha]
             side_chain = frozenset(to_orig[i] for i in side_chain)
-            amine = next(n.GetIdx() for n in mol.GetAtomWithIdx(alpha).GetNeighbors() if n.GetAtomicNum() == 7)
+            # an alpha carbon with a second nitrogen: only the nitrogen kept in the skeleton is the amino group
+            amine = next(to_orig[n.GetIdx()] for n in frag.GetAtomWithIdx(frag_alpha).GetNeighbors() if n.GetAtomicNum() == 7)
             allowed = {amine: _ALPHA_NITROGEN_LOCANT.get(name, "N")}
             for site in side_chain:
                 element = mol.GetAtomWithIdx(site).GetSymbol()
