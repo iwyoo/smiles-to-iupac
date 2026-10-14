@@ -1232,6 +1232,30 @@ def test_several_identical_cationic_centres(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-73.1.1.2, P-31.2: a protonated ring nitrogen of a hydrogenated fused or bicyclic ring is the 'ium' of its parent hydride with the hydro prefixes kept
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[NH+]1CCc2ccccc2C1", "2-methyl-1,2,3,4-tetrahydroisoquinolin-2-ium", id="tertiary_nitrogen"),
+        pytest.param("C1C[NH2+]Cc2ccccc21", "1,2,3,4-tetrahydroisoquinolin-2-ium", id="secondary_nitrogen_of_isoquinoline"),
+        pytest.param("C1C[NH2+]c2ccccc21", "2,3-dihydro-1H-indol-1-ium", id="indoline"),
+        pytest.param("C1CC[NH2+]c2ccccc21", "1,2,3,4-tetrahydroquinolin-1-ium", id="tetrahydroquinoline"),
+        pytest.param("C1[NH2+]Cc2ccccc21", "2,3-dihydro-1H-isoindol-2-ium", id="isoindoline"),
+        pytest.param("C1CC2CCCCC2C[NH2+]1", "decahydroisoquinolin-2-ium", id="fully_saturated_isoquinoline"),
+        pytest.param("C1C[NH2+]CC2CCCCC21", "decahydroisoquinolin-2-ium", id="saturated_isoquinoline_other_atom_order"),
+        pytest.param("C1C[NH+]2CCCCC2C1", "octahydroindolizin-4-ium", id="bridgehead_nitrogen_of_indolizine"),
+        pytest.param("C1C[NH+]2CCCC2C1", "hexahydro-1H-pyrrolizin-4-ium", id="bridgehead_nitrogen_of_pyrrolizine"),
+        pytest.param("[NH3+]CC[NH+]1CCc2ccccc2C1", "2-(1,2,3,4-tetrahydroisoquinolin-2-ium-2-yl)ethan-1-aminium", id="aminium_beside_a_hydro_fused_ring_cation"),
+        pytest.param("[NH3+]CC[NH+]1CCC2CCCCC2C1", "2-(decahydroisoquinolin-2-ium-2-yl)ethan-1-aminium", id="aminium_beside_a_saturated_fused_ring_cation"),
+        pytest.param("[NH3+]CC[NH+]1CCCCC1", "2-(piperidin-1-ium-1-yl)ethan-1-aminium", id="aminium_beside_a_monocyclic_ring_cation"),
+        pytest.param("[NH3+]CC[NH+]1CC[NH2+]CC1", "1-(2-azaniumylethyl)piperazine-1,4-diium", id="ring_with_more_centres_is_the_parent"),
+        pytest.param("C1C[NH2+]CC[NH+]1CC[NH3+]", "1-(2-azaniumylethyl)piperazine-1,4-diium", id="ring_with_more_centres_other_atom_order"),
+    ],
+)
+def test_protonated_nitrogen_of_a_hydrogenated_fused_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

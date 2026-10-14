@@ -101,6 +101,16 @@ def name_polycation(mol) -> str:
         raise UnsupportedStructure("a multiply charged heteroatom centre is not supported yet")
     if all(_ring_nitrenium(a) for a in centres):
         return _name_ring_nitrenium_polycation(mol, centres)
+    ring_centres = [a for a in centres if a.IsInRing()]
+    chain_centres = [a for a in centres if not a.IsInRing()]
+    if (
+        len(ring_centres) > 1
+        and len(ring_centres) > len(chain_centres) > 0
+        and all(_ammonium_group(a) for a in chain_centres)
+        and not any(_ylium_centre(a) for a in ring_centres)
+    ):
+        # P-73.7(a): the parent holds the larger number of cationic centres, the ammonium groups being prefixes
+        return _name_ring_polycation(mol, ring_centres)
     if all(a.IsInRing() for a in centres) and any(_ylium_centre(a) for a in centres) and any(
         not _ylium_centre(a) for a in centres
     ):
@@ -121,6 +131,18 @@ def name_polycation(mol) -> str:
         except _NotAPair:
             pass
     return name_cation_assembly(mol)
+
+
+def _ammonium_group(atom) -> bool:
+    """An acyclic ammonium nitrogen: four single bonds to hydrogen and carbon."""
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetFormalCharge() == 1
+        and not atom.GetIsotope()
+        and not atom.GetIsAromatic()
+        and atom.GetDegree() + atom.GetTotalNumHs() == 4
+        and all(b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
+    )
 
 
 def _name_ring_nitrenium_polycation(mol, centres):

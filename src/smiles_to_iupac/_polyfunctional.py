@@ -1210,16 +1210,45 @@ def _cation_inserted(name, base, center, placed_in_parent):
     ring_mol = ring.GetMol()
     ring_mol.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(ring_mol)
-    bare, placed = _bare_ring_name(ring_mol, new_center)
+    bare, placed = _bare_ring_name(ring_mol, new_center, hydro_ok=True)
     if not bare.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
     stem = bare[:-1]
+    name = _hydro_for_cationic_centre(name, stem, locant or placed[new_center])
     pattern = re.compile(re.escape(stem) + r"(?:e(?![a-z])|(?=-?\d*,?\d*-?yl)|(?=-\d+(?:,\d+)*-[a-z]))")
     found = list(pattern.finditer(name))
     if len(found) != 1:
         raise UnsupportedStructure("the ring parent of the cation is not delimited in the anionic name")
     match = found[0]
     return f"{name[:match.start()]}{stem}-{locant or placed[new_center]}-ium{name[match.end():]}"
+
+
+_HYDRO_WORDS = {2: "di", 3: "tri", 4: "tetra", 5: "penta", 6: "hexa", 7: "hepta", 8: "octa", 9: "nona", 10: "deca"}
+_HYDRO_COUNTS = {word: count for count, word in _HYDRO_WORDS.items()}
+
+
+def _hydro_for_cationic_centre(name, stem, locant):
+    """A ring group attached through its own nitrogen cites the added hydrogen of the neutral group, '3,4-dihydro
+    isoquinolin-2(1H)-yl'; the cationic centre has no added hydrogen, so its hydro prefix takes the locant of the added
+    hydrogen and of the centre: '1,2,3,4-tetrahydroisoquinolin-2-ium-2-yl' (P-31.1.4.2.4, P-73.1.1.2)."""
+    match = re.search(
+        rf"(?P<locants>\d+(?:,\d+)*)-(?P<word>di|tri|tetra|penta|hexa|hepta|octa)hydro{re.escape(stem)}-(?P<centre>{re.escape(str(locant))})\((?P<added>\d+)H\)-yl",
+        name,
+    )
+    if match is None:
+        every = re.search(
+            rf"(?P<word>tri|tetra|penta|hexa|hepta|octa|nona)hydro{re.escape(stem)}-(?P<centre>{re.escape(str(locant))})\((?P<added>\d+)H\)-yl",
+            name,
+        )
+        word = _HYDRO_WORDS.get(_HYDRO_COUNTS[every.group("word")] + 2) if every else None
+        if word is None:
+            return name
+        return f"{name[:every.start()]}{word}hydro{stem}-{every.group('centre')}-yl{name[every.end():]}"
+    locants = sorted({*match.group("locants").split(","), match.group("added"), match.group("centre")}, key=int)
+    word = _HYDRO_WORDS.get(len(locants))
+    if word is None:
+        return name
+    return f"{name[:match.start()]}{','.join(locants)}-{word}hydro{stem}-{match.group('centre')}-yl{name[match.end():]}"
 
 
 def _prefix_center_locant(base, center, placed_in_parent):
@@ -1304,8 +1333,14 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
     if kind == "ium" and any(_anionic_group_atom(base, a) or a.HasProp(ANION_PROP) for a in base.GetAtoms()):
         return _name_labelled(base, labels or {}, lambda name, placed: _cation_inserted(name, base, center, placed))
     if not labels and len(_system_of(base, center)[1]) == base.GetNumAtoms():
-        name, placed = _bare_ring_name(base, center)
-        return _attach(name, placed, center, kind)
+        try:
+            name, placed = _bare_ring_name(base, center)
+        except UnsupportedStructure:
+            if not _ortho_fused_only(base):
+                raise
+            name = None
+        if name is not None:
+            return _attach(name, placed, center, kind)
     token = RING_CENTER.set(True)
     cation_token = CATION_PARENT.set(True)
     try:
@@ -1347,6 +1382,13 @@ def _monocycle_locant(base, center):
     return best[1][center]
 
 
+def _ortho_fused_only(mol):
+    """Whether every two rings of `mol` share at most one bond: a hydrogenated ortho-fused system is named with hydro
+    prefixes on its mancude parent, a bridged one needs bridge prefixes."""
+    rings = [set(r) for r in Chem.GetSymmSSSR(mol)]
+    return all(len(a & b) <= 2 for i, a in enumerate(rings) for b in rings[i + 1 :])
+
+
 def _numbered_monocycle(base, center):
     """(name, {center: locant}) of a bare heteromonocycle numbered for the indicated hydrogen first, then the cationic
     centre, then the hydro prefixes (P-31.1.4.2.4, P-73.1.1.2); None when the ring has no such numbering."""
@@ -1364,8 +1406,9 @@ def _numbered_monocycle(base, center):
     return (name, {center: best.position_of[center]}) if name.endswith("e") else None
 
 
-def _bare_ring_name(base, center):
-    """(name, {center: locant}) of an unsubstituted single-heteroatom ring system."""
+def _bare_ring_name(base, center, hydro_ok=False):
+    """(name, {center: locant}) of an unsubstituted single-heteroatom ring system; with `hydro_ok` a hydrogenated fused
+    system gives the name of its mancude skeleton, the stem of a name that cites the hydro prefixes itself."""
     from ._fusion_name import Context, fused_ring_system_name, fusion_name, system_numbering_options
     from ._fused_numbering import _locant_key
     from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
@@ -1384,6 +1427,11 @@ def _bare_ring_name(base, center):
             raise UnsupportedStructure("this ring has no supported parent name") from None
         return re.sub(r"^(?:\d+[a-z]?(?:,\d+[a-z]?)*H-)+", "", named), {center: _monocycle_locant(base, center)}
     name = fused_ring_system_name(base)
+    if name is None and hydro_ok and _ortho_fused_only(base):
+        try:
+            name = str(fusion_name(base)[0])
+        except (UnsupportedStructure, ValueError, KeyError, RuntimeError):
+            name = None
     if name is None:
         raise UnsupportedStructure("this ring system has no supported parent name")
     ctx = Context(base)
