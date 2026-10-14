@@ -922,6 +922,25 @@ def test_heteroaromatic_ring_cation(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-72.2.2.2.3, P-72.7, P-15.3.2, P-28.2.1: azolide anions joined by a linker or a bond are a multiplied parent, each unit named as the anion
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)(c1ccc[n-]1)c1ccc[n-]1", "2,2'-(propane-2,2-diyl)bis(1H-pyrrol-1-ide)", id="branched_linker"),
+        pytest.param("C(c1ccc[n-]1)c1ccc[n-]1", "2,2'-methylenebis(1H-pyrrol-1-ide)", id="methylene_linker"),
+        pytest.param("CCC(CC)(c1ccc[n-]1)c1ccc[n-]1", "2,2'-(pentane-3,3-diyl)bis(1H-pyrrol-1-ide)", id="longer_linker"),
+        pytest.param("c1ccc(C(c2ccc[n-]2)c2ccc[n-]2)cc1", "2,2'-(phenylmethylene)bis(1H-pyrrol-1-ide)", id="ring_substituent_on_the_linker"),
+        pytest.param("c1cc[n-]c1-c1ccc[n-]1", "2,2'-bi(1H-pyrrol-1-ide)", id="direct_bond_between_the_rings"),
+        pytest.param("c1cn[n-]c1-c1cc[n-]n1", "3,5'-bi(1H-pyrazol-1-ide)", id="pyrazolides_with_different_junction_locants"),
+        pytest.param("c1nc[n-]c1-c1ncc[n-]1", "2,5'-bi(1H-imidazol-1-ide)", id="imidazolides_with_different_junction_locants"),
+        pytest.param("c1cc[n-]c1C(C)(C)c1ccc[nH]1", "2-[2-(1H-pyrrol-2-yl)propan-2-yl]-1H-pyrrol-1-ide", id="one_anionic_ring_beside_a_neutral_one"),
+        pytest.param("c1cc[nH]c1C(C)(C)c1ccc[nH]1", "2,2'-(propane-2,2-diyl)bis(1H-pyrrole)", id="neutral_pair_for_comparison"),
+    ],
+)
+def test_two_azolide_anions_joined_by_a_linker_or_a_bond(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [

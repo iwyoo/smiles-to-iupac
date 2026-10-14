@@ -259,7 +259,9 @@ def _name_skeletal_anion(mol, centers):
     graph = adjacency(neutral)
     rings, atoms = _system_of(neutral, (attach or uide_extra)[0])
     if any(a not in atoms for a in attach + uide_extra):
-        raise UnsupportedStructure("anionic centers in different ring systems are not supported yet")
+        from ._multiplicative_cation import name_cation_assembly
+
+        return name_cation_assembly(mol)
     word = "ide" if mixed or "ide" in words else "uide"
     key_centers = [(a.GetIdx(), kinds[a.GetIdx()][0]) for a in centers] if mixed else ()
     found = evaluate_skeleton(
