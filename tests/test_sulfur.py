@@ -215,6 +215,12 @@ def test_benzene_ring_cases(smiles, expected):
     [
         pytest.param("C=C(S(=O)N)C", "prop-1-ene-2-sulfinamide", id="ene_carbon"),
         pytest.param("NS(=O)CS(=O)N", "methanedisulfinamide", id="two_sulfinamides"),
+        pytest.param(
+            "CN(CC)S(=O)(=O)C(C)S(=O)(=O)NC", "N1-ethyl-N1,N'1-dimethylethane-1,1-disulfonamide", id="geminal_groups_told_apart_by_primes"
+        ),
+        pytest.param(
+            "CNS(=O)(=O)C1(S(=O)(=O)NC)CCCCC1", "N1,N'1-dimethylcyclohexane-1,1-disulfonamide", id="geminal_groups_on_a_ring_atom"
+        ),
     ],
 )
 def test_ene_carbon_and_related(smiles, expected):
@@ -799,6 +805,7 @@ def test_thione_outranks_hydroxy_and_yields_to_ketone(smiles, expected):
         pytest.param("CS(=O)(=O)NNC", "N'-methylmethanesulfonohydrazide", id="terminal_nitrogen_substituent"),
         pytest.param("CS(=O)(=O)N(C)NC", "N,N'-dimethylmethanesulfonohydrazide", id="both_nitrogens_substituted"),
         pytest.param("NNS(=O)(=O)CCS(=O)(=O)NN", "ethane-1,2-disulfonohydrazide", id="two_sulfonohydrazide_groups"),
+        pytest.param("CNNS(=O)(=O)CS(=O)(=O)NNC", "N',N'''-dimethylmethanedisulfonohydrazide", id="geminal_sulfonohydrazide_groups"),
         pytest.param("c1ccccc1S(=O)(=O)NN", "benzenesulfonohydrazide", id="sulfonohydrazide_on_a_ring"),
         pytest.param("NNS(=O)(=O)c1ccccc1C(=O)O", "2-(hydrazinesulfonyl)benzoic acid", id="senior_acid_cites_the_prefix"),
         pytest.param("NNS(=O)(=S)C", "methanesulfonothiohydrazide", id="replaced_oxygen_in_a_sulfonohydrazide"),

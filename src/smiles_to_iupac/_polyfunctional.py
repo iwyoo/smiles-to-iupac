@@ -8,6 +8,7 @@ group on a ring is not handled here.
 import contextlib
 import contextvars
 import itertools
+from collections import Counter
 from types import MappingProxyType
 import re
 
@@ -6046,12 +6047,9 @@ def _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     N on the nitrogen bonded to the centre by a single bond, then the primes on the terminal nitrogen of a hydrazide, on
     the imido nitrogens and on the terminal nitrogens of hydrazono groups (P-66.4.1.1, P-66.4.2.1); several groups
     cannot be told apart by these locants."""
-    members = dict(groups.get(cls, {}))
-    for group_cls, ring_atom, owned in ring_groups:
-        if group_cls == cls:
-            members[next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)] = owned
+    members = _group_members(mol, groups, ring_groups, cls)
     entries = []
-    for carbon, owned in members.items():
+    for _, _, owned, _ in members:
         centre = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52))
         nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
         bonded = [a for a in nitrogens if mol.GetBondBetweenAtoms(centre, a) is not None]
@@ -6085,19 +6083,15 @@ def _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
 def _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="hydrazide"):
     """N and N' prefix entries (name, compound, locant) of the hydrazide groups: N on the acylated nitrogen, N' on
     the terminal nitrogen; with several groups the locant carries the position of its group (P-66.3.3.2)."""
-    members = {c: (owned, c) for c, owned in groups.get(cls, {}).items()}
-    for group_cls, ring_atom, owned in ring_groups:
-        if group_cls == cls:
-            key = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)
-            members[key] = (owned, ring_atom)
+    members = _group_members(mol, groups, ring_groups, cls)
     entries = []
-    for carbon, (owned, anchor) in members.items():
+    for carbon, identity, owned, anchor in members:
         acyl = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
         alpha = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and acyl in graph[a])
         beta = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and a != alpha)
         rest = tuple(a for a in graph[carbon] if a not in owned)
         for nitrogen, partner, base in ((alpha, beta, "N"), (beta, alpha, "N'")):
-            located = (base, anchor, carbon, rest, "paired") if len(members) > 1 else base
+            located = (base, anchor, identity, rest, "paired") if len(members) > 1 else base
             for n in graph[nitrogen]:
                 if n in (partner, acyl):
                     continue
@@ -6211,18 +6205,33 @@ def _imine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
     return entries
 
 
-def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="amide"):
-    """N-prefix names when the single amide group is N-substituted, else []."""
-    members = {c: (owned, c) for c, owned in groups.get(cls, {}).items()}
+def _group_members(mol, groups, ring_groups, cls):
+    """[(key atom, group identity, owned atoms, anchor)] of the groups of class `cls`. Sulfonyl-type groups on one carbon
+    are merged in `groups` and several groups on one ring atom share their key, so each is told apart by its own atoms."""
+    def hetero(owned):
+        return frozenset(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() != 6)
+
+    members = {}
+    for carbon, owned in groups.get(cls, {}).items():
+        split = [part for kind, part in _sulfonyl_groups_on(mol, carbon) if kind == cls]
+        for part in split if len(split) > 1 else [owned]:
+            members[carbon, hetero(part)] = (part, carbon)
     for group_cls, ring_atom, owned in ring_groups:
         if group_cls == cls:
             key = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)
-            members[key] = (owned, ring_atom)
+            members[key, hetero(owned)] = (owned, ring_atom)
+    shared = Counter(key for key, _ in members)
+    return [(key, key if shared[key] == 1 else min(owned), owned, anchor) for (key, _), (owned, anchor) in members.items()]
+
+
+def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="amide"):
+    """N-prefix names when the single amide group is N-substituted, else []."""
+    members = _group_members(mol, groups, ring_groups, cls)
     entries = []
-    for carbon, (owned, anchor) in members.items():
+    for carbon, identity, owned, anchor in members:
         nitrogen = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7)
         center = next((a for a in graph[nitrogen] if a in owned), carbon)
-        located = ("N", anchor, carbon, tuple(a for a in graph[carbon] if a not in owned)) if len(members) > 1 else "N"
+        located = ("N", anchor, identity, tuple(a for a in graph[carbon] if a not in owned)) if len(members) > 1 else "N"
         for n in graph[nitrogen]:
             if n != center:
                 name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
