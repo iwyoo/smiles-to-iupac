@@ -4351,13 +4351,25 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     return best[3]
 
 
+def _hydroxy_or_alkoxy_on_nitrogen(atom):
+    """The oxygen of an N-hydroxy or N-alkoxy group: an N-prefix of the amine, not a second parent (P-68.3.1.1.1.1)."""
+    return (
+        atom.GetAtomicNum() == 8
+        and not atom.GetFormalCharge()
+        and not atom.GetIsotope()
+        and all(n.GetAtomicNum() in (6, 7) for n in atom.GetNeighbors())
+        and sum(n.GetAtomicNum() == 7 for n in atom.GetNeighbors()) == 1
+    )
+
+
 def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
     """Several N-substituted amines on one chain: the chain with an amine suffix at each of those nitrogens is the parent
     and the other groups on the nitrogens are N-prefixes (P-62.2.2, P-62.2.4.1.2); None when the nitrogens do not hang on a single backbone."""
     if any(
         n.IsInRing() or n.GetFormalCharge() or n.GetTotalNumHs() > 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
         or any(
-            x.GetAtomicNum() != 6 or is_functional_carbon(mol, x.GetIdx()) or _double_oxygens(mol, x.GetIdx())
+            not _hydroxy_or_alkoxy_on_nitrogen(x)
+            and (x.GetAtomicNum() != 6 or is_functional_carbon(mol, x.GetIdx()) or _double_oxygens(mol, x.GetIdx()))
             for x in n.GetNeighbors()
         )
         for n in nitrogens
