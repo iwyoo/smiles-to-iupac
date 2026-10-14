@@ -14,6 +14,7 @@ from ._acid_lexicon import CHALCOGENS
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._amino_acid_retained import has_retained_amino_acid_shape
 from ._carbonic_family import pseudohalide_at
+from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
@@ -1358,7 +1359,9 @@ def _halocarbonic_amide(mol, graph):
             name, compound = name_branch(graph, root, nitrogen.GetIdx(), halogens, mol=mol, unsaturated=True)
             grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
         covered = {carbon.GetIdx(), halide[0].GetIdx(), oxo[0].GetIdx(), nitrogen.GetIdx()}
-        if any(a.GetIdx() not in covered and a.GetAtomicNum() not in (1, 6, 9, 17, 35, 53) for a in mol.GetAtoms()):
+        if has_group_senior_to_urea(mol, covered) or any(
+            a.GetIdx() not in covered and not is_urea_substituent_root(mol, a) for a in mol.GetAtoms()
+        ):
             continue
         acid = f"carbono{_HALIDES[halide[0].GetAtomicNum()][:-3]}idic"
         return (format_substituent_prefixes(grouped) if grouped else "") + f"{acid} amide"

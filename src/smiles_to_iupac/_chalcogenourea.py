@@ -185,41 +185,9 @@ class Chalcogenourea:
     word: str
 
     def _core(self, mol):
-        for atom in mol.GetAtoms():
-            if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
-                continue
-            if atom.GetFormalCharge() != 0 or atom.GetIsAromatic() or atom.IsInRing():
-                continue
-            neighbors = atom.GetNeighbors()
-            chalcogens = [n for n in neighbors if n.GetAtomicNum() == self.atomic_num]
-            nitrogens = [n for n in neighbors if n.GetAtomicNum() == 7]
-            if len(chalcogens) != 1 or len(nitrogens) != 2:
-                continue
-            (chalcogen,) = chalcogens
-            if (
-                chalcogen.GetDegree() != 1
-                or mol.GetBondBetweenAtoms(atom.GetIdx(), chalcogen.GetIdx()).GetBondTypeAsDouble() != 2.0
-            ):
-                continue
-            if any(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in nitrogens):
-                continue
-            if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
-                continue
-            if all(n.IsInRing() for n in nitrogens):
-                continue
-            if any(
-                b.GetBondTypeAsDouble() != 1.0 for n in nitrogens for b in n.GetBonds() if b.GetOtherAtom(n).GetIdx() != atom.GetIdx()
-            ):
-                continue
-            if any(
-                not is_urea_substituent_root(mol, nn)
-                for n in nitrogens
-                for nn in n.GetNeighbors()
-                if nn.GetIdx() != atom.GetIdx()
-            ):
-                continue
-            return atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
-        return None
+        from ._urea import _urea_core
+
+        return _urea_core(mol, self.atomic_num)
 
     def has_shape(self, mol) -> bool:
         return self._core(mol) is not None
