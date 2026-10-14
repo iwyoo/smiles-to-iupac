@@ -1720,8 +1720,10 @@ def _name_mol(mol) -> str:
     if has_polycation_shape(mol):
         return name_polycation(mol)
     if has_ammonium_shape(mol):
-        if has_phosphate_shape(mol) and any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
-            return name_phosphate(mol)
+        if any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
+            for has_shape, namer in ((has_phosphate_shape, name_phosphate), (has_carbonic_acid_shape, name_carbonic_acid)):
+                if has_shape(mol):
+                    return namer(mol)
         return name_ammonium(mol)
     for has_shape, namer in (
         # A secondary/tertiary amine N-oxide (P-62.5's zwitterionic N+-O-) has a

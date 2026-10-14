@@ -116,6 +116,8 @@ def name_carbonic_acid(mol) -> str:
     for atom in mol.GetAtoms():
         if atom.GetIdx() in group_atom_idxs:
             continue
+        if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1 and atom.GetIsotope() == 0 and anion_oxygens:
+            continue
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atom.GetAtomicNum() == _CARBON or _is_oxo_of_metal(atom):

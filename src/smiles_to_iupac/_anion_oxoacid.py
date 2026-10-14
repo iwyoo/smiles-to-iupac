@@ -8,6 +8,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._numerals import multiplying_prefix
+from ._phosphate import format_ester_entries
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _PHOSPHORUS = {
@@ -97,7 +98,10 @@ def name_oxoacid_anion(mol, center):
         raise UnsupportedStructure("a multi-fragment structure is not named by one oxoacid anion")
     if any(s.specified == Chem.StereoSpecified.Specified for s in Chem.FindPotentialStereo(mol)):
         raise UnsupportedStructure("the stereochemistry of an oxoacid ester anion is not cited yet")
-    if len(set(a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() > 0)) or len(mol.GetAtoms()) < 2:
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    anions = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0]
+    ammonium_only = all(a.GetAtomicNum() == 7 and a.GetFormalCharge() == 1 and not a.GetIsotope() for a in cations)
+    if len(mol.GetAtoms()) < 2 or (cations and not (ammonium_only and len(cations) == len(anions))):
         raise UnsupportedStructure("cationic atoms beside an oxoacid anion are not supported here")
     infix = _pseudohalide_infix_anion(mol, center)
     if infix is not None:
@@ -158,12 +162,4 @@ def name_oxoacid_anion(mol, center):
 
 
 def _ester_words(esters):
-    groups = {}
-    for name, compound in esters:
-        groups.setdefault((name, compound), 0)
-        groups[(name, compound)] += 1
-    parts = []
-    for (name, compound), count in sorted(groups.items(), key=lambda item: item[0][0]):
-        text = f"({name})" if compound else name
-        parts.append(text if count == 1 else multiplying_prefix(count, compound=compound) + text)
-    return " ".join(parts)
+    return format_ester_entries(esters)

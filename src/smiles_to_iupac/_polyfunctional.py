@@ -1682,9 +1682,11 @@ def _name_ring_group_cation(base, centre, kind, original=None):
 
 def _name_aminium(base, labels=None, parent="amine", cationic=None):
     token = AMINIUM.set(True if parent == "amine" else parent)
+    cation_token = CATION_PARENT.set(True)
     try:
         name = _name_labelled(base, labels or {})
     finally:
+        CATION_PARENT.reset(cation_token)
         AMINIUM.reset(token)
     return _cationic_group_suffix(name, parent, cationic or sum(a.HasProp("_cationic_amine") for a in base.GetAtoms()))
 
@@ -1988,7 +1990,7 @@ def _name_labelled(mol, labels, finish=None):
     isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
         try:
-            multiplicative = None if _ionic_linker_centre(mol) else _multiplicative_name(mol, stereo)
+            multiplicative = None if _ionic_linker_centre(mol) or _cationic_amine_parent(mol) else _multiplicative_name(mol, stereo)
         except UnsupportedStructure:
             if not labels:
                 raise
@@ -2015,6 +2017,15 @@ def _name_labelled(mol, labels, finish=None):
     finally:
         BRANCH_STEREO.reset(token)
         ISOTOPE_LABELS.reset(isotope_token)
+
+
+def _cationic_amine_parent(mol):
+    """A substituted ammonium centre is the parent beside neutral groups (P-41, class 6), so it is never the linker of a
+    multiplied name."""
+    return AMINIUM.get() is True and any(
+        a.GetAtomicNum() == 7 and (a.GetFormalCharge() == 1 or a.HasProp("_cationic_amine")) and a.GetDegree() > 1
+        for a in mol.GetAtoms()
+    )
 
 
 def _ionic_linker_centre(mol):
@@ -4308,11 +4319,16 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         raise UnsupportedStructure("a nitrogen closing a ring is not an acyclic amine parent")
     context = ISOTOPE_LABELS.get()
     settled = set(context["consumed"]) if context else set()
+    stereo_context = BRANCH_STEREO.get()
+    used_before = set(stereo_context["used"]) if stereo_context else set()
+    used_by = {}
     results = []
     for c in carbon_neighbors:
         others = [o for o in neighbors if o != c]
         if context:
             context["consumed"] = set(settled)
+        if stereo_context:
+            stereo_context["used"] &= used_before
         n_names = [name_branch(graph, o, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True) for o in others]
         parent, mapped = _amine_parent_molecule(mol, arms[c], c, n_idx)
         if primaries:
@@ -4323,6 +4339,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
                 result = _select(parent, None, n_names)
         finally:
             ISOTOPE_LABELS.reset(unlabelled)
+        if stereo_context:
+            used_by[c] = set(stereo_context["used"]) - used_before
         if primaries and (mapped not in result[2][4] or any(name not in result[1] for name, *_ in n_names)):
             continue
         ring = parent.GetAtomWithIdx(mapped).IsInRing()
@@ -4333,6 +4351,9 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             placed = {keep[new]: locant for new, locant in result[2][4].items() if new < len(keep)}
             placed[n_idx] = "N"
             results[-1] += (_substituent_isotope_locants(placed, mol, context["labels"]),)
+    prefix_used = set()
+    if stereo_context:
+        stereo_context["used"] &= used_before
     if primaries:
         token = SUBSTITUTED_AMINE_PREFIX.set(True)
         try:
@@ -4341,6 +4362,9 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             as_prefix = None
         finally:
             SUBSTITUTED_AMINE_PREFIX.reset(token)
+        if stereo_context:
+            prefix_used = set(stereo_context["used"]) - used_before
+            stereo_context["used"] &= used_before
         if as_prefix is not None:
             ring = as_prefix[2][5]
             anchor = next(iter(as_prefix[2][4]))
@@ -4358,6 +4382,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         )
     )
     best = results[0]
+    if stereo_context:
+        stereo_context["used"] |= prefix_used if best[5] is None else used_by.get(best[5], set())
     if best[5] is None:
         return best[4]
     best = (best[1], best[2], best[3], best[4], best[5])

@@ -118,6 +118,28 @@ def test_aromatic_aminide_is_and_related(smiles, expected):
         pytest.param("Nc1ccccc1[NH3+]", "2-aminoanilinium", id="neutral_amino_prefix_on_aniline"),
         pytest.param("NC1=CC=CC=C1[NH2+]C", "2-amino-N-methylanilinium", id="neutral_amino_prefix_n_substituted"),
         pytest.param("Nc1cccnc1[NH3+]", "3-aminopyridin-2-aminium", id="neutral_amino_prefix_on_heteroring"),
+        pytest.param(
+            "C[N+](C)(CCNC=O)CCNC=O", "2-formamido-N-(2-formamidoethyl)-N,N-dimethylethan-1-aminium", id="two_formamido_arms"
+        ),
+        pytest.param(
+            "C[N+](C)(CCNC(C)=O)CCNC(C)=O", "2-acetamido-N-(2-acetamidoethyl)-N,N-dimethylethan-1-aminium", id="two_acetamido_arms"
+        ),
+        pytest.param(
+            "C[N+](C)(CCNC(=O)c1ccccc1)CCNC(=O)c1ccccc1",
+            "2-benzamido-N-(2-benzamidoethyl)-N,N-dimethylethan-1-aminium",
+            id="two_benzamido_arms",
+        ),
+        pytest.param("C[NH+](CCNC=O)CCNC=O", "2-formamido-N-(2-formamidoethyl)-N-methylethan-1-aminium", id="two_arms_on_a_tertiary_ammonium"),
+        pytest.param("CC(=O)NCC[NH2+]CCNC(C)=O", "2-acetamido-N-(2-acetamidoethyl)ethan-1-aminium", id="two_arms_on_a_secondary_ammonium"),
+        pytest.param("C[N+](C)(C)c1ccc(C=NO)cc1", "4-[(hydroxyimino)methyl]-N,N,N-trimethylanilinium", id="oxime_on_an_aryl_ammonium"),
+        pytest.param("C[N+](C)(C)c1ccccc1C=NO", "2-[(hydroxyimino)methyl]-N,N,N-trimethylanilinium", id="oxime_ortho_to_the_ammonium"),
+        pytest.param("C[N+](C)(C)c1ccc(/C=N/O)cc1", "4-[(E)-(hydroxyimino)methyl]-N,N,N-trimethylanilinium", id="e_oxime_on_an_aryl_ammonium"),
+        pytest.param("C[N+](C)(C)c1ccc(/C=N\\O)cc1", "4-[(Z)-(hydroxyimino)methyl]-N,N,N-trimethylanilinium", id="z_oxime_on_an_aryl_ammonium"),
+        pytest.param("C[N+](C)(C)c1ccc(C=N)cc1", "4-(iminomethyl)-N,N,N-trimethylanilinium", id="imine_on_an_aryl_ammonium"),
+        pytest.param("C[N+](C)(C)c1ccc(C=NC)cc1", "N,N,N-trimethyl-4-[(methylimino)methyl]anilinium", id="alphanumerical_order_with_an_imino_prefix"),
+        pytest.param("C[N+](C)(C)C1CCCCC1=NO", "2-(hydroxyimino)-N,N,N-trimethylcyclohexan-1-aminium", id="oxime_on_a_ring_ammonium"),
+        pytest.param("C[N+](C)(C)C/C=N/O", "(2E)-2-(hydroxyimino)-N,N,N-trimethylethan-1-aminium", id="e_oxime_on_a_chain_ammonium"),
+        pytest.param("C[N+](C)(C)C/C=N\\O", "(2Z)-2-(hydroxyimino)-N,N,N-trimethylethan-1-aminium", id="z_oxime_on_a_chain_ammonium"),
     ],
 )
 def test_ammonium_parent_with_other_groups(smiles, expected):
@@ -557,6 +579,40 @@ def test_carbanide_salt_names():
         pytest.param("C[S+](C)CCCCCC[N+](C)(C)C", "6-(dimethylsulfaniumyl)-N,N,N-trimethylhexan-1-aminium", id="senior_nitrogen_cation_is_the_parent"),
         pytest.param("C[S+](C)CCCCCC[P+](C)(C)C", "[6-(dimethylsulfaniumyl)hexyl]tri(methyl)phosphanium", id="phosphorus_outranks_sulfur"),
         pytest.param("C[O+](C)CCCC[N+](C)(C)C", "4-(dimethyloxidaniumyl)-N,N,N-trimethylbutan-1-aminium", id="oxygen_cation_prefix"),
+        # P-74.1.3, P-72.2.2.2.1.2: the ammonium of an acid-ester anion is a prefix of the alkyl group, the anion name ends the compound
+        pytest.param("C[N+](C)(C)CCOS(=O)(=O)[O-]", "2-(trimethylazaniumyl)ethyl sulfate", id="sulfate_ester"),
+        pytest.param("[NH3+]CCOS(=O)(=O)[O-]", "2-azaniumylethyl sulfate", id="primary_ammonium_on_a_sulfate"),
+        pytest.param("C[N+](C)(C)CCOS(=O)[O-]", "2-(trimethylazaniumyl)ethyl sulfite", id="sulfite_ester"),
+        pytest.param("C[N+](C)(C)CCOC(=O)[O-]", "2-(trimethylazaniumyl)ethyl carbonate", id="carbonate_ester"),
+        pytest.param("C[N+](C)(C)CCOP([O-])OC", "methyl 2-(trimethylazaniumyl)ethyl phosphite", id="phosphite_ester"),
+        pytest.param("CP(=O)([O-])OCC[N+](C)(C)C", "2-(trimethylazaniumyl)ethyl methylphosphonate", id="methylphosphonate_ester"),
+        pytest.param("CCP(=O)([O-])OCC[N+](C)(C)C", "2-(trimethylazaniumyl)ethyl ethylphosphonate", id="ethylphosphonate_ester"),
+        pytest.param("CC(C)P(=O)([O-])OCC[N+](C)(C)C", "2-(trimethylazaniumyl)ethyl (propan-2-yl)phosphonate", id="branched_phosphonate_group"),
+        pytest.param("C[N+](C)(C)CCOP(=O)([O-])c1ccccc1", "2-(trimethylazaniumyl)ethyl phenylphosphonate", id="phenylphosphonate_ester"),
+        pytest.param("CP(=O)([O-])OCC[NH3+]", "2-azaniumylethyl methylphosphonate", id="primary_ammonium_on_a_phosphonate"),
+        pytest.param("CP(=O)([O-])OCC[NH+](C)C", "2-(dimethylazaniumyl)ethyl methylphosphonate", id="tertiary_ammonium_on_a_phosphonate"),
+        pytest.param("ClCCOS(=O)(=O)[O-]", "2-chloroethyl sulfate", id="substituted_group_of_a_plain_sulfate_anion"),
+        # P-103.2.4, P-72.7: the carboxylate ends the compound and the other residue is an acyl prefix with its azaniumyl group
+        pytest.param("[NH3+]CC(=O)N1CCCC1C(=O)[O-]", "1-(azaniumylacetyl)pyrrolidine-2-carboxylate", id="proline_c_terminus"),
+        pytest.param("[NH3+]CC(=O)N1CCC[C@H]1C(=O)[O-]", "(2S)-1-(azaniumylacetyl)pyrrolidine-2-carboxylate", id="proline_with_a_descriptor"),
+        pytest.param(
+            "C[C@@H]([NH3+])C(=O)N1CCC[C@H]1C(=O)[O-]",
+            "(2S)-1-[(2R)-2-azaniumylpropanoyl]pyrrolidine-2-carboxylate",
+            id="descriptors_of_the_acyl_group_and_the_ring",
+        ),
+        pytest.param("CC([NH3+])C(=O)N1CCCC1C(=O)[O-]", "1-(2-azaniumylpropanoyl)pyrrolidine-2-carboxylate", id="alanyl_proline_unspecified"),
+        pytest.param(
+            "CC(C)[C@H]([NH3+])C(=O)NCC(=O)[O-]", "{[(2S)-2-azaniumyl-3-methylbutanoyl]amino}acetate", id="valine_n_terminus"
+        ),
+        pytest.param("CC(C)C([NH3+])C(=O)NCC(=O)[O-]", "[(2-azaniumyl-3-methylbutanoyl)amino]acetate", id="valine_n_terminus_unspecified"),
+        pytest.param(
+            "CC(C)C[C@H]([NH3+])C(=O)NCC(=O)[O-]", "{[(2S)-2-azaniumyl-4-methylpentanoyl]amino}acetate", id="leucine_n_terminus"
+        ),
+        pytest.param(
+            "CC(C)[C@H]([NH3+])C(=O)N[C@@H](C)C(=O)[O-]",
+            "(2S)-2-{[(2S)-2-azaniumyl-3-methylbutanoyl]amino}propanoate",
+            id="descriptors_of_both_residues",
+        ),
     ],
 )
 def test_zwitterion_name(smiles, expected):

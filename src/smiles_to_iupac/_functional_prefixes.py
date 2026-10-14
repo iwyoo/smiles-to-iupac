@@ -120,6 +120,10 @@ def _acyl_prefix(mol, subtree, root, parent):
     rw = Chem.RWMol(mol)
     new_o = rw.AddAtom(Chem.Atom(8))
     rw.AddBond(root, new_o, Chem.BondType.SINGLE)
+    # an ammonium group in the acid outranks it as a parent, so the acid is named as its anion beside the cation
+    zwitterion = any(mol.GetAtomWithIdx(a).GetFormalCharge() > 0 for a in subtree)
+    if zwitterion:
+        rw.GetAtomWithIdx(new_o).SetFormalCharge(-1)
     for idx in sorted(set(range(mol.GetNumAtoms())) - subtree, reverse=True):
         rw.RemoveAtom(idx)
     sub = rw.GetMol()
@@ -141,6 +145,8 @@ def _acyl_prefix(mol, subtree, root, parent):
     finally:
         ISOTOPE_LABELS.reset(labels_token)
         SYSTEMATIC_ACID_PROBE.reset(token)
+    if zwitterion and probe.endswith("ate"):
+        probe = probe[: -len("ate")] + "ic acid"
     name = acyl_name(probe)
     _cite_stereo_of_acyl(mol, sub, sorted(subtree))
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
