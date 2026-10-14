@@ -150,6 +150,7 @@ def test_locants_are_all_cited_once_a_nuclide_needs_one(smiles, expected):
         ("CC[NH+](C)[2H]", "N-methyl(N-2H)ethanaminium"),
         ("C[NH2+][2H]", "(N-2H1)methanaminium"),
         ("C[15NH3+]", "(15N)methanaminium"),
+        ("[2H]C([2H])([2H])[N+](C)(C)CC[NH3+]", "N1-(2H3)methyl-N1,N1-dimethylethane-1,2-bis(aminium)"),
         ("OCc1ccc([2H])c(Cl)c1", "[3-chloro(4-2H)phenyl]methanol"),
         ("O=C(C)c1cc([2H])c(C)cc1", "1-[4-methyl(3-2H)phenyl]ethan-1-one"),
         ("CC(=O)Oc1ccc(C)cc1[2H]", "4-methyl(2-2H)phenyl acetate"),

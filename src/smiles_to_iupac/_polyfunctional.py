@@ -1401,9 +1401,11 @@ def _aminium_base(mol, ignore=frozenset()):
         return mol
     neutral = Chem.RWMol(mol)
     for nitrogen in charged:
+        if not nitrogen.GetTotalNumHs():
+            continue
         atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
         atom.SetFormalCharge(0)
-        atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1 if nitrogen.GetTotalNumHs() else 0)
+        atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
         atom.SetNoImplicit(True)
         atom.SetBoolProp("_cationic_amine", True)
     Chem.SanitizeMol(neutral)
