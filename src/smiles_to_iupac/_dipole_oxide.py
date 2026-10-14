@@ -45,7 +45,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import _OPPOSITE_BOND_STEREO, UnsupportedStructure, match_cip_labels
 from ._imine import name_imine
 from ._nitrile import name_nitrile
 
@@ -78,14 +78,23 @@ def _dipole_nitrogen_oxygen(mol):
 def _strip_dipole_oxygen(mol, nitrogen_idx, oxygen_idx):
     """A copy of `mol` with `oxygen_idx` removed and `nitrogen_idx`'s
     charge reset to neutral -- exactly the molecule the plain (non-dipole)
-    parent imine/nitrile would be."""
+    parent imine/nitrile would be. A C=N bond keeps the geometry of the
+    input and the E/Z label ranked with the oxide ligand (P-92.1.3.1)."""
     rw = Chem.RWMol(mol)
+    for bond in rw.GetBonds():
+        stereo_atoms = list(bond.GetStereoAtoms())
+        if oxygen_idx in stereo_atoms and nitrogen_idx in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()):
+            partner = bond.GetOtherAtomIdx(nitrogen_idx)
+            substituent = next(n.GetIdx() for n in rw.GetAtomWithIdx(nitrogen_idx).GetNeighbors() if n.GetIdx() not in (oxygen_idx, partner))
+            bond.SetStereoAtoms(*(substituent if a == oxygen_idx else a for a in stereo_atoms))
+            bond.SetStereo(_OPPOSITE_BOND_STEREO[bond.GetStereo()])
     rw.RemoveAtom(oxygen_idx)
     new_nitrogen_idx = nitrogen_idx if nitrogen_idx < oxygen_idx else nitrogen_idx - 1
     rw.GetAtomWithIdx(new_nitrogen_idx).SetFormalCharge(0)
     rw.GetAtomWithIdx(new_nitrogen_idx).SetNoImplicit(False)
     new_mol = rw.GetMol()
     Chem.SanitizeMol(new_mol)
+    match_cip_labels(mol, new_mol, {i: i if i < oxygen_idx else i + 1 for i in range(new_mol.GetNumAtoms())})
     return new_mol
 
 
@@ -140,7 +149,16 @@ def has_nitrile_oxide_shape(mol) -> bool:
 def name_nitrone(mol) -> str:
     nitrogen, oxygen = _dipole_nitrogen_oxygen(mol)
     stripped = _strip_dipole_oxygen(mol, nitrogen.GetIdx(), oxygen.GetIdx())
-    return f"{name_imine(stripped)} N-oxide"
+    try:
+        return f"{name_imine(stripped)} N-oxide"
+    except UnsupportedStructure:
+        from ._chain_multiplicative import _principal_atoms
+        from ._polyfunctional import name_polyfunctional
+
+        principal = _principal_atoms(stripped)
+        if principal is None or principal[0] != "imine":
+            raise
+        return f"{name_polyfunctional(stripped)} N-oxide"
 
 
 def _is_bare_hydrogen_nitrile(mol) -> bool:
