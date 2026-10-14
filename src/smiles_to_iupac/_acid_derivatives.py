@@ -385,6 +385,40 @@ def acid_word(acid_name):
     return acid_name[: match.start()] + match.group(1) if match.group(1) else acid_name[: match.start()]
 
 
+def _position_lengths(mol, center):
+    """The numbers of chalcogen atoms (1 for -OH, 2 for -OOH) of the single-bonded positions of an acid centre."""
+    lengths = set()
+    for position, role in _center(mol, center)[2]:
+        if role != "Y":
+            continue
+        y = mol.GetAtomWithIdx(position)
+        onward = [n for n in y.GetNeighbors() if n.GetIdx() != center and n.GetAtomicNum() in _SYMBOL and _center(mol, n.GetIdx()) is None]
+        lengths.add(2 if onward else 1)
+    return lengths
+
+
+def _free_groups(mol, center):
+    """The atoms of each free -OH (or -SH, ...) and -OOH (or -SSH, ...) position of an acid centre, nearest atom first."""
+    groups = []
+    for n in mol.GetAtomWithIdx(center).GetNeighbors():
+        if n.GetAtomicNum() not in _SYMBOL or n.GetFormalCharge() or _bond(mol, center, n.GetIdx()) != 1.0:
+            continue
+        if n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
+            groups.append([n.GetIdx()])
+            continue
+        onward = [m for m in n.GetNeighbors() if m.GetIdx() != center]
+        if (
+            not n.GetTotalNumHs()
+            and len(onward) == 1
+            and onward[0].GetAtomicNum() in _SYMBOL
+            and onward[0].GetDegree() == 1
+            and onward[0].GetTotalNumHs() == 1
+            and not onward[0].GetFormalCharge()
+        ):
+            groups.append([n.GetIdx(), onward[0].GetIdx()])
+    return groups
+
+
 def _letters(mol, link):
     """Element letters of the atom chain bearing the organyl group when several chalcogens occur at the centre (P-65.6.3.3.7)."""
     found = _center(mol, link.center)
@@ -398,7 +432,7 @@ def _letters(mol, link):
                     elements.add(_SYMBOL[n.GetAtomicNum()])
     for a in link.chain:
         elements.add(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()])
-    if len(elements) < 2:
+    if len(elements) < 2 and len(_position_lengths(mol, link.center)) < 2:
         return ""
     return "".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in link.chain)
 
@@ -833,12 +867,7 @@ def name_ester(mol, links):
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element of the organyl part is not cited by any supported name")
-    free_slots = [
-        (a, n.GetIdx())
-        for a in acid_atoms
-        for n in mol.GetAtomWithIdx(a).GetNeighbors()
-        if n.GetAtomicNum() in _SYMBOL and n.GetDegree() == 1 and n.GetTotalNumHs() == 1 and _center(mol, a) is not None
-    ]
+    free_slots = [(a, group[0]) for a in acid_atoms if _center(mol, a) is not None for group in _free_groups(mol, a)]
     free_centers = [center for center, _ in free_slots]
     free = len(free_centers)
     hydrogen_positions = None
@@ -869,12 +898,7 @@ def _ester_locants(mol, acid_atoms, per_link, free_centers):
     yohimban-16,18-dicarboxylate'), else None."""
     ends = {a for l, _ in per_link for a in l.chain}
     centers = sorted({l.center for l, _ in per_link} | set(free_centers))
-    free_groups = {
-        n.GetIdx()
-        for c in free_centers
-        for n in mol.GetAtomWithIdx(c).GetNeighbors()
-        if n.GetAtomicNum() in _SYMBOL and n.GetDegree() == 1 and n.GetTotalNumHs() == 1
-    }
+    free_groups = {a for c in free_centers for group in _free_groups(mol, c) for a in group}
     core = [a for a in acid_atoms if a not in ends and a not in free_groups]
     locants, symmetric = _locants_of(mol, core, centers, with_symmetry=True)
     if symmetric:
