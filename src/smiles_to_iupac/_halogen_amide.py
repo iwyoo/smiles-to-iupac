@@ -37,7 +37,7 @@ def _halogen_amide_nitrogen(mol):
         a
         for a in mol.GetAtoms()
         if a.GetAtomicNum() == 7
-        and sum(n.GetAtomicNum() in HALOGEN_PREFIXES for n in a.GetNeighbors()) == 1
+        and sum(n.GetAtomicNum() in HALOGEN_PREFIXES for n in a.GetNeighbors()) in (1, 2)
     ]
     return found[0] if len(found) == 1 else None
 
@@ -49,14 +49,21 @@ def has_halogen_amide_shape(mol):
 def name_halogen_amide(mol) -> str:
     nitrogen = _halogen_amide_nitrogen(mol)
     if nitrogen is None:
-        raise UnsupportedStructure("no nitrogen bearing exactly one halogen atom")
+        raise UnsupportedStructure("no nitrogen bearing one or two halogen atoms")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    halogen = next(n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES)
+    halogen, *second = (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES)
     oxygens = _oxo_oxygens(halogen, nitrogen)
     if oxygens is None:
         raise UnsupportedStructure("a halogen on nitrogen carries something other than terminal oxygens")
     owned = {halogen.GetIdx(), *(o.GetIdx() for o in oxygens)}
+    prefixes = []
+    if second:
+        (other,) = second
+        if other.GetAtomicNum() != halogen.GetAtomicNum() or oxygens or other.GetDegree() != 1:
+            raise UnsupportedStructure("two different halogens on nitrogen need a decided choice of the acid")
+        owned.add(other.GetIdx())
+        prefixes.append((HALOGEN_PREFIXES[other.GetAtomicNum()], False))
     if any(
         a.GetIdx() not in owned
         and a.GetIdx() != nitrogen.GetIdx()
@@ -68,8 +75,8 @@ def name_halogen_amide(mol) -> str:
         a.GetAtomicNum() == 7 and a.GetIdx() != nitrogen.GetIdx() and not a.IsInRing() for a in mol.GetAtoms()
     ):
         raise UnsupportedStructure("a ring nitrogen or a second nitrogen is not an amide of a halogen acid")
-    carbons = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != halogen.GetIdx()]
-    if not carbons or any(
+    carbons = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != halogen.GetIdx() and n.GetIdx() not in owned]
+    if any(
         mol.GetBondBetweenAtoms(nitrogen.GetIdx(), c.GetIdx()).GetBondTypeAsDouble() != 1.0
         or not (c.GetAtomicNum() == 6 or (c.GetAtomicNum() == 7 and c.IsInRing()))
         for c in carbons
@@ -78,7 +85,7 @@ def name_halogen_amide(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    entries = [
+    entries = prefixes + [
         name_branch(graph, c.GetIdx(), nitrogen.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
         for c in carbons
     ]
