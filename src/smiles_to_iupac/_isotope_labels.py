@@ -6,7 +6,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 
-_HYDROGEN_MASS = {2: "2H", 3: "3H"}
+_HYDROGEN_MASS = {1: "1H", 2: "2H", 3: "3H"}
 HYDROGEN_ISOTOPES = {nuclide: mass for mass, nuclide in _HYDROGEN_MASS.items()}
 
 
