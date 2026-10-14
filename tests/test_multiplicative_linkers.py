@@ -727,6 +727,24 @@ def test_identical_parents_with_substituted_units_hetero_rings_imine_and_ester_l
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CCP(CC1)CCP1CCCCC1", "1,1'-(ethane-1,2-diyl)bis(phosphinane)"),
+        ("C1CCP(C1)CP1CCCC1", "1,1'-methylenebis(phospholane)"),
+        ("C1CC[As](CC1)CC[As]1CCCCC1", "1,1'-(ethane-1,2-diyl)bis(arsinane)"),
+        ("C1CCOC1CCC1CCCO1", "2,2'-(ethane-1,2-diyl)bis(oxolane)"),
+        ("c1ccsc1CCc1cccs1", "2,2'-(ethane-1,2-diyl)dithiophene"),
+        ("CP(C)CCP1CCCCC1", "1-[2-(dimethylphosphanyl)ethyl]phosphinane"),
+    ],
+)
+def test_ring_units_with_a_replacement_name_are_multiplied_with_bis_unless_a_senior_hydride_atom_lies_outside_them(
+    smiles, expected
+):
+    # P-15.3.2, P-16.3.6(c), P-44.1.2.2: 'diphosphinane' would be a ring of two phosphorus atoms
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_units_joined_to_the_linker_by_different_bonds_are_named_substitutively():
     # P-15.3.1.1, P-15.3.4.1.1: an -N=CH-CH2-NH- linker is unsymmetrical
     assert smiles_to_iupac("OCCN=CCNCCO") == "2-({2-[(2-hydroxyethyl)amino]ethylidene}amino)ethan-1-ol"
