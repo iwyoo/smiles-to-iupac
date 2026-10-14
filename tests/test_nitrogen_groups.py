@@ -1345,6 +1345,7 @@ def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
         pytest.param("NC(=O)N(O)C", "N-hydroxy-N-methylurea", id="hydroxy_on_the_nitrogen_itself"),
         pytest.param("N#CC(CCSC)NC(=O)NC", "N-[1-cyano-3-(methylsulfanyl)propyl]-N'-methylurea", id="nitrile_and_sulfanyl_in_a_substituent"),
         pytest.param("NC(=S)NCCO", "(2-hydroxyethyl)thiourea", id="thiourea_with_a_hydroxy_substituent"),
+        pytest.param("CC(C)=NC(=S)N(C)C", "N,N-dimethyl-N'-(propan-2-ylidene)thiourea", id="ylidene_on_a_thiourea_nitrogen"),
         pytest.param("NC(=O)NC(=O)c1ccccc1", "N-carbamoylbenzamide", id="urea_beneath_a_carboxamide"),
         pytest.param("NC(=O)NS(=O)(=O)c1ccccc1", "N-carbamoylbenzenesulfonamide", id="urea_beneath_a_sulfonamide"),
         pytest.param("CC(=O)NCCNC(N)=O", "N-[2-(carbamoylamino)ethyl]acetamide", id="carbamoylamino_prefix_beneath_an_amide"),

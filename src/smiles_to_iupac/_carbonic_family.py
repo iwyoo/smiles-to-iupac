@@ -263,6 +263,11 @@ def _cyano_carbon(mol, atom, nitrogen):
     )
 
 
+def _ylidene_carbon(mol, atom, nitrogen):
+    """The carbon double-bonded to `nitrogen`, cited as an N-ylidene prefix (P-66.1.6.1.1.2)."""
+    return atom.GetAtomicNum() == 6 and not atom.GetFormalCharge() and _bond(mol, atom.GetIdx(), nitrogen) == 2.0
+
+
 def _imine_slot(mol, center, n):
     """('X', hydrazine tail atom or None, N-substituted imine nitrogen or None) for a double-bonded neighbor."""
     i, z = n.GetIdx(), n.GetAtomicNum()
@@ -323,7 +328,8 @@ def name_carbonic_family(mol):
             ligands.append(("hal", PSEUDO_INFIX[pseudo]))
             owned |= _group_atoms(graph, i, center)
         elif z == 7 and not n.IsInRing() and not n.GetFormalCharge() and amino is None and all(
-            _bond(mol, i, m.GetIdx()) == 1.0 or _cyano_carbon(mol, m, i) for m in n.GetNeighbors()
+            _bond(mol, i, m.GetIdx()) == 1.0 or _cyano_carbon(mol, m, i) or _ylidene_carbon(mol, m, i)
+            for m in n.GetNeighbors()
         ):
             amino = i
             owned.add(i)
