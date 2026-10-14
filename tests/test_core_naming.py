@@ -818,6 +818,21 @@ def test_unsaturated_heteromacrocycles_by_skeletal_replacement(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1=C=C=C=C=N1", "1-azacyclohexa-1,2,3,4,5-pentaene"),
+        ("C1=C=CCOC1", "1-oxacyclohexa-3,4-diene"),
+        ("CC1=C=C=CN1", "2-methyl-1-azacyclopenta-2,3,4-triene"),
+        ("C1=C=NNC=1", "1,2-diazacyclopenta-2,3,4-triene"),
+        ("C1=C=CPC=1", "1-phosphacyclopenta-2,3,4-triene"),
+        ("OC1CC=C=CCN1", "1-azacyclohepta-4,5-dien-2-ol"),
+    ],
+)
+def test_heteromonocycle_with_cumulated_double_bonds_is_named_by_skeletal_replacement(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_double_bond_to_an_ylidene_group_takes_the_parent_locant():
     assert (
         smiles_to_iupac("Cl/C(/C(/C=C/C(=O)O)=C/S(=O)(=O)O)=C\\C")

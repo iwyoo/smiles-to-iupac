@@ -412,12 +412,14 @@ def _hetero_monocycle(mol, ring_order, attached):
     if any(a.GetFormalCharge() != 0 for a in atoms):
         raise UnsupportedStructure("a charged ring atom is not supported as a diyl yet")
     aromatic = all(a.GetIsAromatic() for a in atoms)
-    ring_double = {
+    double_ends = [
         i
         for b in mol.GetBonds()
         if b.GetBondTypeAsDouble() == 2.0 and b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
         for i in (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
-    }
+    ]
+    ring_double = set(double_ends)
+    cumulated = len(double_ends) != len(ring_double)
     triple_atoms = {
         i
         for b in mol.GetBonds()
@@ -468,7 +470,7 @@ def _hetero_monocycle(mol, ring_order, attached):
     matching = _max_matching(can_hold, ring_order)
     mancude_sp3 = len(can_hold) - 2 * matching
     fully_saturated = not ring_double and not aromatic
-    if not fully_saturated and not oxo_all:
+    if not fully_saturated and not oxo_all and not cumulated:
         extra = len(saturated_atoms) - mancude_sp3
         if extra < 0 or extra % 2:
             raise UnsupportedStructure("this partly hydrogenated ring is not expressible with hydro prefixes yet")
@@ -501,11 +503,11 @@ def _hetero_monocycle(mol, ring_order, attached):
             stem = _saturated_name(elements, hetero, lam)
             results.append((position_of, stem, (), (), (), (), ()))
             continue
-        stem = _MANCUDE_RETAINED.get(elements)
+        stem = None if cumulated else _MANCUDE_RETAINED.get(elements)
         if stem is None:
-            stem = _hantzsch_widman(elements, saturated=False)
+            stem = None if cumulated else _hantzsch_widman(elements, saturated=False)
             if stem is None:
-                named = _replacement_ene_name(mol, elements, walk, hetero, lam)
+                named = _replacement_ene_name(mol, elements, walk, hetero, lam, cumulated)
                 if named is None:
                     raise UnsupportedStructure("this heteromonocycle has no supported mancude parent name yet")
                 results.append((position_of, named[0], (), (), (), (), named[1]))
@@ -574,9 +576,10 @@ def _replacement_cycloalkane_name(elements, lam=None):
     return "-".join(pieces) + "cyclo" + alkane_name(len(elements))
 
 
-def _replacement_ene_name(mol, elements, walk, hetero, lam):
-    """Replacement name of a ring too large for a Hantzsch-Widman name, its double bonds cited as 'ene' (P-22.2.3, P-31.1.4.2.4)."""
-    if len(elements) < 11:
+def _replacement_ene_name(mol, elements, walk, hetero, lam, cumulated=False):
+    """Replacement name of a ring too large for a Hantzsch-Widman name, or one with cumulated double bonds that no
+    mancude parent describes, its double bonds cited as 'ene' (P-22.2.3, P-31.1.3.3, P-31.1.4.2.4)."""
+    if len(elements) < 11 and not cumulated:
         return None
     base = _replacement_cycloalkane_name(elements, lam)
     if base is None:
@@ -590,7 +593,8 @@ def _replacement_ene_name(mol, elements, walk, hetero, lam):
             citations[bond.GetBondTypeAsDouble()].append((low, str(low)) if high - low == 1 else (low, f"{low}({high})"))
     enes, ynes = citations[2.0], citations[3.0]
     body, needs_a = _unsaturation_suffix_from_citations(enes, ynes)
-    unsaturation = (tuple(sorted(l for l, _ in enes + ynes)), tuple(sorted(l for l, _ in enes)))
+    compound = sum(1 for _, text in enes + ynes if "(" in text)
+    unsaturation = (compound, tuple(sorted(l for l, _ in enes + ynes)), tuple(sorted(l for l, _ in enes)))
     return base[:-3] + ("a" if needs_a else "") + "-" + body, unsaturation
 
 
