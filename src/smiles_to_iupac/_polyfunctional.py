@@ -5747,6 +5747,9 @@ def _amidrazone_group(mol, atom):
     carbon = atom.GetIdx()
     nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
     others = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 7]
+    ring_nitrogens = [n for n in nitrogens if n.IsInRing()]
+    if len(nitrogens) == 3 and len(ring_nitrogens) == 1 and not others and not ring_nitrogens[0].GetFormalCharge():
+        nitrogens = [n for n in nitrogens if not n.IsInRing()]
     forced = FORCED_PRINCIPAL.get() in _AMIDRAZONE
     if len(nitrogens) != 2 or len(others) > 1 or any(
         n.GetAtomicNum() != 6 and not (forced and _carbonic_ether_oxygen(mol, n, atom)) for n in others
@@ -5898,7 +5901,7 @@ def _nitro_or_nitroso(mol, atom):
 
 
 def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
-    """A neutral =N-H, =N-R, =N-OH, =N-OR or =N-halogen on a saturated ring carbon (P-62.3, P-68.3.1.1)."""
+    """A neutral =N-H, =N-R, =N-OH, =N-OR, =N-halogen or =N-(ring nitrogen) on a saturated ring carbon (P-62.3, P-68.3.1.1)."""
     if nitrogen.GetFormalCharge() or nitrogen.GetDegree() > 2:
         return False
     for n in nitrogen.GetNeighbors():
@@ -5907,7 +5910,7 @@ def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
         if n.GetAtomicNum() == 8:
             if n.GetFormalCharge() or n.GetDegree() > 2:
                 return False
-        elif n.GetAtomicNum() not in (6, *HALOGEN_PREFIXES):
+        elif n.GetAtomicNum() not in (6, *HALOGEN_PREFIXES) and not _ring_nitrogen_parent(n):
             return False
     return True
 

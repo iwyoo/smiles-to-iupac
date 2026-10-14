@@ -431,6 +431,9 @@ def _evaluate_skeleton(
             stereo_all = [
                 (a, _cited_code(stereo_context, a, code)) for a, code in cip_labels(mol, side, chain_double_bonds=True)
             ]
+            stereo_all += [
+                (bond, code) for bond, code in stereo_context["bonds"].items() if _ylidene_to_parent_nitrogen(mol, bond, side, blocked)
+            ]
         substituents = {}
         for atom in position_of:
             roots = [n for n in graph[atom] if n not in skeleton and n not in blocked]
@@ -519,6 +522,16 @@ def _evaluate_skeleton(
         labels = ",".join(f"{loc}{code}" for loc, code in sorted((_stereo_locant(a, position_of), c) for a, c in ring_stereo))
         group_name = f"({labels})-{group_name}"
     return key, group_name, position_of, ring_stereo, side
+
+
+def _ylidene_to_parent_nitrogen(mol, bond, side, blocked):
+    """The exocyclic double bond from an atom of `side` to a nitrogen of the parent: its configuration is cited with the
+    ylidene group (P-93.5.1.4.2.1)."""
+    a, b = bond
+    if (a in side) == (b in side):
+        return False
+    outer = b if a in side else a
+    return outer in blocked and mol.GetAtomWithIdx(outer).GetAtomicNum() == 7 and not mol.GetBondBetweenAtoms(a, b).IsInRing()
 
 
 def _used_key(element):
