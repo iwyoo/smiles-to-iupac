@@ -202,7 +202,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         return None
     z_name, z_compound = name_branch(graph, z_idx, root, halogens, aromatic_atoms, mol=mol)
     if x in _DI_CARBOXY and z_name == _CHALCOGEN_PREFIX[x]:
-        return _DI_CARBOXY[x], False
+        return _DI_CARBOXY[x], True
     if x in ("NH", "NNH2"):
         entries = [("C", z_name, z_compound), *n_entries]
         return _cited(entries) + acyl_stem(x), True

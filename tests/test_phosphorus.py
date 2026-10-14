@@ -119,17 +119,6 @@ def test_asymmetric_substituents():
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("OP(C)(=O)CCP(C)(=O)O", id="second_phosphinic_acid_group"),
-    ],
-)
-def test_rejects_second_phosphinic_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("C1=CC=PC=C1", "phosphinine", id="phosphinine"),

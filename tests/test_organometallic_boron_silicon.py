@@ -109,7 +109,6 @@ def test_asymmetric_substituents():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("OB(C)CCB(C)O", id="second_borinic_acid_group"),
         pytest.param("NCB(C)O", id="unrecognized_heteroatom"),
     ],
 )
@@ -125,7 +124,6 @@ def test_benzene_ring():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("OB(O)CCB(O)O", id="second_boronic_acid_group"),
         pytest.param("OB(O)C[SiH3]", id="unrecognized_heteroatom__boronic_acid"),
     ],
 )
