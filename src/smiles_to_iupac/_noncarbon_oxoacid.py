@@ -27,7 +27,7 @@ from ._substituents import (
     name_branch,
 )
 
-_CARBOXYLIC_ACYL_HALIDE = Chem.MolFromSmarts("[CX3](=[O,S,Se,Te])[F,Cl,Br,I]")
+_CARBOXYLIC_ACYL_HALIDE = Chem.MolFromSmarts("[CX3](=[O,S,Se,Te])[F,Cl,Br,I;X1]")
 _CHALCOGEN = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CHALCOGEN_PREFIX = {16: "thio", 34: "seleno", 52: "telluro"}
 _ORDER = {8: 0, 16: 1, 34: 2, 52: 3}

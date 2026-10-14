@@ -61,7 +61,7 @@ _SENIOR_SULFONYL = [
         "[#16X4,#16X3;!R](=O)[OX2H1]",
         "[#16X4,#16X3;!R](=O)[OX2][#6]",
         "[#16X4,#16X3;!R](=O)[#7]",
-        "[#16X4,#16X3;!R](=O)[F,Cl,Br,I]",
+        "[#16X4,#16X3;!R](=O)[F,Cl,Br,I;X1]",
     )
 ]
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")

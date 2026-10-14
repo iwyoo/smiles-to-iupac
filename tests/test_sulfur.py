@@ -965,6 +965,8 @@ def test_hydrogen_terminated_chalcogen_chains_are_parent_hydrides_with_suffixes(
         pytest.param("CC(=O)O[IH2]", "(acetyloxy)-λ3-iodane", id="acyloxy_on_halogen_with_added_hydrogens"),
         pytest.param("COI(C)C", "methoxydi(methyl)-λ3-iodane", id="alkoxy_on_centre"),
         pytest.param("C=S(C)C", "dimethyl(methylidene)-λ4-sulfane", id="ylidene_on_centre"),
+        pytest.param("CC(=O)[IH2]", "acetyl-λ3-iodane", id="acyl_on_halogen_with_added_hydrogens_is_no_acyl_halide"),
+        pytest.param("CC(=O)I(C)C", "acetyldi(methyl)-λ3-iodane", id="acyl_on_a_substituted_hypervalent_halogen"),
         pytest.param("C/C=C/S(C)(C)C", "trimethyl[(1E)-prop-1-en-1-yl]-λ4-sulfane", id="alkenyl_on_centre_cites_e"),
         pytest.param("C/C=C\\S(C)(C)C", "trimethyl[(1Z)-prop-1-en-1-yl]-λ4-sulfane", id="alkenyl_on_centre_cites_z"),
         pytest.param("C=S1CCCC1", "1-methylidene-1λ4-thiolane", id="ylidene_on_ring_centre"),

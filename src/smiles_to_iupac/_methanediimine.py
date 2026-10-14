@@ -23,7 +23,7 @@ _SENIOR_GROUPS = [
         "[SX4,SX3](=O)[OX2H1]",
         "[CX3](=[O,S,Se,Te])[OX2,SX2,SeX2,TeX2][#6]",
         "[SX4](=O)(=O)[OX2][#6]",
-        "[CX3](=[O,S,Se,Te])[F,Cl,Br,I]",
+        "[CX3](=[O,S,Se,Te])[F,Cl,Br,I;X1]",
         "[CX3](=[O,S,Se,Te])[NX3,NX2]",
         "[SX4](=O)(=O)[NX3,NX2]",
         "[CX2]#[NX1]",
