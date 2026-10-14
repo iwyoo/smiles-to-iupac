@@ -1312,6 +1312,8 @@ def test_peroxy_prefixes_without_a_principal_group(smiles, expected):
         ("OC(=O)C1CCC(CC1)C=[Se]", "4-(methaneselenoyl)cyclohexane-1-carboxylic acid"),
         ("N#CN1CCCCC1", "piperidine-1-carbonitrile"),
         ("N#CN1CCOCC1", "morpholine-4-carbonitrile"),
+        ("N#CN1CCCC1=O", "2-oxopyrrolidine-1-carbonitrile"),
+        ("N#CN1C(=O)NCC1", "2-oxoimidazolidine-1-carbonitrile"),
         ("N#Cn1cccc1", "1H-pyrrole-1-carbonitrile"),
         ("N#CN1CCCCC1C", "2-methylpiperidine-1-carbonitrile"),
     ],
