@@ -188,7 +188,7 @@ from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multipli
 from ._chain_multiplicative import has_chain_multiplicative_shape
 from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
 from ._steroid_named import name_steroid
-from ._polyfunctional import AMINIUM, RING_CENTER, name_polyfunctional
+from ._polyfunctional import AMINIUM, CATION_RING_ATOM, RING_CENTER, name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
 from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER, fused_ring_system_name
@@ -831,9 +831,10 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
 
 
 def _name_unabridged(smiles: str) -> str:
-    # The stereo and isotope contexts of an enclosing name index the atoms of another molecule.
+    # The stereo, isotope and cationic-atom contexts of an enclosing name index the atoms of another molecule.
     isolated = BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()}) if nested() and BRANCH_STEREO.get() else None
     unlabelled = ISOTOPE_LABELS.set(None) if nested() and ISOTOPE_LABELS.get() else None
+    uncharged = CATION_RING_ATOM.set(None) if nested() and CATION_RING_ATOM.get() is not None else None
     enter()
     result = None
     try:
@@ -845,6 +846,8 @@ def _name_unabridged(smiles: str) -> str:
             BRANCH_STEREO.reset(isolated)
         if unlabelled is not None:
             ISOTOPE_LABELS.reset(unlabelled)
+        if uncharged is not None:
+            CATION_RING_ATOM.reset(uncharged)
 
 
 def _name_unabridged_body(smiles: str) -> str:

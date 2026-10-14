@@ -129,6 +129,7 @@ def _acid_rank(name):
 
 AMINIUM = contextvars.ContextVar("aminium", default=False)
 RING_CENTER = contextvars.ContextVar("ring_center", default=False)
+CATION_RING_ATOM = contextvars.ContextVar("cation_ring_atom", default=None)
 FORCE_LOCANTS = contextvars.ContextVar("force_locants", default=False)
 LAST_POSITIONS = contextvars.ContextVar("last_positions", default=None)
 FORCED_PRINCIPAL = contextvars.ContextVar("forced_principal", default=None)
@@ -1343,6 +1344,7 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
             return _attach(name, placed, center, kind)
     token = RING_CENTER.set(True)
     cation_token = CATION_PARENT.set(True)
+    atom_token = CATION_RING_ATOM.set(center)
     try:
         if probe is None:
             return _name_labelled(base, labels or {}, lambda name, placed: _attach(name, placed, center, kind))
@@ -1356,6 +1358,7 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
 
         return _name_labelled(marked, labels or {}, attach_marked)
     finally:
+        CATION_RING_ATOM.reset(atom_token)
         CATION_PARENT.reset(cation_token)
         RING_CENTER.reset(token)
 
@@ -3264,6 +3267,9 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if rings:
         if any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
             raise UnsupportedStructure("several rings without a principal group are not named by the chain engine")
+        cationic = CATION_RING_ATOM.get()
+        if cationic is not None and any(cationic in r for r in rings):
+            rings = [r for r in rings if cationic in r]  # the cationic ring outranks every neutral ring (P-41)
         ranked = sorted(rings, key=lambda r: _ring_rank(mol, r[0]))
         top = _ring_rank(mol, ranked[0][0])
         tied = [r for r in ranked if _ring_rank(mol, r[0]) == top]
