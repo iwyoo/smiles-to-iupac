@@ -6103,7 +6103,12 @@ def _evaluate(
     )
     prefix_locants = [loc for info in with_n.values() for loc in info["locants"]]
     uncited_locants = length > 1 and not force and omits_all_locants(mol, chain_set | nitrogens, with_n, owned - nitrogens)
-    single_arrangement = length > 1 and not force and not ene and not yne and has_single_arrangement(mol, chain_set | nitrogens)
+    # the printed PINs 3-amino-2,3-dioxopropanethioic acid and 4-bromo-3,4-dioxobutanoic acid cite locants on a carbon chain
+    carbon_chain_beyond_two = length > 2 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in chain_set)
+    single_arrangement = (
+        length > 1 and not force and not ene and not yne and not carbon_chain_beyond_two
+        and has_single_arrangement(mol, chain_set | nitrogens)
+    )
     uncited_locants = uncited_locants or single_arrangement
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)
