@@ -147,6 +147,53 @@ def cyanamide_name(mol):
     return None
 
 
+def carbonohydrazonic_diamide_name(mol):
+    """C(=N-NH2)(NH2)2 with carbon groups on its nitrogens (P-66.4.2.2): N and N' on the two amide nitrogens, N'' on
+    the terminal hydrazone nitrogen, as the locants of an amidrazone follow the nitrogens in the order of the group."""
+    if not _plain(mol):
+        return None
+    graph = adjacency(mol)
+    for carbon in mol.GetAtoms():
+        if carbon.GetAtomicNum() != 6 or carbon.IsInRing() or carbon.GetDegree() != 3:
+            continue
+        bonds = {n.GetIdx(): mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in carbon.GetNeighbors()}
+        if any(n.GetAtomicNum() != 7 or n.IsInRing() or n.GetIsAromatic() for n in carbon.GetNeighbors()):
+            continue
+        imines = [i for i, order in bonds.items() if order == 2.0]
+        amides = [i for i, order in bonds.items() if order == 1.0]
+        if len(imines) != 1 or len(amides) != 2:
+            continue
+        imine = mol.GetAtomWithIdx(imines[0])
+        terminals = [n for n in imine.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
+        if len(terminals) != 1 or terminals[0].GetAtomicNum() != 7 or terminals[0].IsInRing() or terminals[0].GetIsAromatic():
+            continue
+        terminal = terminals[0]
+        nitrogens = [mol.GetAtomWithIdx(i) for i in amides] + [terminal]
+        if any(b.GetBondTypeAsDouble() != 1.0 for n in nitrogens for b in n.GetBonds() if b.GetOtherAtomIdx(n.GetIdx()) != carbon.GetIdx()):
+            continue
+        if any(n.GetAtomicNum() == 7 for amide in nitrogens[:2] for n in amide.GetNeighbors() if n.GetIdx() != carbon.GetIdx()):
+            continue
+        found = []
+        used = {carbon.GetIdx(), imine.GetIdx(), terminal.GetIdx(), *amides}
+        for nitrogen, skip in ((nitrogens[0], {carbon.GetIdx()}), (nitrogens[1], {carbon.GetIdx()}), (terminal, {imine.GetIdx()})):
+            arms = _hydrocarbon_arms(mol, graph, nitrogen.GetIdx(), skip)
+            if arms is None:
+                break
+            found.append(arms[0])
+            used |= arms[1]
+        else:
+            if len(used) != mol.GetNumAtoms():
+                continue
+            first, second = sorted(found[:2], key=lambda names: (-len(names), sorted(name for name, _ in names)))
+            grouped = {}
+            for locant, names in (("N", first), ("N'", second), ("N''", found[2])):
+                for name, compound in names:
+                    grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+            head = format_substituent_prefixes(grouped) if grouped else ""
+            return f"{head}carbonohydrazonic diamide"
+    return None
+
+
 def _carbonyl_chalcogen(atom):
     for b in atom.GetBonds():
         other = b.GetOtherAtom(atom)
