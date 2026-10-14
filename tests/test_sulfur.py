@@ -872,6 +872,26 @@ def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, exp
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-72.2.2.2.1.1, P-67.1.2.6: the anion of the amide acid of sulfurous acid ends in 'ite'; the acid, its ester and its chloride keep 'ous acid', 'ite' and 'ous chloride'
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("NS(=O)O", "sulfuramidous acid", id="acid"),
+        pytest.param("CNS(=O)O", "N-methylsulfuramidous acid", id="n_substituted_acid"),
+        pytest.param("NS(=O)OC", "methyl sulfuramidite", id="ester"),
+        pytest.param("NS(=O)Cl", "sulfuramidous chloride", id="chloride"),
+        pytest.param("NS(=O)[O-]", "sulfuramidite", id="anion"),
+        pytest.param("CNS(=O)[O-]", "N-methylsulfuramidite", id="n_methyl_anion"),
+        pytest.param("CN(C)S(=O)[O-]", "N,N-dimethylsulfuramidite", id="two_groups_on_the_nitrogen"),
+        pytest.param("CCNS(=O)[O-]", "N-ethylsulfuramidite", id="n_ethyl_anion"),
+        pytest.param("c1ccccc1NS(=O)[O-]", "N-phenylsulfuramidite", id="n_phenyl_anion"),
+        pytest.param("CNS(=O)[O-].[Na+]", "sodium N-methylsulfuramidite", id="anion_in_a_salt"),
+    ],
+)
+def test_sulfuramidous_acid_and_its_anion(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

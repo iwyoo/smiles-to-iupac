@@ -44,7 +44,8 @@ def has_sulfuric_amide_shape(mol) -> bool:
         return False
     oxo, ligands = slots
     kinds = [kind for kind, _ in ligands]
-    return oxo in (1, 2) and len(ligands) == 2 and "N" in kinds and sulfur.GetDegree() == oxo + 2
+    sulfurous_amide_acid = oxo == 1 and kinds.count("N") == 1
+    return oxo in (1, 2) and len(ligands) == 2 and "N" in kinds and sulfur.GetDegree() == oxo + 2 and not sulfurous_amide_acid
 
 
 def name_sulfuric_amide(mol) -> str:
@@ -76,7 +77,5 @@ def name_sulfuric_amide(mol) -> str:
     if len(nitrogens) == 2:
         word = "sulfuric diamide" if oxo == 2 else "sulfurous diamide"
         return prefix + word
-    if oxo != 2:
-        raise UnsupportedStructure("the amide acid of sulfurous acid is not named here")
     anionic = any(n.GetFormalCharge() == -1 for kind, n in ligands if kind == "O")
     return prefix + ("sulfamate" if anionic else "sulfamic acid")
