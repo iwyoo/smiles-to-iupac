@@ -6153,7 +6153,7 @@ def _evaluate(
     carbon_chain_beyond_two = length > 2 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in chain_set)
     single_arrangement = (
         length > 1 and not force and not ene and not yne and not carbon_chain_beyond_two
-        and has_single_arrangement(mol, chain_set | nitrogens)
+        and has_single_arrangement(mol, chain_set | nitrogens, formyl_oxygens=owned if principal == "aldehyde" else frozenset())
     )
     uncited_locants = uncited_locants or single_arrangement
     if completely_substituted and not force and not n_names:

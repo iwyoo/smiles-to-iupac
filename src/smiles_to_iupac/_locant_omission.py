@@ -136,20 +136,21 @@ def _outside(mol, root, parent):
     return seen
 
 
-def has_single_arrangement(mol, parent, mobile_charges=frozenset()):
+def has_single_arrangement(mol, parent, mobile_charges=frozenset(), formyl_oxygens=None):
     """True when the groups on the parent hydride `parent` (atom indices) can be placed on it in one way only, up to
     the symmetry of the parent: no isomer arises by moving a prefix or suffix to another position or by interchanging
     two of them, so no locant is needed (P-14.3.4.4). The `mobile_charges` atoms are cationic centres whose added
-    hydron may sit on any atom of the parent, so the centre itself is one of the groups that can move."""
+    hydron may sit on any atom of the parent, so the centre itself is one of the groups that can move. Only the
+    hydrogen of a formyl whose oxygen is in `formyl_oxygens` (an aldehyde suffix) is closed to substitution."""
     if mol is None or CITE_SUBSTITUENT_LOCANTS.get():
         return False
     try:
-        return _single_arrangement(mol, set(parent), set(mobile_charges))
+        return _single_arrangement(mol, set(parent), set(mobile_charges), formyl_oxygens)
     except Exception:
         return False
 
 
-def _single_arrangement(mol, parent, mobile=frozenset()):
+def _single_arrangement(mol, parent, mobile=frozenset(), formyl_oxygens=None):
     groups, positions = [], sorted(parent)
     for p in positions:
         for n in mol.GetAtomWithIdx(p).GetNeighbors():
@@ -171,7 +172,9 @@ def _single_arrangement(mol, parent, mobile=frozenset()):
         atom = mol.GetAtomWithIdx(p)
         total = atom.GetTotalNumHs() + sum(order for _, q, _, order in groups if q == p)
         formyl = atom.GetTotalNumHs() and any(
-            order == 2 and mol.GetAtomWithIdx(r).GetAtomicNum() == 8 for _, q, r, order in groups if q == p
+            order == 2 and mol.GetAtomWithIdx(r).GetAtomicNum() == 8 and (formyl_oxygens is None or r in formyl_oxygens)
+            for _, q, r, order in groups
+            if q == p
         )
         total -= p in mobile
         free[p] = (total, total - (atom.GetTotalNumHs() if formyl else 0))
