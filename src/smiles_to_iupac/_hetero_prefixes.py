@@ -1427,7 +1427,8 @@ def _carbon_nitrogen_group(mol, nitrogen, oxygen):
 
 def _chain_amidine_ylidene(mol, graph, root, coming_from):
     """A carbon joined to `coming_from` by a double bond that carries one plain carbon group and amino groups: the
-    ylidene end of a chain, as in '1-aminoethylidene', not an amidine group of its own."""
+    ylidene end of a chain, as in '1-aminoethylidene', not an amidine group of its own. `coming_from` may carry a carbon,
+    a sulfonyl centre or an ether oxygen."""
     atom = mol.GetAtomWithIdx(root)
     if atom.IsInRing() or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 2.0:
         return False
@@ -1445,11 +1446,16 @@ def _chain_amidine_ylidene(mol, graph, root, coming_from):
             for a in amino
         )
         and all(
-            n.GetAtomicNum() == 6 or _sulfonyl_centre(mol, n)
+            n.GetAtomicNum() == 6 or _sulfonyl_centre(mol, n) or _carbon_oxygen(n)
             for n in mol.GetAtomWithIdx(coming_from).GetNeighbors()
             if n.GetIdx() != root
         )
     )
+
+
+def _carbon_oxygen(atom):
+    """The oxygen of an oxime ether: bonded to two atoms, one of them the nitrogen, the other a carbon."""
+    return atom.GetAtomicNum() == 8 and atom.GetDegree() == 2 and any(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
 
 
 def _sulfonyl_centre(mol, atom):
