@@ -188,11 +188,11 @@ from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multipli
 from ._chain_multiplicative import has_chain_multiplicative_shape
 from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
 from ._steroid_named import name_steroid
-from ._polyfunctional import name_polyfunctional
+from ._polyfunctional import AMINIUM, RING_CENTER, name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
 from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER, fused_ring_system_name
-from ._hetero_prefixes import _has_senior_principal_group
+from ._hetero_prefixes import CATION_PARENT, _has_senior_principal_group
 from ._fullerene import (
     has_fullerene_name,
     has_substituted_fullerene_cage,
@@ -811,7 +811,7 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
     # Acyl/substituent namers re-name the same fragment hundreds of times while ranking candidates.
     if not nested() or FORCED_BRANCH_NAMES.get():
         return _name_unabridged(smiles)
-    key = (smiles, SYSTEMATIC_ACID_PROBE.get(), CITE_SUBSTITUENT_LOCANTS.get())
+    key = (smiles, SYSTEMATIC_ACID_PROBE.get(), CITE_SUBSTITUENT_LOCANTS.get(), CATION_PARENT.get(), AMINIUM.get(), RING_CENTER.get())
     entry = _NESTED_NAMES.get(key)
     if entry is None:
         start = reason_count()
