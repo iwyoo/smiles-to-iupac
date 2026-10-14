@@ -21,7 +21,7 @@ _SENIOR_TO_CARBAMATE = [
         "[CX3;!$(C(N)(=O)O)](=O)[OX2H1]",
         "[CX3;!$(C(N)(=O)O)](=O)[OX2][#6]",
         "[CX3](=O)[OX2][CX3]=O",
-        "[CX3](=O)[F,Cl,Br,I]",
+        "[CX3](=O)[F,Cl,Br,I;X1]",
         "[#16X4](=O)(=O)[OX2]",
         "[#15](=O)[OX2]",
         "[CX3](=O)([NX3])[OX2][#6].[CX3](=O)([NX3])[OX2][#6]",

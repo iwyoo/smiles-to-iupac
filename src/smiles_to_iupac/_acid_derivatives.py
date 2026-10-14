@@ -81,7 +81,7 @@ def _oxo_slots(mol, center):
 
 def _role(mol, center, atom):
     z = atom.GetAtomicNum()
-    if z in _HALIDES and atom.GetDegree() == 1:
+    if z in _HALIDES and atom.GetTotalDegree() == 1:
         return "hal"
     if pseudohalide_at(mol, atom.GetIdx(), center) is not None:
         return "pseudo"

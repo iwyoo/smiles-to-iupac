@@ -23,7 +23,7 @@ _SENIOR_TO_ALCOHOL = [
     Chem.MolFromSmarts(smarts)
     for smarts in (
         "[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)[OX2H1]", "[CX3](=O)[OX2][#6]", "[CX3](=[O,S,Se,Te])[NX3]",
-        "[CX2]#[NX1]", "[CX3H1](=O)", "[#6][CX3](=O)[#6]", "[CX3](=O)[F,Cl,Br,I]",
+        "[CX2]#[NX1]", "[CX3H1](=O)", "[#6][CX3](=O)[#6]", "[CX3](=O)[F,Cl,Br,I;X1]",
     )
 ]
 _LOWER_PRINCIPAL = [Chem.MolFromSmarts("[SX2H1][#6]"), AMINE_PATTERN]
