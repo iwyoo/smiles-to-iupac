@@ -429,6 +429,7 @@ def test_mononuclear_oxoacids_modified_by_functional_replacement(smiles, expecte
     [
         ("[PH4][PH3][PH4]", "1λ5,2λ5,3λ5-triphosphane"),
         ("C[PH3]P", "1-methyl-1λ5-diphosphane"),
+        ("CP=[P+](C)[O-]", "1,2-dimethyl-1λ5-diphosphen-1-one"),
         ("[PH4]O[PH4]", "1λ5,3λ5-diphosphoxane"),
         ("POP", "diphosphoxane"),
         ("[SiH3]S[SiH3]", "disilathiane"),

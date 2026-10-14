@@ -1656,6 +1656,8 @@ def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expecte
         pytest.param("O=C(c1ccccc1)[N+2]", "benzoylazanebis(ylium)", id="acylazane_bis_ylium"),
         pytest.param("C=C[S+]=O", "ethenesulfinylium", id="sulfinylium"),
         pytest.param("C[P+](C)=O", "dimethylphosphinoylium", id="phosphinoylium"),
+        pytest.param("C[P+](=O)CP", "methyl(phosphanylmethyl)phosphinoylium", id="phosphinoylium_beside_a_phosphanyl_group"),
+        pytest.param("C[P+](=O)PC", "methyl(methylphosphanyl)phosphinoylium", id="phosphinoylium_bonded_to_phosphorus"),
         pytest.param("C[P+2]=O", "methylphosphonobis(ylium)", id="phosphono_bis_ylium"),
         pytest.param("c1cc[c+]o1", "furan-2-ylium", id="furan_ylium"),
         pytest.param("O=C(c1ccc[nH]1)[NH+]", "1H-pyrrole-2-carboxamidylium", id="heteroaryl_carboxamidylium"),

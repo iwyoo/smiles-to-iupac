@@ -23,7 +23,8 @@ def _center(mol):
     oxo = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
     oxo_indices = {n.GetIdx() for n in oxo}
     others = [n for n in atom.GetNeighbors() if n.GetIdx() not in oxo_indices]
-    if atom.IsInRing() or atom.GetTotalNumHs() or any(n.GetAtomicNum() != 6 for n in others):
+    allowed = (6, 15) if z == 15 else (6,)
+    if atom.IsInRing() or atom.GetTotalNumHs() or any(n.GetAtomicNum() not in allowed for n in others):
         return None
     shape = (z, charge, len(oxo), len(others))
     if shape in ((16, 1, 1, 1), (16, 1, 2, 1), (15, 1, 1, 2), (15, 2, 1, 1)):

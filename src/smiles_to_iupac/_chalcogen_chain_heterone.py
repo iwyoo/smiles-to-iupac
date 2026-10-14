@@ -1,4 +1,4 @@
-"""Heterones, nitriles and unsaturated links of an acyclic polychalcogane chain, e.g. 1-methyl-2-phenyl-1λ6,2λ6-disulfane-
+"""Heterones, nitriles and unsaturated links of an acyclic polychalcogane or polyphosphane chain, e.g. 1-methyl-2-phenyl-1λ6,2λ6-disulfane-
 1,1,2,2-tetrone (P-64.1.2.2, P-64.4.1, P-64.7.2), 1-hydroxy-1,1-diiodo-1λ4-disulfane-2-carbonitrile (P-67.3.1) and
 1,1-dimethyl-1λ4-disulfene (P-68.4.3.1, P-31.1.4.2.4): the chain of S, Se or Te atoms is the parent hydride, each doubly
 bonded oxygen is cited by the suffix 'one', a nitrile carbon on the chain by 'carbonitrile', a double bond between chain
@@ -21,8 +21,9 @@ from ._numerals import numerical_term
 from ._phosphanone import _SENIOR
 from ._substituents import format_substituent_prefixes, name_branch
 
-_STEMS = {16: "sulfane", 34: "selane", 52: "tellane"}
-_OXO_VALENCES = (4, 6)
+_STEMS = {16: "sulfane", 34: "selane", 52: "tellane", 15: "phosphane"}
+_STANDARD_VALENCE = {16: 2, 34: 2, 52: 2, 15: 3}
+_OXO_VALENCES = {16: (4, 6), 34: (4, 6), 52: (4, 6), 15: (5,)}
 
 
 def _terminal_oxygens(atom):
@@ -94,7 +95,11 @@ def has_chalcogen_chain_heterone_shape(mol) -> bool:
     if order is None:
         return False
     atoms = [mol.GetAtomWithIdx(i) for i in order]
-    return any(_terminal_oxygens(a) for a in atoms) or any(a.GetTotalValence() != 2 for a in atoms) or bool(_double_bonds(mol, order))
+    return (
+        any(_terminal_oxygens(a) for a in atoms)
+        or any(a.GetTotalValence() != _STANDARD_VALENCE[a.GetAtomicNum()] for a in atoms)
+        or bool(_double_bonds(mol, order))
+    )
 
 
 def name_chalcogen_chain_heterone(mol) -> str:
@@ -116,10 +121,12 @@ def name_chalcogen_chain_heterone(mol) -> str:
     oxo = {i: [o.GetIdx() for o in _terminal_oxygens(mol.GetAtomWithIdx(i))] for i in order}
     lambdas = {}
     for i in order:
+        z = mol.GetAtomWithIdx(i).GetAtomicNum()
         valence = mol.GetAtomWithIdx(i).GetTotalValence()
-        if valence not in (2, *_OXO_VALENCES) or (oxo[i] and valence == 2):
-            raise UnsupportedStructure("this chalcogen valence is not supported yet")
-        if valence != 2:
+        standard = _STANDARD_VALENCE[z]
+        if valence not in (standard, *_OXO_VALENCES[z]) or (oxo[i] and valence == standard):
+            raise UnsupportedStructure("this chain atom valence is not supported yet")
+        if valence != standard:
             lambdas[i] = valence
     chain_atoms = set(order) | {o for ids in oxo.values() for o in ids} | set(nitriles.values())
     chain_atoms |= {m.GetIdx() for c in nitriles.values() for m in mol.GetAtomWithIdx(c).GetNeighbors()}
