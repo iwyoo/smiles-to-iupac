@@ -15,8 +15,26 @@ def has_ring_heteroatom_nitrile_shape(mol) -> bool:
     return len(mol.GetSubstructMatches(_RING_N_CYANO)) == 1 and len(mol.GetSubstructMatches(_NITRILE)) == 1
 
 
+def _is_pseudoketone(mol, carbon_idx, double_idx):
+    """A ring carbon whose heteroatom neighbours are all ring atoms joined by ring bonds: the carbonyl of a lactam, lactone
+    or cyclic urea is a heterocyclic pseudoketone, junior to a nitrile (P-64.1.2.1, P-41)."""
+    carbon = mol.GetAtomWithIdx(carbon_idx)
+    if not carbon.IsInRing():
+        return False
+    for neighbor in carbon.GetNeighbors():
+        if neighbor.GetIdx() == double_idx or neighbor.GetAtomicNum() == 6:
+            continue
+        if not neighbor.IsInRing() or not mol.GetBondBetweenAtoms(carbon_idx, neighbor.GetIdx()).IsInRing():
+            return False
+    return True
+
+
+def _has_other_senior_group(mol) -> bool:
+    return any(not _is_pseudoketone(mol, c, x) for c, x, _ in mol.GetSubstructMatches(_OTHER_SENIOR))
+
+
 def name_ring_heteroatom_nitrile(mol) -> str:
-    if not has_ring_heteroatom_nitrile_shape(mol) or mol.HasSubstructMatch(_OTHER_SENIOR):
+    if not has_ring_heteroatom_nitrile_shape(mol) or _has_other_senior_group(mol):
         raise UnsupportedStructure("not a cyano group on a ring heteroatom alone")
     (_, carbon, nitrogen) = mol.GetSubstructMatch(_RING_N_CYANO)
     healed = Chem.RWMol(mol)
