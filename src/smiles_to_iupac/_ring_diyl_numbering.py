@@ -734,7 +734,11 @@ def _bare_skeleton(mol, skeleton_atoms, mancude=False):
             if atom.GetTotalNumHs() > 0 or atom.GetDegree() > heavy_inside or (atom.GetAtomicNum() == 7 and atom.GetDegree() == 3):
                 bare.GetAtomWithIdx(new_of[old]).SetNumExplicitHs(1)
     if not mancude:
-        Chem.SanitizeMol(bare)
+        try:
+            Chem.SanitizeMol(bare)
+        except Chem.rdchem.MolSanitizeException as error:
+            # a ring atom with all its bonds in the skeleton and no charge, such as the nitrogen of a spiro ammonium
+            raise UnsupportedStructure("this ring skeleton has no valid parent hydride here") from error
     return bare, new_of, {v: k for k, v in new_of.items()}
 
 
