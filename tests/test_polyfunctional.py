@@ -44,8 +44,8 @@ def test_smiles_to_iupac_aldehyde_amine(smiles, expected):
     "smiles, expected",
     [
         pytest.param("NC1CCC(C=O)CC1", "4-aminocyclohexane-1-carbaldehyde", id="ring"),
-        pytest.param("NCC=CC=O", "4-aminobut-2-enal", id="unsaturated_chain__aldehyde_amine"),
-        pytest.param("C[C@H](N)C=O", "(2S)-2-aminopropanal", id="specified_stereocenter__aldehyde_amine"),
+        pytest.param("NCC=CC=O", "4-aminobut-2-enal", id="unsaturated_chain__with_amine"),
+        pytest.param("C[C@H](N)C=O", "(2S)-2-aminopropanal", id="specified_stereocenter__with_amine"),
         pytest.param("NC(CO)C=O", "2-amino-3-hydroxypropanal", id="hydroxyl_coexisting"),
         pytest.param("O=CC(C)C(=O)O", "2-methyl-3-oxopropanoic acid", id="branch_substituent"),
         pytest.param("CC(=O)C(Cl)C=O", "2-chloro-3-oxobutanal", id="halogen_substituent"),
@@ -89,10 +89,10 @@ def test_smiles_to_iupac_amide_amine(smiles, expected):
     "smiles, expected",
     [
         pytest.param("NCC(N)C(N)=O", "2,3-diaminopropanamide", id="two_amines"),
-        pytest.param("NC1CCCCC1C(N)=O", "2-aminocyclohexane-1-carboxamide", id="ring__amide_amine"),
-        pytest.param("NCC=CC(N)=O", "4-aminobut-2-enamide", id="unsaturated_chain__amide_amine"),
-        pytest.param("N[C@@H](C)C(N)=O", "(2S)-2-aminopropanamide", id="specified_stereocenter__amide_amine"),
-        pytest.param("NCC(O)C(N)=O", "3-amino-2-hydroxypropanamide", id="hydroxyl_coexisting__amide_amine"),
+        pytest.param("NC1CCCCC1C(N)=O", "2-aminocyclohexane-1-carboxamide", id="ring__with_amine"),
+        pytest.param("NCC=CC(N)=O", "4-aminobut-2-enamide", id="unsaturated_chain__with_amine"),
+        pytest.param("N[C@@H](C)C(N)=O", "(2S)-2-aminopropanamide", id="specified_stereocenter__with_amine"),
+        pytest.param("NCC(O)C(N)=O", "3-amino-2-hydroxypropanamide", id="hydroxyl_coexisting__with_amine"),
         pytest.param("C[N-][NH+](C)C", "1,2,2-trimethylhydrazin-2-ium-1-ide", id="trimethylhydrazinium_ide_amine_imide"),
         pytest.param("OC(=O)CC(=O)NC", "3-(methylamino)-3-oxopropanoic acid", id="n_substituted_amide"),
         pytest.param("OC(=O)C1CCCCC1C(=O)N", "2-carbamoylcyclohexane-1-carboxylic acid", id="amide_on_ring"),
@@ -106,6 +106,9 @@ def test_two_amines_and_related(smiles, expected):
     "smiles,expected",
     [
         ("CC(C)(C(=O)O)N", "2-amino-2-methylpropanoic acid"),
+        pytest.param("CC(C)CC(C)C(CN)C(=O)O", "2-(aminomethyl)-3,5-dimethylhexanoic acid", id="longest_chain_not_forced_through_the_amine_carbon"),
+        pytest.param("CC(CN)(CO)C(F)(F)F", "2-(aminomethyl)-3,3,3-trifluoro-2-methylpropan-1-ol", id="equal_chains_more_prefixes_win"),
+        pytest.param("CC(C)OC(=O)CCN", "propan-2-yl 3-aminopropanoate", id="beta_alanine_ester_is_systematic"),
     ],
 )
 def test_smiles_to_iupac_carboxylic_acid_amine(smiles, expected):
@@ -121,7 +124,7 @@ def test_phenyl_chain_carboxylic_acid_amine():
     "smiles, expected",
     [
         pytest.param("c1ccccc1C(N)C(=O)O", "amino(phenyl)acetic acid", id="directly_attached_to_amine_carbon"),
-        pytest.param("Cc1ccccc1CC(N)C(=O)O", "2-amino-3-(2-methylphenyl)propanoic acid", id="substituted_benzene_ring_carboxylic_acid_amine"),
+        pytest.param("Cc1ccccc1CC(N)C(=O)O", "2-amino-3-(2-methylphenyl)propanoic acid", id="substituted_benzene_ring__with_amine"),
         pytest.param("C=Cc1ccccc1CC(N)C(=O)O", "2-amino-3-(2-ethenylphenyl)propanoic acid", id="chain_carboxylic_acid_amine_unsaturation"),
     ],
 )
@@ -321,10 +324,10 @@ def test_disjoint_ring_pair_resolves(smiles, expected):
     [
         pytest.param("CC1CCCCC1CC1CCCCC1", "1-(cyclohexylmethyl)-2-methylcyclohexane", id="ring_with_extra_substituent"),
         pytest.param("CC(=O)OCCN", "2-aminoethyl acetate", id="amine_on_alcohol_part"),
-        pytest.param("NCC(N)C(=O)OC", "methyl 2,3-diaminopropanoate", id="two_amines__ester_amine"),
+        pytest.param("NCC(N)C(=O)OC", "methyl 2,3-diaminopropanoate", id="two_amines__with_amine"),
         pytest.param("NCC(=O)OCOC(=O)C", "methylene acetate aminoacetate", id="two_esters_names_polyester"),
-        pytest.param("NC1CCCCC1C(=O)OC", "methyl 2-aminocyclohexane-1-carboxylate", id="ring__ester_amine"),
-        pytest.param("NCC=CC(=O)OC", "methyl 4-aminobut-2-enoate", id="unsaturated_chain__ester_amine"),
+        pytest.param("NC1CCCCC1C(=O)OC", "methyl 2-aminocyclohexane-1-carboxylate", id="ring__with_amine"),
+        pytest.param("NCC=CC(=O)OC", "methyl 4-aminobut-2-enoate", id="unsaturated_chain__with_amine"),
     ],
 )
 def test_ring_with_extra_and_related(smiles, expected):
@@ -334,7 +337,7 @@ def test_ring_with_extra_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("NCC(O)C(=O)OC", "methyl 3-amino-2-hydroxypropanoate", id="hydroxyl_coexisting__ester_amine"),
+        pytest.param("NCC(O)C(=O)OC", "methyl 3-amino-2-hydroxypropanoate", id="hydroxyl_coexisting__with_amine"),
         pytest.param("CC(C)OCC=O", "[(propan-2-yl)oxy]acetaldehyde", id="branched_alkoxy_r_prime"),
         pytest.param("COCC(Cl)C=O", "2-chloro-3-methoxypropanal", id="halogen_on_main_chain_still_works"),
         pytest.param("COC[C@@H](C)C=O", "(2R)-3-methoxy-2-methylpropanal", id="specified_stereocenter__with_aldehyde"),
@@ -472,8 +475,8 @@ def test_heterogeneous_chalcogen_chains_between_organic_groups(smiles, expected)
     "smiles, expected",
     [
         pytest.param("NC1CCCCC1COO", "(2-aminocyclohexyl)methaneperoxol", id="ring_amine"),
-        pytest.param("NCC=CCOO", "4-aminobut-2-ene-1-peroxol", id="unsaturated_chain_hydroperoxide_amine"),
-        pytest.param("N[C@@H](C)COO", "(2S)-2-aminopropane-1-peroxol", id="specified_stereocenter_hydroperoxide_amine"),
+        pytest.param("NCC=CCOO", "4-aminobut-2-ene-1-peroxol", id="unsaturated_chain__with_amine"),
+        pytest.param("N[C@@H](C)COO", "(2S)-2-aminopropane-1-peroxol", id="specified_stereocenter__with_amine"),
         pytest.param("CC(C)(OO)CCN(C)C", "4-(dimethylamino)-2-methylbutane-2-peroxol", id="tertiary_amine_prefix"),
         pytest.param("OOC1CCCc2ccccc12", "1,2,3,4-tetrahydronaphthalene-1-peroxol", id="fused_ring_peroxol"),
     ],
@@ -519,10 +522,10 @@ def test_smiles_to_iupac_ketone_amine(smiles, expected):
     "smiles, expected",
     [
         pytest.param("CNCC(C)=O", "1-(methylamino)propan-2-one", id="secondary_amine"),
-        pytest.param("NC1CCC(=O)CC1", "4-aminocyclohexan-1-one", id="ring__ketone_amine"),
-        pytest.param("NCC=CC(C)=O", "5-aminopent-3-en-2-one", id="unsaturated_chain__ketone_amine"),
-        pytest.param("C[C@H](N)C(C)=O", "(3S)-3-aminobutan-2-one", id="specified_stereocenter__ketone_amine"),
-        pytest.param("NCC(=O)CO", "1-amino-3-hydroxypropan-2-one", id="hydroxyl_coexisting__ketone_amine"),
+        pytest.param("NC1CCC(=O)CC1", "4-aminocyclohexan-1-one", id="ring__with_amine"),
+        pytest.param("NCC=CC(C)=O", "5-aminopent-3-en-2-one", id="unsaturated_chain__with_amine"),
+        pytest.param("C[C@H](N)C(C)=O", "(3S)-3-aminobutan-2-one", id="specified_stereocenter__with_amine"),
+        pytest.param("NCC(=O)CO", "1-amino-3-hydroxypropan-2-one", id="hydroxyl_coexisting__with_amine"),
         pytest.param("CC(=O)CC(=O)CC(=O)OC", "methyl 3,5-dioxohexanoate", id="two_ketones__ketone_ester"),
         pytest.param("C=CC(=O)CC(=O)OC", "methyl 3-oxopent-4-enoate", id="unsaturated_chain__ketone_ester"),
         pytest.param("COC(=O)C1CCC1=O", "methyl 2-oxocyclobutane-1-carboxylate", id="ring__ketone_ester"),
@@ -1093,9 +1096,9 @@ def test_smiles_to_iupac_thiol_amine(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("NC1CCC(S)CC1", "4-aminocyclohexane-1-thiol", id="ring__thiol_amine"),
-        pytest.param("NCC=CCS", "4-aminobut-2-ene-1-thiol", id="unsaturated_chain__thiol_amine"),
-        pytest.param("C[C@H](N)CS", "(2S)-2-aminopropane-1-thiol", id="specified_stereocenter__thiol_amine"),
+        pytest.param("NC1CCC(S)CC1", "4-aminocyclohexane-1-thiol", id="ring__with_amine"),
+        pytest.param("NCC=CCS", "4-aminobut-2-ene-1-thiol", id="unsaturated_chain__with_amine"),
+        pytest.param("C[C@H](N)CS", "(2S)-2-aminopropane-1-thiol", id="specified_stereocenter__with_amine"),
         pytest.param("NCC(S)CSCC", "1-amino-3-(ethylsulfanyl)propane-2-thiol", id="sulfide_coexisting"),
     ],
 )

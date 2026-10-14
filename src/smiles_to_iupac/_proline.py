@@ -7,13 +7,8 @@ retained name and L/D stereodescriptor, per the IUPAC 2013 Recommendations
   nitrogen atom being numbered '1', and the carbon atom bonded to the
   carboxy group is numbered '2'." Unlike every other common amino acid,
   proline's own amino group is the ring nitrogen itself (a secondary
-  amine), not an exocyclic primary amine -- `_carboxylic_acid_amine.py`
-  explicitly excludes rings and requires a primary amine, so it can never
-  reach this shape; a separate module is needed, not an extension of that
-  one (confirmed empirically during scoping, #1056 M2 step 1 -- both
-  L-/D-proline currently misroute to `_ketone.py`'s hetero-ring-ketone
-  path, an unrelated module that claims any saturated single-heteroatom
-  5/6/7-membered ring purely by shape).
+  amine), not an exocyclic primary amine, so the exocyclic-amine paths
+  never reach this shape.
 - P-103.1.3.1: 'L' corresponds to CIP 'S' at the alpha-carbon of the
   unsubstituted proline.
 
@@ -25,7 +20,7 @@ the alpha centre keeps D or L (P-103.1.3.2.1, P-103.2.3).
 from rdkit import Chem
 
 from ._common import assign_cip_labels
-from ._carboxylic_acid_amine import _find_carboxylic_acid_carbon
+from ._common import find_carboxylic_acid_carbon
 from ._common import adjacency, specified_stereocenters
 
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
@@ -55,7 +50,7 @@ def _match(mol):
     if n_atom.GetFormalCharge() != 0 or n_atom.GetDegree() != 2 or n_atom.GetTotalNumHs() != 1:
         return None
 
-    found = _find_carboxylic_acid_carbon(mol)
+    found = find_carboxylic_acid_carbon(mol)
     if found is None:
         return None
     acid_carbon, carbonyl_oxygen, hydroxyl_oxygen = found

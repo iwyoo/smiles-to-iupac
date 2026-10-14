@@ -12,6 +12,7 @@ from rdkit import Chem
 from ._common import assign_cip_labels, match_cip_labels
 from ._acid_lexicon import CHALCOGENS
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
+from ._amino_acid_retained import has_retained_amino_acid_shape
 from ._carbonic_family import pseudohalide_at
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
@@ -285,6 +286,13 @@ def _free_acid_name(acid):
     heavy = [a for a in acid.GetAtoms() if a.GetAtomicNum() in _HEAVY_PNICTOGEN_STEMS]
     if heavy:
         return _heavy_pnictogen_acid_name(acid, heavy)
+    if has_retained_amino_acid_shape(acid):
+        # the retained name of a Table 10.5 acid stands for the free acid only (P-62.2.3)
+        token = SYSTEMATIC_ACID_PROBE.set(True)
+        try:
+            return smiles_to_iupac(smiles)
+        finally:
+            SYSTEMATIC_ACID_PROBE.reset(token)
     return _phosphorous_acid_name(acid) or smiles_to_iupac(smiles)
 
 

@@ -90,8 +90,7 @@ def validate_atoms_and_bonds(mol):
 def validate_allowed_atoms(mol, heteroatom_message, group_checks, aromatic_ring_atoms=frozenset()):
     """The same "every atom's atomic number is in this module's own
     allowlist, and no charge/isotope" validation loop shared by every
-    two-characteristic-group-coexistence module (e.g. `_aldehyde_amine.py`,
-    `_thiol_amine.py`): carbon (tracked for a final "has any carbon" check,
+    two-characteristic-group-coexistence module: carbon (tracked for a final "has any carbon" check,
     and rejected if aromatic outside `aromatic_ring_atoms`), a monovalent
     halogen substituent (P-35.2.1), or an atom matching one of
     `group_checks` are allowed; anything else raises `heteroatom_message`
@@ -784,8 +783,8 @@ def halogen_substituents(mol):
 def find_primary_amines(mol, exclude=frozenset()):
     """Atom indices of every primary amine nitrogen in `mol` (-NH2 bonded
     to exactly one carbon) not in `exclude` -- shared by every coexisting-
-    functional-group pairwise module whose junior group is a primary
-    amine (`_alcohol_amine.py`, `_carboxylic_acid_amine.py`, ...); a
+    functional-group module whose junior group is a primary
+    amine; a
     caller with an atom to exclude (e.g. an already-accounted-for amide/
     ester/ether oxygen's own attachment) passes it in `exclude`."""
     amines = set()
@@ -799,6 +798,36 @@ def find_primary_amines(mol, exclude=frozenset()):
         if neighbor.GetAtomicNum() == 6:
             amines.add(atom.GetIdx())
     return amines
+
+
+def find_carboxylic_acid_carbon(mol):
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6:
+            continue
+        oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
+        if len(oxygens) < 2:
+            continue
+        carbonyls = [
+            o
+            for o in oxygens
+            if o.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        hydroxyls = [
+            o
+            for o in oxygens
+            if o.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and o.GetTotalNumHs() == 1
+        ]
+        carbon_neighbors = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
+        if len(carbonyls) == 1 and len(hydroxyls) == 1 and len(carbon_neighbors) <= 1:
+            return atom, carbonyls[0], hydroxyls[0]
+    return None
+
+
+def amine_on_a_different_carbon(mol, acid_carbon_idx, amines):
+    """False if an amine nitrogen is bonded to the acid carbon itself (carbamic acid)."""
+    return all(next(iter(mol.GetAtomWithIdx(n).GetNeighbors())).GetIdx() != acid_carbon_idx for n in amines)
 
 
 def unsubstituted_sulfonamide_sulfur_atoms(mol):

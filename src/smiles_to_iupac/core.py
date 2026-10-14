@@ -17,13 +17,10 @@ from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._carbamate_ester import name_carbamate_ester
 from ._alcohol import name_alcohol
-from ._alcohol_amine import has_alcohol_amine_shape, name_alcohol_amine
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._acetyl_names import acetyl_names
 from ._anion import name_anion
 from ._aldehyde import name_aldehyde
-from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
-from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
@@ -76,7 +73,6 @@ from ._sugar_acid import has_ketoaldonic_chain_shape, name_ketoaldonic_chain, ha
 from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar, has_sugar_dianhydride_shape, name_sugar_dianhydride
 from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
-from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
 from ._aldehyde_carboxylic_acid import (
     has_aldehyde_carboxylic_acid_shape,
     name_aldehyde_carboxylic_acid,
@@ -102,8 +98,6 @@ from ._inositol_derivative import has_inositol_derivative_shape, name_inositol_d
 from ._sphingoid import has_sphingoid_shape, name_sphingoid
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
-from ._amide_amine import has_amide_amine_shape, name_amide_amine
-from ._ester_amine import has_ester_amine_shape, name_ester_amine
 from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_ketone
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
@@ -329,7 +323,6 @@ from ._azonic_acid import has_azonic_acid_shape, name_azonic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._ring_diyl_numbering import bridged_ring_system_name, is_hydro_fusion_system
 from ._hydroperoxide import has_chalcogen_peroxol_shape, has_hydroperoxide_shape, name_hydroperoxide
-from ._hydroperoxide_amine import has_hydroperoxide_amine_shape, name_hydroperoxide_amine
 from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import (
     find_branched_polyspiro_hub,
@@ -387,7 +380,6 @@ from ._selenoic_acid import has_selenoic_acid_shape, name_selenoic_acid
 from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
-from ._thiol_amine import has_thiol_amine_shape, name_thiol_amine
 from ._hetero_chain import contract_hetero_groups_candidates, name_hetero_macrocycle, name_skeletal_chain
 from ._phosphanyl_group import contract_phosphanyl_groups
 from ._tricyclic import find_propellane_core, name_propellane
@@ -2286,16 +2278,6 @@ def _name_mol(mol) -> str:
         # match any check above or `name_alcohol`'s own fallback below, so
         # it must be routed here too, right alongside its R-O-O-R' cousin.
         if has_hydroperoxide_shape(mol):
-            # P-41/Table 4.1: 'hydroperoxide' (class 18) also outranks
-            # 'amine' (class 19), so a hydroperoxide that also carries a
-            # separate primary amine names the hydroperoxide as the
-            # suffix and demotes the amine to an 'amino' prefix instead of
-            # `_hydroperoxide.py`'s own "coexisting nitrogen" rejection.
-            # (Note: this follows Table 4.1's text directly, diverging
-            # from PubChem's own auto-namer for this specific pair -- see
-            # `_hydroperoxide_amine.py`'s module docstring.)
-            if has_hydroperoxide_amine_shape(mol):
-                return name_hydroperoxide_amine(mol)
             return name_hydroperoxide(mol)
         # An anhydride's bridging oxygen (-C(=O)-O-C(=O)-) is also
         # ester-shaped from either acyl carbon's point of view (a carbonyl
@@ -2393,13 +2375,6 @@ def _name_mol(mol) -> str:
             # `_ester.py`'s own "coexisting oxygen" rejection.
             if has_ketone_ester_shape(mol):
                 return name_ketone_ester(mol)
-            # P-41/Table 4.1: 'ester' (class 9) also outranks 'amine'
-            # (class 19), so an ester that also carries a separate primary
-            # amine on its acyl chain names the ester as the suffix and
-            # demotes the amine to an 'amino' prefix instead of
-            # `_ester.py`'s own "coexisting nitrogen" rejection.
-            if has_ester_amine_shape(mol):
-                return name_ester_amine(mol)
             return name_ester(mol)
         # A thioic acid (-CO-SH/-CS-OH, P-65.1.5) has a carbonyl-shaped
         # chalcogen cluster that would otherwise look like a plain
@@ -2436,20 +2411,10 @@ def _name_mol(mol) -> str:
             # `_carboxylic_acid.py`'s own "coexisting nitrogen" rejection.
             if has_carboxylic_acid_amide_shape(mol):
                 return name_carboxylic_acid_amide(mol)
-            # P-103.1.1.1: histidine's imidazol-4-ylmethyl side chain also
-            # gets its own retained name + L/D descriptor -- must be
-            # checked before `has_carboxylic_acid_amine_shape` below,
-            # whose own ring dispatch only recognizes a plain benzene ring
-            # and would otherwise reject this shape outright.
+            # P-103.1.1.1: histidine's imidazol-4-ylmethyl side chain gets its
+            # own retained name + L/D descriptor.
             if has_histidine_shape(mol):
                 return name_histidine(mol)
-            # P-41/Table 3.3: 'oic acid' also far outranks 'amine', so a
-            # carboxylic acid that also carries a primary amine names the
-            # acid as the suffix and demotes the amine to an 'amino' prefix
-            # instead of `_carboxylic_acid.py`'s own "coexisting nitrogen"
-            # rejection.
-            if has_carboxylic_acid_amine_shape(mol):
-                return name_carboxylic_acid_amine(mol)
             return name_carboxylic_acid(mol)
         # A carbon bearing both a carbonyl oxygen and a primary-amide
         # nitrogen (-CONH2) is an amide (junior only to the acid/ester
@@ -2485,13 +2450,6 @@ def _name_mol(mol) -> str:
             # `_amide.py`'s own "coexisting carbonyl" rejection.
             if has_ketone_amide_shape(mol):
                 return name_ketone_amide(mol)
-            # P-41/Table 3.3: 'amide' also outranks 'amine', so a primary
-            # amide that also carries a separate primary amine names the
-            # amide as the suffix and demotes the amine to an 'amino'
-            # prefix instead of `_amide.py`'s own "coexisting nitrogen"
-            # rejection.
-            if has_amide_amine_shape(mol):
-                return name_amide_amine(mol)
             return name_amide(mol)
         # A one-H nitrogen bridging two carbonyl carbons (-C(=O)-NH-C(=O)-)
         # is an imide, junior only to the acid/ester/amide suffixes above
@@ -2525,15 +2483,6 @@ def _name_mol(mol) -> str:
             # single-shape module would otherwise hit on its own.
             if has_aldehyde_ketone_shape(mol):
                 return name_aldehyde_ketone(mol)
-            # P-41/Table 3.3: 'one'/'al' also outrank 'amine', so a ketone
-            # or aldehyde coexisting with a primary amine names the
-            # carbonyl as the suffix and demotes the amine to an 'amino'
-            # prefix instead of `_ketone.py`'s/`_aldehyde.py`'s own
-            # "coexisting nitrogen" rejection.
-            if has_ketone_amine_shape(mol):
-                return name_ketone_amine(mol)
-            if has_aldehyde_amine_shape(mol):
-                return name_aldehyde_amine(mol)
             # A plain open-chain aldose (P-102.5.1/P-102.5.2.2, #1039 M1
             # step 1) is itself aldehyde-shaped (a terminal -CHO), so it
             # must be routed before the generic aldehyde fallback below,
@@ -2552,12 +2501,6 @@ def _name_mol(mol) -> str:
             if has_open_chain_2_ketose_shape(mol):
                 return name_open_chain_2_ketose(mol)
             return name_ketone(mol)
-        # P-41/Table 3.3: '-ol' also outranks 'amine', so one or more
-        # hydroxyls coexisting with a primary amine names the alcohol as
-        # the suffix and demotes the amine to an 'amino' prefix instead of
-        # `_alcohol.py`'s own "coexisting nitrogen" rejection.
-        if has_alcohol_amine_shape(mol):
-            return name_alcohol_amine(mol)
         # A real nitrile/thiol/selenol coexisting with an oxygen that isn't
         # a real alcohol at all (e.g. a furan ring substituent's own
         # non-functional ring oxygen, now recognized by these modules
@@ -2716,13 +2659,6 @@ def _name_mol(mol) -> str:
         # just above.
         if has_hetero_ring_amine_shape(mol):
             return name_hetero_ring_amine(mol)
-        # P-41/Table 3.3: '-thiol' (sharing alcohol's rank as a chalcogen
-        # analogue) outranks 'amine', so one or more thiols coexisting with
-        # a primary amine names the thiol as the suffix and demotes the
-        # amine to an 'amino' prefix instead of `name_amine`'s own
-        # "coexisting sulfur" rejection.
-        if has_thiol_amine_shape(mol):
-            return name_thiol_amine(mol)
         # A thiol coexisting with a nitrogen that isn't a real amine at all
         # (e.g. a heteroaromatic ring substituent's own pyridine/pyrrole
         # nitrogen, now recognized by `_thiol.py` itself -- P-25 M2 step 1,

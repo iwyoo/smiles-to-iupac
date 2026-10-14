@@ -26,8 +26,7 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   'N,N-dimethylmethanaminium' -> 'N,N-dimethylmethanaminiumyl'.
 - Reuses `_carboxylate.py`'s `_name_acyclic_carboxylate` (carboxylate
   anion) or `_sulfonate.py`'s `_name_acyclic_sulfonate` (sulfonate anion)
-  directly via each module's own `extra_names` extension point, mirroring
-  `_carboxylic_acid_amine.py`'s identical 'amino' injection, rather than
+  directly via each module's own `extra_names` extension point, rather than
   `_coexisting_groups.py`'s `name_via_senior_acyclic`: an ammonium prefix
   isn't a suffix-vs-suffix seniority demotion at all (ammonium has no
   entry in `_seniority.SUFFIX_CLASS_RANK`) -- P-74's zwitterion citation
