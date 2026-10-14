@@ -55,7 +55,7 @@ _PREFIX = {
     "Ga": "galla", "In": "indiga", "Tl": "thalla",
 }
 def _lambda_by_position(mol, position_of):
-    return {p: n for a, p in position_of.items() if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+    return {p: n for a, p in position_of.items() if (n := nonstandard_bonding(mol.GetAtomWithIdx(a), with_oxo=True))}
 
 
 def _lambda_key(lam):
@@ -427,7 +427,7 @@ def _hetero_monocycle(mol, ring_order, attached):
         for i in (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
     }
     ring_double |= triple_atoms
-    heterones = _chalcogen_heterones(mol, ring_set) & SUFFIX_ATOMS.get() if not aromatic else set()
+    heterones = _chalcogen_heterones(mol, ring_set) if not aromatic else set()
     ylidene_centres = _ylidene_chalcogens(mol, ring_set) if not aromatic else set()
     for a in atoms:
         for n in a.GetNeighbors():
@@ -907,7 +907,7 @@ def _von_baeyer(mol, skeleton_atoms):
     for parent, order, outer in candidates:
         position_new = {a: i + 1 for i, a in enumerate(order)}
         position_of = {old_of[a]: p for a, p in position_new.items()}
-        lam_new = {a: n for a, old_idx in old_of.items() if (n := nonstandard_bonding(mol.GetAtomWithIdx(old_idx)))}
+        lam_new = {a: n for a, old_idx in old_of.items() if (n := nonstandard_bonding(mol.GetAtomWithIdx(old_idx), with_oxo=True))}
         prefix, hetero_locs, hetero_ranks, lam_key = _replacement_prefix(bare, order, lam_new)
         pre = tuple(outer) + (hetero_locs, hetero_ranks, lam_key)
         if bonds_new:
@@ -1040,7 +1040,7 @@ def _single_hydrogen_removed(mol, idx):
 
 def _fused_mancude(mol, skeleton_atoms):
     oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
-    heterones = _chalcogen_heterones(mol, skeleton_atoms) & SUFFIX_ATOMS.get()
+    heterones = _chalcogen_heterones(mol, skeleton_atoms)
     oxo_all = oxo_all | heterones
     ring_info = mol.GetRingInfo()
     halogens = _ring_halogens(mol, skeleton_atoms)
@@ -1102,7 +1102,7 @@ def _fused_mancude(mol, skeleton_atoms):
                 )
             )
         }
-        accommodated = oxo_suffix | {
+        accommodated = oxo_suffix | heterones | {
             a
             for a in suffix_atoms & saturated
             if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and (oxo_all or not mol.GetAtomWithIdx(a).HasProp("_saturated_onium_centre"))
@@ -1136,7 +1136,7 @@ def _fused_mancude(mol, skeleton_atoms):
             continue
         ih, added, hydro = split
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
-        lam = {a: n for a in position_of if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+        lam = {a: n for a in position_of if (n := nonstandard_bonding(mol.GetAtomWithIdx(a), with_oxo=True))}
         lam.update({a: int(mol.GetAtomWithIdx(a).GetTotalValence()) for a in heterones if a in position_of})
         marked_stem = stem
         if lam:

@@ -1878,15 +1878,16 @@ CITE_SKELETAL_LAMBDA = ContextVar("cite_skeletal_lambda", default=True)
 KEEP_ASSEMBLY_ENDING = ContextVar("keep_assembly_ending", default=False)
 
 
-def nonstandard_bonding(atom):
+def nonstandard_bonding(atom, with_oxo=False):
     """The bonding number n of a neutral, non-aromatic skeletal heteroatom above its standard one (P-14.1), for the λn
-    convention (P-15.4.1.3, P-22.2.7); charged atoms and oxo-bearing ones are named by the ion and heterone rules."""
+    convention (P-15.4.1.3, P-22.2.7); charged atoms are named by the ion rules and oxo-bearing ones by the heterone
+    rules unless `with_oxo`, which counts the oxo and imino groups cited as prefixes (P-63.6)."""
     standard = _STANDARD_BONDING.get(atom.GetSymbol())
     if standard is None or atom.GetFormalCharge() or atom.GetIsAromatic() or not CITE_SKELETAL_LAMBDA.get():
         return None
     if any(atom.HasProp(prop) for prop in ("_anion", "_anion_word", "_anion_lambda", "_ring_cation_centre")):
         return None
-    if any(
+    if not with_oxo and any(
         b.GetBondTypeAsDouble() > 1.0 and b.GetOtherAtom(atom).GetDegree() == 1 and b.GetOtherAtom(atom).GetAtomicNum() != 6
         for b in atom.GetBonds()
     ):
