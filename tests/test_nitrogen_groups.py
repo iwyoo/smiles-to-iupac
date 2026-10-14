@@ -1403,6 +1403,28 @@ def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smi
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("OB(O)c1ccc([N+](=O)[O-])cc1", "(4-nitrophenyl)boronic acid", id="boronic_acid"),
+        pytest.param("CP(=O)(O)c1ccccc1[N+](=O)[O-]", "methyl(2-nitrophenyl)phosphinic acid", id="phosphinic_acid"),
+        pytest.param("N#CNc1cccc([N+](=O)[O-])c1", "(3-nitrophenyl)cyanamide", id="cyanamide"),
+        pytest.param("CNC(=S)Nc1cccc([N+](=O)[O-])c1", "N-methyl-N'-(3-nitrophenyl)thiourea", id="thiourea"),
+        pytest.param("CC(=O)NNC(=O)c1cccc([N+](=O)[O-])c1", "N'-acetyl-3-nitrobenzohydrazide", id="diacylhydrazine"),
+        pytest.param("CS(=O)(=O)NC(=O)c1cccc([N+](=O)[O-])c1", "N-(methanesulfonyl)-3-nitrobenzamide", id="acylsulfonamide"),
+        pytest.param("CC(=O)N(C)[N+](=O)[O-]", "N-methyl-N-nitroacetamide", id="nitro_on_amide_nitrogen"),
+        pytest.param("COC(=O)N[N+](=O)[O-]", "methyl nitrocarbamate", id="nitro_on_carbamate_nitrogen"),
+        pytest.param("O=[N+]([O-])N=C1NCCS1", "N-nitro-1,3-thiazolidin-2-imine", id="nitro_on_ring_imine_nitrogen"),
+        pytest.param("C[NH2+]c1ccc([N+](=O)[O-])cc1", "N-methyl-4-nitroanilinium", id="anilinium"),
+        pytest.param("C[N+](C)(C)c1cccc([N+](=O)[O-])c1", "N,N,N-trimethyl-3-nitroanilinium", id="quaternary_anilinium"),
+        pytest.param("O=NN1CCc2ccccc2C1", "2-nitroso-1,2,3,4-tetrahydroisoquinoline", id="nitroso_on_a_hydrogenated_ring_amine"),
+    ],
+)
+def test_nitro_and_nitroso_prefixes_in_parent_families_with_their_own_module(smiles, expected):
+    # P-61.5.1, P-61.5.2: a nitro or nitroso group is only ever a prefix, whatever the parent family
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("CC(=O)NOC", "N-methoxyacetamide", id="n_alkoxy_amide"),
         pytest.param("CC(=O)NOCC(C)C", "N-(2-methylpropoxy)acetamide", id="branched_alkoxy_on_amide_nitrogen"),
         pytest.param("CC(=O)NOc1ccccc1", "N-phenoxyacetamide", id="n_aryloxy_amide"),

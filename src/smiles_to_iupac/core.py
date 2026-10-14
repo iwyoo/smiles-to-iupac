@@ -381,6 +381,7 @@ from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._hetero_chain import contract_hetero_groups_candidates, name_hetero_macrocycle, name_skeletal_chain
+from ._nitro_group import contract_nitro_groups
 from ._phosphanyl_group import contract_phosphanyl_groups
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -1374,7 +1375,7 @@ def _smiles_to_iupac_dispatch(smiles: str) -> str:
 
 
 def _name_via_fallbacks(mol):
-    for contract in (contract_phosphanyl_groups, contract_hetero_groups_candidates):
+    for contract in (contract_phosphanyl_groups, contract_hetero_groups_candidates, contract_nitro_groups):
         try:
             contracted = contract(mol)
             candidates = contracted if isinstance(contracted, list) else [contracted]
@@ -1383,7 +1384,11 @@ def _name_via_fallbacks(mol):
                 if candidate is None:
                     continue
                 try:
-                    names.append(_name_mol(candidate))
+                    # a mapped placeholder survives SMILES, so the dedicated modules in front of the engine see it too
+                    if contract is contract_nitro_groups:
+                        names.append(smiles_to_iupac(Chem.MolToSmiles(candidate)))
+                    else:
+                        names.append(_name_mol(candidate))
                 except UnsupportedStructure:
                     continue
             if not names:

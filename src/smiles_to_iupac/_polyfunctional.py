@@ -27,6 +27,7 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
+    is_prefix_placeholder,
     lowest_locant_set,
     multiplied_word,
     nonstandard_bonding,
@@ -4598,7 +4599,8 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
         Chem.SanitizeMol(parent)
     mapped = next(a.GetIdx() for a in parent.GetAtoms() if a.GetAtomMapNum() == 1)
     for a in parent.GetAtoms():
-        a.SetAtomMapNum(0)
+        if not is_prefix_placeholder(a):
+            a.SetAtomMapNum(0)
     return parent, mapped
 
 
@@ -5884,7 +5886,7 @@ def _nitro_or_nitroso(mol, atom):
 
 
 def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
-    """A neutral =N-H, =N-R, =N-OH or =N-OR on a saturated ring carbon (P-62.3, P-68.3.1.1)."""
+    """A neutral =N-H, =N-R, =N-OH, =N-OR or =N-halogen on a saturated ring carbon (P-62.3, P-68.3.1.1)."""
     if nitrogen.GetFormalCharge() or nitrogen.GetDegree() > 2:
         return False
     for n in nitrogen.GetNeighbors():
@@ -5893,7 +5895,7 @@ def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
         if n.GetAtomicNum() == 8:
             if n.GetFormalCharge() or n.GetDegree() > 2:
                 return False
-        elif n.GetAtomicNum() != 6:
+        elif n.GetAtomicNum() not in (6, *HALOGEN_PREFIXES):
             return False
     return True
 
