@@ -304,10 +304,12 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms, ring_order):
             "supported yet (unresolved ring-vs-chain naming-convention "
             "question, see module docstring)"
         )
-    chain, branches = longest_branched_chain_through(graph, site, ring_atoms, exclude, halogens=halogen_substituents(mol))
+    halogens = halogen_substituents(mol)
+    # P-44.3: only carbon atoms extend the chain; the rest are cited as substituents
+    heteroatoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() != 6}
+    chain, branches = longest_branched_chain_through(graph, site, ring_atoms, exclude, halogens=heteroatoms)
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
-    halogens = halogen_substituents(mol)
     chain_length = len(chain)
     best_key = None
     best_name = None
