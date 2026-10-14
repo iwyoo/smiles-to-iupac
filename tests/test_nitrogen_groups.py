@@ -918,6 +918,21 @@ def test_benzonitrile():
     assert smiles_to_iupac("N#Cc1ccccc1Cl") == "2-chlorobenzonitrile"
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("N#Cc1ccc(Cc2ccccc2)c(C#N)c1", "4-benzylbenzene-1,3-dicarbonitrile", id="benzyl"),
+        pytest.param("N#Cc1ccc(C#N)c(Cc2ccccc2)c1", "2-benzylbenzene-1,4-dicarbonitrile", id="locant_set_before_prefix"),
+        pytest.param("N#Cc1ccc(C=Cc2ccccc2)c(C#N)c1", "4-(2-phenylethen-1-yl)benzene-1,3-dicarbonitrile", id="styryl"),
+        pytest.param("N#Cc1ccc(Cc2ccncc2)c(C#N)c1", "4-[(pyridin-4-yl)methyl]benzene-1,3-dicarbonitrile", id="heteroarylmethyl"),
+        pytest.param("N#Cc1ccc(C#N)c(C#N)c1Cc1ccccc1", "3-benzylbenzene-1,2,4-tricarbonitrile", id="trinitrile"),
+    ],
+)
+def test_benzene_with_several_nitriles_cites_an_aromatic_ring_on_a_chain_as_a_prefix(smiles, expected):
+    # P-66.5.1.1, P-44.1.1, P-31.1.4
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_phenyl_chain_nitrile_unsaturation():
     assert smiles_to_iupac("C=Cc1ccccc1CC#N") == "(2-ethenylphenyl)acetonitrile"
 
