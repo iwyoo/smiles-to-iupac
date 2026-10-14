@@ -627,6 +627,7 @@ def test_acyl_on_a_homogeneous_chalcogen_chain_is_a_pseudoketone(smiles, expecte
         pytest.param("C(c1ccccc1)C(C)OO", "1-phenylpropane-2-peroxol", id="phenyl_chain_hydroperoxide_internal_locant"),
         pytest.param("c1ccccc1OO", "benzeneperoxol", id="ring_peroxol"),
         pytest.param("OOC1CCC(N)CC1", "4-aminocyclohexane-1-peroxol", id="saturated_ring_peroxol"),
+        pytest.param("OOC(SS)c1ccccc1", "disulfanyl(phenyl)methaneperoxol", id="chalcogen_substituent_does_not_extend_the_chain"),
     ],
 )
 def test_phenyl_chain_hydroperoxide_and_related(smiles, expected):
