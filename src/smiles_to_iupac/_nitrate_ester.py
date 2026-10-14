@@ -25,17 +25,16 @@ A chalcogen analogue with S, Se or Te in the ester position is 'S-methyl thionit
 
 Scope: a single nitrogen atom shaped like a nitrate ester -- one N-O-R
 single bond, two terminal oxygens (either the charged or neutral
-representation), R named via `name_branch` (a plain alkyl chain, a
-branched chain, or a plain benzene ring, and their halogenated
-variants, exactly like `_sulfate.py`'s R). Explicitly out of scope
-(raise `UnsupportedStructure`): any other heteroatom, more than one nitrate
-group.
+representation), R named via `name_branch`. The ester ranks above the
+alcohol, amine, nitrile, aldehyde, ketone, amide, ether and ring groups of R,
+which stay prefixes (P-41); R holding an acid or another ester, and more than
+one nitrate group, raise `UnsupportedStructure`.
 """
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphate import format_ester_words
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._phosphate import check_ester_organyl, format_ester_words
 from ._substituents import name_branch
 
 _NITROGEN = 7
@@ -100,29 +99,8 @@ def name_nitrate_ester(mol) -> str:
     (nitrogen,) = nitrogen_atoms
 
     group_atom_idxs = {nitrogen.GetIdx()} | {n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in _ESTER_ATOMS}
-    for atom in mol.GetAtoms():
-        if atom.GetIsotope() != 0:
-            raise UnsupportedStructure("isotopically modified atoms are not supported yet")
-        if atom.GetIdx() not in group_atom_idxs and atom.GetFormalCharge() != 0:
-            raise UnsupportedStructure("charged atoms are not supported yet")
-        if atom.GetIdx() == nitrogen.GetIdx():
-            continue
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num == _NITROGEN:
-            raise UnsupportedStructure("more than one nitrogen atom is not supported yet")
-        if atomic_num not in (1, 6, _OXYGEN, *HALOGEN_PREFIXES) and atom.GetIdx() not in group_atom_idxs:
-            raise UnsupportedStructure(
-                "heteroatoms other than the nitrate's own nitrogen/"
-                "oxygens and a halogen substituent are not supported yet"
-            )
-
+    check_ester_organyl(mol, group_atom_idxs)
     group_oxygens = {n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in _ESTER_ATOMS}
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() in _ESTER_ATOMS and atom.GetIdx() not in group_oxygens:
-            raise UnsupportedStructure(
-                "an oxygen atom not part of the nitrate's own "
-                "N(=O)(=O)OR group is out of scope for this module"
-            )
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")

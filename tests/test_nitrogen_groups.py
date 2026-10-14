@@ -993,6 +993,40 @@ def test_nitrate_ester_unaffected_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-41, P-67.1.3.2, P-65.6.3.2: a nitrate or nitrite ester outranks an alcohol, amine, nitrile, aldehyde, ketone, amide, ether and ring,
+# which are prefixes of the organyl group; an acid or another ester outranks it
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=[N+]([O-])OCCO", "2-hydroxyethyl nitrate", id="alcohol"),
+        pytest.param("O=[N+]([O-])OCCCO", "3-hydroxypropyl nitrate", id="alcohol_three_carbons"),
+        pytest.param("O=[N+]([O-])OC(C)CO", "1-hydroxypropan-2-yl nitrate", id="branched_alcohol_group"),
+        pytest.param("O=[N+]([O-])OCCN", "2-aminoethyl nitrate", id="primary_amine"),
+        pytest.param("O=[N+]([O-])OCCNC", "2-(methylamino)ethyl nitrate", id="secondary_amine"),
+        pytest.param("O=[N+]([O-])OCCN1CCCC1", "2-(pyrrolidin-1-yl)ethyl nitrate", id="ring_amine"),
+        pytest.param("O=[N+]([O-])OCCN1CCOCC1", "2-(morpholin-4-yl)ethyl nitrate", id="morpholine"),
+        pytest.param("O=[N+]([O-])OCCC#N", "2-cyanoethyl nitrate", id="nitrile"),
+        pytest.param("O=[N+]([O-])OCCC=O", "3-oxopropyl nitrate", id="aldehyde"),
+        pytest.param("O=[N+]([O-])OCCC(C)=O", "3-oxobutyl nitrate", id="ketone"),
+        pytest.param("O=[N+]([O-])OCCOC", "2-methoxyethyl nitrate", id="ether"),
+        pytest.param("O=[N+]([O-])OCCNC(=O)c1ccccc1", "2-benzamidoethyl nitrate", id="amide_ranks_below_the_ester"),
+        pytest.param("O=[N+]([O-])OCc1ccccn1", "(pyridin-2-yl)methyl nitrate", id="pyridine"),
+        pytest.param("O=[N+]([O-])OCc1ccncc1", "(pyridin-4-yl)methyl nitrate", id="pyridine_position_4"),
+        pytest.param("O=[N+]([O-])OCCn1ccnc1", "2-(1H-imidazol-1-yl)ethyl nitrate", id="imidazole_through_nitrogen"),
+        pytest.param("O=[N+]([O-])OCc1nccs1", "(1,3-thiazol-2-yl)methyl nitrate", id="thiazole"),
+        pytest.param("O=[N+]([O-])OCCc1cccs1", "2-(thiophen-2-yl)ethyl nitrate", id="thiophene"),
+        pytest.param("O=[N+]([O-])OCCc1ccco1", "2-(furan-2-yl)ethyl nitrate", id="furan"),
+        pytest.param("O=[N+]([O-])OCc1ccc2ccccc2n1", "(quinolin-2-yl)methyl nitrate", id="fused_nitrogen_ring"),
+        pytest.param("OCCON=O", "2-hydroxyethyl nitrite", id="nitrite_with_alcohol"),
+        pytest.param("NCCON=O", "2-aminoethyl nitrite", id="nitrite_with_amine"),
+        pytest.param("O=[N+]([O-])OCC(=O)O", "(nitrooxy)acetic acid", id="acid_outranks_the_nitrate"),
+        pytest.param("O=[N+]([O-])OCCOC(C)=O", "2-(nitrooxy)ethyl acetate", id="carboxylic_ester_outranks_the_nitrate"),
+    ],
+)
+def test_nitrate_and_nitrite_esters_outrank_the_groups_of_their_organyl_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_phenyl_nitro_chain():
     assert smiles_to_iupac("c1ccccc1CC[N+](=O)[O-]") == "(2-nitroethyl)benzene"
     assert smiles_to_iupac("c1ccccc1CCCCCCC[N+](=O)[O-]") == "(7-nitroheptyl)benzene"
