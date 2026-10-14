@@ -374,6 +374,29 @@ def test_assembly_of_saturated_heteromonocycles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-44.1.2.2, P-44.2.1, P-29.2: two different rings joined through their nitrogens are parent and substituent, the senior ring being the parent
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1CCN(CC1)N1CCCC1", "1-(pyrrolidin-1-yl)piperidine", id="more_skeletal_atoms"),
+        pytest.param("C1CCN(CC1)N1CCOCC1", "4-(piperidin-1-yl)morpholine", id="oxygen_heteroatom_beside_nitrogen"),
+        pytest.param("C1CCN(CC1)N1CCNCC1", "1-(piperidin-1-yl)piperazine", id="more_heteroatoms"),
+        pytest.param("CN1CCN(CC1)N1CCCCC1", "1-methyl-4-(piperidin-1-yl)piperazine", id="substituent_on_the_parent"),
+        pytest.param("OC1CCN(CC1)N1CCCC1", "1-(pyrrolidin-1-yl)piperidin-4-ol", id="suffix_on_the_saturated_ring"),
+        pytest.param("c1ccn(N2CCOCC2)c1", "4-(1H-pyrrol-1-yl)morpholine", id="azole_substituent"),
+        pytest.param("c1ccn(N2CCCCC2)c1", "1-(1H-pyrrol-1-yl)piperidine", id="azole_beside_a_six_membered_ring"),
+        pytest.param("c1ccn(N2CCNCC2)c1", "1-(1H-pyrrol-1-yl)piperazine", id="azole_beside_a_diazine"),
+        pytest.param("c1cn(N2CCOCC2)cn1", "4-(1H-imidazol-1-yl)morpholine", id="imidazole_substituent"),
+        pytest.param("Cc1ccn(N2CCOCC2)c1", "4-(3-methyl-1H-pyrrol-1-yl)morpholine", id="substituted_azole_group"),
+        pytest.param("c1ccc2c(c1)ccn2N1CCOCC1", "1-(morpholin-4-yl)-1H-indole", id="two_rings_outrank_one"),
+        pytest.param("c1cnn(N2CCCC2)c1", "1-(pyrrolidin-1-yl)-1H-pyrazole", id="more_heteroatoms_in_an_azole"),
+        pytest.param("OC(=O)c1ccn(N2CCCC2)c1", "1-(pyrrolidin-1-yl)-1H-pyrrole-3-carboxylic acid", id="acid_on_the_azole"),
+    ],
+)
+def test_different_rings_joined_nitrogen_to_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

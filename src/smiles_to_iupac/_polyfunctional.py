@@ -3080,13 +3080,19 @@ def _hydrazine_parent(mol, aromatic_atoms):
     return hydrazine_with_substituents(mol, *pairs[0], aromatic_atoms, unsaturated=True)
 
 
+def _joins_two_rings(bond):
+    """A single bond between ring atoms of two rings: an N-N bond of this kind joins ring systems, it is no hydrazine."""
+    a, b = bond.GetBeginAtom(), bond.GetEndAtom()
+    return bond.GetBondTypeAsDouble() == 1.0 and a.IsInRing() and b.IsInRing() and not bond.IsInRing()
+
+
 def _only_plain_hydrazines(mol):
     """Every acyclic N-N bond is a single bond between chain nitrogens that bear only hydrogen, nitrogen and carbon
     without a double bond, so the hydrazine is a prefix beside a ring that contains nitrogen (P-44.1.2.2); one C=N on
     a hydrazine nitrogen is its ylidene substituent (P-68.3.1.2.2), two make an azine."""
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtom(), bond.GetEndAtom()
-        if a.GetAtomicNum() != 7 or b.GetAtomicNum() != 7 or bond.IsInRing():
+        if a.GetAtomicNum() != 7 or b.GetAtomicNum() != 7 or bond.IsInRing() or _joins_two_rings(bond):
             continue
         if bond.GetBondTypeAsDouble() != 1.0 or a.IsInRing() or b.IsInRing() or _is_azide_part(a):
             return False
@@ -3163,6 +3169,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             b.GetBeginAtom().GetAtomicNum() == 7
             and b.GetEndAtom().GetAtomicNum() == 7
             and not b.IsInRing()
+            and not _joins_two_rings(b)
             and not _is_azide_part(b.GetBeginAtom())
             and not _is_azide_bond_end(b.GetBeginAtom(), b.GetEndAtom())
             for b in mol.GetBonds()
