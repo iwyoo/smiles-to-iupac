@@ -839,7 +839,7 @@ def _group_of(mol, carbon):
             raise UnsupportedStructure("a cumulated carbonyl (ketene) is not supported")
         if not hetero:
             if len(carbon_neighbors) == 1 and atom.GetTotalNumHs() == 1:
-                return "aldehyde", {oxygens[0]}
+                return ("ketone" if atom.HasProp(ACYL_ROOT) else "aldehyde"), {oxygens[0]}
             if len(carbon_neighbors) == 2:
                 return "ketone", {oxygens[0]}
             raise UnsupportedStructure("a formaldehyde-type carbonyl is not named by the chain engine")
@@ -1670,6 +1670,7 @@ def _cationic_group_suffix(name, parent, cationic=None):
 
 STEREO_OF_ISOTOPOLOGUE = contextvars.ContextVar("stereo_of_isotopologue", default=None)
 JUNIOR_GROUP = "_junior_group"
+ACYL_ROOT = "_acyl_root"
 
 
 def _modifications(entry):
@@ -4709,31 +4710,22 @@ def _diacyl_chalcogen_chain_name(mol, graph, stereo):
         return None
     if stereo:
         raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
-    from .core import smiles_to_iupac
-
-    names = []
-    for atoms, root in zip(arms, roots):
-        editable = Chem.RWMol(mol)
-        editable.GetAtomWithIdx(root).SetNumExplicitHs(1)
-        editable.GetAtomWithIdx(root).SetNoImplicit(True)
-        for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
-            editable.RemoveAtom(idx)
-        unit = editable.GetMol()
-        Chem.SanitizeMol(unit)
-        names.append(smiles_to_iupac(Chem.MolToSmiles(unit)))
-    if names[0] != names[1]:
+    units = [_unit_molecule(mol, atoms, root, chalcogen_cut=True) for atoms, root in zip(arms, roots)]
+    if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
         return None
-    if names[0] == "acetaldehyde":
-        unit = "ethan-1-one"
-    elif names[0].endswith(("anal", "enal", "ynal")):
-        unit = names[0][:-2] + "-1-one"
-    else:
+    try:
+        _, _, parts = _select(*units[0])
+    except UnsupportedStructure:
+        return None
+    prefix, body, tail, locant = parts[:4]
+    if locant is None:
         return None
     if "bis(" in word:
         word = f"[{word}]"
-    if unit[0].isdigit():
-        return f"1,1'-{word}bis({unit})"
-    return f"1,1'-{word}di({unit})"
+    text = prefix + body
+    if prefix:
+        return f"{locant},{locant}'-{word}{_bis_unit(text, tail)}"
+    return f"{locant},{locant}'-{word}di{unit_phrase(text, tail)}"
 
 
 def _arm_atoms(graph, start, blocked):
@@ -4909,7 +4901,7 @@ def _composite_linker_name(mol, graph, stereo):
         linker = enclose(f"{word}bis({components[0]})")
         text = prefix + body
         if prefix:
-            return f"{lead}{linker}bis({text}){tail}"
+            return f"{lead}{linker}{_bis_unit(text, tail)}"
         return f"{lead}{linker}di{unit_phrase(text, tail)}"
     return None
 
@@ -4949,7 +4941,7 @@ def _natural_product_linker_name(mol, graph, stereo):
     lead = f"{locant},{locant}'-" if locant is not None else ""
     text = prefix + body
     if prefix:
-        return f"{lead}{enclose(linker)}bis({text}){tail}"
+        return f"{lead}{enclose(linker)}{_bis_unit(text, tail)}"
     return f"{lead}{enclose(linker)}di{unit_phrase(text, tail)}"
 
 
@@ -5028,7 +5020,7 @@ def _ring_linker_name(mol, graph, stereo):
         text = prefix + body
         linker_text = f"({linker[0]})" if linker[1] and not ring_stereo else enclose(linker[0])
         if prefix:
-            return f"{lead}{linker_text}bis({text}){tail}"
+            return f"{lead}{linker_text}{_bis_unit(text, tail)}"
         return f"{lead}{linker_text}di{unit_phrase(text, tail)}"
     return None
 
@@ -5073,7 +5065,31 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
     return per_arm[0][0], f"({','.join(labels)})-"
 
 
-def _unit_molecule(mol, atoms, attach, refill=False):
+def _bis_unit(text, tail):
+    return f"bis({text}{tail})" if tail.startswith(" ") else f"bis({text}){tail}"
+
+
+def _is_acyl_root(mol, atoms, attach, chalcogen_cut):
+    """The carbonyl carbon of an acyl arm joined to its core through a carbon or a ring nitrogen: once cut it is a
+    ketone, not an aldehyde (P-64.2.2.1, P-64.1.2.1(b))."""
+    root = mol.GetAtomWithIdx(attach)
+    cut = [n for n in root.GetNeighbors() if n.GetIdx() not in atoms]
+    return (
+        root.GetAtomicNum() == 6
+        and not root.IsInRing()
+        and not root.GetTotalNumHs()
+        and len(cut) == 1
+        and (
+            cut[0].GetAtomicNum() == 6
+            or (cut[0].GetAtomicNum() == 7 and cut[0].IsInRing())
+            or (chalcogen_cut and cut[0].GetAtomicNum() in (8, 16, 34, 52))
+        )
+        and len(_double_oxygens(mol, attach)) == 1
+        and root.GetDegree() == 3
+    )
+
+
+def _unit_molecule(mol, atoms, attach, refill=False, chalcogen_cut=False):
     editable = Chem.RWMol(mol)
     root = editable.GetAtomWithIdx(attach)
     root.SetAtomMapNum(1)
@@ -5092,6 +5108,8 @@ def _unit_molecule(mol, atoms, attach, refill=False):
     except Chem.rdchem.KekulizeException as error:
         raise UnsupportedStructure("the fragment cut from an aromatic ring cannot be kekulized") from error
     attach_idx = next(a.GetIdx() for a in unit.GetAtoms() if a.GetAtomMapNum() == 1)
+    if _is_acyl_root(mol, atoms, attach, chalcogen_cut):
+        unit.GetAtomWithIdx(attach_idx).SetBoolProp(ACYL_ROOT, True)
     canonical = Chem.Mol(unit)
     for a in canonical.GetAtoms():
         a.SetAtomMapNum(1 if a.GetIdx() == attach_idx else 0)
