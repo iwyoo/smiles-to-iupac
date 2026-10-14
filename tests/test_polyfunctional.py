@@ -1615,6 +1615,27 @@ def test_n_substituted_amines_on_one_chain_are_a_diamine_with_n_locants(smiles, 
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-68.3.1.1.1.1, P-62.2.4.1.2: hydroxy and alkoxy groups on the nitrogens of two amine groups are N-prefixes of a diamine
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ONCCNO", "N1,N2-dihydroxyethane-1,2-diamine", id="two_hydroxy_groups_on_a_chain"),
+        pytest.param("ONCCCNO", "N1,N3-dihydroxypropane-1,3-diamine", id="nitrogens_apart_on_a_chain"),
+        pytest.param("CC(C)(NO)CC(C)(C)NO", "N2,N4-dihydroxy-2,4-dimethylpentane-2,4-diamine", id="nitrogens_on_tertiary_carbons"),
+        pytest.param("ONCCNC", "N1-hydroxy-N2-methylethane-1,2-diamine", id="hydroxy_and_methyl_on_different_nitrogens"),
+        pytest.param("ON(C)CCN(C)O", "N1,N2-dihydroxy-N1,N2-dimethylethane-1,2-diamine", id="hydroxy_and_methyl_on_each_nitrogen"),
+        pytest.param("ONCCNOC", "N1-hydroxy-N2-methoxyethane-1,2-diamine", id="hydroxy_and_alkoxy"),
+        pytest.param("ONCCNOCC", "N1-ethoxy-N2-hydroxyethane-1,2-diamine", id="alphanumerical_order_of_the_n_prefixes"),
+        pytest.param("ONC1CCCCC1NO", "N1,N2-dihydroxycyclohexane-1,2-diamine", id="two_hydroxy_groups_on_a_ring"),
+        pytest.param("ONC1CCC(NO)CC1", "N1,N4-dihydroxycyclohexane-1,4-diamine", id="nitrogens_para_on_a_cycloalkane"),
+        pytest.param("ONc1ccc(NO)cc1", "N1,N4-dihydroxybenzene-1,4-diamine", id="two_hydroxy_groups_on_benzene"),
+        pytest.param("ONCC(O)CNO", "1,3-bis(hydroxyamino)propan-2-ol", id="alcohol_outranks_the_amines"),
+    ],
+)
+def test_n_hydroxy_and_n_alkoxy_groups_on_two_amines_of_one_skeleton(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
