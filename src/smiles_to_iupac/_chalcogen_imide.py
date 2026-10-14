@@ -36,8 +36,22 @@ def _imino_nitrogen(bond, center):
         and not atom.GetFormalCharge()
         and not atom.IsInRing()
         and atom.GetDegree() <= 2
-        and all(b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds() if b.GetOtherAtom(atom).GetIdx() != center.GetIdx())
+        and all(
+            b.GetBondTypeAsDouble() == 1.0 and _imino_substituent_atom(b.GetOtherAtom(atom))
+            for b in atom.GetBonds()
+            if b.GetOtherAtom(atom).GetIdx() != center.GetIdx()
+        )
     )
+
+
+def _imino_substituent_atom(atom):
+    """Carbon, or the oxygen or nitrogen of a hydroxyimino or aminoimino group (a ketone-like centre outranks alcohols
+    and amines, P-41)."""
+    return atom.GetAtomicNum() == 6 or _terminal_hydroxy_or_amino(atom)
+
+
+def _terminal_hydroxy_or_amino(atom):
+    return atom.GetAtomicNum() in (7, 8) and atom.GetDegree() == 1 and not atom.GetFormalCharge() and not atom.GetIsotope()
 
 
 def _find(mol):
@@ -70,12 +84,50 @@ def _find(mol):
     if not imines or valence not in (4, 6) or len({a.GetAtomicNum() for a in chalcogens}) > 1:
         return None
     allowed = {center.GetIdx(), *(a.GetIdx() for a in imines), *(a.GetIdx() for a in chalcogens)}
+    hydroxy = {n.GetIdx() for a in imines for n in a.GetNeighbors() if _terminal_hydroxy_or_amino(n)}
     if any(
-        a.GetIdx() not in allowed and (a.GetAtomicNum() != 6 and a.GetAtomicNum() not in HALOGEN_PREFIXES or a.GetFormalCharge() or a.GetIsotope())
+        a.GetIdx() not in allowed
+        and a.GetIdx() not in hydroxy
+        and (not _plain_group_atom(a) or a.GetFormalCharge() or a.GetIsotope())
         for a in mol.GetAtoms()
     ):
         return None
     return center, imines, chalcogens, carbons
+
+
+def _plain_group_atom(atom):
+    """Carbon, halogen or a neutral aromatic ring heteroatom: the atoms a hydrocarbon or heteroaryl group may contain."""
+    number = atom.GetAtomicNum()
+    return number == 6 or number in HALOGEN_PREFIXES or (number in (7, 8, 16) and atom.GetIsAromatic())
+
+
+def ylidene_group_atoms(mol, center_idx, nitrogen_idx):
+    """The atoms of a plain sulfoximide-type group =S(=O)R2 bonded through `center_idx` to the nitrogen `nitrogen_idx`
+    (empty when it is anything else): the centre, its doubly bonded chalcogens and its carbon groups."""
+    center = mol.GetAtomWithIdx(center_idx)
+    if center.GetAtomicNum() not in _PARENT or center.IsInRing() or center.GetFormalCharge() or center.GetIsotope():
+        return set()
+    graph = adjacency(mol)
+    atoms = {center_idx}
+    for bond in center.GetBonds():
+        other = bond.GetOtherAtom(center)
+        if other.GetIdx() == nitrogen_idx:
+            continue
+        if _terminal_chalcogen(bond, center):
+            atoms.add(other.GetIdx())
+        elif other.GetAtomicNum() == 6 and bond.GetBondTypeAsDouble() == 1.0:
+            stack = [other.GetIdx()]
+            while stack:
+                idx = stack.pop()
+                if idx in atoms:
+                    continue
+                atoms.add(idx)
+                stack.extend(n for n in graph[idx] if n != center_idx)
+        else:
+            return set()
+    if any(not _plain_group_atom(mol.GetAtomWithIdx(i)) for i in atoms - {center_idx} if mol.GetAtomWithIdx(i).GetAtomicNum() not in _ONE):
+        return set()
+    return atoms
 
 
 def has_chalcogen_imide_shape(mol) -> bool:

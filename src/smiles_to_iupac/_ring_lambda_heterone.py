@@ -27,6 +27,7 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 from rdkit import Chem
 
+from ._chalcogen_imide import _imino_nitrogen
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -36,6 +37,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
+from ._multiplicative_text import enclose
 from ._numerals import numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -49,6 +51,7 @@ _NITROGEN_STEM_ENDING = {3: "iridine", 4: "etidine", 5: "olidine", 6: "inane"}
 _MANCUDE_ENDING = {3: "irene", 4: "ete", 5: "ole", 6: "ine", 7: "epine", 8: "ocine", 9: "onine", 10: "ecine"}
 _RETAINED = {"S": "thiophene", "Se": "selenophene", "Te": "tellurophene"}
 _RETAINED_SIX = {"S": "thiopyran", "Se": "selenopyran", "Te": "telluropyran"}
+_EXO_KIND = {**_RING_HETERO, 7: "N"}
 _SUFFIX = {"O": "one", "S": "thione", "Se": "selone", "Te": "tellone"}
 _PREFIX = {"O": "oxo", "S": "sulfanylidene", "Se": "selanylidene", "Te": "tellanylidene"}
 
@@ -65,6 +68,33 @@ def _exocyclic_chalcogens(mol, atom_idx, ring_set):
     return found
 
 
+def _lambda_chalcogen_atom(mol, atom_idx, ring_set):
+    """Whether a ring atom is a chalcogen or phosphorus with a doubly bonded chalcogen outside the ring."""
+    return mol.GetAtomWithIdx(atom_idx).GetAtomicNum() in _LAMBDA_HETERO and bool(_exocyclic_chalcogens(mol, atom_idx, ring_set))
+
+
+def _exocyclic_imino(mol, atom_idx, ring_set):
+    """The imino nitrogen neighbors of a ring atom: ring sulfoximides carry them as 'imino' prefixes beside the doubly
+    bonded chalcogen of the suffix (P-68.4.3.6)."""
+    center = mol.GetAtomWithIdx(atom_idx)
+    return [
+        bond.GetOtherAtomIdx(atom_idx)
+        for bond in center.GetBonds()
+        if bond.GetOtherAtomIdx(atom_idx) not in ring_set and _imino_nitrogen(bond, center)
+    ]
+
+
+def _group_beyond(graph, centre, nitrogen):
+    """The atoms of the group R on the imino nitrogen `nitrogen` of `centre`, the nitrogen excluded."""
+    seen, stack = set(), [n for n in graph[nitrogen] if n != centre]
+    while stack:
+        a = stack.pop()
+        if a not in seen:
+            seen.add(a)
+            stack.extend(n for n in graph[a] if n != nitrogen)
+    return seen
+
+
 def _match(mol):
     """(ring_order, ring_hetero, exo_chalcogen_by_ring_atom, ring_substituent_roots)
     for a saturated monocycle of carbon and O/S/Se/Te atoms where at least one
@@ -72,9 +102,10 @@ def _match(mol):
     if len(Chem.GetMolFrags(mol)) > 1:
         return None
     ring_info = mol.GetRingInfo()
-    if ring_info.NumRings() != 1 or not 3 <= len(ring_info.AtomRings()[0]) <= 10:
+    rings = [r for r in ring_info.AtomRings() if any(_lambda_chalcogen_atom(mol, a, set(r)) for a in r)]
+    if len(rings) != 1 or not 3 <= len(rings[0]) <= 10 or sum(ring_info.NumAtomRings(a) > 1 for a in rings[0]):
         return None
-    ring_atoms = list(ring_info.AtomRings()[0])
+    ring_atoms = list(rings[0])
     ring_set = set(ring_atoms)
     ring_double = {
         i: sum(
@@ -126,10 +157,11 @@ def _match(mol):
                 exo_chalcogens[idx] = terminal
                 roots[idx] = [n for n in exo if n != terminal[0]]
                 continue
-            if len(terminal) != len(exo) or (terminal and atom.GetAtomicNum() not in _LAMBDA_HETERO):
+            imino = _exocyclic_imino(mol, idx, ring_set) if terminal and not mancude else []
+            if len(terminal) + len(imino) != len(exo) or (terminal and atom.GetAtomicNum() not in _LAMBDA_HETERO):
                 return None
             if terminal:
-                exo_chalcogens[idx] = terminal
+                exo_chalcogens[idx] = terminal + imino
         else:
             return None
     if not any(i in exo_chalcogens for i in ring_hetero):
@@ -140,6 +172,11 @@ def _match(mol):
         if bond is not None and not mancude and bond.GetBondTypeAsDouble() != 1.0:
             return None
     exo_atoms = {x for xs in exo_chalcogens.values() for x in xs}
+    imino_groups = set()
+    for centre, xs in exo_chalcogens.items():
+        for x in xs:
+            if mol.GetAtomWithIdx(x).GetAtomicNum() == 7:
+                imino_groups |= _group_beyond(graph, centre, x)
     phosphorus_branch = set()
     stack = [r for i in ring_hetero if ring_hetero[i] == "P" for r in roots[i]]
     while stack:
@@ -159,6 +196,7 @@ def _match(mol):
         for b in mol.GetBonds()
         if b.GetBeginAtomIdx() not in exo_atoms
         and b.GetEndAtomIdx() not in exo_atoms
+        and not ({b.GetBeginAtomIdx(), b.GetEndAtomIdx()} & imino_groups)
         and not (mancude and b.IsInRing())
     ):
         return None
@@ -207,6 +245,12 @@ def _numbering_key(position_of, ring_hetero, exo_chalcogens, suffix_kind):
     return hetero_locants, seniority, lam_locants, lam_numbers, suffix_locants
 
 
+def _imino_text(group):
+    """'(methylimino)' text of an =N-R group whose R is named `group`."""
+    name, compound = group
+    return (enclose(name) if compound else name) + "imino"
+
+
 def name_ring_lambda_heterone(mol) -> str:
     ring_order, ring_hetero, exo_chalcogens_raw, roots = _match(mol)
     if specified_stereocenters(mol) is not None or any(
@@ -215,8 +259,7 @@ def name_ring_lambda_heterone(mol) -> str:
         raise UnsupportedStructure("stereodescriptors on a ring λ-heterone are not supported yet")
 
     exo_chalcogens = {
-        atom: [(x, _RING_HETERO[mol.GetAtomWithIdx(x).GetAtomicNum()]) for x in xs]
-        for atom, xs in exo_chalcogens_raw.items()
+        atom: [(x, _EXO_KIND[mol.GetAtomWithIdx(x).GetAtomicNum()]) for x in xs] for atom, xs in exo_chalcogens_raw.items()
     }
     kinds = {kind for xs in exo_chalcogens.values() for _, kind in xs}
     suffix_kind = next(e for e in _SENIORITY if e in kinds)
@@ -228,10 +271,23 @@ def name_ring_lambda_heterone(mol) -> str:
         for atom, rts in roots.items()
         for root in rts
     }
+    imino_names = {}
+    for centre, xs in exo_chalcogens.items():
+        for x, kind in xs:
+            if kind == "N":
+                group = [n for n in graph[x] if n != centre]
+                imino_names[x] = (
+                    ("imino", False)
+                    if not group
+                    else (_imino_text(name_branch(graph, group[0], x, halogens, mol=mol)), True)
+                )
 
     size = len(ring_order)
     elements_in_order = [ring_hetero[a] for a in ring_order if a in ring_hetero]
-    mancude = any(b.GetBondTypeAsDouble() == 2.0 and b.IsInRing() for b in mol.GetBonds())
+    mancude = any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetBeginAtomIdx() in ring_order and b.GetEndAtomIdx() in ring_order
+        for b in mol.GetBonds()
+    )
     stem = _stem(elements_in_order, size, mancude)
 
     best = None
@@ -242,10 +298,15 @@ def name_ring_lambda_heterone(mol) -> str:
             hetero_key = _numbering_key(position_of, ring_hetero, exo_chalcogens, suffix_kind)
             prefixes = {}
             for atom, xs in exo_chalcogens.items():
-                for _, kind in xs:
-                    if kind != suffix_kind:
+                for x, kind in xs:
+                    if kind == "N":
+                        text, compound = imino_names[x]
+                        info = prefixes.setdefault(text, {"locants": [], "compound": compound})
+                    elif kind != suffix_kind:
                         info = prefixes.setdefault(_PREFIX[kind], {"locants": [], "compound": False})
-                        info["locants"].append(position_of[atom])
+                    else:
+                        continue
+                    info["locants"].append(position_of[atom])
             for (atom, _root), (name, compound) in branch_names.items():
                 info = prefixes.setdefault(name, {"locants": [], "compound": compound})
                 info["locants"].append(position_of[atom])
