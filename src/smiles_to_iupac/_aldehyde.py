@@ -261,7 +261,7 @@ def _al_locants(position_of, aldehydes, graph):
 
 
 def _name_acyclic_aldehyde(
-    mol, aldehydes, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
+    mol, aldehydes, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
 ):
     """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
     from `specified_stereo_elements`/`specified_stereocenters` -- if given,
@@ -281,16 +281,10 @@ def _name_acyclic_aldehyde(
     reimplement this function's chain search/candidate selection.
     `required_atoms`: additional carbon atoms (e.g. every demoted amine's
     own carbon neighbor) that a candidate chain must also carry -- both
-    empty/None by default so existing callers are unaffected.
-    `carbon_graph`: the carbon-only graph to search for the principal
-    chain -- defaults to `carbon_adjacency(mol)` (unchanged behavior);
-    `_ether_aldehyde.py` passes one with a coexisting ether's alkoxy-
-    branch component already removed, the same reason and pattern as
-    `_thiol.py`/`_ketone.py`'s identical `carbon_graph` parameter (PR
-    #428/#429)."""
+    empty/None by default so existing callers are unaffected."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}, **(extra_names or {})}
-    chains = all_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
+    chains = all_chains(carbon_adjacency(mol))
     stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []

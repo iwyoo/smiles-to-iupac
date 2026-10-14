@@ -680,7 +680,7 @@ def test_aryl_ketone_cites_the_ring_as_a_substituent():
     "smiles, expected",
     [
         pytest.param("CC(=O)c1cccnc1", "1-(pyridin-3-yl)ethan-1-one", id="heteroaromatic_substituent_ketone_directly_on_ring"),
-        pytest.param("CCOCC(=O)C", "1-ethoxypropan-2-one", id="ether_now_supported_via_ether_ketone"),
+        pytest.param("CCOCC(=O)C", "1-ethoxypropan-2-one", id="ether_beside_ketone"),
     ],
 )
 def test_heteroaromatic_substituent_ketone_and_related(smiles, expected):

@@ -596,11 +596,11 @@ class Chalcogenol:
         return self._name_acyclic(mol, hetero_atoms, bonds, stereo)
 
     def _name_acyclic(
-        self, mol, hetero_atoms, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
+        self, mol, hetero_atoms, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
     ):
         graph = adjacency(mol)
         halogens = {**halogen_substituents(mol), **(extra_names or {})}
-        chains = all_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
+        chains = all_chains(carbon_adjacency(mol))
         stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
         eligible = []

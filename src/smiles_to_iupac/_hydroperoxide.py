@@ -325,7 +325,7 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms, ring_order):
 
 
 def _name_acyclic_hydroperoxide(
-    mol, site, exclude, extra_names=None, required_atoms=frozenset(), carbon_graph=None
+    mol, site, exclude, extra_names=None, required_atoms=frozenset()
 ):
     """`extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
@@ -335,16 +335,10 @@ def _name_acyclic_hydroperoxide(
     `None` keeps the original halogens-only behavior unchanged.
     `required_atoms`: additional carbon atoms (e.g. a demoted amine's own
     carbon neighbor) that a candidate chain must also carry -- empty by
-    default so existing callers are unaffected. `carbon_graph`: the
-    carbon-only graph to search for the principal chain -- defaults to
-    `carbon_adjacency(mol)` (unchanged behavior); `_ether_hydroperoxide.py`
-    passes one with a coexisting ether's alkoxy-branch component already
-    removed, the same reason and pattern as
-    `_thiol.py`/`_ketone.py`/`_aldehyde.py`'s identical `carbon_graph`
-    parameter (PR #428-430)."""
+    default so existing callers are unaffected."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **(extra_names or {})}
-    chains = longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     eligible = [chain for chain in chains if site in chain and required_atoms <= set(chain)]

@@ -104,7 +104,6 @@ from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amide_amine import has_amide_amine_shape, name_amide_amine
 from ._ester_amine import has_ester_amine_shape, name_ester_amine
-from ._ether_ester import has_ether_ester_shape, name_ether_ester
 from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_ketone
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
@@ -197,12 +196,6 @@ from ._steroid_named import name_steroid
 from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
-from ._ether_amine import has_ether_amine_shape, name_ether_amine
-from ._ether_aldehyde import has_ether_aldehyde_shape, name_ether_aldehyde
-from ._ether_amide import has_ether_amide_shape, name_ether_amide
-from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydroperoxide
-from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
-from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER, fused_ring_system_name
 from ._hetero_prefixes import _has_senior_principal_group
 from ._fullerene import (
@@ -2270,38 +2263,6 @@ def _name_mol(mol) -> str:
         # `_ether.py` would otherwise misname it as a plain ether.
         if has_cyanate_shape(mol):
             return name_cyanate(mol)
-        # An ether coexisting with a separate primary amine (P-41: ether
-        # has no suffix at all, class 41, so it's always the 'alkoxy'
-        # prefix, never competing for parent-hood) must be routed before
-        # `has_ether_shape` below, which would otherwise misname/reject it
-        # via `_ether.py`'s own "coexisting nitrogen" rejection.
-        if has_ether_amine_shape(mol):
-            return name_ether_amine(mol)
-        # An ether coexisting with a separate thiol (same P-41 reasoning
-        # as the amine case immediately above) must likewise be routed
-        # before `has_ether_shape` below.
-        if has_ether_thiol_shape(mol):
-            return name_ether_thiol(mol)
-        # An ether coexisting with a separate ketone (same P-41 reasoning
-        # as the amine/thiol cases above) must likewise be routed before
-        # `has_ether_shape` below.
-        if has_ether_ketone_shape(mol):
-            return name_ether_ketone(mol)
-        # An ether coexisting with a separate aldehyde (same P-41
-        # reasoning as the amine/thiol/ketone cases above) must likewise
-        # be routed before `has_ether_shape` below.
-        if has_ether_aldehyde_shape(mol):
-            return name_ether_aldehyde(mol)
-        # An ether coexisting with a separate unsubstituted primary amide
-        # (same P-41 reasoning as the amine/thiol/ketone/aldehyde cases
-        # above) must likewise be routed before `has_ether_shape` below.
-        if has_ether_amide_shape(mol):
-            return name_ether_amide(mol)
-        # An ether coexisting with a separate hydroperoxide (same P-41
-        # reasoning as the amine/thiol/ketone/aldehyde/amide cases above)
-        # must likewise be routed before `has_ether_shape` below.
-        if has_ether_hydroperoxide_shape(mol):
-            return name_ether_hydroperoxide(mol)
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
         # here before the carbonyl/alcohol checks below, none of which
         # accept a degree-2 oxygen at all.
@@ -2432,13 +2393,6 @@ def _name_mol(mol) -> str:
             # `_ester.py`'s own "coexisting oxygen" rejection.
             if has_ketone_ester_shape(mol):
                 return name_ketone_ester(mol)
-            # P-41 Table 4.1: an ether has no suffix at all (class 41), so
-            # an ester whose acyl chain also carries a separate ether
-            # names the ester as the suffix and demotes the ether to an
-            # 'alkoxy' prefix instead of `_ester.py`'s own "coexisting
-            # oxygen" rejection.
-            if has_ether_ester_shape(mol):
-                return name_ether_ester(mol)
             # P-41/Table 4.1: 'ester' (class 9) also outranks 'amine'
             # (class 19), so an ester that also carries a separate primary
             # amine on its acyl chain names the ester as the suffix and
