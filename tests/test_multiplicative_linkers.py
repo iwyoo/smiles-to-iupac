@@ -49,6 +49,21 @@ def test_acyl_arms_cut_from_a_ring_or_chalcogen_core_are_ketones_not_aldehydes(s
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("OCC1CCC([2H])(CO)CC1", "[(1-2H)cyclohexane-1,4-diyl]dimethanol"),
+        ("[2H]OCC1CCC(CO[2H])CC1", "(cyclohexane-1,4-diyl)di[methan(2H)ol]"),
+        ("[13CH3]C(=O)c1ccc(C([13CH3])=O)cc1", "1,1'-(1,4-phenylene)di[(2-13C)ethan-1-one]"),
+        ("[2H]OCC1CCC(CO)CC1", "[4-(hydroxymethyl)cyclohexyl]methan(2H)ol"),
+        ("CC(=O)c1ccc(C([11CH3])=O)cc1", "1-(4-acetylphenyl)(2-11C)ethan-1-one"),
+        ("OC[13CH]1CCC([13CH2]O)CC1", "[4-(hydroxymethyl)(4-13C)cyclohexyl](13C)methanol"),
+    ],
+)
+def test_isotopic_modification_of_the_linker_or_of_identical_arms_keeps_the_multiplicative_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("C[C@H](O)CN(C)C[C@H](C)O", "(2S,2'S)-1,1'-(methylazanediyl)di(propan-2-ol)"),
         ("S(/C1=C/CCCCCC1)/C1=C/CCCCCC/1", "(1E,1'E)-1,1'-sulfanediyldi(cyclooct-1-ene)"),
         ("C1=C/[C@@H](CC[C@@H]2/C=C/CCCCC2)CCCCC/1", "(1E,1'E,3R,3'R)-3,3'-(ethane-1,2-diyl)di(cyclooct-1-ene)"),

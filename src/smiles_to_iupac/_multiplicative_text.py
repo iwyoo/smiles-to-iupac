@@ -20,7 +20,7 @@ _ASSEMBLY_BRACKETS = re.compile(
 )
 
 
-_ADDED_HYDROGEN = re.compile(r"\(\d+[a-z]?H\)")
+_ADDED_HYDROGEN = re.compile(r"(?:(?<=\d)|(?<=\d[a-z])|(?<=['\u2032]))\(\d+[a-z]?H\)")
 
 
 def nesting_text(text):
@@ -102,7 +102,7 @@ def needs_enclosing(text):
 
 def unit_phrase(text, tail):
     if needs_enclosing(text):
-        return f"({text}{tail})" if tail.startswith(" ") else f"({text}){tail}"
+        return enclose(text + tail) if tail.startswith(" ") else enclose(text) + tail
     return text + tail
 
 

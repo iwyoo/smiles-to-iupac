@@ -1937,7 +1937,7 @@ def _name_labelled(mol, labels, finish=None):
                 raise
             multiplicative = None
         if multiplicative is not None:
-            if labels:
+            if not set(labels) <= isotope_context["consumed"]:
                 raise UnsupportedStructure("isotopic modification of a multiplicative name is not supported yet")
             return multiplicative if finish is None else finish(multiplicative, {})
         isotope_context["consumed"].clear()
@@ -2621,6 +2621,11 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     stereo_context = BRANCH_STEREO.get()
     used_before = set(stereo_context["used"]) if stereo_context else set()
     chain_used = set()
+    from ._substituents import ISOTOPE_LABELS
+
+    isotope_context = ISOTOPE_LABELS.get()
+    consumed_before = set(isotope_context["consumed"]) if isotope_context else set()
+    chain_consumed = set()
     principal_atoms = groups.get(principal, {})
     if principal_atoms:
         owned = set().union(*principal_atoms.values())
@@ -2647,14 +2652,19 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 for chain in (path, path[::-1]):
                     if stereo_context:
                         stereo_context["used"] &= used_before
+                    if isotope_context:
+                        isotope_context["consumed"] &= consumed_before
                     candidate = _evaluate(
                         mol, graph, halogens, aromatic_atoms, chain, principal, principal_atoms, owned, attach, n_names, stereo
                     )
                     if chain_best is None or candidate[0] < chain_best[0]:
                         chain_best = candidate
                         chain_used = set(stereo_context["used"]) - used_before if stereo_context else set()
+                        chain_consumed = set(isotope_context["consumed"]) - consumed_before if isotope_context else set()
         except UnsupportedStructure as error:
             chain_error, chain_best = error, None
+        if isotope_context:
+            isotope_context["consumed"] &= consumed_before
         if chain_best is not None and chain_best[0][0] == 1:
             chain_best = None
     chain_count = -chain_best[0][0] if chain_best else 0
@@ -2698,6 +2708,8 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         raise UnsupportedStructure("no parent carries the principal group")
     if stereo_context:
         stereo_context["used"] |= chain_used
+    if isotope_context:
+        isotope_context["consumed"] |= chain_consumed
     if _is_terminal(principal) and chain_count < len(principal_atoms):
         carbo = _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo, n_names)
         if carbo is not None and -carbo[0][0] > chain_count:
@@ -4515,6 +4527,53 @@ def _chain_size(mol, idx):
     return max((len(p) for p in _paths(graph, eligible) if idx in p), default=0)
 
 
+def _unit_parts(unit, attach, arm):
+    """Parts of the name of the multiplied unit cut from `arm` (atoms of the full molecule); its isotopic descriptor
+    is inserted in front of the parent hydride name (P-82.2.1)."""
+    from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    index = {atom: i for i, atom in enumerate(sorted(arm))}
+    labels = {index[a]: entry for a, entry in context["labels"].items() if a in index} if context else {}
+    token = ISOTOPE_LABELS.set(None)
+    stereo_token = BRANCH_STEREO.set(None)
+    try:
+        if not labels:
+            return _select(unit, attach)[2]
+        entries = _isotope_entries(labels)
+        inner = {"labels": labels, "consumed": set(), "mol": unit}
+        ISOTOPE_LABELS.set(inner)
+        BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()})
+        _, name, parts = _select(unit, attach, stereo=entries)
+        inner["consumed"].clear()
+        inner.pop("cache", None)
+        _, name, parts = _select(unit, attach, stereo=entries)
+        name = _with_labels(unit, labels, inner["consumed"], name, parts, lambda: _select(unit, attach, stereo=entries)[1:])
+    finally:
+        BRANCH_STEREO.reset(stereo_token)
+        ISOTOPE_LABELS.reset(token)
+    prefix, body, tail, locant = parts[:4]
+    stem = name[: len(name) - len(tail)] if tail else name
+    return (stem[: len(prefix)] if stem.startswith(prefix) else "", stem[len(prefix):] if stem.startswith(prefix) else stem, tail, locant)
+
+
+def _modified_unit_smiles(unit, atoms):
+    """Canonical SMILES of a cut unit, its isotopically modified atoms marked, so that units modified differently are
+    not identical (P-82.2.2)."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    labels = {a: entry for a, entry in context["labels"].items() if a in atoms} if context else {}
+    if not labels:
+        return Chem.MolToSmiles(unit)
+    marked, codes = Chem.Mol(unit), {}
+    for index, atom in zip(sorted(atoms), marked.GetAtoms()):
+        if index in labels:
+            entry = labels[index]
+            atom.SetAtomMapNum(10 + codes.setdefault((entry["skeleton"], tuple(sorted(entry["H"].items()))), len(codes)))
+    return Chem.MolToSmiles(marked)
+
+
 def _identical_group_units(mol, graph, group_atoms):
     """True when two disjoint, identical, non-trivial fragments hanging off
     different acyclic bonds each carry a principal group -- the shape that
@@ -4532,7 +4591,7 @@ def _identical_group_units(mol, graph, group_atoms):
             if other in atoms or not atoms & group_atoms or not atoms - group_atoms:
                 continue
             canonical, _ = _unit_molecule(mol, atoms, root)
-            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical), root))
+            sides.append((bond.GetIdx(), atoms, _modified_unit_smiles(canonical, atoms), root))
     plain = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=False)
     chiral = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=True)
     for i, (bi, ai, si, ri) in enumerate(sides):
@@ -4947,7 +5006,7 @@ def _natural_product_linker_name(mol, graph, stereo):
 
 def _stereo_within(element, atoms):
     kind, where, _ = element
-    return where in atoms if kind == "atom" else all(a in atoms for a in where)
+    return where in atoms if kind in ("atom", "isotope") else all(a in atoms for a in where)
 
 
 def _ring_linker_name(mol, graph, stereo):
@@ -4985,16 +5044,21 @@ def _ring_linker_name(mol, graph, stereo):
             for r, root in attachments
         ):
             continue
-        units = [_unit_molecule(mol, atoms, root) for atoms, (_, root) in zip(arms, attachments)]
-        if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
+        from ._substituents import ISOTOPE_LABELS
+
+        labelled = bool(ISOTOPE_LABELS.get())
+        units = [_unit_molecule(mol, atoms, root, refill=labelled) for atoms, (_, root) in zip(arms, attachments)]
+        if len({_modified_unit_smiles(unit[0], atoms) for (unit, atoms) in zip(units, arms)}) != 1:
             continue
         unit, attach = units[0]
         try:
-            _, _, parts = _select(unit, attach)
+            parts = _unit_parts(unit, attach, arms[0])
         except UnsupportedStructure:
             continue
+        arm_atoms = arms[0] | arms[1]
         ring_stereo = [element for element in stereo if _stereo_within(element, ring_set)]
-        if len(ring_stereo) != len(stereo) or any(kind != "atom" for kind, _, _ in ring_stereo):
+        arm_isotopes = [element for element in stereo if element[0] == "isotope" and element[1] in arm_atoms]
+        if len(ring_stereo) + len(arm_isotopes) != len(stereo) or any(kind not in ("atom", "isotope") for kind, _, _ in ring_stereo):
             raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
         if spec is not None:
             linker = name_ring_component(mol, ring, attachments, [], None, stereo=ring_stereo)
@@ -5018,6 +5082,9 @@ def _ring_linker_name(mol, graph, stereo):
         prefix, body, tail, locant = parts[:4]
         lead = f"{locant},{locant}'-" if locant is not None else ""
         text = prefix + body
+        isotope_context = ISOTOPE_LABELS.get()
+        if isotope_context is not None:
+            isotope_context["consumed"].update(atom for kind, atom, _ in ring_stereo + arm_isotopes if kind == "isotope")
         linker_text = f"({linker[0]})" if linker[1] and not ring_stereo else enclose(linker[0])
         if prefix:
             return f"{lead}{linker_text}{_bis_unit(text, tail)}"

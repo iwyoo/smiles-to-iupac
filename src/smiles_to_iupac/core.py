@@ -737,13 +737,28 @@ _MULTIPLIED_GROUP = re.compile(r"(di|bis|tri|tris|tetra|tetrakis|penta|hexa)[\[{
 _NUCLIDE_ITEM = re.compile(r"^(\d+)([A-Z][a-z]?)(\d*)$")
 
 
+def _multiplied_factor(name, position):
+    """How many times the group at `position` is repeated: the product of the multipliers of the enclosing brackets."""
+    opened = []
+    for index, char in enumerate(name[:position]):
+        if char in "([{":
+            opened.append(index)
+        elif char in ")]}" and opened:
+            opened.pop()
+    factor = 1
+    for index in opened:
+        multiplier = _MULTIPLIED_GROUP.search(name[: index + 1])
+        if multiplier:
+            factor *= _MULTIPLIER_VALUE[multiplier.group(1)]
+    return factor
+
+
 def _cited_nuclides(name):
     table = Chem.GetPeriodicTable()
     cited = {}
     for found in re.finditer(r"\(([^()]*)\)", name):
         group = found.group(1)
-        multiplier = _MULTIPLIED_GROUP.search(name[: found.start()])
-        factor = _MULTIPLIER_VALUE[multiplier.group(1)] if multiplier else 1
+        factor = _multiplied_factor(name, found.start())
         items = group.split(",")
         pending = []
         for item in items:

@@ -27,7 +27,7 @@ from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_ani
 from ._functional_prefixes import functional_names, nitro_atoms
 from ._locant_omission import omits_all_locants
 from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, ENCLOSE_MULTIPARENT, chain_numberings, monocycle_numberings, system_numberings
-from ._substituents import cite_heteroatom_double_bonds, format_substituent_prefixes, name_branch
+from ._substituents import cite_heteroatom_double_bonds, format_substituent_prefixes, label_functional_branch, name_branch
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3, "Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "M": 0, "P": 1, "m": 2, "p": 3}
 PARENT_START = contextvars.ContextVar("parent_start", default=0)
@@ -406,7 +406,8 @@ def _evaluate_skeleton(
         def branch(root, atom):
             if root in named:
                 context = stereo_context
-                return cite_heteroatom_double_bonds(named[root], graph, root, atom, mol, context) if context else named[root]
+                cited = cite_heteroatom_double_bonds(named[root], graph, root, atom, mol, context) if context else named[root]
+                return label_functional_branch(cited, graph, root, atom, halogens, mol)
             atoms = _component(graph, root, set(skeleton) | blocked)
             bonds = [b for b in unsaturated if b[0] in atoms and b[1] in atoms]
             if bonds:
