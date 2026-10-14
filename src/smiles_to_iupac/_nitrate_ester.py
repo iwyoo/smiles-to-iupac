@@ -27,14 +27,14 @@ Scope: a single nitrogen atom shaped like a nitrate ester -- one N-O-R
 single bond, two terminal oxygens (either the charged or neutral
 representation), R named via `name_branch`. The ester ranks above the
 alcohol, amine, nitrile, aldehyde, ketone, amide, ether and ring groups of R,
-which stay prefixes (P-41); R holding an acid or another ester, and more than
-one nitrate group, raise `UnsupportedStructure`.
+which stay prefixes (P-41); R holding an acid or another ester raises `UnsupportedStructure`. Several nitrate
+groups on one organyl group are named like the acetates of the same polyol (P-65.6.3.2.2).
 """
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphate import check_ester_organyl, format_ester_words
+from ._phosphate import check_ester_organyl, format_ester_words, name_polyester_through_acetates
 from ._substituents import name_branch
 
 _NITROGEN = 7
@@ -94,8 +94,14 @@ def has_nitrate_ester_shape(mol) -> bool:
 
 def name_nitrate_ester(mol) -> str:
     nitrogen_atoms = _nitrate_ester_nitrogen_atoms(mol)
-    if len(nitrogen_atoms) != 1:
-        raise UnsupportedStructure("more than one nitrate group is not supported yet")
+    if len(nitrogen_atoms) > 1:
+        group_atoms = {
+            n.GetIdx() for nitrogen in nitrogen_atoms for n in [nitrogen, *nitrogen.GetNeighbors()] if n.GetAtomicNum() in (7, 8)
+        }
+        if any(n.GetAtomicNum() != _OXYGEN for nitrogen in nitrogen_atoms for n in nitrogen.GetNeighbors()):
+            raise UnsupportedStructure("a chalcogen analogue of several nitrate groups is not supported yet")
+        check_ester_organyl(mol, group_atoms)
+        return name_polyester_through_acetates(mol, [n.GetIdx() for n in nitrogen_atoms], "nitrate", "nitrooxy")
     (nitrogen,) = nitrogen_atoms
 
     group_atom_idxs = {nitrogen.GetIdx()} | {n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in _ESTER_ATOMS}
