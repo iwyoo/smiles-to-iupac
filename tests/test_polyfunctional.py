@@ -1652,6 +1652,21 @@ def test_n_hydroxy_and_n_alkoxy_groups_on_two_amines_of_one_skeleton(smiles, exp
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-62.2.4.1.3: of the amines on a branched skeleton the chain takes the most amine suffixes, the rest are amino prefixes
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CNCC(CNC)CNC", "N1,N3-dimethyl-2-[(methylamino)methyl]propane-1,3-diamine", id="third_amine_is_an_n_substituted_amino_prefix"),
+        pytest.param("CNCC(CN)CNC", "2-(aminomethyl)-N1,N3-dimethylpropane-1,3-diamine", id="third_amine_is_primary"),
+        pytest.param("CN(C)CC(CN(C)C)CN(C)C", "2-[(dimethylamino)methyl]-N1,N1,N3,N3-tetramethylpropane-1,3-diamine", id="tertiary_amines"),
+        pytest.param("CNCCC(CCNC)CCNC", "N1,N5-dimethyl-3-[2-(methylamino)ethyl]pentane-1,5-diamine", id="longer_arms"),
+        pytest.param("CNCC(C)(CNC)CNC", "N1,N3,2-trimethyl-2-[(methylamino)methyl]propane-1,3-diamine", id="quaternary_branch_carbon"),
+    ],
+)
+def test_branched_polyamine_with_n_substituted_amino_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

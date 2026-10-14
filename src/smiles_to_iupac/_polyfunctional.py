@@ -4341,7 +4341,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         if named is not None:
             return named
         return _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens)
-    if len(amine_nitrogens) > 1 and not primaries and not ISOTOPE_LABELS.get() and not SUBSTITUTED_AMINE_PREFIX.get():
+    if len(amine_nitrogens) > 1 and not ISOTOPE_LABELS.get() and not SUBSTITUTED_AMINE_PREFIX.get():
         named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
         if named is not None:
             return named
@@ -4521,39 +4521,56 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
             return None
         carbons[i] = attached[0]
         arms[i] = [x for x in graph[i] if x not in backbone]
-    keep = sorted(backbone | indexes)
-    editable = Chem.RWMol(mol)
-    position_of_carbon = {c: position for position, c in enumerate(sorted(set(carbons.values())), start=1)}
-    for i in indexes:
-        editable.GetAtomWithIdx(carbons[i]).SetAtomMapNum(position_of_carbon[carbons[i]])
-        editable.GetAtomWithIdx(i).SetBoolProp("_cut_amine_n", True)
-    for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
-        editable.RemoveAtom(idx)
-    parent = editable.GetMol()
-    for a in parent.GetAtoms():
-        if a.HasProp("_cut_amine_n"):
-            a.SetIntProp("_capacity", 2)
-            a.SetNumExplicitHs(2)
-            a.SetNoImplicit(True)
-            a.SetBoolProp("_cationic_amine", True)
-    Chem.SanitizeMol(parent)
-    mapped = {a.GetAtomMapNum(): a.GetIdx() for a in parent.GetAtoms() if a.GetAtomMapNum()}
-    for a in parent.GetAtoms():
-        a.SetAtomMapNum(0)
-    n_names = []
-    for i in sorted(indexes):
-        for arm in arms[i]:
-            name, compound = name_branch(graph, arm, i, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-            n_names.append((name, compound, ("N", mapped[position_of_carbon[carbons[i]]], i)))
-    try:
-        with _renumbered_branch_stereo(keep):
-            result = _select(parent, None, n_names)
-    except UnsupportedStructure:
-        return None
-    if any(m not in result[2][4] for m in mapped.values()) or any(name not in result[1] for name, *_ in n_names):
-        return None
-    positions = {keep[new]: locant for new, locant in result[2][4].items() if new < len(keep)}
-    return result[0], result[1], (*result[2][:4], positions, *result[2][5:])
+    def attempt(kept):
+        cut = indexes - kept
+        kept_atoms = set(kept)
+        for i in kept:
+            for arm in arms[i]:
+                kept_atoms |= _arm_atoms(graph, arm, i)
+        keep = sorted(backbone | cut | kept_atoms)
+        editable = Chem.RWMol(mol)
+        position_of_carbon = {c: position for position, c in enumerate(sorted({carbons[i] for i in cut}), start=1)}
+        for i in cut:
+            editable.GetAtomWithIdx(carbons[i]).SetAtomMapNum(position_of_carbon[carbons[i]])
+            editable.GetAtomWithIdx(i).SetBoolProp("_cut_amine_n", True)
+        for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
+            editable.RemoveAtom(idx)
+        parent = editable.GetMol()
+        for a in parent.GetAtoms():
+            if a.HasProp("_cut_amine_n"):
+                a.SetIntProp("_capacity", 2)
+                a.SetNumExplicitHs(2)
+                a.SetNoImplicit(True)
+                a.SetBoolProp("_cationic_amine", True)
+        Chem.SanitizeMol(parent)
+        mapped = {a.GetAtomMapNum(): a.GetIdx() for a in parent.GetAtoms() if a.GetAtomMapNum()}
+        for a in parent.GetAtoms():
+            a.SetAtomMapNum(0)
+        n_names = []
+        for i in sorted(cut):
+            for arm in arms[i]:
+                name, compound = name_branch(graph, arm, i, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                n_names.append((name, compound, ("N", mapped[position_of_carbon[carbons[i]]], i)))
+        token = SUBSTITUTED_AMINE_PREFIX.set(True) if kept else None
+        try:
+            with _renumbered_branch_stereo(keep):
+                result = _select(parent, None, n_names)
+        except UnsupportedStructure:
+            return None, set()
+        finally:
+            if token is not None:
+                SUBSTITUTED_AMINE_PREFIX.reset(token)
+        missing = {i for i in cut if mapped[position_of_carbon[carbons[i]]] not in result[2][4]}
+        if missing or any(name not in result[1] for name, *_ in n_names):
+            return None, missing
+        positions = {keep[new]: locant for new, locant in result[2][4].items() if new < len(keep)}
+        return (result[0], result[1], (*result[2][:4], positions, *result[2][5:])), set()
+
+    named, missing = attempt(frozenset())
+    if named is None and missing and len(indexes - missing) > 1:
+        # P-62.2.4.1.3: an amine beyond the largest chain of amine suffixes is an amino prefix that keeps its substituents
+        named, _ = attempt(frozenset(missing))
+    return named
 
 
 def _share_chain_backbone(mol, graph, nitrogens):
