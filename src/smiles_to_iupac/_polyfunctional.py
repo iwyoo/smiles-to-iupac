@@ -3086,13 +3086,26 @@ def _joins_two_rings(bond):
     return bond.GetBondTypeAsDouble() == 1.0 and a.IsInRing() and b.IsInRing() and not bond.IsInRing()
 
 
+def _plain_diazene(bond):
+    """An acyclic N=N bond whose nitrogens carry only a carbon group or hydrogen: a ring that contains nitrogen is the
+    parent beside it, the diazene being the prefix 'phenyldiazenyl' (P-44.1.2.2, P-68.3.1.3)."""
+    atoms = (bond.GetBeginAtom(), bond.GetEndAtom())
+    return bond.GetBondTypeAsDouble() == 2.0 and all(
+        not a.IsInRing()
+        and not a.GetFormalCharge()
+        and a.GetDegree() <= 2
+        and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors() if n.GetIdx() not in {x.GetIdx() for x in atoms})
+        for a in atoms
+    )
+
+
 def _only_plain_hydrazines(mol):
     """Every acyclic N-N bond is a single bond between chain nitrogens that bear only hydrogen, nitrogen and carbon
     without a double bond, so the hydrazine is a prefix beside a ring that contains nitrogen (P-44.1.2.2); one C=N on
     a hydrazine nitrogen is its ylidene substituent (P-68.3.1.2.2), two make an azine."""
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtom(), bond.GetEndAtom()
-        if a.GetAtomicNum() != 7 or b.GetAtomicNum() != 7 or bond.IsInRing() or _joins_two_rings(bond):
+        if a.GetAtomicNum() != 7 or b.GetAtomicNum() != 7 or bond.IsInRing() or _joins_two_rings(bond) or _plain_diazene(bond):
             continue
         if bond.GetBondTypeAsDouble() != 1.0 or a.IsInRing() or b.IsInRing() or _is_azide_part(a):
             return False

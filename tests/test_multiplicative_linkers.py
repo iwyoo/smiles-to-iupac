@@ -591,6 +591,33 @@ def test_double_bond_descriptor_and_hydroxy_suffix_of_a_diazene_or_chain_hydride
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-41, P-44.1.2.2, P-68.3.1.3: a nitrogen heterocycle and a diazene are of one class, and the ring is the parent beside the diazenyl prefix
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccc(N=Nc2ccccn2)cc1", "2-(phenyldiazenyl)pyridine", id="pyridine_position_2"),
+        pytest.param("c1ccc(N=Nc2ccncc2)cc1", "4-(phenyldiazenyl)pyridine", id="pyridine_position_4"),
+        pytest.param("c1ccc(N=Nc2cccnc2)cc1", "3-(phenyldiazenyl)pyridine", id="pyridine_position_3"),
+        pytest.param("CN=Nc1ccccn1", "2-(methyldiazenyl)pyridine", id="alkyl_on_the_far_nitrogen"),
+        pytest.param("N=Nc1ccccn1", "2-diazenylpyridine", id="unsubstituted_diazenyl"),
+        pytest.param("Cc1ccc(N=Nc2ccccn2)cc1", "2-[(4-methylphenyl)diazenyl]pyridine", id="substituted_aryl_group"),
+        pytest.param("Cc1cccc(N=Nc2ccccc2)n1", "2-methyl-6-(phenyldiazenyl)pyridine", id="ring_substituent_beside_the_diazenyl"),
+        pytest.param("c1ccc(/N=N/c2ccccn2)cc1", "2-[(E)-phenyldiazenyl]pyridine", id="e_descriptor_inside_the_prefix"),
+        pytest.param("c1ccc(/N=N\\c2ccccn2)cc1", "2-[(Z)-phenyldiazenyl]pyridine", id="z_descriptor_inside_the_prefix"),
+        pytest.param("c1ccc(N=Nc2nccs2)cc1", "2-(phenyldiazenyl)-1,3-thiazole", id="thiazole"),
+        pytest.param("c1ccc(N=Nc2ccc3ccccc3n2)cc1", "2-(phenyldiazenyl)quinoline", id="fused_nitrogen_ring"),
+        pytest.param("c1ccc(N=Nc2ccc[nH]2)cc1", "2-(phenyldiazenyl)-1H-pyrrole", id="indicated_hydrogen"),
+        pytest.param("c1ccc(N=Nc2cnc3ccccn23)cc1", "3-(phenyldiazenyl)imidazo[1,2-a]pyridine", id="fused_ring_with_a_bridgehead_nitrogen"),
+        pytest.param("c1ccc(N=Nc2ccc(N=Nc3ccccc3)nc2)cc1", "2,5-bis(phenyldiazenyl)pyridine", id="two_diazenyl_groups"),
+        pytest.param("c1ccc(N=Nc2ccccn2)cc1C(=O)O", "3-[(pyridin-2-yl)diazenyl]benzoic acid", id="acid_outranks_the_ring"),
+        pytest.param("c1ccc(N=Nc2ccccc2)cc1", "diphenyldiazene", id="carbocycles_lose_to_the_diazene"),
+        pytest.param("c1ccc(N=Nc2ccco2)cc1", "(furan-2-yl)(phenyl)diazene", id="oxygen_ring_loses_to_the_diazene"),
+    ],
+)
+def test_diazene_beside_a_nitrogen_ring_is_a_prefix_of_the_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [
