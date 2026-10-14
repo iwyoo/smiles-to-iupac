@@ -27,7 +27,9 @@ Scope, deliberately narrow: the alpha-amino-acid backbone (acyclic,
 exactly one -CH2- bonded to a plain 5-membered aromatic ring bearing
 exactly 2 nitrogens (one NH, one pyridine-type) and 3 carbons, only one of
 which carries the -CH2- branch (the other two are plain aromatic -CH=).
-Which specific ring nitrogen sits next to the substituted carbon is not
+The nitrogens must be separated by a carbon (1,3-diazole) and the branch must
+sit on C-4/C-5, next to one nitrogen only (not pyrazolyl, not imidazol-2-yl).
+Which of the two nitrogens sits next to the substituted carbon is not
 checked -- the NH's position is a fast tautomeric/drawing choice, not a
 distinct molecule, so either arrangement is accepted. Any substituent on
 the ring itself (would need the special pi/tau numbering) is out of
@@ -59,6 +61,10 @@ def _is_imidazole_ring_with_one_substituent(mol, graph, ring_root, coming_from):
     if nh_count != 1 or pyridine_count != 1:
         return False
     if any(mol.GetAtomWithIdx(n).GetDegree() != 2 for n in nitrogens):
+        return False
+    if mol.GetBondBetweenAtoms(*nitrogens) is not None:
+        return False
+    if sum(1 for n in graph[ring_root] if n in nitrogens) != 1:
         return False
 
     substituted = [c for c in carbons if [n for n in graph[c] if n not in ring_set]]
