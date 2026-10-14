@@ -15,7 +15,7 @@ from ._substituents import format_mononuclear_prefixes, name_branch
 
 def has_polyphosphane_shape(mol) -> bool:
     phosphorus = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 15]
-    if len(phosphorus) != 2:
+    if len(phosphorus) != 2 or any(p.IsInRing() for p in phosphorus):
         return False
     if any(n.GetAtomicNum() == 15 for p in phosphorus for n in p.GetNeighbors()):
         return False

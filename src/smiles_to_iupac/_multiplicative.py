@@ -31,6 +31,10 @@ from ._multiplicative_text import enclose, join_parts, multiplier_word, primed_l
 
 _MAX_GROUP = 8
 _SENIOR_HYDRIDE_ATOMS = {5, 14, 15, 32, 33, 50, 51, 82, 83}
+# P-16.3.6(c): 'bis(oxolane)', since 'dioxolane' is a ring with two oxygen atoms; retained names do not read that way
+_REPLACEMENT_RING_START = re.compile(
+    r"(?!thiophene|selenophene|tellurophene|thiomorpholine|azulene)(?:ox|thi|selen|tellur|az|phosph|ars|stib|bism|sil|germ|stann|plumb|bor)[a-z]*(?:ane|ine|ene|ole|ete)"
+)
 
 
 @dataclass
@@ -384,7 +388,10 @@ def _attempt(mol, groups, selected, tree, core, name_function):
 
     unit_atoms = set().union(*(u.atoms for u in selected))
     principal = principal_rank_of(groups, unit_atoms)
-    if principal is None and any(a.GetAtomicNum() in _SENIOR_HYDRIDE_ATOMS for a in mol.GetAtoms()):
+    unit_ring_atoms = set().union(*(u.ring_atoms for u in selected))
+    if principal is None and any(
+        a.GetAtomicNum() in _SENIOR_HYDRIDE_ATOMS and a.GetIdx() not in unit_ring_atoms for a in mol.GetAtoms()
+    ):
         return None
     if principal is None and any(g.name == "imine" for g in groups):
         return None
@@ -592,7 +599,7 @@ def _assemble(count, unit, central, arm_parts):
         )
         multiplier = multiplier_word(count, use_bis=not single_locant_only)
         linker = enclose(central_text + multiplier + enclose(arm_text))
-    if unit.substituted or unit.text[0].isdigit():
+    if unit.substituted or unit.text[0].isdigit() or _REPLACEMENT_RING_START.fullmatch(unit.text):
         unit_text = multiplier_word(count, True) + enclose(unit.text)
     elif unit.has_locants:
         unit_text = multiplier_word(count, False) + enclose(unit.text)
