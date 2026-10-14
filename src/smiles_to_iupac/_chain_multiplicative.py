@@ -599,11 +599,14 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
         linker = _linker_text(branches, central, arm_parts)
+        if unit_kind == "imine":
+            if _imine_unit_needs_bis(text, units[0][0]):
+                return f"{lead}{linker}{multiplier_word(count, True)}({text})"
+            return f"{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
         if (
             unit_kind == "hydride"
             or text.startswith(("N-", "di", "tri", "tetra"))
             or any(ch.isdigit() or ch in "- " for ch in text)
-            or (unit_kind == "imine" and _ring_on_imine_carbon(units[0][0]))
         ):
             return f"{lead}{linker}{multiplier_word(count, True)}({text})"
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
@@ -636,6 +639,12 @@ _CENTER_ACIDS = ("phosphonic acid", "arsonic acid", "stibonic acid", "phosphonou
 _HYDRIDE_ENDINGS = ("phosphane", "arsane", "silane", "germane", "stannane", "plumbane")
 _HYDRIDE_ORDER = (15, 33, 14, 32, 50, 82)
 _MULTIPLIED_HYDRIDE = re.compile(r"^(?:di|tri|tetra|penta|hexa|hepta|octa)(?:phosphane|arsane|silane|germane|stannane|plumbane)$")
+
+
+def _imine_unit_needs_bis(text, unit):
+    """'bis(1-phenylmethanimine)' when the unit name opens with a locant or a prefix that 'di' would fuse with;
+    'di(propan-2-imine)' otherwise (P-16.3.6)."""
+    return text[0].isdigit() or text.startswith(("N", "di", "tri", "tetra")) or _ring_on_imine_carbon(unit)
 
 
 def _ring_on_imine_carbon(unit):

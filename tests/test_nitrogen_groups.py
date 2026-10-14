@@ -1122,6 +1122,8 @@ def test_ring_imine_and_oxime(smiles, expected):
         pytest.param("c1ccccc1C=NCN=Cc1ccccc1", "N,N'-methylenebis(phenylmethanimine)", id="substituted_imine_units_use_bis"),
         pytest.param("C=NC1CCC(N=C)CC1", "N,N'-(cyclohexane-1,4-diyl)dimethanimine", id="imine_units_on_a_ring_linker"),
         pytest.param("CC=NC(C)N=CC", "N,N'-(ethane-1,1-diyl)diethanimine", id="imine_units_on_a_geminal_linker"),
+        pytest.param("C=NCC(C)N=C", "N,N'-(propane-1,2-diyl)dimethanimine", id="imine_units_on_an_unsymmetrical_linker"),
+        pytest.param("CC(C)=NCC(C)N=C(C)C", "N,N'-(propane-1,2-diyl)di(propan-2-imine)", id="imine_unit_with_a_locant_uses_di_and_enclosing_marks"),
         pytest.param("c1ccccc1C=Nc1ccc(N=Cc2ccccc2)cc1", "N,N'-(1,4-phenylene)bis(phenylmethanimine)", id="substituted_imine_units_on_an_arene_linker"),
         pytest.param("CC=NN1CCCC1", "N-(pyrrolidin-1-yl)ethanimine", id="imine_nitrogen_on_a_ring_nitrogen"),
         pytest.param("O=CC=NN1CCCC1", "[(pyrrolidin-1-yl)imino]acetaldehyde", id="ring_nitrogen_imino_prefix_under_an_aldehyde"),
