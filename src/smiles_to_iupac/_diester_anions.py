@@ -82,7 +82,10 @@ def cip_labels(mol, side, chain_double_bonds=False):
     if any(
         e.type != Chem.StereoType.Atom_Tetrahedral and not allowed(mol, e) and not is_polyhedral_centre(mol, e) for e in specified
     ) or any(
-        e.type == Chem.StereoType.Bond_Double and e.specified != Chem.StereoSpecified.Specified for e in in_side
+        e.type == Chem.StereoType.Bond_Double
+        and e.specified != Chem.StereoSpecified.Specified
+        and not _is_ring_double_bond(mol, e)
+        for e in in_side
     ):
         raise UnsupportedStructure(
             "stereochemistry beyond fully specified tetrahedral stereocenters and ring double bonds is not supported "

@@ -116,6 +116,7 @@ def test_mixed_enyne_ring():
         ("OC1CCC/C=C/CC1O", "(4E)-cyclooct-4-ene-1,2-diol"),
         ("O[C@H]1CCC/C=C/CC[C@@H]1C", "(1S,2S,5E)-2-methylcyclonon-5-en-1-ol"),
         ("OC1C/C=C/CCC/C=C/1", "(2E,7E)-cyclonona-2,7-dien-1-ol"),
+        ("C1=CCC[C@H]2O[C@H]2CC1", "(1R,8S)-9-oxabicyclo[6.1.0]non-4-ene"),
     ],
 )
 def test_ring_double_bond_stereo(smiles, expected):
@@ -130,7 +131,7 @@ def test_ring_double_bond_stereo(smiles, expected):
         ("C1=CC=CC=CC=CC=CC=CC=C1", "cyclotetradeca-1,3,5,7,9,11,13-heptaene"),
         ("C1=C\\C=C/C=C\\C=C/C=C\\1", "(1Z,3Z,5Z,7Z,9E)-cyclodeca-1,3,5,7,9-pentaene"),
         pytest.param("C1CC/C=C\\CC=CCCCC1", "(1Z)-cyclododeca-1,4-diene", id="unspecified_ring_double_bond_gets_no_descriptor"),
-        pytest.param("C1=CCCCC/C=C/CC1", "(5E)-cyclodeca-1,5-diene", id="specified_bond_numbered_after_the_unspecified_one"),
+        pytest.param("C1=CCCCC/C=C/CC1", "(1E)-cyclodeca-1,5-diene", id="only_the_specified_bond_is_cited"),
     ],
 )
 def test_large_unsaturated_carbocycles(smiles, expected):
