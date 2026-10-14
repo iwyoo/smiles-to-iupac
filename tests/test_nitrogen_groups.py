@@ -1350,6 +1350,8 @@ def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
         pytest.param("CC(C)=NC(=S)N(C)C", "N,N-dimethyl-N'-(propan-2-ylidene)thiourea", id="ylidene_on_a_thiourea_nitrogen"),
         pytest.param("NC(=O)NC(=O)c1ccccc1", "N-carbamoylbenzamide", id="urea_beneath_a_carboxamide"),
         pytest.param("NC(=O)NS(=O)(=O)c1ccccc1", "N-carbamoylbenzenesulfonamide", id="urea_beneath_a_sulfonamide"),
+        pytest.param("CNC(=S)NC=S", "N-(methylcarbamothioyl)methanethioamide", id="thiourea_beneath_a_thioamide"),
+        pytest.param("NC(=S)NS(C)(=O)=O", "N-carbamothioylmethanesulfonamide", id="thiourea_beneath_a_sulfonamide"),
         pytest.param("CC(=O)NCCNC(N)=O", "N-[2-(carbamoylamino)ethyl]acetamide", id="carbamoylamino_prefix_beneath_an_amide"),
         pytest.param("O=CNCCCNC(N)=O", "N-[3-(carbamoylamino)propyl]formamide", id="formamide_outranks_urea"),
         pytest.param("NC(=O)NC(=O)O", "carbamoylcarbamic acid", id="carbamoyl_on_the_nitrogen_of_carbamic_acid"),

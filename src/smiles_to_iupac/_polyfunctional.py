@@ -251,12 +251,25 @@ _RING_HETERO_NEIGHBORS = {7, 8, 16, 34, 52}
 
 
 def _urea_carbon(mol, idx):
-    """The carbonyl carbon of a urea core C(=O)(N)N, the amide of carbonic acid: it ranks below every amide of a
-    carboxylic or sulfonic acid (P-66.1.6.1.1.5) and is cited as 'carbamoyl' beneath one."""
+    """The carbon of a urea core C(=X)(N)N, X = O, S, Se or Te, the amide of carbonic acid: it ranks below every amide of
+    a carboxylic or sulfonic acid (P-66.1.6.1.1.5) and is cited as 'carbamoyl' or 'carbamothioyl' beneath one."""
     atom = mol.GetAtomWithIdx(idx)
-    if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or not _double_oxygens(mol, idx):
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or _acyl_chalcogen_of(mol, atom) is None:
         return False
     return len(_single_neighbors(mol, idx, 7)) == 2
+
+
+def _acyl_chalcogen_of(mol, atom):
+    return next(
+        (
+            n.GetAtomicNum()
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() in _CHALCOGEN_RANK
+            and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ),
+        None,
+    )
 
 
 def _outranks_urea(principal):
