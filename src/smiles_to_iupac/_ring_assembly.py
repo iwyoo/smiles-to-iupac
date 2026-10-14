@@ -155,7 +155,7 @@ def _tautomer_fixed_ring_kind(mol, graph, ring, attach_atom):
     (`attach_atom` never matches a role-sequence N-position, so no
     alignment exists and this returns None, same as an outright
     non-match)."""
-    if mol.GetAtomWithIdx(attach_atom).GetAtomicNum() != 7:
+    if mol.GetAtomWithIdx(attach_atom).GetAtomicNum() != 7 or not all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring):
         return None
     for parent_name in ("1H-imidazole", "1H-pyrazole"):
         if any(True for _ in _hetero_ring_alignments(mol, graph, ring, parent_name)):
