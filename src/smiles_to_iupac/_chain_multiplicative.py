@@ -8,7 +8,7 @@ from itertools import combinations
 from rdkit import Chem
 
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_prefix_placeholder
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
@@ -667,11 +667,12 @@ def _amine_arm(unit, attach_atom):
     from ._polyfunctional import amine_unit_name
 
     editable = Chem.RWMol(unit)
-    attach = next((a.GetIdx() for a in editable.GetAtoms() if a.GetAtomMapNum()), None)
+    attach = next((a.GetIdx() for a in editable.GetAtoms() if a.GetAtomMapNum() and not is_prefix_placeholder(a)), None)
     if attach is None:
         return None
     for atom in editable.GetAtoms():
-        atom.SetAtomMapNum(0)
+        if not is_prefix_placeholder(atom):
+            atom.SetAtomMapNum(0)
     mol = editable.GetMol()
     try:
         Chem.SanitizeMol(mol)
@@ -685,6 +686,8 @@ def _unit_name_by_pipeline(unit, unit_kind):
 
     editable = Chem.RWMol(unit)
     for atom in editable.GetAtoms():
+        if is_prefix_placeholder(atom):
+            continue
         if atom.GetAtomMapNum() and atom.GetNoImplicit():
             atom.SetNumExplicitHs(atom.GetNumExplicitHs() + 1)
         atom.SetAtomMapNum(0)
@@ -723,13 +726,15 @@ def _polyamine_lead(unit, count):
     from .core import smiles_to_iupac
 
     editable = Chem.RWMol(unit)
-    attach = next(a.GetIdx() for a in editable.GetAtoms() if a.GetAtomMapNum())
+    attach = next(a.GetIdx() for a in editable.GetAtoms() if a.GetAtomMapNum() and not is_prefix_placeholder(a))
     tail = editable.AddAtom(Chem.Atom(6))
     editable.AddBond(attach, tail, Chem.BondType.SINGLE)
     for _ in range(3):
         methyl = editable.AddAtom(Chem.Atom(6))
         editable.AddBond(tail, methyl, Chem.BondType.SINGLE)
     for atom in editable.GetAtoms():
+        if is_prefix_placeholder(atom):
+            continue
         if atom.GetAtomMapNum() and atom.GetNoImplicit():
             atom.SetNumExplicitHs(atom.GetNumExplicitHs() + 1)
         atom.SetAtomMapNum(0)
