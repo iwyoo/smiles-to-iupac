@@ -4,7 +4,7 @@ diamide."""
 
 from rdkit import Chem
 
-from ._chalcogenourea import n_substituent_names
+from ._chalcogenourea import _UREA_SUBSTITUENT_ELEMENTS, has_group_senior_to_urea, n_substituent_names
 from ._cited_group import cited_group
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_nitro_nitrogen
 from ._numerals import numerical_term
@@ -53,19 +53,29 @@ def _arm_atoms(graph, root, blocked):
     return seen
 
 
-def _hydrocarbon_arms(mol, graph, nitrogen, skip):
+_JUNIOR_ROOTS = {8, 16, 34, 52, 9, 17, 35, 53}
+
+
+def _junior_arm_atom(atom):
+    return atom.GetAtomicNum() in _UREA_SUBSTITUENT_ELEMENTS or atom.IsInRing()
+
+
+def _hydrocarbon_arms(mol, graph, nitrogen, skip, junior=False):
     """(name, compound) of each carbon group on `nitrogen` outside `skip` and the atoms they cover, or None when a
-    group carries a characteristic group."""
+    group carries a characteristic group; with `junior` the groups junior to the amide are prefixes (P-66.1.6.1.1.2)."""
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     names, covered = [], set()
     for root in graph[nitrogen]:
         if root in skip:
             continue
-        if mol.GetAtomWithIdx(root).GetAtomicNum() != 6:
+        root_atom = mol.GetAtomWithIdx(root)
+        if root_atom.GetAtomicNum() != 6 and not (junior and root_atom.GetAtomicNum() in _JUNIOR_ROOTS):
             return None
         arm = _arm_atoms(graph, root, nitrogen)
-        if nitrogen in arm or covered & arm or not all(plain_arm_atom(mol.GetAtomWithIdx(i)) for i in arm):
+        if nitrogen in arm or covered & arm or not all(
+            plain_arm_atom(mol.GetAtomWithIdx(i)) or (junior and _junior_arm_atom(mol.GetAtomWithIdx(i))) for i in arm
+        ):
             return None
         covered |= arm
         if _has_stereo(mol):
@@ -144,16 +154,29 @@ def _carbonyl_chalcogen(atom):
     return None
 
 
+def _carbonic_carbon(atom):
+    """A carbon bearing a doubly bonded chalcogen and otherwise only nitrogen, chalcogen or peroxy links: a unit of a
+    condensed urea, not an acyl group."""
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetDegree() == 3
+        and _carbonyl_chalcogen(atom) is not None
+        and all(n.GetAtomicNum() != 6 for n in atom.GetNeighbors())
+    )
+
+
 def _linker(mol, carbon, neighbor):
     """(linker atoms, next carbon) when `neighbor` bridges `carbon` to another carbonyl carbon, else None."""
     if neighbor.IsInRing() or neighbor.GetIsAromatic():
         return None
     z = neighbor.GetAtomicNum()
     if z == 7:
-        if neighbor.GetDegree() != 2 or neighbor.GetTotalNumHs() != 1:
+        if neighbor.GetDegree() == 2 and neighbor.GetTotalNumHs() == 1:
+            return ([neighbor], next(n for n in neighbor.GetNeighbors() if n.GetIdx() != carbon.GetIdx()))
+        if neighbor.GetDegree() != 3 or neighbor.GetTotalNumHs():
             return None
-        forward = [n for n in neighbor.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
-        return ([neighbor], forward[0])
+        onward = [n for n in neighbor.GetNeighbors() if n.GetIdx() != carbon.GetIdx() and _carbonic_carbon(n)]
+        return ([neighbor], onward[0]) if len(onward) == 1 else None
     if z not in _CHALCOGEN or neighbor.GetDegree() != 2:
         return None
     forward = [n for n in neighbor.GetNeighbors() if n.GetIdx() != carbon.GetIdx()][0]
@@ -234,6 +257,16 @@ def _assemble(mol, graph, chain):
             return None
     arms, hydrazide = [], []
     carbon_set = {c.GetIdx() for c in carbons}
+    if has_group_senior_to_urea(mol, used | {n.GetIdx() for n in ends}):
+        return None
+    linker_arms = {}
+    for index, group in enumerate(linkers):
+        if len(group) == 1 and group[0].GetAtomicNum() == 7 and group[0].GetDegree() == 3:
+            found = _hydrocarbon_arms(mol, graph, group[0].GetIdx(), carbon_set, junior=True)
+            if found is None:
+                return None
+            linker_arms[index] = found[0]
+            used |= found[1]
     for nitrogen in ends:
         if any(b.GetBondTypeAsDouble() != 1.0 for b in nitrogen.GetBonds()):
             return None
@@ -241,7 +274,7 @@ def _assemble(mol, graph, chain):
         hydrazide.append(bool(betas))
         if len(betas) > 1:
             return None
-        found = _hydrocarbon_arms(mol, graph, nitrogen.GetIdx(), carbon_set | {b.GetIdx() for b in betas})
+        found = _hydrocarbon_arms(mol, graph, nitrogen.GetIdx(), carbon_set | {b.GetIdx() for b in betas}, junior=True)
         if found is None:
             return None
         names = {"": found[0]}
@@ -265,16 +298,21 @@ def _assemble(mol, graph, chain):
         if not forward:
             order.reverse()
         positions, replacements, position = [], [], 1
+        linker_positions = {}
         for rank, index in enumerate(order):
             if rank:
                 position += 1
-                replacements.extend(_linker_prefix(linkers[min(index, order[rank - 1])], position))
+                joined = min(index, order[rank - 1])
+                replacements.extend(_linker_prefix(linkers[joined], position))
+                linker_positions[joined] = position
                 position += 1
             positions.append(position)
             symbol = _CHALCOGEN[chalcogens[index].GetAtomicNum()]
             if symbol:
                 replacements.append((position, symbol, True))
-        substituents = []
+        substituents = [
+            (f"N{linker_positions[joined]}", name, compound) for joined, names in linker_arms.items() for name, compound in names
+        ]
         for rank, index in enumerate(order):
             if index in (0, len(carbons) - 1):
                 for prime, names in arms[0 if index == 0 else 1].items():
