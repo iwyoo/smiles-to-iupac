@@ -7,7 +7,7 @@ the carrier from the resulting name.
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix, halogen_substituents
 
 SUFFIX_CARRIERS = {
     "carboxylic_acid": ("C(=O)O", "benzoic acid"),
@@ -131,20 +131,20 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
         from ._common import adjacency
         from ._substituents import name_branch
 
-        return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol, unsaturated=True)
+        return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol, unsaturated=True)
     if not atom.IsInRing():
         from ._common import adjacency
         from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, hetero_branch_name
 
         if atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES:
-            result = hetero_branch_name(adjacency(mol), root, from_atom, {}, frozenset(), mol)
+            result = hetero_branch_name(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol)
             if result is not None:
                 return result
     if atom.IsInRing():
         from ._common import adjacency
         from ._substituents import name_branch
 
-        return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol)
+        return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol)
     if suffix_group is not None and suffix_group not in SUFFIX_CARRIERS:
         raise UnsupportedStructure(f"substituents of a {suffix_group} parent are not supported yet")
     if suffix_group is None and _has_ring(mol, root, from_atom):
@@ -152,7 +152,7 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
         from ._substituents import name_branch
 
         try:
-            return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol)
+            return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol)
         except UnsupportedStructure:
             pass
     name = probe_name(_carrier_smiles(mol, root, from_atom, suffix_group), name_function)
@@ -167,7 +167,7 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
             from ._common import adjacency
             from ._substituents import name_branch
 
-            return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol, unsaturated=True)
+            return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol, unsaturated=True)
         raise UnsupportedStructure(f"substituent prefix could not be extracted from {name!r}")
     raw = name[len(head) : len(name) - len(tail)]
     inner, enclosed = _split_enclosed(raw)

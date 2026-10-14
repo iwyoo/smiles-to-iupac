@@ -593,6 +593,22 @@ def test_chain_parent_with_heteroatom_prefixes(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("N#Cc1ccc(Nc2ccc(Br)cc2)c(C#N)c1", "4-(4-bromoanilino)benzene-1,3-dicarbonitrile"),
+        ("N#Cc1ccc(Nc2cccc(Cl)c2)c(C#N)c1", "4-(3-chloroanilino)benzene-1,3-dicarbonitrile"),
+        ("N#Cc1cccc(C#N)c1Nc1ccc(Br)cc1", "2-(4-bromoanilino)benzene-1,3-dicarbonitrile"),
+        ("N#Cc1ccc(N(C)c2ccc(Br)cc2)c(C#N)c1", "4-(4-bromo-N-methylanilino)benzene-1,3-dicarbonitrile"),
+        ("OC(=O)c1ccc(Nc2ccc(F)cc2)c(C(=O)O)c1", "4-(4-fluoroanilino)benzene-1,3-dicarboxylic acid"),
+        ("NC(=O)c1ccc(Nc2ccc(Br)cc2)c(C(N)=O)c1", "4-(4-bromoanilino)benzene-1,3-dicarboxamide"),
+    ],
+)
+def test_halogenated_anilino_prefix_on_a_ring_with_two_principal_groups(smiles, expected):
+    # P-44.1.1, P-62.2.2, P-65.1.1
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("COc1ccc(O)cc1", "4-methoxyphenol"),
         ("Oc1ccc(cc1)[N+](=O)[O-]", "4-nitrophenol"),
         ("Oc1ccccc1C(O)=O", "2-hydroxybenzoic acid"),
