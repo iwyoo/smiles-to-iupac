@@ -105,7 +105,7 @@ def cyanamide_name(mol):
             for b in amino.GetBonds()
         ):
             continue
-        betas = [n for n in amino.GetNeighbors() if n.GetAtomicNum() == 7]
+        betas = [n for n in amino.GetNeighbors() if n.GetAtomicNum() == 7 and not n.IsInRing()]
         if len(betas) > 1:
             continue
         if not betas:

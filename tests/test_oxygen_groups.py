@@ -1145,6 +1145,13 @@ def test_acid_derivative_prefixes(smiles, expected):
         ("CC(C)=NC(=O)O", "(propan-2-ylidene)carbamic acid"),
         ("N#CCNC(=O)OC", "methyl (cyanomethyl)carbamate"),
         ("CNC(=O)CCNC(=O)O", "[3-(methylamino)-3-oxopropyl]carbamic acid"),
+        ("OC(=O)NN1CCCCC1", "(piperidin-1-yl)carbamic acid"),
+        ("OC(=O)NN1CCOCC1", "(morpholin-4-yl)carbamic acid"),
+        ("O=C(O)NN1CCCC1", "(pyrrolidin-1-yl)carbamic acid"),
+        ("O=C(O)NN1CCNCC1", "(piperazin-1-yl)carbamic acid"),
+        ("OC(=O)NN1CCCCC1C", "(2-methylpiperidin-1-yl)carbamic acid"),
+        ("OC(=O)N(C)N1CCCC1", "methyl(pyrrolidin-1-yl)carbamic acid"),
+        ("OC(=O)Nn1cccc1", "(1H-pyrrol-1-yl)carbamic acid"),
     ],
 )
 def test_carbonic_family_names(smiles, expected):
