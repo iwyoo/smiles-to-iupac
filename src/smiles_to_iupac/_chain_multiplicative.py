@@ -496,7 +496,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             if sum(1 for r in roots if r in branch) != per_branch:
                 keys = None
                 break
-            keys.add(_key(mol, branch, y))
+            keys.add((_key(mol, branch, y), order))
         if keys is not None and len(keys) == 1:
             center = cid
             break

@@ -3621,7 +3621,20 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     """(name, True) of a substituent group made of two identical directly
     joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise. For a group of fused, chained or von
     Baeyer components `place`, a dict, receives the locant of every ring atom and the offset of the assembly name in the
-    group name, so that an isotopic descriptor can be cited in front of it."""
+    group name, so that an isotopic descriptor can be cited in front of it. A double or triple bond to
+    `coming_from` makes the group an ylidene or ylidyne (P-29.2)."""
+    from ._free_valence import suffix_of
+
+    named = _assembly_substituent_yl(mol, graph, root, coming_from, halogens, aromatic_atoms, place, place_monocycles)
+    if named is None:
+        return None
+    suffix = suffix_of(mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble())
+    if suffix == "yl" or named[0].endswith(("ylidene", "ylidyne")):
+        return named
+    return (named[0][: -len("yl")] + suffix, named[1]) if suffix and named[0].endswith("yl") else None
+
+
+def _assembly_substituent_yl(mol, graph, root, coming_from, halogens, aromatic_atoms, place, place_monocycles):
     from ._system_assembly import system_assembly
 
     fused = system_assembly(
