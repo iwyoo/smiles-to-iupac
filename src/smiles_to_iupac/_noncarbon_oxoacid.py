@@ -366,9 +366,11 @@ def _acid_parts(mol):
         return None
     anions = [p["atom"] for p in part["singles"] if p.get("anion")]
     charged = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() in anion_atoms]
-    if bool(cation) != bool(anions) or (anions and charged != anions):
+    free_anion = cation is None and len(anions) == 1 and charged == anions
+    if (bool(cation) != bool(anions) and not free_anion) or (anions and charged != anions):
         return None
     part["cation"] = cation
+    part["free_anion"] = free_anion
     return part
 
 
@@ -580,7 +582,7 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
             stem, infixes = "sulfam", infixes[1:]
     if esters:
         return _ester_name(mol, parts, esters, prefix, stem, infixes, descriptor)
-    if parts["cation"]:
+    if parts["cation"] or parts["free_anion"]:
         anion = prefix + _compose(stem, infixes, "ate" if pentavalent else "ite")
         return _salt_text(parts, [], _hydrogen_words(parts), anion, descriptor)
     if descriptor:
