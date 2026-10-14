@@ -103,6 +103,8 @@ from ._substituents import cited_whole_stereo, format_mononuclear_prefixes, form
 
 _STEREO_DESCRIPTOR = re.compile(r"^\((?:\d+[A-Za-z]+(?:,\d+[A-Za-z]+)*|[A-Za-z]+)\)-")
 
+_SOLE_YLIDENE_DESCRIPTOR = re.compile(r"^\(\d+([EZ])\)-")
+
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
 
@@ -239,6 +241,17 @@ def name_hydrazine(mol) -> str:
     return hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms)
 
 
+def _sole_stereo_element_is_ylidene_bond(mol, n1_idx, n2_idx):
+    """The only specified stereo element is the C=N bond of a hydrazone: its descriptor has no other locant to share
+    the name with, so it is cited in front of the whole name (P-93.4.2.1.3)."""
+    specified = [b for b in mol.GetBonds() if b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)]
+    return (
+        len(specified) == 1
+        and not any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms())
+        and {specified[0].GetBeginAtomIdx(), specified[0].GetEndAtomIdx()} & {n1_idx, n2_idx} != set()
+    )
+
+
 def hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated=False):
     """The name of the hydrazine whose nitrogens are `n1_idx` and `n2_idx`, with whatever hangs on them cited as prefixes
     (P-68.3.1.2.1); every substituent must be nameable by the substituent namer."""
@@ -264,6 +277,10 @@ def hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated
         return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
     if total == 1:
         ((name, compound),) = names_n1 + names_n2
+        ylidene = _SOLE_YLIDENE_DESCRIPTOR.match(name) if _sole_stereo_element_is_ylidene_bond(mol, n1_idx, n2_idx) else None
+        if ylidene:
+            name = name[ylidene.end():]
+            return f"({ylidene.group(1)})-" + (enclose(name) if compound and name[0].isdigit() else name) + "hydrazine"
         return (enclose(name) if compound and (name[0].isdigit() or "(" in name) else name) + "hydrazine"
     # a repeated prefix keeps its locants in the book's names (1,1-dimethyl-2-(propan-2-ylidene)hydrazine)
     if len(set(names_n1 + names_n2)) == total and has_single_arrangement(mol, {n1_idx, n2_idx}):

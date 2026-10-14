@@ -1097,6 +1097,30 @@ def test_ring_imine_and_oxime(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-62.3.1.1, P-62.2.1.3, P-41: a ring nitrogen on the imine nitrogen is the group 'piperidin-1-yl'; an amino group on a ring nitrogen is the amine suffix
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC1CCC(=NN2CCCCC2)CC1", "4-methyl-N-(piperidin-1-yl)cyclohexan-1-imine", id="alkyl_on_the_ring"),
+        pytest.param("CC1CCCCC1=NN1CCCCC1", "2-methyl-N-(piperidin-1-yl)cyclohexan-1-imine", id="alkyl_beside_the_imine_carbon"),
+        pytest.param("CC1CCC(=NN2CCCC2)C1", "3-methyl-N-(pyrrolidin-1-yl)cyclopentan-1-imine", id="five_membered_rings"),
+        pytest.param("ClC1CCC(=NN2CCCCC2)CC1", "4-chloro-N-(piperidin-1-yl)cyclohexan-1-imine", id="halogen_on_the_ring"),
+        pytest.param("CC1CCC(=NN2CCOCC2)CC1", "4-methyl-N-(morpholin-4-yl)cyclohexan-1-imine", id="second_heteroatom_in_the_nitrogen_ring"),
+        pytest.param(
+            "CC1CCC(=NN2CCN(C)CC2)CC1", "4-methyl-N-(4-methylpiperazin-1-yl)cyclohexan-1-imine", id="substituted_nitrogen_ring"
+        ),
+        pytest.param("N=C1CCN(N)CC1", "4-iminopiperidin-1-amine", id="amine_on_a_ring_nitrogen_outranks_the_imine"),
+        pytest.param("CN=C1CCN(N)CC1", "4-(methylimino)piperidin-1-amine", id="substituted_imino_prefix"),
+        pytest.param("ON=C1CCN(N)CC1", "4-(hydroxyimino)piperidin-1-amine", id="oxime_prefix"),
+        pytest.param("N=C1CCCN(N)C1", "3-iminopiperidin-1-amine", id="imine_at_position_3"),
+        pytest.param("N=C1CCN(N)C1", "3-iminopyrrolidin-1-amine", id="five_membered_ring_amine"),
+        pytest.param("O=C1CCN(N)CC1", "1-aminopiperidin-4-one", id="ketone_outranks_the_amine"),
+    ],
+)
+def test_ring_imine_with_a_ring_nitrogen_group_or_an_amino_ring_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -1141,6 +1165,17 @@ def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expe
     "smiles, expected",
     [
         pytest.param("CC=NNC(N)=O", "2-ethylidenehydrazine-1-carboxamide", id="semicarbazone"),
+        # P-93.4.2.1.3, P-93.5.1.4.2.1: the C=N descriptor of a ring ylidene is cited with the locant of the attachment, or alone when the hydrazine has no locant
+        pytest.param("N/N=C1/CCCCC1C", "(Z)-(2-methylcyclohexylidene)hydrazine", id="ring_ylidene_z"),
+        pytest.param("N/N=C1\\CCCCC1C", "(E)-(2-methylcyclohexylidene)hydrazine", id="ring_ylidene_e"),
+        pytest.param("N/N=C1/CCCC1C", "(Z)-(2-methylcyclopentylidene)hydrazine", id="five_membered_ring_ylidene"),
+        pytest.param("CN/N=C1/CCCCC1C", "methyl[(1Z)-2-methylcyclohexylidene]hydrazine", id="ring_ylidene_beside_a_substituent"),
+        pytest.param("CN(C)/N=C1/CCCCC1C", "1,1-dimethyl-2-[(1Z)-2-methylcyclohexylidene]hydrazine", id="ring_ylidene_with_locants"),
+        pytest.param("NC(=O)N/N=C1/CCCCC1C", "2-[(1Z)-2-methylcyclohexylidene]hydrazine-1-carboxamide", id="ring_semicarbazone_z"),
+        pytest.param("NC(=O)N/N=C1\\CCCCC1C", "2-[(1E)-2-methylcyclohexylidene]hydrazine-1-carboxamide", id="ring_semicarbazone_e"),
+        pytest.param("NC(=S)N/N=C1/CCCCC1C", "2-[(1Z)-2-methylcyclohexylidene]hydrazine-1-carbothioamide", id="ring_thiosemicarbazone"),
+        pytest.param("CC(=O)N/N=C1/CCCCC1C", "N'-[(1Z)-2-methylcyclohexylidene]acetohydrazide", id="ring_acylhydrazone"),
+        pytest.param("c1ccccc1N/N=C1/CCCCC1C", "[(1Z)-2-methylcyclohexylidene](phenyl)hydrazine", id="ring_phenylhydrazone"),
         pytest.param("CNC(=O)NNC", "N,2-dimethylhydrazine-1-carboxamide", id="substituted_semicarbazide"),
         pytest.param("CC=NNC(=O)c1ccccc1", "N'-ethylidenebenzohydrazide", id="acylhydrazone"),
         pytest.param("O=C(NN=Cc1ccccc1)c1ccncc1", "N'-benzylidenepyridine-4-carbohydrazide", id="ring_carbohydrazide_hydrazone"),
@@ -1254,6 +1289,13 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         pytest.param("CN(C)C=NN=C(C)C", "N,N-dimethyl-N'-(propan-2-ylidene)methanehydrazonamide", id="ylidene_on_the_terminal_nitrogen"),
         pytest.param("CCN=C(c1ccccc1)N(C)Nc1ccccc1", "N''-ethyl-N-methyl-N'-phenylbenzenecarboximidohydrazide", id="three_nitrogen_locants"),
         pytest.param("NC(=NN)C(N)=NN", "ethanedihydrazonamide", id="two_hydrazonamide_groups"),
+        pytest.param("N=C(NN)N1CCCC1", "pyrrolidine-1-carboximidohydrazide", id="imidohydrazide_on_a_ring_nitrogen"),
+        pytest.param("N=C(NN)N1CCOCC1", "morpholine-4-carboximidohydrazide", id="imidohydrazide_on_a_second_heteroatom_ring"),
+        pytest.param("N=C(NN)N1CCCC1C", "2-methylpyrrolidine-1-carboximidohydrazide", id="substituent_on_the_nitrogen_ring"),
+        pytest.param("CN=C(NN)N1CCCC1", "N''-methylpyrrolidine-1-carboximidohydrazide", id="imino_nitrogen_of_a_ring_imidohydrazide"),
+        pytest.param("N=C(NNC)N1CCCC1", "N'-methylpyrrolidine-1-carboximidohydrazide", id="terminal_nitrogen_of_a_ring_imidohydrazide"),
+        pytest.param("NN=C(N)N1CCCC1", "pyrrolidine-1-carbohydrazonamide", id="hydrazonamide_on_a_ring_nitrogen"),
+        pytest.param("NN=C(N)N1CCCCC1", "piperidine-1-carbohydrazonamide", id="hydrazonamide_on_a_six_membered_ring"),
         pytest.param("NNC(=N)C(=N)NN", "ethanediimidohydrazide", id="two_imidohydrazide_groups"),
         pytest.param("NC=N", "methanimidamide", id="amidine_of_a_one_carbon_parent"),
         pytest.param("CN=CNC1CCOC1", "N'-methyl-N-(oxolan-3-yl)methanimidamide", id="one_carbon_amidine_with_a_ring_on_nitrogen"),
