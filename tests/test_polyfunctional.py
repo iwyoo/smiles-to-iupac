@@ -1400,6 +1400,18 @@ def test_skeletal_replacement_parents_with_groups_on_heteroatom_bonded_carbons_a
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("COCCNC(=S)NCCOC", "N,N'-bis(2-methoxyethyl)thiourea"),
+        ("CC(C)OS(=O)ONC(N)=S", "6-methyl-4-oxo-3,5-dioxa-4λ4-thia-2-azaheptane-1-thioamide"),
+        ("CCOCCOCCOCCOCC(=S)NC", "N-methyl-3,6,9,12-tetraoxatetradecane-1-thioamide"),
+    ],
+)
+def test_chalcogen_urea_and_amide_groups_are_not_skeletal_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param(
             "CC1CCCC(C)N1NS(=O)(=O)c1ccc(NN)cc1",
             "N-(2,6-dimethylpiperidin-1-yl)-4-hydrazinylbenzene-1-sulfonamide",

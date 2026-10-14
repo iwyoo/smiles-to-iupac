@@ -22,6 +22,7 @@ from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._acid_groups import acid_group_at
 from ._common import UnsupportedStructure, nonstandard_bonding
 from ._polyfunctional import (
+    _CHALCOGEN_AMIDE,
     CHAIN_SUFFIX_WORD,
     _SENIORITY,
     _TERMINAL,
@@ -45,12 +46,15 @@ _CHAIN_ENDS = {6, *(z for z in _STANDARD_VALENCE if z != 7)}
 _MINIMUM_UNITS = 4
 _ORDER = [*_SENIORITY[: _SENIORITY.index("amide")], "halide", *_SENIORITY[_SENIORITY.index("amide") :]]
 _TERMINAL_CLASSES = _TERMINAL | {"halide"}
+_AMIDE_OF = {8: "amide", **_CHALCOGEN_AMIDE}
+_AMIDE_CLASSES = tuple(_AMIDE_OF.values())
 _HALIDE_WORD = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _SUFFIX_WORD = {
     **{cls: word for cls, word in CHAIN_SUFFIX_WORD.items() if cls != "ide"},
     "amidine": "imidamide",
     "acid": "oic acid",
     "amide": "amide",
+    **{name: name for name in _CHALCOGEN_AMIDE.values()},
     "nitrile": "nitrile",
     "aldehyde": "al",
     "ketone": "one",
@@ -181,17 +185,18 @@ def _carbonless_groups(mol):
     return found
 
 
-def _carbamoyl_carbons(mol):
-    """{carbon: (oxygen, [nitrogens])} for every C(=O)(N)(N) whose two nitrogens may each serve as the chain atom, the other
-    being the amide nitrogen: an amide expressed as the principal group is senior to the urea (P-51.4.1.3)."""
+def _carbamoyl_carbons(mol, chalcogen=8):
+    """{carbon: (chalcogen atom, [nitrogens])} for every C(=O)(N)(N), or C(=S)(N)(N) and the like with `chalcogen`, whose
+    two nitrogens may each serve as the chain atom, the other being the amide nitrogen: an amide expressed as the principal
+    group is senior to the urea (P-51.4.1.3)."""
     found = {}
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
             continue
-        oxygen = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+        terminal = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == chalcogen and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
         nitrogens = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 7 and not n.IsInRing()]
-        if len(oxygen) == 1 and len(nitrogens) == 2:
-            found[atom.GetIdx()] = (oxygen[0].GetIdx(), nitrogens)
+        if len(terminal) == 1 and len(nitrogens) == 2:
+            found[atom.GetIdx()] = (terminal[0].GetIdx(), nitrogens)
     return found
 
 
@@ -375,11 +380,11 @@ def _name_heteroacyclic(mol, amine_groups):
             groups.setdefault(found[0], {})[atom.GetIdx()] = found[1]
     for carbon, (cls, atoms) in carbonless.items():
         groups.setdefault(cls, {})[carbon] = atoms
-    carbamoyl = _carbamoyl_carbons(mol)
+    carbamoyl_of = {name: _carbamoyl_carbons(mol, z) for z, name in _AMIDE_OF.items()}
     if aminium:
         groups["aminium"] = aminium
     ring_groups = _ring_occurrences(mol)
-    classes = set(groups) | {c for c, _, _ in ring_groups} | ({"amide"} if carbamoyl else set())
+    classes = set(groups) | {c for c, _, _ in ring_groups} | {name for name, found in carbamoyl_of.items() if found}
     principal = "aminium" if aminium else next((c for c in _ORDER if c in classes), None)
     if amine_groups and not aminium and principal in (None, "amine"):
         for nitrogen in filter(lambda a: _amine_nitrogen(mol, a), mol.GetAtoms()):
@@ -425,7 +430,8 @@ def _name_heteroacyclic(mol, amine_groups):
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
     }
     best, best_chain, replacement_atoms = None, (), set()
-    for path in _chain_paths(graph, eligible, carbamoyl if principal == "amide" else {}):
+    carbamoyl = carbamoyl_of.get(principal, {})
+    for path in _chain_paths(graph, eligible, carbamoyl):
         if not _acceptable_path(mol, path):
             continue
         replacement_atoms.update(path)
@@ -502,7 +508,7 @@ def _evaluate(
         return None
     if attaches:
         attach = attaches[0]
-    if principal == "amide" and carbamoyl:
+    if principal in _AMIDE_CLASSES and carbamoyl:
         principal_atoms = dict(principal_atoms)
         for end, neighbor in ((chain[0], chain[1]), (chain[-1], chain[-2])):
             if end in carbamoyl and end not in principal_atoms:
@@ -557,7 +563,7 @@ def _evaluate(
                         if neighbor != carbon:
                             name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                             nitrogen_entries.setdefault("N" + "'" * rank, []).append((name, compound))
-        elif principal in ("amide", "amidine"):
+        elif principal in (*_AMIDE_CLASSES, "amidine"):
             primes = ("N", "N'", "N''", "N'''")
             for rank, carbon in enumerate(sorted(on_chain, key=position_of.get)):
                 nitrogens = sorted(
