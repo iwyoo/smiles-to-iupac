@@ -2729,10 +2729,10 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         stereo_context["used"] &= used_before
 
     assembly = _assembly_parent(
-        mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], stereo
+        mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], stereo, n_names
     )
     if assembly is not None and assembly[0] >= chain_count:
-        if attach is not None or n_names:
+        if attach is not None:
             raise UnsupportedStructure("a ring assembly inside a unit is not supported yet")
         return _finish(assembly[1])
 
@@ -3730,7 +3730,7 @@ def _assembly_group_label(mol, graph, ring_atoms, root, locants, core):
     return descriptor(labelled, positions, omit, capacity=capacity) + core
 
 
-def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo):
+def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names=()):
     """P-28: two identical benzene or cycloalkane rings joined by a single
     bond -- [1,1'-biphenyl]-4-ol, 4-nitro-1,1'-biphenyl. Returns
     (principal count, (key, name, parts)) or None when `mol` is not one."""
@@ -3738,19 +3738,19 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
         return None
     from ._system_assembly import system_assembly
 
-    fused = system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
+    fused = system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names=n_names)
     if fused is not None:
         return fused
     from ._chain_assembly import chain_assembly
 
-    chained = chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
+    chained = chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names=n_names)
     if chained is not None:
         return chained
     from ._vb_ring_assembly import vb_assembly
 
     von_baeyer = vb_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
     if von_baeyer is not None:
-        return von_baeyer
+        return _without_n_prefixes(von_baeyer, n_names)
     ring_info = mol.GetRingInfo()
     all_rings = [list(r) for r in ring_info.AtomRings()]
     if occurrences:
@@ -3768,7 +3768,7 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     best = None
     for i, first in enumerate(all_rings):
         for second in all_rings[i + 1 :]:
-            found = _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, [first, second])
+            found = _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, [first, second], n_names)
             if found is None:
                 continue
             ylidene = _junction_is_ylidene(mol, found[2], [_assembly_spec(mol, graph, first, True), _assembly_spec(mol, graph, second, True)])
@@ -3778,6 +3778,25 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
             if best is None or key < best[0]:
                 best = (key, (found[0], found[1]))
     return best[1] if best else None
+
+
+def _without_n_prefixes(found, n_names):
+    if n_names:
+        raise UnsupportedStructure("N-prefixes on a bridged ring assembly are not supported yet")
+    return found
+
+
+def assembly_n_names(grouped, n_names, position_of, group_count):
+    """`grouped` plus the N-prefixes of the amine groups of a ring assembly, ordered by the position of their group
+    (N4,N4'-dimethyl, P-62.2.4.1.2); `position_of` maps the atoms of the assembly to their locants."""
+    if not n_names:
+        return grouped
+
+    def position(entry):
+        found = _n_position(entry[2], position_of) if len(entry) > 2 and isinstance(entry[2], tuple) else None
+        return found if found is not None else min(position_of.values())
+
+    return _with_n_names(grouped, sorted(n_names, key=position), position_of, group_count)
 
 
 def _assembly_beside_systems(mol, graph, halogens, aromatic_atoms, stereo):
@@ -3863,7 +3882,7 @@ def _system_set_assembly(mol, graph, halogens, aromatic_atoms, stereo, atoms, me
     return None
 
 
-def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings):
+def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings, n_names=()):
     """The assembly name of two directly joined identical rings with every other part of `mol` cited as a
     substituent; None when the pair is not such an assembly or leaves a principal group outside it."""
     if set(rings[0]) & set(rings[1]):
@@ -3898,8 +3917,9 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(cite(locants[r]))
     for info in grouped.values():
         info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
-    prefix = format_substituent_prefixes(grouped) if grouped else ""
     count = len(occurrences)
+    grouped = assembly_n_names(grouped, n_names, {a: PrimedLocant(*loc) for a, loc in locants.items()}, count)
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
     ending = _assembly_unsaturation(specs, locants)
     replacement = _assembly_replacement(mol, specs, locants, bool(principal) or bool(ending))
     if principal is None:
@@ -4319,7 +4339,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     preferred = PREFERRED_AMINE_ATOM.get()
     results.sort(
         key=lambda r: (
-            r[0], not r[1], r[2], -r[3], r[6] if len(r) > 6 else (),
+            r[0], not r[1], r[2], not _is_assembly_result(r[4]), -r[3], r[6] if len(r) > 6 else (),
             preferred is None or r[5] is None or preferred not in arms[r[5]],
             r[4][1],
         )
@@ -4367,6 +4387,11 @@ def _hydroxy_or_alkoxy_on_nitrogen(atom):
         and all(n.GetAtomicNum() in (6, 7) for n in atom.GetNeighbors())
         and sum(n.GetAtomicNum() == 7 for n in atom.GetNeighbors()) == 1
     )
+
+
+def _is_assembly_result(result):
+    """Whether the parent of `result` is a ring assembly, whose locants are primed (P-28.2.1)."""
+    return any(isinstance(locant, PrimedLocant) for locant in result[2][4].values())
 
 
 def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):

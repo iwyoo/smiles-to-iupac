@@ -39,9 +39,9 @@ def _locant_sort_key(locant):
         return (1, 0, locant, 0, "")
     digits = re.match(r"\d+", locant)
     if digits is None:
-        lettered = re.fullmatch(r"([A-Z][a-z]?)(['′]*)(\d*)", locant)
+        lettered = re.fullmatch(r"([A-Z][a-z]?)(['′]*)(\d*)(['′]*)", locant)
         if lettered:
-            return (0, int(lettered.group(3) or 0), lettered.group(1), len(lettered.group(2)), locant)
+            return (0, int(lettered.group(3) or 0), lettered.group(1), len(lettered.group(2)) + len(lettered.group(4)), locant)
         return (0, 0, "", 0, locant)
     return (1, locant.count("\u2032"), int(digits.group()), 0, locant[digits.end():].replace("\u2032", ""))
 
