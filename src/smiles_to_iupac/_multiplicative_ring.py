@@ -13,6 +13,7 @@ from rdkit import Chem
 from ._acid_lexicon import SULFONYL_GROUP_NAMES
 from ._free_valence import valence_word
 from ._hydroperoxide import PEROXOL_SUFFIXES
+from ._isotope_labels import descriptor, modification_key
 from ._common import (
     UnsupportedStructure,
     citation_order_key,
@@ -25,7 +26,7 @@ from ._common import (
 from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, subtree
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes
+from ._substituents import ISOTOPE_LABELS, format_substituent_prefixes
 
 class _SuffixWords(dict):
     def __missing__(self, key):
@@ -349,10 +350,16 @@ def name_ring_component(
     None. `attachments`: [(ring_atom, external_atom)] for each free valence;
     `directed`: (unit_side_atom, center_side_atom) for a concatenated arm,
     where the unit-side atom takes the lowest locant (P-15.3.1.2.2.4); `stereo`: (kind, atom, code) entries of the ring
-    atoms, cited with the ring locants in front of the name (P-93.4.1)."""
+    atoms, cited with the ring locants in front of the name (P-93.4.1); its 'isotope' entries are cited as the nuclide
+    descriptor in front of the parent hydride name (P-82.2.1)."""
+    isotope_atoms = [atom for kind, atom, _ in stereo if kind == "isotope"]
+    stereo = [entry for entry in stereo if entry[0] != "isotope"]
     spec = spec_of(mol, ring_atoms)
     if spec is None:
+        if isotope_atoms:
+            raise UnsupportedStructure("an isotopically modified ring system as a linker is not supported yet")
         return _ring_system_component(mol, ring_atoms, attachments, directed, first)
+    ring_labels = {atom: entry for atom, entry in ISOTOPE_LABELS.get()["labels"].items() if atom in isotope_atoms} if isotope_atoms else {}
     free_atoms = [a for a, _ in attachments]
     if len(free_atoms) > 2 and len({_branch_key(mol, ring_atoms, b) for _, b in attachments}) > 1:
         return None
@@ -375,6 +382,7 @@ def name_ring_component(
             multiple_locants(spec, locants),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
+            modification_key(ring_labels, locants) if ring_labels else (),
             stereo_locant_rank(mol, stereo, locants),
         )
         if best is None or key < best[0]:
@@ -396,6 +404,10 @@ def name_ring_component(
         body = f"{parent_text(spec, locants)}-{loc}-{word}"
         if centers:
             body = _with_anion_centers(body, [(locants[a], w) for a, w in centers])
+    if ring_labels:
+        capacity = {atom: mol.GetAtomWithIdx(atom).GetTotalNumHs() for atom in ring_labels}
+        text = descriptor(ring_labels, locants, False, capacity=capacity)
+        body = text + ("-" if body[:1].isdigit() else "") + body
     prefix_text = _prefix_text(entries, locants)
     name = _join(prefix_text, body)
     if stereo:

@@ -265,7 +265,7 @@ def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
     assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
-@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1C(=O)[13CH3]"])
+@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1[15N+](=O)[O-]"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -311,6 +311,7 @@ def test_isotope_on_characteristic_group_atom(smiles, expected):
         pytest.param("O=C(O)c1ccc(cc1)C([2H])([2H])[2H]", "4-(2H3)methylbenzoic acid", id="labelled_methyl_beside_a_ring_principal_group"),
         pytest.param("C([2H])([2H])([2H])Oc1ccc(cc1)C(=O)O", "4-(2H3)methoxybenzoic acid", id="labelled_methoxy_beside_a_ring_principal_group"),
         pytest.param("CC(=O)Nc1ccccc1OC[13CH3]", "N-{2-[(2-13C)ethoxy]phenyl}acetamide", id="labelled_ethoxy_on_a_ring_substituent"),
+        pytest.param("CC(=O)Nc1ccccc1C(=O)[13CH3]", "N-{2-[(2-13C)acetyl]phenyl}acetamide", id="labelled_acyl_on_a_ring_substituent"),
         pytest.param("OC(=O)CC[13CH2]Cl", "4-chloro(4-13C)butanoic acid", id="descriptor_after_prefixes_of_an_acid"),
         pytest.param("OC(=O)C[13CH](C)C", "3-methyl(3-13C)butanoic acid", id="labelled_branch_point_of_an_acid"),
         pytest.param("CC(=O)[14CH3]", "(1-14C)propan-2-one", id="lowest_locant_to_the_modified_atom"),

@@ -773,6 +773,23 @@ def _name_branch_isotopes(graph, root, coming_from, halogens=None, aromatic_atom
     return result
 
 
+def label_functional_branch(result, graph, root, coming_from, halogens, mol):
+    """`result`, the name of a functional-group prefix built outside `name_branch`, with the isotopic descriptor of
+    the nuclides in its group; the descriptor and its consumed atoms are cached like those of `name_branch`."""
+    context = ISOTOPE_LABELS.get()
+    if not context or mol is None:
+        return result
+    cache = context.setdefault("cache", {})
+    key = ("functional", root, coming_from)
+    if key not in cache:
+        before = set(context["consumed"])
+        labelled = _label_branch(result, graph, root, coming_from, halogens, mol)
+        cache[key] = (labelled, frozenset(context["consumed"] - before))
+    labelled, used = cache[key]
+    context["consumed"].update(used)
+    return labelled
+
+
 def _labelled_carboxy(graph, root, coming_from, mol, context):
     """((name, compound), consumed atoms) for an isotopically modified -COOH group, cited as one prefix (P-82.2.2.2)."""
     atom = mol.GetAtomWithIdx(root)
