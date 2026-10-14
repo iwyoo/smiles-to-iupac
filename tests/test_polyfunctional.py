@@ -1121,6 +1121,8 @@ def test_ring__thiol_and_related(smiles, expected):
         ("O=C(SOC)c1ccccc1", "SO-methyl benzene(carbothioperoxoate)"),
         ("CCSOS(=O)(=O)CC", "OS-ethyl ethanesulfono(thioperoxoate)"),
         ("O=C([Se]OC)CCCCC", "SeO-methyl hexane(selenoperoxoate)"),
+        ("CCOC(=O)OO", "O-ethyl hydrogen carbonoperoxoate"),
+        ("CCOOC(=O)OC", "OO-ethyl O-methyl carbonoperoxoate"),
     ],
 )
 def test_acid_functional_replacement_names(smiles, expected):
