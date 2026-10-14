@@ -140,7 +140,7 @@ def test_ring_triple_bond_beside_a_suffix_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_amine_hetero_mix_dispatches_to_alcohol_amine():
+def test_amine_beside_hydroxyl_is_an_amino_prefix():
     assert smiles_to_iupac("OCCN") == "2-aminoethan-1-ol"
 
 
@@ -349,7 +349,7 @@ def test_plain_cyclyl_alcohol_ester():
     "smiles, expected",
     [
         pytest.param("CC(=O)OC1CCC(C)CC1", "4-methylcyclohexyl acetate", id="substituted_cyclyl_alcohol_ester"),
-        pytest.param("NCC(=O)OC", "methyl glycinate", id="amine_coexisting_now_supported_via_ester_amine"),
+        pytest.param("NCC(=O)OC", "methyl glycinate", id="amine_beside_ester"),
         pytest.param("Cc1ccccc1C(=O)OC", "methyl 2-methylbenzoate", id="benzoate_ester_substituted"),
         pytest.param("O=C(OC)C1CCCCC1", "methyl cyclohexanecarboxylate", id="ring_acyl_ester"),
         pytest.param("O=C(OC)C1CCCC=C1", "methyl cyclohex-2-ene-1-carboxylate", id="ring_acyl_ester_unsaturated_ring"),

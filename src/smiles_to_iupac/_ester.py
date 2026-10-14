@@ -305,7 +305,7 @@ def _name_acyl_part(
     needed for this scan, not the chain search below.
 
     `extra_names`/`required_atoms`: same coexisting-group injection point
-    as `_amide.py`'s `_name_acyclic_amide`, reused by `_ester_amine.py` via
+    as `_amide.py`'s `_name_acyclic_amide`, reused via
     `_coexisting_groups.py` -- both empty/None by default so existing
     callers are unaffected. `extra_excluded_atoms`: a junior group's own
     non-single-bonded atoms (e.g. a coexisting ketone's carbonyl oxygen,

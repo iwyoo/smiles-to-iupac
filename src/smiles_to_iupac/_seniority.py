@@ -18,9 +18,9 @@ module in this codebase.
   a dedicated suffix module for are listed -- a class with no module here
   yet has no suffix to demote *to* a prefix in the first place, so it
   would be meaningless to rank it.
-- This does NOT yet replace the five existing pairwise "X+Y coexist"
+- This does NOT yet replace the four existing pairwise "X+Y coexist"
   modules (`_aldehyde_ketone.py`, `_ketone_ester.py`, `_ketone_amide.py`,
-  `_aldehyde_carboxylic_acid.py`, `_carboxylic_acid_amine.py`), which each
+  `_aldehyde_carboxylic_acid.py`), which each
   still hardcode their own seniority conclusion directly in prose (their
   module docstrings each cite "Table 3.3 ranks 'X' senior to 'Y'"
   verbatim) -- refactoring them to consult this table instead is a

@@ -329,9 +329,9 @@ def _name_acyclic_hydroperoxide(
 ):
     """`extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
-    `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused by
-    `_hydroperoxide_amine.py` via `_coexisting_groups.py` so that module
-    doesn't have to reimplement this chain search/candidate selection.
+    `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused via
+    `_coexisting_groups.py` so a pairwise module doesn't have to
+    reimplement this chain search/candidate selection.
     `None` keeps the original halogens-only behavior unchanged.
     `required_atoms`: additional carbon atoms (e.g. a demoted amine's own
     carbon neighbor) that a candidate chain must also carry -- empty by

@@ -426,8 +426,8 @@ def _name_acyclic_amide(
     the very front of the complete name (P-91.3).
 
     `extra_names`/`required_atoms`: same coexisting-group injection point
-    as `_ketone.py`'s `_name_acyclic_ketone`, reused by `_amide_amine.py`
-    via `_coexisting_groups.py` -- both empty/None by default so existing
+    as `_ketone.py`'s `_name_acyclic_ketone`, reused via
+    `_coexisting_groups.py` -- both empty/None by default so existing
     callers are unaffected."""
     graph = adjacency(mol)
     halogens = {

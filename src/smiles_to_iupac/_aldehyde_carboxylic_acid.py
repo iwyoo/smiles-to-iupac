@@ -28,6 +28,7 @@ a single longest chain.
 
 
 from ._common import (
+    find_carboxylic_acid_carbon,
     UnsupportedStructure,
     adjacency,
     carbon_adjacency,
@@ -44,29 +45,6 @@ from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
 
-def _find_carboxylic_acid_carbon(mol):
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 6:
-            continue
-        oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
-        if len(oxygens) < 2:
-            continue
-        carbonyls = [
-            o
-            for o in oxygens
-            if o.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
-        ]
-        hydroxyls = [
-            o
-            for o in oxygens
-            if o.GetDegree() == 1
-            and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
-            and o.GetTotalNumHs() == 1
-        ]
-        carbon_neighbors = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
-        if len(carbonyls) == 1 and len(hydroxyls) == 1 and len(carbon_neighbors) <= 1:
-            return atom, carbonyls[0], hydroxyls[0]
-    return None
 
 
 def _extra_aldehydes(mol, excluded_oxygens):
@@ -102,7 +80,7 @@ def _extra_aldehydes(mol, excluded_oxygens):
 
 
 def has_aldehyde_carboxylic_acid_shape(mol) -> bool:
-    found = _find_carboxylic_acid_carbon(mol)
+    found = find_carboxylic_acid_carbon(mol)
     if found is None:
         return False
     _, carbonyl_oxygen, hydroxyl_oxygen = found
@@ -149,7 +127,7 @@ def name_aldehyde_carboxylic_acid(mol) -> str:
             "a -COOH group on/in a ring uses a different naming "
             "construction, out of scope for this acyclic-only module"
         )
-    found = _find_carboxylic_acid_carbon(mol)
+    found = find_carboxylic_acid_carbon(mol)
     if found is None:
         raise UnsupportedStructure(
             "no carboxylic acid (-COOH) group found; this module only "

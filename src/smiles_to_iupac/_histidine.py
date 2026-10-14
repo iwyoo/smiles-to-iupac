@@ -15,15 +15,8 @@ Recommendations ("the Blue Book"):
 Unlike proline (`_proline.py`), histidine's amino/carboxyl groups are NOT
 on the ring -- the imidazole ring is an ordinary side-chain substituent,
 structurally much closer to phenylalanine's shape than proline's.
-`_carboxylic_acid_amine.py` already has a working "aromatic-ring-on-a-
-chain" path, but it only recognizes a *plain benzene* ring
-(`is_plain_benzene_ring`); an imidazole ring falls through that check
-into the module's generic ring rejection instead (confirmed empirically
-during scoping -- misleadingly worded as "a -COOH and/or -NH2 group on/in
-a ring," even though neither group is actually on the ring here).
 
-Scope, deliberately narrow: the alpha-amino-acid backbone (acyclic,
-`_carboxylic_acid_amine.py`'s own shared detection) with a side chain of
+Scope, deliberately narrow: the alpha-amino-acid backbone (acyclic) with a side chain of
 exactly one -CH2- bonded to a plain 5-membered aromatic ring bearing
 exactly 2 nitrogens (one NH, one pyridine-type) and 3 carbons, only one of
 which carries the -CH2- branch (the other two are plain aromatic -CH=).
@@ -36,7 +29,7 @@ the ring itself (would need the special pi/tau numbering) is out of
 scope, deferred to a follow-up.
 """
 
-from ._carboxylic_acid_amine import _amine_on_a_different_carbon, _find_carboxylic_acid_carbon
+from ._common import amine_on_a_different_carbon, find_carboxylic_acid_carbon
 from ._common import adjacency, find_primary_amines, specified_stereocenters
 
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
@@ -87,14 +80,14 @@ def _match(mol):
     None."""
     if mol.GetRingInfo().NumRings() != 1:
         return None
-    found = _find_carboxylic_acid_carbon(mol)
+    found = find_carboxylic_acid_carbon(mol)
     if found is None:
         return None
     acid_carbon, carbonyl_oxygen, hydroxyl_oxygen = found
     amines = find_primary_amines(mol)
     if len(amines) != 1:
         return None
-    if not _amine_on_a_different_carbon(mol, acid_carbon.GetIdx(), amines):
+    if not amine_on_a_different_carbon(mol, acid_carbon.GetIdx(), amines):
         return None
     (amine_n,) = amines
 

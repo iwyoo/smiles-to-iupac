@@ -24,12 +24,10 @@ name and L/D stereodescriptor, for the side chains below, per the IUPAC
   no L-/D- prefix at all.
 
 Scope, deliberately narrow (table entries only): exactly the side chains
-in `_SIDE_CHAIN_TABLE`, each already correctly recognized as a plain
-alpha-amino-acid backbone by `_carboxylic_acid_amine.py`'s shared
-detection -- this module only intercepts those specific side chains
-ahead of that module's own generic (CIP-only, no-retained-name) fallback
-in `core.py`'s dispatch order, unchanged for every other amino acid or
-amine/acid combination. The backbone-anchor check in `_match` (see its
+in `_SIDE_CHAIN_TABLE`; this module only intercepts those specific side
+chains ahead of the generic (CIP-only, no-retained-name) amino acid
+naming, unchanged for every other amino acid or amine/acid combination.
+The backbone-anchor check in `_match` (see its
 own docstring) tolerates a side chain with its own extra nitrogen
 (lysine, arginine) or its own ring (phenylalanine, tyrosine, tryptophan)
 as long as the table recognizes it -- an *unrecognized* multi-amine or
