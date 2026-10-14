@@ -4,7 +4,8 @@ skeletal replacement ('a') names 'triimino-tetraazanonane-diimidamide'."""
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency
+from ._chalcogenourea import has_group_senior_to_urea, unprimed_first
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -64,17 +65,25 @@ def _terminal_nitrogens(mol, carbon, bridges):
     return [n.GetIdx() for n in mol.GetAtomWithIdx(carbon).GetNeighbors() if n.GetIdx() not in bridges]
 
 
-def _unit_entries(mol, graph, carbon, bridges, halogens, aromatic_atoms):
-    """[(locant letter, name, compound)] of the substituents on the terminal nitrogens of one end unit."""
-    entries = []
-    for nitrogen in _terminal_nitrogens(mol, carbon, bridges):
-        imino = mol.GetBondBetweenAtoms(carbon, nitrogen).GetBondTypeAsDouble() == 2.0
-        for n in graph[nitrogen]:
-            if n == carbon:
-                continue
-            name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol)
-            entries.append(("N'" if imino else "N", name, compound))
-    return entries
+def _unit_entries(mol, graph, carbon, terminals, halogens, aromatic_atoms):
+    """[(prime, name, compound)] of the substituents on the terminal nitrogens of one guanidine carbon. The =NH group of an
+    end unit is N' and its -NH2 group N; where the double bond runs to a bridging nitrogen the substituted group takes the
+    unprimed locant, as in the tautomers of guanidine (P-66.4.1.2.1.2)."""
+    named = {
+        nitrogen: [
+            name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol) for n in graph[nitrogen] if n != carbon
+        ]
+        for nitrogen in terminals
+    }
+    if len(terminals) == 1:
+        return [("", name, compound) for name, compound in named[terminals[0]]]
+    imino = [n for n in terminals if mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 2.0]
+    if imino:
+        primed = imino[0]
+    else:
+        first, second = terminals
+        primed = second if unprimed_first(named[first], named[second]) else first
+    return [("'" if n == primed else "", name, compound) for n in terminals for name, compound in named[n]]
 
 
 def name_condensed_guanidine(mol) -> str:
@@ -85,9 +94,7 @@ def name_condensed_guanidine(mol) -> str:
     count = len(order)
     if mol.GetNumAtoms() == 3 * count + 1:
         return _plain_name(count)
-    if count != 2:
-        raise UnsupportedStructure("substituted condensed guanidines beyond the biguanide are not supported yet")
-    return _substituted_biguanide(mol, order, bridges)
+    return _substituted_name(mol, order, bridges)
 
 
 def _plain_name(count):
@@ -102,26 +109,34 @@ def _plain_name(count):
     )
 
 
-def _substituted_biguanide(mol, order, bridges):
-    from ._common import halogen_substituents
-
+def _substituted_name(mol, order, bridges):
+    """The unit at position 2k-1 of the chain carries N and N' of that position (P-66.4.1.2.2); the end units have two
+    nitrogens to substitute, a middle unit one. The numbering direction gives the substituents the lowest locants, then
+    the alphanumerically first prefix the lowest locant."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
+    core = set(order) | set(bridges) | {n for carbon in order for n in _terminal_nitrogens(mol, carbon, bridges)}
+    if has_group_senior_to_urea(mol, core):
+        raise UnsupportedStructure("a group senior to the condensed guanidine is the parent, not an N-substituent")
     units = []
-    for carbon in order:
+    for index, carbon in enumerate(order):
         terminals = _terminal_nitrogens(mol, carbon, bridges)
-        if len(terminals) != 2:
+        if len(terminals) != (2 if index in (0, len(order) - 1) else 1):
             raise UnsupportedStructure("an unusual condensed guanidine tautomer is not supported yet")
-        if any(
-            mol.GetBondBetweenAtoms(carbon, b).GetBondTypeAsDouble() == 2.0 for b in bridges if b in graph[carbon]
-        ):
-            raise UnsupportedStructure("the double bond to the bridging nitrogen leaves the locants ambiguous")
-        units.append(_unit_entries(mol, graph, carbon, bridges, halogens, aromatic_atoms))
-    ranked = sorted(units, key=lambda entries: (-len(entries), sorted(name for _, name, _ in entries)))
+        units.append(_unit_entries(mol, graph, carbon, terminals, halogens, aromatic_atoms))
+    best = None
+    for direction in (units, units[::-1]):
+        located = sorted(
+            ((2 * index + 1, prime), name, compound)
+            for index, entries in enumerate(direction)
+            for prime, name, compound in entries
+        )
+        key = ([place for place, _, _ in located], [alpha_sort_key(name) for _, name, _ in located])
+        if best is None or key < best[0]:
+            best = (key, located)
     positions = {}
-    for digit, entries in enumerate(ranked, start=1):
-        for letter, name, compound in entries:
-            positions.setdefault(name, {"locants": [], "compound": compound})["locants"].append(f"{letter}{digit}")
+    for (digit, prime), name, compound in best[1]:
+        positions.setdefault(name, {"locants": [], "compound": compound})["locants"].append(f"N{prime}{digit}")
     prefix = format_substituent_prefixes(positions) if positions else ""
-    return f"{prefix}{_ACID_STEMS[2]} diamide"
+    return f"{prefix}{_ACID_STEMS[len(order)]} diamide"

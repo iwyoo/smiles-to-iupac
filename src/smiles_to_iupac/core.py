@@ -52,7 +52,7 @@ from ._ring_nitrogen_hydrazide import name_ring_nitrogen_hydrazide
 from ._alternating_cage import has_alternating_cage_shape, name_alternating_cage
 from ._dipolar import azoxy_prefix_name, has_dipolar_shape, name_dipolar
 from ._chalcogen_aldehyde import name_chalcogen_aldehyde
-from ._condensed_guanidine import name_condensed_guanidine
+from ._condensed_guanidine import has_condensed_guanidine_shape, name_condensed_guanidine
 from ._ring_heteroatom_nitrile import name_ring_heteroatom_nitrile
 from ._chain_onium import has_chain_onium_shape, name_chain_onium
 from ._hetero_acylium import has_hetero_acylium_shape, name_hetero_acylium
@@ -979,6 +979,11 @@ def _name_unabridged_body(smiles: str) -> str:
             return name_peptide(parsed)
         if parsed is not None and has_amino_acid_shape(parsed):
             return name_amino_acid(parsed)
+        if parsed is not None and has_condensed_guanidine_shape(parsed):
+            try:
+                return name_condensed_guanidine(parsed)
+            except UnsupportedStructure:
+                pass
         if parsed is not None and not has_sphingoid_shape(parsed):
             if has_carbonless_acyl(parsed):
                 try:
