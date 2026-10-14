@@ -39,6 +39,7 @@ from ._diacylamine import diacylamine_name
 from ._chalcogen_chain_parent import name_chalcogen_chain_multiplicative, name_chalcogen_chain_parent
 from ._chalcogen_polychain import name_polychalcogen_hydride
 from ._carbonic_amide import (
+    carbonohydrazonic_diamide_name,
     cyanamide_name,
     diazenecarbohydrazide_name,
     hydrazine_dicarboxamide_name,
@@ -949,6 +950,7 @@ def _name_unabridged_body(smiles: str) -> str:
             carbonic_amide = (
                 polycarbonic_amide_name(parsed)
                 or cyanamide_name(parsed)
+                or carbonohydrazonic_diamide_name(parsed)
                 or hydrazine_dicarboxamide_name(parsed)
                 or diazenecarbohydrazide_name(parsed)
             )
