@@ -131,6 +131,7 @@ FORCE_LOCANTS = contextvars.ContextVar("force_locants", default=False)
 LAST_POSITIONS = contextvars.ContextVar("last_positions", default=None)
 FORCED_PRINCIPAL = contextvars.ContextVar("forced_principal", default=None)
 SUBSTITUTED_AMINE_PREFIX = contextvars.ContextVar("substituted_amine_prefix", default=False)
+PREFERRED_AMINE_ATOM = contextvars.ContextVar("preferred_amine_atom", default=None)
 
 
 def _senior_anionic_centres(mol, groups, ring_groups, marked):
@@ -4177,6 +4178,20 @@ def _ring_compound_core(spec, suffix_name, locants, ide_atoms, principal_atoms):
     )
 
 
+def amine_unit_name(unit, attach):
+    """(name, locant of the atom `attach`) of a unit that is one N-substituted amine, when that atom lies in the parent
+    chosen for it; None otherwise (P-15.3: identical parent structures are multiplied)."""
+    token = PREFERRED_AMINE_ATOM.set(attach)
+    try:
+        _, name, parts = _select(unit)
+    except UnsupportedStructure:
+        return None
+    finally:
+        PREFERRED_AMINE_ATOM.reset(token)
+    locant = parts[4].get(attach) if isinstance(parts[4], dict) else None
+    return None if locant is None or not name.endswith("amine") else (name, locant)
+
+
 def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
     """A single secondary or tertiary amine: the ring or chain bound to
     nitrogen is the parent (ring first, P-44.1.2.2) and every other group on
@@ -4266,7 +4281,14 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             )
         if not results:
             raise UnsupportedStructure("no parent carries the amine groups of this substituted amine")
-    results.sort(key=lambda r: (r[0], not r[1], r[2], -r[3], r[6] if len(r) > 6 else (), r[4][1]))
+    preferred = PREFERRED_AMINE_ATOM.get()
+    results.sort(
+        key=lambda r: (
+            r[0], not r[1], r[2], -r[3], r[6] if len(r) > 6 else (),
+            preferred is None or r[5] is None or preferred not in arms[r[5]],
+            r[4][1],
+        )
+    )
     best = results[0]
     if best[5] is None:
         return best[4]
