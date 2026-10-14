@@ -190,6 +190,7 @@ def test_linker_with_a_substituent_that_carries_the_principal_group():
             "N-(2,2-dimethylpropyl)-2-methyl-N-(2-methylprop-2-en-1-yl)prop-2-en-1-amine",
         ),
         ("C1CNCCNCCN1", "1,4,7-triazonane"),
+        ("C1NONNONNO1", "1,4,7,2,3,5,6,8-trioxapentazonane"),
     ],
 )
 def test_hetero_chain_and_macrocycle_names(smiles, expected):

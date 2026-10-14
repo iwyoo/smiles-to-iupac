@@ -314,7 +314,8 @@ def name_hetero_macrocycle(mol):
             if mult.endswith("a") and _MACRO_A_PREFIX[z][0] in "aeiou":
                 mult = mult[:-1]
             a_text += mult + _MACRO_A_PREFIX[z]
-        all_locs = "" if all_replaced and not lam else ",".join(_cite(l, lam) for l in sorted(sum(hetero.values(), []))) + "-"
+        # P-22.2.2.1.3: the locants follow the order of the prefixes, not their own order
+        all_locs = "" if all_replaced and not lam else ",".join(_cite(l, lam) for z in ordered for l in hetero[z]) + "-"
         name = f"{all_locs}{a_text[:-1]}{_HW_STEM[size]}"
     else:
         stem = "cyclo" + alkane_name(size)[:-3]
