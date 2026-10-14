@@ -55,6 +55,8 @@ def test_cyclic_ketohexopyranose_naming(smiles, expected):
         pytest.param("C1=C(NC=N1)CC(C(=O)O)N", "histidine", id="histidine_unspecified_stereocenter_no_ld_prefix"),
         pytest.param("Cn1cnc(CC(N)C(=O)O)c1", "2-amino-3-(1-methyl-1H-imidazol-4-yl)propanoic acid", id="ring_substituted_histidine_is_named_as_an_amino_acid_with_a_ring_prefix"),
         pytest.param("N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O", "L-tryptophan", id="tryptophan_still_resolves"),
+        pytest.param("N[C@@H](Cc1ccn[nH]1)C(=O)O", "(2S)-2-amino-3-(1H-pyrazol-5-yl)propanoic acid", id="adjacent_ring_nitrogens_are_not_histidine"),
+        pytest.param("COC(=O)[C@H](N)Cc1ncc[nH]1", "methyl (2R)-2-amino-3-(1H-imidazol-2-yl)propanoate", id="imidazol_2_yl_is_not_histidine"),
     ],
 )
 def test_aldopyranose_still_resolves_and_related(smiles, expected):
