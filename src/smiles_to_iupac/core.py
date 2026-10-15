@@ -70,7 +70,7 @@ from ._hydride_ylium import (
 from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
 from ._substituents import BRANCH_STEREO, FORCED_BRANCH_NAMES, ISOTOPE_LABELS
 from ._glycoside import has_glycoside_shape, name_glycoside
-from ._sugar_acid import has_ketoaldonic_chain_shape, name_ketoaldonic_chain, has_sugar_ring_acid_shape, name_sugar_ring_acid, has_sugar_lactam_shape, name_sugar_lactam, has_substituted_chain_shape, name_substituted_chain, has_sugar_alcohol_acid_shape, has_sugar_lactone_shape, name_sugar_lactone, name_sugar_alcohol_acid, sugar_acid_derivative_name
+from ._sugar_acid import has_ketoaldonic_chain_shape, name_ketoaldonic_chain, has_sugar_ring_acid_shape, name_sugar_ring_acid, has_sugar_lactam_shape, name_sugar_lactam, has_substituted_chain_shape, name_substituted_chain, has_sugar_alcohol_acid_shape, has_sugar_lactone_shape, sugar_carboxylate_name, name_sugar_lactone, name_sugar_alcohol_acid, sugar_acid_derivative_name
 from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar, has_sugar_dianhydride_shape, name_sugar_dianhydride
 from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
@@ -979,6 +979,10 @@ def _name_unabridged_body(smiles: str) -> str:
                 return carbonic_amide
         if parsed is not None and has_dipolar_shape(parsed):
             return name_dipolar(parsed)
+        if parsed is not None:
+            sugar_carboxylate = sugar_carboxylate_name(parsed)
+            if sugar_carboxylate is not None:
+                return sugar_carboxylate
         if parsed is not None and has_sugar_lactone_shape(parsed):
             return name_sugar_lactone(parsed)
         if parsed is not None and has_sugar_lactam_shape(parsed):
