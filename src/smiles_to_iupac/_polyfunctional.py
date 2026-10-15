@@ -49,6 +49,7 @@ from ._hetero_prefixes import (
     LAMBDA_CENTRE_STEMS,
     MONONUCLEAR_HYDRIDES,
     _oxo_or_imino,
+    _ring_outranks_centre,
     azoxy_atoms,
     is_functional_carbon,
     is_halogen_oxo_part,
@@ -6227,11 +6228,14 @@ def _ring_occurrences(mol):
         if not atom.IsInRing() or atom.HasProp(JUNIOR_GROUP):
             continue
         r = atom.GetIdx()
+        senior_ring = atom.GetAtomicNum() in (16, 34, 52) and _ring_outranks_centre(mol, r)
         for n in atom.GetNeighbors():
             if n.IsInRing():
                 continue
             z, i = n.GetAtomicNum(), n.GetIdx()
             order = mol.GetBondBetweenAtoms(r, i).GetBondTypeAsDouble()
+            if senior_ring and order == 2.0 and z in (7, 8):
+                continue
             if z == 8 and order == 2.0 and n.GetDegree() == 1:
                 found.append(("ketone", r, {i}))
             elif z in _CHALCOGEN_KETONE_CLASS and order == 2.0 and n.GetDegree() == 1 and not n.GetFormalCharge():

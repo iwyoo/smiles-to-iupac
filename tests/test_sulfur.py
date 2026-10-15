@@ -636,6 +636,19 @@ def test_imino_prefixes_of_a_ring_sulfoximide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-41, P-44.1.2.2: a ring with oxygen or sulfur in the imino substituent is senior to the lambda-sulfane chain or ring
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CS(=O)(=NC1COC1)C", "3-{[dimethyl(oxo)-\u03bb6-sulfanylidene]amino}oxetane", id="oxygen_ring_on_an_acyclic_sulfoximide"),
+        pytest.param("CS(=O)(=NC1CCSCC1)C", "4-{[dimethyl(oxo)-\u03bb6-sulfanylidene]amino}thiane", id="sulfur_ring_on_an_acyclic_sulfoximide"),
+        pytest.param("C1CCS(=O)(=NC2COC2)CC1", "3-[(1-oxo-1\u03bb6-thian-1-ylidene)amino]oxetane", id="oxygen_ring_beside_a_ring_sulfoximide"),
+    ],
+)
+def test_ring_in_the_imino_substituent_is_the_parent_of_a_sulfoximide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-64.4.2, P-21.2.4.1, P-22.2.2, P-68.3.1: ring atoms of nonstandard bonding number and heteroatom groups on ring nitrogen
 @pytest.mark.parametrize(
     "smiles,expected",
@@ -1362,6 +1375,8 @@ def test_amino_prefix_with_a_sulfonyl_group_on_the_nitrogen(smiles, expected):
         pytest.param("CS(C)(=O)=Nc1ccccc1", "dimethyl(phenylimino)-\u03bb6-sulfanone", id="sulfoximide"),
         pytest.param("CS(=O)(=Nc1ncccc1)C", "dimethyl[(pyridin-2-yl)imino]-\u03bb6-sulfanone", id="heteroaryl_on_the_imino_nitrogen"),
         pytest.param("CS(=O)(=Nc1nccs1)C", "dimethyl[(1,3-thiazol-2-yl)imino]-\u03bb6-sulfanone", id="heteroaryl_with_two_ring_heteroatoms"),
+        pytest.param("COCCN=S(=O)(C)C", "[(2-methoxyethyl)imino]di(methyl)-\u03bb6-sulfanone", id="ether_in_the_imino_substituent"),
+        pytest.param("CSCCN=S(=O)(C)C", "dimethyl{[2-(methylsulfanyl)ethyl]imino}-\u03bb6-sulfanone", id="sulfide_in_the_imino_substituent"),
         pytest.param("CS(=O)(=NO)C", "(hydroxyimino)di(methyl)-\u03bb6-sulfanone", id="hydroxy_on_the_imino_nitrogen"),
         pytest.param("CS(=O)(=NN)C", "(aminoimino)di(methyl)-\u03bb6-sulfanone", id="amino_on_the_imino_nitrogen"),
         pytest.param("N=S(=N)(c1ccccc1)c1ccccc1", "diphenyl-\u03bb6-sulfanediimine", id="sulfonediimine_with_sulfur_groups_only"),

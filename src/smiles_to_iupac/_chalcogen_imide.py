@@ -96,9 +96,11 @@ def _find(mol):
 
 
 def _plain_group_atom(atom):
-    """Carbon, halogen or a neutral aromatic ring heteroatom: the atoms a hydrocarbon or heteroaryl group may contain."""
+    """Carbon, halogen, a neutral aromatic ring heteroatom or the oxygen or sulfur of an acyclic ether or sulfide: the
+    atoms a hydrocarbon or heteroaryl group may contain (an ether is no parent hydride, P-63.2.2)."""
     number = atom.GetAtomicNum()
-    return number == 6 or number in HALOGEN_PREFIXES or (number in (7, 8, 16) and atom.GetIsAromatic())
+    ether = number in (8, 16) and atom.GetDegree() == 2 and not atom.IsInRing() and not atom.GetTotalNumHs()
+    return number == 6 or number in HALOGEN_PREFIXES or (number in (7, 8, 16) and atom.GetIsAromatic()) or ether
 
 
 def ylidene_group_atoms(mol, center_idx, nitrogen_idx):

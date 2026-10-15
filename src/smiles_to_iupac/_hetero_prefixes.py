@@ -1948,6 +1948,23 @@ LAMBDA_CENTRE_STEMS = {
 }
 
 
+_HETERO_PARENT_ORDER = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52)
+
+
+def _ring_outranks_centre(mol, centre):
+    """A ring skeleton other than the centre's own holds a heteroatom at least as senior as the lambda `centre` (N > O > S > Se > Te): a ring is
+    senior to a chain of the same senior atom, so the lambda centre is then a prefix of the ring (P-41, P-44.1.2.2)."""
+    rank = _HETERO_PARENT_ORDER.index(mol.GetAtomWithIdx(centre).GetAtomicNum())
+    own_rings = {a for ring in mol.GetRingInfo().AtomRings() if centre in ring for a in ring}
+    return any(
+        a.IsInRing()
+        and a.GetIdx() not in own_rings
+        and a.GetAtomicNum() in _HETERO_PARENT_ORDER
+        and _HETERO_PARENT_ORDER.index(a.GetAtomicNum()) <= rank
+        for a in mol.GetAtoms()
+    )
+
+
 def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """λ4-sulfanyl, λ3-iodanyl, ... a chalcogen or halogen with only single bonds whose bonding number exceeds the
     standard one: '(dihydroxy-λ3-iodanyl)', '[bis(acetyloxy)-λ3-iodanyl]' (P-68.4.3, P-68.5.1)."""
@@ -1974,7 +1991,7 @@ def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol
         or any(not _lambda_multiple_bond(mol, root, n, hetero_multiple) for n in multiple)
     ):
         return None
-    if bonding > standard and not _has_senior_principal_group(mol):
+    if bonding > standard and not _has_senior_principal_group(mol) and not _ring_outranks_centre(mol, root):
         raise UnsupportedStructure("a λ-bonded centre outranks the carbon parent unless a senior group is present")
     entries = [
         _oxo_or_imino_prefix(graph, mol, root, n, halogens, aromatic_atoms)
