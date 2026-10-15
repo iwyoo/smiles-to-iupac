@@ -9,6 +9,9 @@ from ._common import UnsupportedStructure
 from ._peptide import acyl_word
 
 
+CATION_INSERT_PROP = "_cation_insert_centre"
+
+
 def _is_amino_acyl_root(mol, graph, root, coming_from):
     atom = mol.GetAtomWithIdx(root)
     if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetDegree() != 3:
@@ -35,6 +38,8 @@ def amino_acyl_group(mol, graph, root, coming_from):
                 inside.add(n)
                 stack.append(n)
     if any(coming_from in graph[a] for a in inside if a != root):
+        return None
+    if any(mol.GetAtomWithIdx(a).HasProp(CATION_INSERT_PROP) for a in inside):
         return None
     editable = Chem.RWMol(mol)
     oxygen = editable.AddAtom(Chem.Atom(8))
