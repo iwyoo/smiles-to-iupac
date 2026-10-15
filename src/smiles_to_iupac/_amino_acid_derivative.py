@@ -100,16 +100,21 @@ def _acid_and_esters(mol):
             sites.append((carbon, oxygen, root))
     removed = set()
     groups = []
+    carbons = {carbon for carbon, _, _ in sites}
     for carbon, oxygen, root in sites:
         inside = subtree(graph, root, oxygen)
         if carbon in inside:
             raise UnsupportedStructure("a cyclic ester is not an amino acid ester")
+        if (carbons - {carbon}) & inside:
+            continue
         removed |= inside
         groups.append((carbon, cited_group(mol, graph, root, oxygen)))
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
         atom.SetIntProp("_orig", atom.GetIdx())
-    for _, oxygen, _ in sites:
+    for carbon, oxygen, _ in sites:
+        if carbon not in {c for c, _ in groups}:
+            continue
         atom = editable.GetAtomWithIdx(oxygen)
         atom.SetNoImplicit(False)
         atom.SetNumExplicitHs(0)
