@@ -610,9 +610,14 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
         or any(_free_acid_hydroxyl(mol, a) for c in centers for a in acid_atoms[c])
     ):
         return None
+    hydroxyls = {sum(_free_acid_hydroxyl(mol, a) for a in acid_atoms[c]) for c in centers}
+    if len(hydroxyls) != 1:
+        return None
     first = suffixed[centers[0]]
     acid = _acid_name(mol, acid_atoms[centers[0]], [l.chain[-1] for l in first])
     anion = anion_name(acid, letters_in_anion=False)
+    if hydroxyls != {0}:
+        anion = f"{multiplying_prefix(next(iter(hydroxyls)))}hydrogen {anion}".replace("monohydrogen", "hydrogen")
     diyl = _diyl_name(mol, frags[hub], [l.far for l in hub_links])
     if diyl is None:
         return None
