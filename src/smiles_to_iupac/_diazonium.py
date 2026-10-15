@@ -378,7 +378,8 @@ def _name_via_amine_surrogate(mol) -> str:
     import re
     from rdkit import Chem
 
-    from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
+    from ._hetero_prefixes import CATION_PARENT
+    from ._polyfunctional import AMINIUM, _name_labelled
     from .core import smiles_to_iupac
 
     nitrogens = _diazonium_nitrogens(mol)
@@ -392,19 +393,22 @@ def _name_via_amine_surrogate(mol) -> str:
         target = editable.GetAtomWithIdx(atom.GetIdx())
         target.SetFormalCharge(0)
         target.SetNoImplicit(False)
+        target.SetBoolProp("_cationic_amine", True)
         editable.GetBondBetweenAtoms(atom.GetIdx(), terminal).SetBondType(Chem.BondType.SINGLE)
     for index in sorted(remove, reverse=True):
         editable.RemoveAtom(index)
     surrogate = editable.GetMol()
     Chem.SanitizeMol(surrogate)
-    token = FORCED_PRINCIPAL.set("amine")
+    token = AMINIUM.set(True)
+    parent_token = CATION_PARENT.set(True)
     try:
         try:
-            name = name_polyfunctional(surrogate)
+            name = _name_labelled(surrogate, {})
         except UnsupportedStructure:
             name = smiles_to_iupac(Chem.MolToSmiles(surrogate))
     finally:
-        FORCED_PRINCIPAL.reset(token)
+        CATION_PARENT.reset(parent_token)
+        AMINIUM.reset(token)
     count = len(nitrogens)
     if count == 1 and name.endswith("aniline"):
         return name[: -len("aniline")] + "benzenediazonium"
