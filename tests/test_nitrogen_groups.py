@@ -431,6 +431,9 @@ def test_nitrogen_group_prefixes_on_mononuclear_hydrides(smiles, expected):
         pytest.param("C[N+]#N", "methanediazonium", id="methanediazonium"),
         pytest.param("ClCC[N+]#N", "2-chloroethane-1-diazonium", id="chloroethane_diazonium"),
         pytest.param("C=CCCC[N+]#N", "pent-4-ene-1-diazonium", id="pent_4_ene_1_diazonium"),
+        pytest.param("N#[N+]Cc1ccc(N)cc1", "1-(4-aminophenyl)methanediazonium", id="amino_group_on_the_substituent_skeleton"),
+        pytest.param("N#[N+]c1ccc(CN)cc1", "4-(aminomethyl)benzenediazonium", id="amino_group_on_a_chain_of_the_diazonium_ring"),
+        pytest.param("N#[N+]CC(N)CC(N)C", "2,4-diaminopentane-1-diazonium", id="amino_groups_on_the_diazonium_skeleton"),
     ],
 )
 def test_methanediazonium_and_related(smiles, expected):
