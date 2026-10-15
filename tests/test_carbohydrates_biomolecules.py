@@ -659,6 +659,11 @@ def test_substituted_amino_acids(smiles, expected):
             "ethyl N,N-bis[2-(acetyloxy)ethyl]glycinate",
             id="two_identical_acyloxy_substituents_on_the_nitrogen",
         ),
+        pytest.param(
+            "OC(=O)CCNCC(=O)OC",
+            "3-[(2-methoxy-2-oxoethyl)amino]propanoic acid",
+            id="free_acid_on_the_other_arm_outranks_the_ester_of_the_amino_acid",
+        ),
         pytest.param("OC(=O)C[C@H](N)C(=O)OC", "1-methyl L-aspartate", id="diacid_monoester_locant"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OCC", "1-ethyl 4-methyl L-aspartate", id="diacid_mixed_esters"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OC", "dimethyl L-aspartate", id="diacid_identical_esters"),
