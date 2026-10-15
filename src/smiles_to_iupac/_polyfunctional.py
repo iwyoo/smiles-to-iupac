@@ -1652,7 +1652,12 @@ def _group_cation_base(mol, kind, ignore=frozenset()):
     for nitrogen in charged:
         triple = [b for b in nitrogen.GetBonds() if b.GetBondTypeAsDouble() == 3.0]
         if kind == "nitrile":
-            if len(triple) != 1 or nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 1:
+            if len(triple) != 1 or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 2:
+                return None
+            if any(
+                b.GetBondTypeAsDouble() not in (1.0, 3.0) or b.GetOtherAtom(nitrogen).GetAtomicNum() != 6
+                for b in nitrogen.GetBonds()
+            ):
                 return None
         else:
             acyl = [
@@ -1681,7 +1686,7 @@ def _group_cation_base(mol, kind, ignore=frozenset()):
             atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
-    groups = Chem.MolFromSmarts("[CX2]#[NX1]" if kind == "nitrile" else "[CX3](=O)[NX3]")
+    groups = Chem.MolFromSmarts("[CX2]#[N]" if kind == "nitrile" else "[CX3](=O)[NX3]")
     if len(base.GetSubstructMatches(groups)) > len(charged):
         return None
     return base
@@ -2726,7 +2731,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 raise UnsupportedStructure("an N-substituted imidic acid inside a unit is not handled by the chain engine")
             n_names = imidic_ns
 
-    if principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES):
+    if principal in ("amide", "nitrile", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES):
         amide_ns = _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if amide_ns:
             if n_names:

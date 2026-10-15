@@ -166,10 +166,6 @@ def name_hydride_onium(mol) -> str:
     if center is None:
         raise UnsupportedStructure("not an onium cation of a mononuclear hydride")
     graph = adjacency(mol)
-    if center.GetAtomicNum() == 7 and any(b.GetBondTypeAsDouble() == 3.0 for b in center.GetBonds()):
-        nitrilium = _substituted_nitrilium(mol, graph, center)
-        if nitrilium is not None:
-            return nitrilium
     entries = []
     halogens = halogen_substituents(mol)
     token = EXTENDED_PREFIXES.set(True)
@@ -185,38 +181,6 @@ def name_hydride_onium(mol) -> str:
     if lam:
         stem = f"-\u03bb{lam}-{stem}"
     return centre_descriptor(mol, center) + format_mononuclear_prefixes(entries) + stem
-
-
-def _substituted_nitrilium(mol, graph, center):
-    """P-73.1.2.1: a nitrile whose nitrogen carries a substituent takes the cationic suffix 'nitrilium' with the N prefix
-    ('N-methylacetonitrilium'); formonitrile admits no substitution (P-66.5.1.2.1), so it stays an azanium."""
-    from ._cited_group import subtree
-    from ._dipolar import _group
-    from ._hetero_prefixes import _enclose
-    from .core import smiles_to_iupac
-
-    triple = next(b for b in center.GetBonds() if b.GetBondTypeAsDouble() == 3.0)
-    carbon = triple.GetOtherAtom(center).GetIdx()
-    others = [n for n in graph[center.GetIdx()] if n != carbon]
-    if len(others) != 1:
-        return None
-    (substituent,) = others
-    if graph[carbon] == [center.GetIdx()]:
-        return None
-    editable = Chem.RWMol(mol)
-    editable.GetAtomWithIdx(center.GetIdx()).SetFormalCharge(0)
-    for index in sorted(subtree(graph, substituent, center.GetIdx()), reverse=True):
-        editable.RemoveAtom(index)
-    nitrile = editable.GetMol()
-    try:
-        Chem.SanitizeMol(nitrile)
-        name = smiles_to_iupac(Chem.MolToSmiles(nitrile))
-    except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
-        return None
-    if not name.endswith("nitrile") or len(nitrile.GetSubstructMatches(Chem.MolFromSmarts("C#N"))) > 1:
-        return None
-    group, compound = _group(mol, graph, substituent, center.GetIdx())
-    return f"N-{_enclose(group, compound)}{name[:-1]}ium"
 
 
 _POLY_STEM = {8: "oxylium", 16: "sulfanylium", 34: "selanylium", 52: "tellanylium"}
