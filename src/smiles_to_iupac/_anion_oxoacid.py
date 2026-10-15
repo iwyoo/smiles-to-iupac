@@ -127,8 +127,6 @@ def name_oxoacid_anion(mol, center):
                 esters.append(name_branch(graph, other.GetIdx(), n.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True))
             else:
                 raise UnsupportedStructure("this oxoacid substituent is not supported yet")
-        if any(a.GetIdx() != center.GetIdx() and a.GetAtomicNum() in (5, 15, 16) for a in mol.GetAtoms()):
-            raise UnsupportedStructure("several phosphorus atoms are not supported here")
         if center.GetAtomicNum() == 5:
             if oxo or len(carbons) > 2:
                 raise UnsupportedStructure("this boron acid pattern is not supported yet")
@@ -158,6 +156,47 @@ def name_oxoacid_anion(mol, center):
         words.append(("hydrogen" if hydroxyls == 1 else multiplying_prefix(hydroxyls) + "hydrogen"))
     words.append(parent)
     return " ".join(words)
+
+
+def multiplied_phosphonate_name(mol):
+    """'methylenebis(hydrogen phosphonate)': identical phosphonate groups, each with the same number of anionic oxygens,
+    joined by a linker take the multiplicative name of the neutral acid with 'phosphonic acid' turned into the anion
+    (P-72.2.2.2, P-67.1.3.1)."""
+    import re
+
+    from .core import smiles_to_iupac
+
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() > 0 for a in mol.GetAtoms()):
+        return None
+    anions = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0]
+    if not anions or any(a.GetAtomicNum() != 8 or a.GetDegree() != 1 or a.GetFormalCharge() != -1 for a in anions):
+        return None
+    hosts = {}
+    for a in anions:
+        hosts.setdefault(a.GetNeighbors()[0].GetIdx(), []).append(a.GetIdx())
+    phosphorus = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 15]
+    if len(hosts) < 2 or len(phosphorus) != len(hosts) or len({len(o) for o in hosts.values()}) != 1:
+        return None
+    if any(mol.GetAtomWithIdx(h).GetAtomicNum() != 15 for h in hosts):
+        return None
+    if any(len(h.GetNeighbors()) != 4 for h in phosphorus) or any(
+        sum(1 for n in mol.GetAtomWithIdx(h).GetNeighbors() if n.GetAtomicNum() == 6) != 1 for h in hosts
+    ):
+        return None
+    editable = Chem.RWMol(mol)
+    for a in anions:
+        atom = editable.GetAtomWithIdx(a.GetIdx())
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    neutral = editable.GetMol()
+    Chem.SanitizeMol(neutral)
+    acid = smiles_to_iupac(Chem.MolToSmiles(neutral))
+    found = re.fullmatch(r"(?P<head>.+)(?P<multiplier>bis|tris|tetrakis)\(phosphonic acid\)", acid)
+    if found is None:
+        return None
+    unit = "phosphonate" if len(next(iter(hosts.values()))) == 2 else "hydrogen phosphonate"
+    return f"{found.group('head')}{found.group('multiplier')}({unit})"
 
 
 def _ester_words(esters):
