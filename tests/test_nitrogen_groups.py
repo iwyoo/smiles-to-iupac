@@ -220,6 +220,8 @@ def test_n_substituted_aniline_and_multi_ring_chain_amine(smiles, expected):
         pytest.param("NC(N)=CC", "prop-1-ene-1,1-diamine", id="geminal_groups_on_the_double_bond_of_a_longer_chain"),
         pytest.param("NC(N)=C1CCCC1", "cyclopentylidenemethanediamine", id="geminal_groups_on_the_carbon_of_a_ylidene"),
         pytest.param("ClC=CN", "2-chloroethen-1-amine", id="locant_of_the_double_bond_of_a_substituted_ethene_omitted"),
+        pytest.param("C[Si](C)(C)C/C=C/N(C)C", "(1E)-N,N-dimethyl-3-(trimethylsilyl)prop-1-en-1-amine", id="silyl_group_beside_a_configured_tertiary_enamine"),
+        pytest.param("C[Si](C)(C)C/C=C(/C)N(C)C", "(2Z)-N,N-dimethyl-4-(trimethylsilyl)but-2-en-2-amine", id="silyl_group_beside_a_configured_enamine_on_a_branched_carbon"),
     ],
 )
 def test_enamine_and_related(smiles, expected):
