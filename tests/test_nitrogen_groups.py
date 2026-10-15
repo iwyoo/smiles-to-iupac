@@ -2365,6 +2365,21 @@ def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, e
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)ONC(C)=O", "N-(acetyloxy)acetamide", id="acyloxy_on_an_amide_nitrogen"),
+        pytest.param("CC(=O)ON(C)C(C)=O", "N-(acetyloxy)-N-methylacetamide", id="acyloxy_beside_a_second_n_substituent"),
+        pytest.param("CCC(=O)ONC(=O)c1ccco1", "N-(propanoyloxy)furan-2-carboxamide", id="acyloxy_on_the_nitrogen_of_a_ring_carboxamide"),
+        pytest.param("COC(=O)ONC(C)=O", "N-[(methoxycarbonyl)oxy]acetamide", id="alkoxycarbonyloxy_on_an_amide_nitrogen"),
+        pytest.param("CS(=O)(=O)ONC(C)=O", "N-[(methanesulfonyl)oxy]acetamide", id="sulfonyloxy_on_an_amide_nitrogen"),
+    ],
+)
+def test_acyloxy_group_on_an_amide_nitrogen_is_a_prefix_of_the_amide(smiles, expected):
+    # P-65.6.3.2.3, P-65.6.3.4.1: an acyclic nitrogen gives no traditional ester
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-21.2.2, P-21.2.3.1, P-44.1.2, P-62.2, P-63.4.2, P-68.3.1: bonds between different heteroatoms
 @pytest.mark.parametrize(
     "smiles,expected",

@@ -418,6 +418,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         n in hydroxy
         or n in oxy
         or n in acyl
+        or _acyloxy_on_nitrogen(mol, n, nitrogen)
         or _carbamimidoyl_on(mol, n, nitrogen)
         or _cyano_on(mol, n, nitrogen)
         or n.GetAtomicNum() in HALOGEN_PREFIXES
@@ -763,9 +764,18 @@ def _acyloxy_amine_oxygen(mol, oxygen, carbon):
     doubles = [b for b in far.GetBonds() if b.GetBondTypeAsDouble() != 1.0]
     if len(doubles) > 1 or any(b.GetBondTypeAsDouble() != 2.0 for b in doubles):
         return False
-    return all(
-        n.GetIdx() == oxygen.GetIdx() or (n.GetAtomicNum() == 6 and not _double_oxygens(mol, n.GetIdx()))
-        for n in far.GetNeighbors()
+    return all(n.GetIdx() == oxygen.GetIdx() or n.GetAtomicNum() == 6 for n in far.GetNeighbors())
+
+
+def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
+    """An acyloxy group -O-CO-R on `nitrogen`, cited as the prefix 'acyloxy' because an acyclic nitrogen gives no
+    traditional ester (P-65.6.3.2.3, P-65.6.3.4.1)."""
+    acyl = next((n for n in oxygen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()), None)
+    return (
+        acyl is not None
+        and acyl.GetAtomicNum() in (6, 16)
+        and bool(_double_oxygens(mol, acyl.GetIdx()))
+        and _acyloxy_amine_oxygen(mol, oxygen, acyl.GetIdx())
     )
 
 
