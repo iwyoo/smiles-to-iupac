@@ -2060,7 +2060,11 @@ def _name_labelled(mol, labels, finish=None):
     isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
         try:
-            multiplicative = None if _ionic_linker_centre(mol) or _cationic_amine_parent(mol) else _multiplicative_name(mol, stereo)
+            multiplicative = (
+                None
+                if _ionic_linker_centre(mol) or _cationic_amine_parent(mol) or RING_CENTER.get()
+                else _multiplicative_name(mol, stereo)
+            )
         except UnsupportedStructure:
             if not labels:
                 raise
