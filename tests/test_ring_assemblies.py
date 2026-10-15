@@ -59,6 +59,15 @@ def test_seven_ring_chain_still_is_named():
         ("OC1CC=CCC1C1CC=CCC1", "[1,1'-bi(cyclohexane)]-3',4-dien-2-ol"),
         ("C1=CCCCC1C1=CCCCC1C", "6-methyl[1,1'-bi(cyclohexane)]-1,2'-diene"),
         ("ClC1=CCCCC1C1CCCCC1Cl", "2,2'-dichloro[1,1'-bi(cyclohexane)]-2-ene"),
+        pytest.param("OC1=CCCC=C1C1=CCCCC1", "[1,1'-bi(cyclohexane)]-1(6),1',2-trien-2-ol", id="ring_bond_closing_the_numbering_beside_a_suffix"),
+        pytest.param("NC1=CCCC=C1C1CCCCC1", "[1,1'-bi(cyclohexane)]-1(6),2-dien-2-amine", id="compound_locant_beside_an_amine_suffix"),
+        pytest.param("NC1=CCC=C1C1CCCC1", "[1,1'-bi(cyclopentane)]-1(5),2-dien-2-amine", id="compound_locant_in_five_membered_rings"),
+        pytest.param(
+            "OC1=CCCC=C1C1=CCCC=C1",
+            "[1,1'-bi(cyclohexane)]-1(6),1',2,5'-tetraen-2-ol",
+            id="second_ring_numbered_without_a_compound_locant",
+        ),
+        pytest.param("C1=CCCC=C1C1CCCCC1", "[1,1'-bi(cyclohexane)]-1,5-diene", id="numbering_without_a_compound_locant_when_free"),
     ],
 )
 def test_double_bond_junction_and_unsaturated_rings(smiles, expected):
