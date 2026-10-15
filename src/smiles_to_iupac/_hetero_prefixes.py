@@ -98,6 +98,9 @@ CATION_PARENT = contextvars.ContextVar("cation_parent", default=False)
 RADICAL_PARENT = contextvars.ContextVar("radical_parent", default=False)
 
 
+_IMINE_NITROGEN_CHALCOGEN = Chem.MolFromSmarts("[CX3]=[NX2]-[S,Se,Te]")
+
+
 def _has_senior_principal_group(mol):
     """A principal group senior to the hetero-hetero connection (hydroxylamine, hydrazine, peroxide classes) is
     present, so that connection is expressed as a prefix (P-41, P-29.4.1); a cationic parent outranks every group."""
@@ -111,6 +114,7 @@ def _has_senior_principal_group(mol):
         or mol.HasSubstructMatch(_ARYLAMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
         or mol.HasSubstructMatch(_AMINO_ON_RING_NITROGEN)
+        or mol.HasSubstructMatch(_IMINE_NITROGEN_CHALCOGEN)
         or any(mol.HasSubstructMatch(query) for query in _OXYGEN_PEROXOL)
     )
 
