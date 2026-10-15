@@ -127,11 +127,12 @@ def _hetero_connection_is_prefix(mol):
 def _dichalcogenide_only(mol):
     """Every contiguous run of chalcogen atoms joins two carbon groups and is a prefix on a carbon parent: a pair, or a
     heterogeneous run of three or more atoms (P-68.4.2.4); three or more identical atoms form a parent hydride of their own
-    (P-68.4.1.1)."""
+    (P-68.4.1.1), unless a nitrogen ring is the senior parent (P-41)."""
     hosts = (6, 5, 13, 14, 31, 32, 49, 50, 81, 82)
-    if any(a.GetAtomicNum() not in (1, 8, 9, 17, 35, 53, 16, 34, 52, *hosts) for a in mol.GetAtoms()):
+    if any(a.GetAtomicNum() not in (1, 8, 9, 17, 35, 53, 16, 34, 52, *hosts) and not (a.GetAtomicNum() == 7 and a.IsInRing()) for a in mol.GetAtoms()):
         return False
     chalcogens = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in _CHAIN_ELEMENTS}
+    nitrogen_ring = any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms())
     seen, runs = set(), 0
     for start in chalcogens:
         if start in seen or not any(n.GetIdx() in chalcogens for n in mol.GetAtomWithIdx(start).GetNeighbors()):
@@ -151,7 +152,7 @@ def _dichalcogenide_only(mol):
             or any(sum(n.GetIdx() in run for n in a.GetNeighbors()) > 2 for a in atoms)
             or any(not any(n.GetAtomicNum() in (*hosts, 9, 17, 35, 53) for n in e.GetNeighbors()) for e in ends)
             or not any(n.GetAtomicNum() in hosts for e in ends for n in e.GetNeighbors())
-            or (len(run) >= 3 and len({a.GetAtomicNum() for a in atoms}) == 1)
+            or (len(run) >= 3 and len({a.GetAtomicNum() for a in atoms}) == 1 and not nitrogen_ring)
         ):
             return False
         runs += 1
