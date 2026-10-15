@@ -344,6 +344,37 @@ def sugar_acid_derivative_name(mol):
     return stem[:-2] + _ENDINGS[kind]
 
 
+_CARBOXYLATE = Chem.MolFromSmarts("[CX3;H0](=O)[OX1;-1]")
+
+
+def sugar_carboxylate_name(mol):
+    """P-72.2.2.2.1.1, P-102.5.6.6.2.1, P-102.5.6.6.4: the carboxylate of an aldonic, uronic or glycosiduronic acid keeps
+    the sugar-style name of the acid, whose 'ic acid' ending becomes 'ate' ('D-gluconate', 'α-D-glucopyranuronate')."""
+    from ._glycoside import has_glycoside_shape, name_glycoside
+    from .core import smiles_to_iupac
+
+    anions = mol.GetSubstructMatches(_CARBOXYLATE)
+    if len(anions) != 1 or len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() and a.GetIdx() != anions[0][2] for a in mol.GetAtoms()):
+        return None
+    neutral = Chem.RWMol(mol)
+    oxygen = neutral.GetAtomWithIdx(anions[0][2])
+    oxygen.SetFormalCharge(0)
+    oxygen.SetNoImplicit(False)
+    acid = neutral.GetMol()
+    Chem.SanitizeMol(acid)
+    for has_shape, name_function in (
+        (has_sugar_ring_acid_shape, name_sugar_ring_acid),
+        (has_ketoaldonic_chain_shape, name_ketoaldonic_chain),
+        (has_glycoside_shape, name_glycoside),
+        (has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid),
+        (has_substituted_chain_shape, name_substituted_chain),
+    ):
+        if has_shape(acid):
+            name = name_function(acid)
+            return name[: -len("ic acid")] + "ate" if name.endswith(("onic acid", "uronic acid")) else None
+    return None
+
+
 _RING_ESTER = Chem.MolFromSmarts("[CX3;R;H0](=O)[OX2;R;H0][CX4;R]")
 
 

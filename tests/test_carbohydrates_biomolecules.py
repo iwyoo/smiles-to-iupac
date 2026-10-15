@@ -598,6 +598,8 @@ def test_carbohydrate_acid_derivatives(smiles, expected):
         pytest.param("COC(=O)[C@@H](O)[C@@H](O)C(=O)OC", "dimethyl (2R,3S)-2,3-dihydroxybutanedioate", id="meso_four_carbon_aldaric_diester"),
         pytest.param("OC(=O)[C@H]1O[C@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranuronic acid", id="cyclic_uronic_acid"),
         pytest.param("OC(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl β-D-glucopyranosiduronic acid", id="uronic_acid_glycoside"),
+        pytest.param("OC[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)[O-].[Na+]", "sodium D-gluconate", id="aldonate_salt"),
+        pytest.param("[O-]C(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl β-D-glucopyranosiduronate", id="uronic_acid_glycoside_anion"),
     ],
 )
 def test_alditols_and_sugar_acids(smiles, expected):
