@@ -773,6 +773,12 @@ def named_prefix(atom):
     return _MAPPED_PREFIXES.get(atom.GetAtomMapNum())
 
 
+def is_halide_ligand(atom):
+    """Whether `atom` is a halogen that can leave an acyl or oxoacid centre as a halide; the placeholder of a nitro or
+    nitroso group is cited as a prefix and is neither a halide nor a pseudohalide (P-65.5.1, P-65.5.2.1)."""
+    return atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1 and named_prefix(atom) is None
+
+
 def halogen_prefix(atom):
     return named_prefix(atom) or HALOGEN_PREFIXES[atom.GetAtomicNum()]
 

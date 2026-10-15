@@ -8,7 +8,7 @@ import re
 from rdkit import Chem
 
 from ._acid_lexicon import _INFIX, _MULTIPLIER, _peroxo_word
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
 from ._parent_choice import senior_parent_name
 from ._retained_acids import single_site_prefixes
 from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
@@ -355,7 +355,7 @@ def _name_at(mol, center):
             ligands.append(("Y", chain[0]))
             owned |= chain[1]
             hydrogens += 1
-        elif z in _HALIDE_INFIX and n.GetDegree() == 1:
+        elif z in _HALIDE_INFIX and is_halide_ligand(n):
             ligands.append(("hal", _HALIDE_INFIX[z]))
             owned.add(i)
         elif pseudo is not None:

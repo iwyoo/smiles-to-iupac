@@ -37,6 +37,9 @@ class ChalcogenoicAcid:
             chalcogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in (8, self.atomic_num)]
             if len(chalcogens) != 2:
                 continue
+            others = [n for n in atom.GetNeighbors() if n.GetIdx() not in {c.GetIdx() for c in chalcogens}]
+            if len(others) > 1 or any(n.GetAtomicNum() != 6 for n in others):
+                continue
             double_bonded = []
             single_bonded = []
             for chalcogen in chalcogens:

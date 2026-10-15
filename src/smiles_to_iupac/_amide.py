@@ -372,7 +372,7 @@ def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped, n_names=()):
     from ._amine import _add_n_names
 
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=chain_length == 1)
     return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "amide")
 
 

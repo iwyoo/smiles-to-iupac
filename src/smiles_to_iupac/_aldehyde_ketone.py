@@ -70,7 +70,7 @@ def _carbonyl_oxygens_by_shape(mol):
         if carbon.GetAtomicNum() != 6:
             continue
         carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
-        if len(carbon_neighbors) == 1:
+        if len(carbon_neighbors) == 1 and carbon.GetTotalNumHs() == 1:
             aldehydes.add(atom.GetIdx())
         elif len(carbon_neighbors) == 2:
             ketones.add(atom.GetIdx())
@@ -133,14 +133,14 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
                     "module"
                 )
             carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
-            if len(carbon_neighbors) == 1:
+            if len(carbon_neighbors) == 1 and carbon.GetTotalNumHs() == 1:
                 aldehydes.add(atom.GetIdx())
             elif len(carbon_neighbors) == 2:
                 ketones.add(atom.GetIdx())
             else:
                 raise UnsupportedStructure(
-                    "a carbonyl carbon with zero or more than two carbon "
-                    "neighbors is not a valid aldehyde/ketone carbon"
+                    "a carbonyl carbon without one hydrogen and one carbon neighbor, or with other than two "
+                    "carbon neighbors, is not a valid aldehyde/ketone carbon"
                 )
         else:
             if atom.GetDegree() != 1:

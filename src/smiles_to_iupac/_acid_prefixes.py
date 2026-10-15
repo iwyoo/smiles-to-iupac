@@ -5,7 +5,7 @@ front, except the retained 'carboxy', 'carbamoyl' ... and the halide and pseudoh
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, is_halide_ligand
 from ._multiplicative_text import enclose
 
 _X_INFIX = {"O": "", "S": "thio", "Se": "seleno", "Te": "telluro", "NH": "imido", "NNH2": "hydrazono"}
@@ -150,7 +150,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
     z_atom = mol.GetAtomWithIdx(z_idx)
     if z_atom.GetFormalCharge() or z_atom.HasProp("_anion") or z_atom.HasProp("_anion_word"):
         return None
-    if zn in _HALIDE_INFIX:
+    if zn in _HALIDE_INFIX and is_halide_ligand(z_atom):
         if n_entries:
             return None
         return halide_acyl_name(_HALIDE_INFIX[zn], x), False

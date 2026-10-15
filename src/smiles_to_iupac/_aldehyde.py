@@ -183,6 +183,10 @@ def _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=frozenset()):
                     "module"
                 )
             carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
+            if carbon.GetDegree() != 2:
+                raise UnsupportedStructure(
+                    "a carbonyl carbon bonded to a heteroatom or halogen is an acyl group, not an aldehyde (P-65.5.1)"
+                )
             if len(carbon_neighbors) != 1:
                 raise UnsupportedStructure(
                     "a carbonyl carbon with other than exactly one carbon "
