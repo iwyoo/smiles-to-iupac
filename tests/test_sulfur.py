@@ -117,6 +117,7 @@ def test_sulfur_in_a_ring_is_a_heterocycle_not_a_sulfite_or_sulfate_ester(smiles
         pytest.param("OP(O)(=O)OCC(OP(O)(O)=O)COP(O)(O)=O", "propane-1,2,3-triyl tris(dihydrogen phosphate)", id="triple"),
         pytest.param("OP(O)(=O)OC1CCCCC1OP(O)(O)=O", "cyclohexane-1,2-diyl bis(dihydrogen phosphate)", id="ring_diyl"),
         pytest.param("OP(O)OCCOP(O)O", "ethane-1,2-diyl bis(dihydrogen phosphite)", id="phosphite"),
+        pytest.param("CS(=O)(=O)SCCSS(C)(=O)=O", "S,S\u2032-ethane-1,2-diyl dimethanesulfonothioate", id="sulfonothioate_cites_the_element_symbols"),
     ],
 )
 def test_multiplicative_esters_of_sulfur_and_phosphorus_acids(smiles, expected):

@@ -1186,6 +1186,9 @@ def test_carbonic_family_names(smiles, expected):
             "dimethyl butanedioylbis(oxy-2,1-phenylene)dibutanedioate",
         ),
         ("CC(=O)OCCOC(=O)CCC(=O)OCCOC(=O)CCC(=O)OC", "2-(acetyloxy)ethyl methyl ethane-1,2-diyl dibutanedioate"),
+        ("CC(=O)SCC(SC(C)=O)CSC(C)=O", "S,S\u2032,S\u2033-propane-1,2,3-triyl triethanethioate"),
+        ("CC(=S)OCCOC(C)=S", "O,O\u2032-ethane-1,2-diyl diethanethioate"),
+        ("CC(=O)SCCOC(=O)CC", "2-(acetylsulfanyl)ethyl propanoate"),
         (
             "COC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OC",
             "dimethyl 2,7,9,14,16,21-hexaoxo-3,6,10,13,17,20-hexaoxa-1,22(1),8,15(1,3)-tetrabenzenadocosaphane-1³,22³-dicarboxylate",
