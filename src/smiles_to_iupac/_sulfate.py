@@ -37,9 +37,8 @@ chalcogen-replacement analogue, and any other heteroatom.
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphate import allowed_outside_oxygen, format_ester_entries
+from ._phosphate import allowed_outside_oxygen, cited_ester_groups, format_ester_entries
 from ._salt import _MONOATOMIC_CATION_NAMES
-from ._substituents import name_branch
 
 _SULFUR = 16
 
@@ -157,7 +156,7 @@ def name_sulfate(mol) -> str:
         (root,) = [n for n in graph[oxygen_idx] if n != sulfur.GetIdx()]
         roots.append((root, oxygen_idx))
 
-    entries = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol) for root, coming_from in roots]
+    entries = cited_ester_groups(mol, graph, roots, halogens, aromatic_atoms)
     ester_words = format_ester_entries(entries)
     # P-67.1.3.2: a partial ester of a dibasic acid inserts the word
     # "hydrogen" (never "dihydrogen" -- sulfate has only two acidic

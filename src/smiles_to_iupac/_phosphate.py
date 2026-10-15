@@ -47,6 +47,7 @@ phosphite ester case (no P=O, P(III) instead of P(V)) via
 `format_ester_words`, exported for `_phosphite.py` to reuse.
 """
 
+import contextlib
 import re
 
 from rdkit import Chem
@@ -281,22 +282,7 @@ def name_phosphate(mol) -> str:
         (root,) = [n for n in graph[oxygen_idx] if n != phosphorus.GetIdx()]
         roots.append((root, oxygen_idx))
 
-    probe = Chem.Mol(mol)
-    assign_cip_labels(probe)
-    context = {
-        "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")},
-        "bonds": {(b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")},
-        "used": set(),
-    }
-    token = BRANCH_STEREO.set(context)
-    try:
-        entries = [name_branch(graph, root, via, halogens, aromatic_atoms, mol=mol) for root, via in roots]
-    finally:
-        BRANCH_STEREO.reset(token)
-    if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
-        ("bond", b) not in context["used"] for b in context["bonds"]
-    ):
-        raise UnsupportedStructure("a stereo element of the ester groups is not cited by any supported name")
+    entries = cited_ester_groups(mol, graph, roots, halogens, aromatic_atoms)
     ester_words = format_ester_entries(entries)
     # P-67.1.3.2: a partial ester of a polybasic acid inserts the word
     # "hydrogen" (with a multiplying prefix if more than one remaining
@@ -309,6 +295,35 @@ def name_phosphate(mol) -> str:
     else:
         anion_name = ester_words + " phosphate"
     return f"{cation_name} {anion_name}" if cation_name else anion_name
+
+
+@contextlib.contextmanager
+def citing_stereo(mol):
+    """Within the block `name_branch` cites the CIP descriptors of the stereo elements of `mol` (P-93.5); leaving the block
+    raises when one of them was not cited by any name."""
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    context = {
+        "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")},
+        "bonds": {(b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")},
+        "used": set(),
+    }
+    token = BRANCH_STEREO.set(context)
+    try:
+        yield
+    finally:
+        BRANCH_STEREO.reset(token)
+    if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+        ("bond", b) not in context["used"] for b in context["bonds"]
+    ):
+        raise UnsupportedStructure("a stereo element of the ester groups is not cited by any supported name")
+
+
+def cited_ester_groups(mol, graph, roots, halogens, aromatic_atoms):
+    """[(name, is compound)] of the organyl groups of an ester, `roots` being (root, ester oxygen) pairs, each with the CIP
+    descriptors of its stereo elements cited in front of the group name (P-93.5)."""
+    with citing_stereo(mol):
+        return [name_branch(graph, root, via, halogens, aromatic_atoms, mol=mol) for root, via in roots]
 
 
 def format_ester_entries(entries) -> str:
