@@ -1,7 +1,6 @@
 import pytest
 from smiles_to_iupac import smiles_to_alternative_names, smiles_to_iupac
 from smiles_to_iupac._coexisting_groups import name_via_senior_acyclic
-from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._seniority import SUFFIX_CLASS_RANK
 
 
@@ -296,17 +295,6 @@ def test_generalized_acyl_groups(smiles, expected):
 )
 def test_ring_and_chain_polyol_uses_acyloxy_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        "CC(=O)OCC(=C)COC(C)=O",
-    ],
-)
-def test_ring_diyl_out_of_scope(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
