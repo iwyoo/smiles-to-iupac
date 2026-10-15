@@ -357,7 +357,9 @@ def _parent(skeleton, centres, anomeric_label, six_deoxy_only):
     cited = [f"{d}-{p}" for d, p in reversed(chunks)]
     if skeleton.ring:
         cited[-1] = anomer + cited[-1]
-    number = _NUMBER_STEM[skeleton.n]
+    number = _NUMBER_STEM.get(skeleton.n)
+    if number is None:
+        return None
     if skeleton.ketose:
         stem = f"{number}-2-ulo{ring_word}" if skeleton.ring else f"{number}-2-ulose"
     else:
