@@ -1050,7 +1050,7 @@ def test_identical_fused_systems_choose_the_parent_by_substituents(smiles, expec
     assert smiles_to_iupac(smiles) == expected
 
 
-# P-31.2.1, P-31.2.4.1: a ring triple bond of a fused carbocycle is cited with didehydro prefixes before the hydro prefixes
+# P-31.2.1, P-31.2.4.1: a ring triple bond of a fused ring system is cited with didehydro prefixes before the hydro prefixes
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -1058,9 +1058,14 @@ def test_identical_fused_systems_choose_the_parent_by_substituents(smiles, expec
         pytest.param("C1#Cc2ccccc2C1", "2,3-didehydro-1H-indene", id="indicated_hydrogen_first"),
         pytest.param("C1#Cc2ccccc2CC1", "1,2-didehydro-3,4-dihydronaphthalene", id="lowest_dehydro_locants_on_a_tie"),
         pytest.param("C1#Cc2cc(C)ccc2C1", "5-methyl-2,3-didehydro-1H-indene", id="after_the_alphabetized_prefixes"),
+        pytest.param("CN1CC#Cc2ccccc21", "1-methyl-3,4-didehydro-1,2-dihydroquinoline", id="heterocycle_with_hydro_prefixes"),
+        pytest.param("C1#CCOc2ccccc12", "3,4-didehydro-2H-1-benzopyran", id="heterocycle_with_indicated_hydrogen"),
+        pytest.param("C1#CCCCC#Cc2ccccc12", "5,6,10,11-tetradehydro-8,9-dihydro-7H-benzo[9]annulene", id="two_triple_bonds"),
+        pytest.param("OC1CC#Cc2ccccc12", "3,4-didehydro-1,2-dihydronaphthalen-1-ol", id="suffix_after_the_parent"),
+        pytest.param("O=C1NC(=O)C2C3C#CC(CC3)C12", "5,6-didehydro-3a,4,7,7a-tetrahydro-1H-4,7-ethanoisoindole-1,3(2H)-dione", id="bridge_between_fused_rings"),
     ],
 )
-def test_ring_triple_bond_of_a_fused_carbocycle(smiles, expected):
+def test_ring_triple_bond_of_a_fused_ring_system(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
