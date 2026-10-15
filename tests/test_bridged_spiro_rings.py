@@ -124,6 +124,21 @@ def test_ring_double_bond_stereo(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1cc2cc(c1)COC2", "3-oxabicyclo[3.3.1]nona-1(9),5,7-triene", id="heteroatom_inside_the_bridge"),
+        pytest.param("c1cc2cc(c1)CCO2", "2-oxabicyclo[3.3.1]nona-1(9),5,7-triene", id="other_kekule_structure_gives_fewer_compound_locants"),
+        pytest.param("c1cc2cc(c1)OCO2", "2,4-dioxabicyclo[3.3.1]nona-1(9),5,7-triene", id="two_heteroatoms_of_one_element"),
+        pytest.param("c1cc2cc(c1)CNCC2", "3-azabicyclo[4.3.1]deca-1(10),6,8-triene", id="four_atom_bridge"),
+        pytest.param("c1cc2cc(c1)CSCO2", "2-oxa-4-thiabicyclo[4.3.1]deca-1(10),6,8-triene", id="two_heteroatoms_of_two_elements"),
+    ],
+)
+def test_meta_bridged_benzene_with_a_skeletal_heteroatom_is_a_von_baeyer_triene(smiles, expected):
+    # P-31.1.4.2, P-23.3.1
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("C1CC/C=C/C=C\\CCCC1", "(1Z,3E)-cycloundeca-1,3-diene"),
