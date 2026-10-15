@@ -84,7 +84,7 @@ def cip_labels(mol, side, chain_double_bonds=False):
     ) or any(
         e.type == Chem.StereoType.Bond_Double
         and e.specified != Chem.StereoSpecified.Specified
-        and not _is_ring_double_bond(mol, e)
+        and not (chain_double_bonds or _is_ring_double_bond(mol, e))
         for e in in_side
     ):
         raise UnsupportedStructure(

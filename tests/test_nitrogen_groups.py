@@ -226,6 +226,19 @@ def test_enamine_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC=C[C@H]1CCCN1", "(2R)-2-(prop-1-en-1-yl)pyrrolidine", id="nitrogen_ring"),
+        pytest.param("CC=C[C@H]1CCCO1", "(2R)-2-(prop-1-en-1-yl)oxolane", id="oxygen_ring"),
+        pytest.param("CC=C[C@H](C)N1CCCC1", "1-[(2S)-pent-3-en-2-yl]pyrrolidine", id="centre_on_a_chain_bonded_to_a_ring_nitrogen"),
+    ],
+)
+def test_unspecified_double_bond_adds_no_descriptor_beside_a_ring_stereocentre(smiles, expected):
+    # P-93.4.2.1.1
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_acyclic_primary_amine_stereocenter_with_ez_double_bond_coexistence():
     assert smiles_to_iupac("C/C=C/[C@@H](C)N") == "(2R,3E)-pent-3-en-2-amine"
     assert smiles_to_iupac("C/C=C/[C@H](C)N") == "(2S,3E)-pent-3-en-2-amine"
