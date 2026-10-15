@@ -946,6 +946,45 @@ def test_monospiro_union_with_a_von_baeyer_component(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param(
+            "C[C@H]1C[C@H]2CC[C@@H]1C21CCCC1",
+            "(1S,2S,4R)-2-methylspiro[bicyclo[2.2.1]heptane-7,1\u2032-cyclopentane]",
+            id="bridgeheads_and_a_substituted_atom_of_the_von_baeyer_component",
+        ),
+        pytest.param(
+            "C[C@@H]1C[C@@H]2CC[C@H]1C21CCCC1",
+            "(1R,2R,4S)-2-methylspiro[bicyclo[2.2.1]heptane-7,1\u2032-cyclopentane]",
+            id="enantiomer_inverts_every_descriptor",
+        ),
+        pytest.param(
+            "CC1(C)[C@H]2CCC3(CCCC3)[C@H]21",
+            "(1S,5S)-6,6-dimethylspiro[bicyclo[3.1.0]hexane-2,1\u2032-cyclopentane]",
+            id="bicyclo_hexane_bridgeheads",
+        ),
+        pytest.param(
+            "C[C@@H]1CC[C@H]2CCC3(CCCC3)[C@@H]12",
+            "(3\u2032aS,6\u2032R,6\u2032aS)-6\u2032-methyl-3\u2032,3\u2032a,4\u2032,5\u2032,6\u2032,6\u2032a-hexahydro-2\u2032H-spiro[cyclopentane-1,1\u2032-pentalene]",
+            id="primed_locants_of_a_fused_component",
+        ),
+        pytest.param(
+            "Cl[C@@H]1C2CCCOC2C12CCCC2",
+            "(8R)-8-chloro-5-oxaspiro[bicyclo[4.2.0]octane-7,1\u2032-cyclopentane]",
+            id="only_the_specified_centre_is_cited_beside_a_replacement_prefix",
+        ),
+        pytest.param(
+            "C1C[C@@H]2C[C@H]1C[C@]23CCCC[C@H]3C",
+            "(1R,1\u2032S,2\u2032R,4S)-2\u2032-methylspiro[bicyclo[2.2.1]heptane-2,1\u2032-cyclohexane]",
+            id="unprimed_locants_before_primed_ones_in_the_citation",
+        ),
+    ],
+)
+def test_monospiro_union_with_a_polycyclic_component_cites_the_configuration(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("C1CC2(C=CNC=C2)C2=CC=CC=C12", "2,3-dihydro-1′H-spiro[indene-1,4′-pyridine]", id="mancude_retained_monocycle_with_indicated_hydrogen"),
         pytest.param("C1CC2(CCN(C=C2)C)c2ccccc12", "1′-methyl-2,2′,3,3′-tetrahydro-1′H-spiro[indene-1,4′-pyridine]", id="hydro_prefixes_of_a_partly_saturated_monocycle"),
         pytest.param("C12C[N+]3(CC(CC1)CC2)COC=C3", "2′H-3λ5-spiro[3-azabicyclo[3.2.2]nonane-3,3′-[1,3]oxazol]-3-ylium", id="hantzsch_widman_mancude_monocycle_with_cationic_spiro_atom"),

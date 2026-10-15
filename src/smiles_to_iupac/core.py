@@ -1036,10 +1036,13 @@ def _name_unabridged_body(smiles: str) -> str:
                 return candidate
         if parsed is not None and parsed.GetRingInfo().NumRings() == 3 and sum(a.GetAtomicNum() == 8 for a in parsed.GetAtoms()) >= 8 and has_sugar_dianhydride_shape(parsed):
             return name_sugar_dianhydride(parsed)
+        configured_spiro_union = None
         if parsed is not None and has_spiro_union_shape(parsed):
             try:
                 name = name_spiro_union(parsed)
-                return name
+                if not _has_specified_stereo(parsed):
+                    return name
+                configured_spiro_union = name
             except UnsupportedStructure:
                 pass
         if parsed is not None and has_inorganic_polyester_shape(parsed):
@@ -1078,6 +1081,8 @@ def _name_unabridged_body(smiles: str) -> str:
                     return name_isotope_steroid(parsed)
                 except UnsupportedStructure:
                     pass
+            if configured_spiro_union is not None:
+                return configured_spiro_union
             if not _has_ionic_centre(parsed) and has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed):
                 try:
                     return name_polyfunctional(parsed)

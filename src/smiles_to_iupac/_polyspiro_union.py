@@ -426,10 +426,7 @@ def _analyse(mol, atoms=None, outer=frozenset()):
     if any(
         a.GetIsotope()
         or a.GetNumRadicalElectrons()
-        or (
-            a.GetChiralTag() not in (Chem.ChiralType.CHI_UNSPECIFIED, *_POLYHEDRAL_TAGS)
-            and (a.GetIdx() not in spiro or atoms is not None)
-        )
+        or (a.GetChiralTag() not in (Chem.ChiralType.CHI_UNSPECIFIED, *_POLYHEDRAL_TAGS) and atoms is not None)
         for a in inside
     ):
         raise UnsupportedStructure("isotopes, radicals and stereodescriptors of a spiro union are not supported yet")
@@ -793,6 +790,9 @@ def name_spiro_union(mol) -> str:
     graph = adjacency(mol)
     ring_atoms = ctx.scope
     saturated, choices = _hydrogen_choices(mol, ctx.capable, ctx.polycyclic_bonds, ctx.monocyclic_bonds)
+    from ._common import specified_stereocenters
+
+    centres = specified_stereocenters(mol) or []
     best = None
     for sol in _solutions(ctx, mol):
         locant_of = sol.locant_of
@@ -809,7 +809,8 @@ def name_spiro_union(mol) -> str:
             key=lambda c: (c[0], c[1]),
         )
         unsaturation = sorted(choice[1] + [_lk(x) for x in sol.ene])
-        key = (*_ranked(ctx, mol, sol), choice[0], unsaturation, locant_set, citation_prefix)
+        configuration = tuple(0 if code in "Rr" else 1 for _, code in sorted(((_lk(locant_of[a]), code) for a, code in centres if a in locant_of)))
+        key = (*_ranked(ctx, mol, sol), choice[0], unsaturation, locant_set, citation_prefix, configuration)
         if best is None or key < best[0]:
             best = (key, sol, choice[2], grouped)
     if best is None:
@@ -835,9 +836,10 @@ def _spiro_descriptor(mol, locant_of, name):
     centres = specified_stereocenters(mol)
     if centres is None:
         return name
-    if len(centres) == 1 and centres[0][0] in locant_of:
-        return f"({locant_of[centres[0][0]]}{centres[0][1]})-{name}"
-    raise UnsupportedStructure("a specified stereocentre other than the sole spiro atom is not supported yet")
+    if any(atom not in locant_of for atom, _ in centres):
+        raise UnsupportedStructure("a specified stereocentre outside the rings of a spiro union is not supported yet")
+    cited = sorted(((locant_of[atom], code) for atom, code in centres), key=lambda item: _lk(item[0]))
+    return f"({','.join(f'{locant}{code}' for locant, code in cited)})-{name}"
 
 
 def spiro_union_numberings(mol, graph, skeleton_atoms):
