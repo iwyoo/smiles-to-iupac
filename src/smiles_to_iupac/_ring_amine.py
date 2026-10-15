@@ -145,6 +145,13 @@ _TWO_HETERO_ELEMENT_PAIRS = {
 _TWO_HETERO_PRIORITY = {"O": 0, "S": 1, "N": 2}
 
 
+def _is_imidoyl_carbon(mol, atom):
+    """A carbon double-bonded to nitrogen: the amidine or guanidine unit it belongs to outranks the amine (P-41)."""
+    return atom.GetAtomicNum() == 6 and any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 7 for b in atom.GetBonds()
+    )
+
+
 def _ring_amine_shape(mol):
     """(n_idx, ring_atoms, n_substituent_root_idx, ring_carbon_substituent)
     if `mol` has exactly one plain, saturated, monocyclic ring (5/6/7-
@@ -175,7 +182,7 @@ def _ring_amine_shape(mol):
     exo = [n for n in n_atom.GetNeighbors() if n.GetIdx() not in ring_atoms]
     if len(exo) != 1:
         return None
-    if mol.GetBondBetweenAtoms(n_idx, exo[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+    if mol.GetBondBetweenAtoms(n_idx, exo[0].GetIdx()).GetBondTypeAsDouble() != 1.0 or _is_imidoyl_carbon(mol, exo[0]):
         return None
     ring_carbon_substituent = None
     for a in ring_atoms:
@@ -254,6 +261,8 @@ def _two_hetero_ring_amine_shape(mol):
     if len(substituted) != 1:
         return None
     (n_idx, root) = substituted[0]
+    if _is_imidoyl_carbon(mol, mol.GetAtomWithIdx(root)):
+        return None
 
     other_heteroatom = het2 if n_idx == het1 else het1
     other_atom = mol.GetAtomWithIdx(other_heteroatom)

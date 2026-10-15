@@ -170,7 +170,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         subs = [n for n in graph[z_idx] if n != root]
         if mol.GetAtomWithIdx(z_idx).GetFormalCharge() or any(_bond(mol, z_idx, n) != 1.0 for n in subs):
             return None
-        if mol.GetAtomWithIdx(z_idx).IsInRing() and not (subs and x in ("O", "S")):
+        if mol.GetAtomWithIdx(z_idx).IsInRing() and not (subs and (x in ("O", "S") or (x == "NH" and not n_entries))):
             return None
         from ._hetero_prefixes import _amino, _amino_stem, _group_names, _is_amino_nitrogen
 
@@ -187,10 +187,11 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
             if substituted is not None:
                 return substituted, True
         stem = _CARBAM[x]
-        if subs and mol.GetAtomWithIdx(z_idx).IsInRing() and x in ("O", "S"):
+        if subs and mol.GetAtomWithIdx(z_idx).IsInRing() and x in ("O", "S", "NH"):
             from ._hetero_prefixes import _ring_nitrogen_acyl
 
-            return _ring_nitrogen_acyl(graph, z_idx, root, halogens, aromatic_atoms, mol, {"O": "carbonyl", "S": "carbothioyl"}[x])
+            infix = {"O": "carbonyl", "S": "carbothioyl", "NH": "carboximidoyl"}[x]
+            return _ring_nitrogen_acyl(graph, z_idx, root, halogens, aromatic_atoms, mol, infix)
         amino = _amino(_group_names(graph, mol, subs, z_idx, halogens, aromatic_atoms)) if subs else "amino"
         if n_entries or (subs and x == "NH"):
             imino_mark, amino_mark = ("N'", "N") if x == "NH" else ("N", "N'")
