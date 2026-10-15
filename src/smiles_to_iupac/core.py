@@ -136,6 +136,7 @@ from ._radical import has_radical_shape, name_radical
 from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
+from ._isotope_acid_hydrogen import has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen
 from ._appendix3_skeletons import name_appendix3_skeleton
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
@@ -692,6 +693,7 @@ def _name_isotope_label(mol) -> str:
         (has_labelled_azoxy, name_labelled_azoxy),
         (has_labelled_diazene, name_labelled_diazene),
         (has_labelled_hydrazone, name_labelled_hydrazone),
+        (has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen),
         (has_isotope_hydride_shape, name_isotope_hydride),
         (has_isotope_one_carbon_shape, name_isotope_one_carbon),
         (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
