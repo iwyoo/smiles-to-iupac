@@ -76,7 +76,13 @@ all three (single/multi/mixed) polycyclic shapes per ring count.
 
 from rdkit import Chem
 
-from ._bicyclic import _candidate_key, bicyclic_parent_name, iter_bicyclic_numberings
+from ._bicyclic import (
+    _candidate_key,
+    _name_bicyclic_unsaturated,
+    bicyclic_parent_name,
+    iter_bicyclic_numberings,
+    ring_unsaturation,
+)
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -152,12 +158,6 @@ def name_von_baeyer_heteroatom(mol, core) -> str:
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
         )
     _validate_atoms(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated bicyclic ring systems are not supported yet (see "
-            "P-31.1.4, unsaturated von Baeyer ring systems)"
-        )
-
     ring_heteroatoms = _ring_heteroatoms(mol, core)
     all_heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
     if len(ring_heteroatoms) != 1 or set(all_heteroatoms) != set(ring_heteroatoms):
@@ -169,20 +169,23 @@ def name_von_baeyer_heteroatom(mol, core) -> str:
     (heteroatom_idx,) = ring_heteroatoms
     a_prefix = _HETEROATOM_PREFIXES[mol.GetAtomWithIdx(heteroatom_idx).GetAtomicNum()]
 
+    def hetero(full_order):
+        locant = full_order.index(heteroatom_idx) + 1
+        return locant, f"{lambda_cited(mol, heteroatom_idx, locant)}-{a_prefix}"
+
+    unsaturated = ring_unsaturation(mol, core)
+    if unsaturated is not None:
+        return _name_bicyclic_unsaturated(unsaturated[0], core, unsaturated[1], hetero)
+
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     parent = bicyclic_parent_name(core)
 
     best_key = None
     for full_order in iter_bicyclic_numberings(core):
-        heteroatom_locant = full_order.index(heteroatom_idx) + 1
+        heteroatom_locant, prefix = hetero(full_order)
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol)
-        key = _candidate_key(
-            parent,
-            substituents,
-            heteroatom_locant=heteroatom_locant,
-            nondetachable_prefix=f"{lambda_cited(mol, heteroatom_idx, heteroatom_locant)}-{a_prefix}",
-        )
+        key = _candidate_key(parent, substituents, heteroatom_locant=heteroatom_locant, nondetachable_prefix=prefix)
         if best_key is None or key < best_key:
             best_key = key
 
@@ -209,12 +212,6 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
         )
     _validate_atoms(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated bicyclic ring systems are not supported yet (see "
-            "P-31.1.4, unsaturated von Baeyer ring systems)"
-        )
-
     ring_heteroatoms = _ring_heteroatoms(mol, core)
     all_heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
     elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
@@ -229,23 +226,26 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
     a_prefix = _HETEROATOM_PREFIXES[element]
     multiplied_a_prefix = _replacement_multiplied_word(len(ring_heteroatoms), a_prefix)
 
+    def hetero(full_order):
+        locants = tuple(sorted(full_order.index(h) + 1 for h in ring_heteroatoms))
+        citation = ",".join(
+            lambda_cited(mol, h, loc) for loc, h in sorted((full_order.index(h) + 1, h) for h in ring_heteroatoms)
+        )
+        return locants, f"{citation}-{multiplied_a_prefix}"
+
+    unsaturated = ring_unsaturation(mol, core)
+    if unsaturated is not None:
+        return _name_bicyclic_unsaturated(unsaturated[0], core, unsaturated[1], hetero)
+
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     parent = bicyclic_parent_name(core)
 
     best_key = None
     for full_order in iter_bicyclic_numberings(core):
-        heteroatom_locants = tuple(sorted(full_order.index(h) + 1 for h in ring_heteroatoms))
+        heteroatom_locants, prefix = hetero(full_order)
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol)
-        locant_citation = ",".join(
-            lambda_cited(mol, h, loc) for loc, h in sorted((full_order.index(h) + 1, h) for h in ring_heteroatoms)
-        )
-        key = _candidate_key(
-            parent,
-            substituents,
-            heteroatom_locant=heteroatom_locants,
-            nondetachable_prefix=f"{locant_citation}-{multiplied_a_prefix}",
-        )
+        key = _candidate_key(parent, substituents, heteroatom_locant=heteroatom_locants, nondetachable_prefix=prefix)
         if best_key is None or key < best_key:
             best_key = key
 
@@ -272,12 +272,6 @@ def name_von_baeyer_heteroatom_mixed(mol, core) -> str:
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
         )
     _validate_atoms(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated bicyclic ring systems are not supported yet (see "
-            "P-31.1.4, unsaturated von Baeyer ring systems)"
-        )
-
     ring_heteroatoms = _ring_heteroatoms(mol, core)
     all_heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
     elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
@@ -290,22 +284,29 @@ def name_von_baeyer_heteroatom_mixed(mol, core) -> str:
             "skeleton is also out of scope"
         )
 
+    def hetero(full_order):
+        by_seniority = sorted(
+            ((mol.GetAtomWithIdx(a).GetAtomicNum(), full_order.index(a) + 1) for a in ring_heteroatoms),
+            key=lambda pair: _ELEMENT_SENIORITY[pair[0]],
+        )
+        locant_set = tuple(sorted(loc for _, loc in by_seniority))
+        atom_at = {full_order.index(a) + 1: a for a in ring_heteroatoms}
+        prefix = "-".join(
+            f"{lambda_cited(mol, atom_at[loc], loc)}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority
+        )
+        return (locant_set, tuple(loc for _, loc in by_seniority)), prefix
+
+    unsaturated = ring_unsaturation(mol, core)
+    if unsaturated is not None:
+        return _name_bicyclic_unsaturated(unsaturated[0], core, unsaturated[1], hetero)
+
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     parent = bicyclic_parent_name(core)
 
     best_key = None
     for full_order in iter_bicyclic_numberings(core):
-        by_seniority = sorted(
-            ((mol.GetAtomWithIdx(a).GetAtomicNum(), full_order.index(a) + 1) for a in ring_heteroatoms),
-            key=lambda pair: _ELEMENT_SENIORITY[pair[0]],
-        )
-        locant_set = tuple(sorted(loc for _, loc in by_seniority))
-        heteroatom_key = (locant_set, tuple(loc for _, loc in by_seniority))
-        atom_at = {full_order.index(a) + 1: a for a in ring_heteroatoms}
-        nondetachable_prefix = "-".join(
-            f"{lambda_cited(mol, atom_at[loc], loc)}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority
-        )
+        heteroatom_key, nondetachable_prefix = hetero(full_order)
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol)
         key = _candidate_key(
             parent,

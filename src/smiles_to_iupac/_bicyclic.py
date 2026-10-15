@@ -198,7 +198,44 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
     return locant_set, citation_locants, name
 
 
-def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
+def kekule_alternatives(original, bonds):
+    """The bond sets of `bonds` and of the other Kekulé structure of the one aromatic six-membered ring of `original`:
+    both are cyclohexatriene structures of the same benzene ring, and P-31.1.4.2 takes the numbering that gives the
+    fewer compound locants over either of them."""
+    rings = [r for r in original.GetRingInfo().AtomRings() if len(r) == 6 and all(original.GetAtomWithIdx(a).GetIsAromatic() for a in r)]
+    if len(rings) != 1:
+        return [bonds]
+    ring = rings[0]
+    inside = {frozenset((a, b)) for a, b, _ in bonds if a in ring and b in ring}
+    if len(inside) != 3:
+        return [bonds]
+    flipped = [bond for bond in bonds if not (bond[0] in ring and bond[1] in ring)]
+    for i, atom in enumerate(ring):
+        pair = frozenset((atom, ring[(i + 1) % 6]))
+        if pair not in inside:
+            flipped.append((*sorted(pair), ENE_BOND_ORDER))
+    return [bonds, flipped]
+
+
+def ring_unsaturation(mol, core):
+    """(Kekulé copy of `mol`, its alternative sets of ring double and triple bonds); None when the ring skeleton is
+    saturated. A double bond outside the ring skeleton is not a ring unsaturation and is refused, and so is an
+    unsaturated ortho-fused skeleton, which is named by fusion nomenclature."""
+    kekulized = kekulized_copy(mol)
+    ring_atoms = {a.GetIdx() for a in kekulized.GetAtoms() if a.IsInRing()}
+    bonds = non_single_bonds(kekulized)
+    if not bonds:
+        return None
+    if any(not bridge for bridge in core[2]):
+        raise UnsupportedStructure("an unsaturated ortho-fused bicyclic ring system is named by fusion nomenclature")
+    if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
+        raise UnsupportedStructure(
+            "unsaturation outside the ring skeleton of a bicyclic ring system is not supported yet"
+        )
+    return kekulized, kekule_alternatives(mol, bonds)
+
+
+def _name_bicyclic_unsaturated(mol, core, bond_sets, hetero=None) -> str:
     """P-31.1.4.1's simple case (every double/triple bond's two atoms land
     on consecutive locants) and P-31.1.4.2's compound-locant case
     (otherwise, the higher locant cited in parentheses) both handled
@@ -209,7 +246,7 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
     ignoring) locant set, (3) lowest full locant set including
     parenthesized numbers -- folded into `_candidate_key`'s existing
     `suffix_locant` slot ahead of substituent locants."""
-    invalid_orders = [order for _, _, order in bonds if order not in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    invalid_orders = [order for bonds in bond_sets for _, _, order in bonds if order not in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
     if invalid_orders:
         raise UnsupportedStructure(
             "a bond order other than single, double, or triple is not "
@@ -222,7 +259,7 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
     bond_stereo = specified_double_bond_stereo(mol)
 
     best_key = None
-    for full_order in iter_bicyclic_numberings(core):
+    for bonds, full_order in ((b, o) for b in bond_sets for o in iter_bicyclic_numberings(core)):
         position = {atom: i + 1 for i, atom in enumerate(full_order)}
         z_locants, stereo_prefix = von_baeyer_bond_stereo(mol, position, bond_stereo)
         ene_citations, yne_citations, compound_count, primary_locants, full_locants = (
@@ -234,11 +271,14 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
         body, needs_stem_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
         parent = stem + ("a" if needs_stem_a else "") + "-" + body
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
-        key = _candidate_key(
-            parent,
-            substituents,
-            suffix_locant=(compound_count, primary_locant_set, full_locant_set, ene_locant_set, z_locants),
-        )
+        unsaturation = (compound_count, primary_locant_set, full_locant_set, ene_locant_set, z_locants)
+        if hetero is None:
+            key = _candidate_key(parent, substituents, suffix_locant=unsaturation)
+        else:
+            heteroatom_key, prefix = hetero(full_order)
+            key = _candidate_key(
+                parent, substituents, heteroatom_locant=(heteroatom_key, unsaturation), nondetachable_prefix=prefix
+            )
         key = key[:-1] + (stereo_prefix + key[-1],)
         if best_key is None or key < best_key:
             best_key = key
@@ -250,11 +290,12 @@ def name_bicycloalkane(mol, core) -> str:
     validate_atoms_and_bonds(mol)
     if any(a.GetIsAromatic() for a in mol.GetAtoms()) and bicyclic_parent_name(core).endswith(".0]" + bicyclic_parent_name(core).split("]")[-1]):
         raise UnsupportedStructure("an aromatic ortho-fused bicyclic ring system is named by fusion nomenclature, not von Baeyer")
+    original = mol
     mol = kekulized_copy(mol)
     ring_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.IsInRing()}
     bonds = [b for b in non_single_bonds(mol) if b[0] in ring_atoms and b[1] in ring_atoms]
     if bonds:
-        return _name_bicyclic_unsaturated(mol, core, bonds)
+        return _name_bicyclic_unsaturated(mol, core, kekule_alternatives(original, bonds))
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
