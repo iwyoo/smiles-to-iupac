@@ -1185,6 +1185,26 @@ def _name_labelled_ring_center(clean, labels, found):
     return _name_ring_center(base, center, kind, probe, moved)
 
 
+def _mancude_ring(ring):
+    """`ring` with the hydrogens of its aromatic atoms assigned afresh so that it is a valid mancude structure: the
+    hydrogens a ring carries as oxo or hydro positions leave no aromatic ring as it stands."""
+    nitrogens = [a.GetIdx() for a in ring.GetAtoms() if a.GetAtomicNum() == 7 and a.GetIsAromatic()]
+    for count in range(len(nitrogens) + 1):
+        for with_hydrogen in itertools.combinations(nitrogens, count):
+            candidate = Chem.RWMol(ring)
+            for atom in candidate.GetAtoms():
+                if atom.GetIsAromatic():
+                    atom.SetNumExplicitHs(1 if atom.GetIdx() in with_hydrogen else 0)
+                    atom.SetNoImplicit(atom.GetAtomicNum() == 7)
+            mol = candidate.GetMol()
+            try:
+                Chem.SanitizeMol(mol)
+            except (Chem.rdchem.KekulizeException, Chem.rdchem.AtomValenceException):
+                continue
+            return mol
+    raise UnsupportedStructure("the ring of this cation has no mancude structure")
+
+
 def _cation_inserted(name, base, center, placed_in_parent):
     """Cite the ring cation as 'ium' on its ring parent hydride, ahead of any suffix or free valence (P-74.1.2)."""
     from ._diester_ring_diyl import _system_of
@@ -1207,7 +1227,10 @@ def _cation_inserted(name, base, center, placed_in_parent):
     ring_mol = ring.GetMol()
     ring_mol.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(ring_mol)
-    bare, placed = _bare_ring_name(ring_mol, new_center, hydro_ok=True)
+    try:
+        bare, placed = _bare_ring_name(ring_mol, new_center, hydro_ok=True)
+    except ValueError:
+        bare, placed = _bare_ring_name(_mancude_ring(ring_mol), new_center, hydro_ok=True)
     if not bare.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
     stem = bare[:-1]

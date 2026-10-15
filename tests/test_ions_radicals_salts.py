@@ -1529,6 +1529,16 @@ def test_cations_that_are_not_a_multiplicative_assembly(smiles):
         pytest.param("C[n+]1ccn(C)c1C(=O)[O-]", "1,3-dimethyl-1H-imidazol-3-ium-2-carboxylate", id="indicated_hydrogen"),
         pytest.param("C[n+]1ccccc1CC(=O)[O-]", "(1-methylpyridin-1-ium-2-yl)acetate", id="ring_cation_as_prefix"),
         pytest.param(
+            "C[n+]1[nH]n(C)c(=O)c1C(=O)[O-]",
+            "1,3-dimethyl-5-oxo-2,5-dihydro-1H-1,2,3-triazol-3-ium-4-carboxylate",
+            id="ring_cation_with_oxo_group_beside_the_anionic_suffix",
+        ),
+        pytest.param(
+            "C[n+]1ccn(C)c(=O)c1CC(=O)[O-]",
+            "(1,4-dimethyl-3-oxo-3,4-dihydropyrazin-1-ium-2-yl)acetate",
+            id="ring_cation_with_oxo_group_beside_an_anionic_prefix",
+        ),
+        pytest.param(
             "O=C([O-])CCn1cc[n+](C)c1",
             "3-(3-methyl-1H-imidazol-3-ium-1-yl)propanoate",
             id="ring_cation_as_prefix_with_second_nitrogen",
