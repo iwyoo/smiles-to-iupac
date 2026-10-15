@@ -190,7 +190,8 @@ def _cite_stereo_of_acyl(mol, sub, kept):
         return
     in_acyl = {index: new for new, index in enumerate(kept)}
     atoms = {a: code for a, code in context["atoms"].items() if a in in_acyl and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
-    if not atoms:
+    bonds = [(a, b) for a, b in context["bonds"] if a in in_acyl and b in in_acyl]
+    if not atoms and not bonds:
         return
     assign_cip_labels(sub)
     for atom, code in atoms.items():
@@ -198,6 +199,10 @@ def _cite_stereo_of_acyl(mol, sub, kept):
         if not cut.HasProp("_CIPCode") or cut.GetProp("_CIPCode") != code:
             raise UnsupportedStructure("a stereocentre of the acyl group changes its descriptor once the acid is cut out")
         context["used"].add(("atom", atom))
+    for a, b in bonds:
+        twin = sub.GetBondBetweenAtoms(in_acyl[a], in_acyl[b])
+        if twin is not None and twin.HasProp("_CIPCode"):
+            context["used"].add(("bond", (a, b)))
 
 
 def _multiplied_amino(children, tail):
