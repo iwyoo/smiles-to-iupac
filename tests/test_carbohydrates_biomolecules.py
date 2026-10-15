@@ -662,6 +662,18 @@ def test_substituted_amino_acids(smiles, expected):
         pytest.param("CN(C)CC(=O)Cl", "N,N-dimethylglycyl chloride", id="acyl_halide_of_an_n_substituted_amino_acid_without_descriptor"),
         pytest.param("NCCC(=O)Br", "3-aminopropanoyl bromide", id="acyl_halide_of_beta_alanine_is_systematic"),
         pytest.param("N[C@@H](CCC(=O)[O-])C(=O)[O-]", "L-glutamate", id="diacid_dianion"),
+        pytest.param("[O-]C(=O)CNC(=O)C1CCC[NH2+]1", "N-(pyrrolidin-1-ium-2-carbonyl)glycinate", id="ring_ammonium_acyl_on_the_carboxylate"),
+        pytest.param(
+            "CC(C)[C@H](NC(=O)[C@@H]1CCC[NH2+]1)C(=O)[O-]",
+            "N-[(2S)-pyrrolidin-1-ium-2-carbonyl]-L-valinate",
+            id="ring_ammonium_acyl_keeps_its_descriptor",
+        ),
+        pytest.param("[O-]C(=O)CNC(=O)C1CCCC[NH2+]1", "N-(piperidin-1-ium-2-carbonyl)glycinate", id="six_membered_ring_ammonium_acyl"),
+        pytest.param(
+            "[O-]C(=O)CCNC(=O)C1CCC[NH2+]1",
+            "3-(pyrrolidin-1-ium-2-carboxamido)propanoate",
+            id="ring_ammonium_acyl_on_a_non_alpha_amino_acid_is_not_prolyl",
+        ),
     ],
 )
 def test_amino_acid_esters_ions_and_allo(smiles, expected):

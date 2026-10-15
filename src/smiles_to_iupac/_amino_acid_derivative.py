@@ -63,6 +63,34 @@ def _neutralize(mol):
     return neutral, carboxylates, ammoniums
 
 
+def _acylated_cation_anion(mol):
+    """Carboxylate of an N-acyl amino acid whose acyl group holds a ring ammonium: the name of the acid with its ending
+    changed to 'ate', the cation staying a prefix of the acyl group (P-103.2.4.2, P-73.1.1.2)."""
+    if len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    carboxylates = [a for a in charged if a.GetFormalCharge() == -1 and a.GetAtomicNum() == 8 and a.GetDegree() == 1]
+    cations = [a for a in charged if a not in carboxylates]
+    if len(carboxylates) != 1 or not cations:
+        return None
+    if any(a.GetAtomicNum() != 7 or a.GetFormalCharge() != 1 or not a.IsInRing() for a in cations):
+        return None
+    editable = Chem.RWMol(mol)
+    oxygen = editable.GetAtomWithIdx(carboxylates[0].GetIdx())
+    oxygen.SetFormalCharge(0)
+    oxygen.SetNoImplicit(False)
+    oxygen.SetNumExplicitHs(0)
+    acid = editable.GetMol()
+    try:
+        Chem.SanitizeMol(acid)
+        if not _has_plain(acid):
+            return None
+        name = _name_plain(acid)
+    except UnsupportedStructure:
+        return None
+    return _anion_stem(name) if "-ium-" in name else None
+
+
 def _acid_and_esters(mol):
     """(acid copy, [(carbonyl carbon, alcohol group)]) with each ester oxygen turned into a hydroxy group."""
     graph = adjacency(mol)
@@ -133,6 +161,9 @@ def _derivative_name(mol):
     halide = _acyl_halide_name(mol)
     if halide is not None:
         return halide
+    zwitterion = _acylated_cation_anion(mol)
+    if zwitterion is not None:
+        return zwitterion
     neutral = _neutralize(mol)
     if neutral is None:
         return None

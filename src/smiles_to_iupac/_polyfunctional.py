@@ -36,6 +36,7 @@ from ._common import (
     specified_stereo_elements,
     substituent_locant_set_and_citation,
 )
+from ._amino_acyl_group import CATION_INSERT_PROP
 from ._anion import ANION_PROP, anion_weight
 from ._numerals import multiplying_prefix
 from ._chalcogenourea import is_oxo_nitrogen
@@ -1361,7 +1362,9 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
     from ._diester_ring_diyl import _system_of
 
     if kind == "ium" and any(_anionic_group_atom(base, a) or a.HasProp(ANION_PROP) for a in base.GetAtoms()):
-        return _name_labelled(base, labels or {}, lambda name, placed: _cation_inserted(name, base, center, placed))
+        marked = Chem.Mol(base)
+        marked.GetAtomWithIdx(center).SetBoolProp(CATION_INSERT_PROP, True)
+        return _name_labelled(marked, labels or {}, lambda name, placed: _cation_inserted(name, base, center, placed))
     if not labels and len(_system_of(base, center)[1]) == base.GetNumAtoms():
         try:
             name, placed = _bare_ring_name(base, center)
