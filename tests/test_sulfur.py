@@ -1190,6 +1190,18 @@ def test_stereogenic_sulfinyl_group_cites_its_descriptor():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C/C=C/S(=O)(=O)c1ccccc1", "[(1E)-prop-1-ene-1-sulfonyl]benzene", id="alkenesulfonyl_on_a_ring"),
+        pytest.param("C/C=C\\S(=O)c1ccccc1", "[(1Z)-prop-1-ene-1-sulfinyl]benzene", id="alkenesulfinyl_on_a_ring"),
+        pytest.param("C/C=C/S(=O)(=O)CC(=O)O", "[(1E)-prop-1-ene-1-sulfonyl]acetic acid", id="alkenesulfonyl_on_a_chain"),
+    ],
+)
+def test_double_bond_of_a_sulfonyl_or_sulfinyl_prefix_cites_its_descriptor(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("C[S@](=O)CC", "(S)-(methanesulfinyl)ethane"),
         ("[N+](=O)([O-])C1=CC=C(C=C1)[S@](=O)OCC", "ethyl (R)-4-nitrobenzene-1-sulfinate"),
     ],
