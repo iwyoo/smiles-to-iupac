@@ -69,6 +69,36 @@ def test_double_bond_junction_and_unsaturated_rings(smiles, expected):
     "smiles, expected",
     [
         ("O[C@@H]1CCCC[C@H]1C1CCCCC1", "(1S,2R)-[1,1'-bi(cyclohexan)]-2-ol"),
+        pytest.param(
+            "OC[C@H]1C[C@@H]1C1CC1", "[(1R,2S)-[1,1'-bi(cyclopropan)]-2-yl]methanol", id="substituent_of_a_chain_parent"
+        ),
+        pytest.param(
+            "OC[C@@H]1C[C@H]1C1CC1", "[(1S,2R)-[1,1'-bi(cyclopropan)]-2-yl]methanol", id="substituent_of_the_enantiomer"
+        ),
+        pytest.param(
+            "NC[C@H]1C[C@@H]1C1CC1", "1-[(1R,2S)-[1,1'-bi(cyclopropan)]-2-yl]methanamine", id="substituent_of_an_amine_chain"
+        ),
+        pytest.param(
+            "OC[C@H]1CCCC[C@@H]1C1CCCCC1", "[(1R,2S)-[1,1'-bi(cyclohexan)]-2-yl]methanol", id="substituent_of_six_membered_rings"
+        ),
+        pytest.param(
+            "OC(C)[C@H]1C[C@@H]1C1CC1", "1-[(1R,2S)-[1,1'-bi(cyclopropan)]-2-yl]ethan-1-ol", id="substituent_of_a_secondary_alcohol"
+        ),
+        pytest.param(
+            "C[C@H]1C[C@@H]1[C@H]1C[C@@H]1CO",
+            "[(1R,1'S,2S,2'S)-2'-methyl[1,1'-bi(cyclopropan)]-2-yl]methanol",
+            id="substituent_with_stereo_in_both_rings",
+        ),
+        pytest.param(
+            "OC[C@H]1C[C@@H]1[C@H]1C[C@@H]1CO",
+            "[(1R,1'R,2S,2'S)-[1,1'-bi(cyclopropan)]-2,2'-diyl]dimethanol",
+            id="multiplied_chain_parent_on_the_assembly",
+        ),
+        pytest.param(
+            "OC[C@H]1C[C@@H]1[C@@H]1C[C@H]1CO",
+            "[(1R,1'S,2S,2'R)-[1,1'-bi(cyclopropan)]-2,2'-diyl]dimethanol",
+            id="multiplied_parent_numbering_gives_the_lowest_locant_to_r",
+        ),
     ],
 )
 def test_stereodescriptors_in_a_ring_assembly(smiles, expected):

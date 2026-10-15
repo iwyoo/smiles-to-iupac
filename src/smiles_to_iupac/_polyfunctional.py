@@ -79,7 +79,7 @@ from ._acid_lexicon import SULFONYL_CENTRES, SULFONYL_GROUP_NAMES, carbo_suffix,
 from ._retained_acids import retained_chain_acid, single_site_prefixes, split_retained_prefix
 from ._hydroperoxide import peroxol_suffix
 from ._locant_omission import has_single_arrangement, omits_all_locants, omits_group_locants
-from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
+from ._substituents import BRANCH_STEREO, _branch_stereo_rank, format_substituent_prefixes, name_branch
 
 _AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
 _CHALCOGEN_AMIDE = {16: "thioamide", 34: "selenoamide", 52: "telluroamide"}
@@ -3619,7 +3619,14 @@ def _replacement_junction_ok(mol, specs, join):
     return not any(sp.replaced for sp in specs) or all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in join)
 
 
-def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None, mol=None):
+def _assembly_stereo_prefix(locants, stereo):
+    """'(1R,1'S,2S)-' for the CIP descriptors `stereo` ({atom: code}) of ring atoms of an assembly numbered by `locants`."""
+    from ._substituents import _branch_stereo_prefix
+
+    return _branch_stereo_prefix(sorted((PrimedLocant(*locants[a]), code) for a, code in stereo.items() if a in locants))
+
+
+def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None, mol=None, stereo=None):
     """Atom -> (prime count, locant) for the best numbering of two directly
     joined identical rings. Benzene and cycloalkane rings number from the
     junction (1 and 1'); heteroaromatic rings keep their fixed numbering and
@@ -3661,6 +3668,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                     tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
                     _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),
                     _isotope_key({a: _locant_order(loc) for a, loc in locants.items()}, locants),
+                    _branch_stereo_rank(sorted((_locant_order(locants[a]), code) for a, code in (stereo or {}).items() if a in locants)),
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, ene)
@@ -3823,7 +3831,9 @@ def _assembly_substituent_yl(mol, graph, root, coming_from, halogens, aromatic_a
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     rings = [own, other]
-    locants = _assembly_numbering(graph, rings, joins[0], [root], entries, specs, mol=mol)
+    context = BRANCH_STEREO.get()
+    ring_stereo = {a: code for a, code in (context["atoms"] if context else {}).items() if a in ring_atoms}
+    locants = _assembly_numbering(graph, rings, joins[0], [root], entries, specs, mol=mol, stereo=ring_stereo)
     grouped = {}
     for r, name, compound in entries:
         spot = locants[r]
@@ -3837,7 +3847,10 @@ def _assembly_substituent_yl(mol, graph, root, coming_from, halogens, aromatic_a
     enes = f"{ending[:-1]}-" if ending else ""
     core = _assembly_replacement(mol, specs, locants) + f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
     core = _assembly_group_label(mol, graph, ring_atoms, root, locants, core)
-    name = assembly_join(prefix, core)
+    from ._substituents import _branch_stereo_entries
+
+    _branch_stereo_entries({a: PrimedLocant(*loc) for a, loc in locants.items()}, ring=True, record=True)
+    name = _assembly_stereo_prefix(locants, ring_stereo) + assembly_join(prefix, core)
     if place is not None and place_monocycles:
         place.update(locants={a: PrimedLocant(*loc) for a, loc in locants.items()}, start=len(name) - len(core), atoms=ring_atoms)
     return name, True
