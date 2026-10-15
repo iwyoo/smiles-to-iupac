@@ -818,6 +818,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         ):
             return _phosphoryloxy(graph, other, root, halogens, aromatic_atoms, mol)
         if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
+            if mol.GetAtomWithIdx(other).IsInRing():
+                from ._diester_ring_diyl import ring_substituent_name
+
+                ring, ring_compound = ring_substituent_name(mol, graph, other, root)
+                return _enclose(ring, True) + "oxy", True
             silyl, compound = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, compound) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
