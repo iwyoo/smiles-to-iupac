@@ -506,6 +506,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if sulfonyl is not None:
         context["consumed"].update(labelled)
         return sulfonyl, compound
+    sulfonyl = _labelled_sulfonyl_alkane(name, graph, root, coming_from, mol, labelled, capacity)
+    if sulfonyl is not None:
+        context["consumed"].update(labelled)
+        return sulfonyl, compound
     run = _chalcogen_run(mol, graph, root, coming_from) if mol is not None else None
     if run is not None and all(a in run for a in labelled):
         stem = _CHALCOGEN_RUN_STEM.search(name)
@@ -605,6 +609,28 @@ def _labelled_sulfonyl(name, graph, root, coming_from, mol, labelled):
 
     text = "(" + ",".join(f"{n}{counts[n]}" for n in sorted(counts, key=_nuclide_sort_key)) + ")"
     return name[: match.start()] + text + name[match.start():]
+
+
+def _labelled_sulfonyl_alkane(name, graph, root, coming_from, mol, labelled, capacity):
+    """'(2H1)methanesulfonyl': the nuclides of the alkane that carries a sulfonyl-type group are cited in front of the alkane
+    name, with the locants of the group's own numbering from the carbon bonded to the chalcogen (P-82.2.1, P-82.6.1)."""
+    if mol is None or mol.GetAtomWithIdx(root).GetAtomicNum() not in (16, 34, 52) or mol.GetAtomWithIdx(root).IsInRing():
+        return None
+    carbons = [
+        n for n in graph[root]
+        if n != coming_from and not (mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0)
+    ]
+    if len(carbons) != 1 or mol.GetAtomWithIdx(carbons[0]).GetAtomicNum() != 6 or mol.GetAtomWithIdx(carbons[0]).IsInRing():
+        return None
+    atoms = _subtree_atoms(graph, carbons[0], root)
+    positions = _plain_chain_positions(graph, carbons[0], root, atoms, mol)
+    match = _HYDRIDE_BEFORE_SULFONYL.search(name)
+    if positions is None or match is None or any(a not in atoms for a in labelled):
+        return None
+    from ._isotope_labels import descriptor
+
+    omit = len(atoms) == 1 or _fully_modified(labelled, positions, capacity, atoms)
+    return name[: match.start()] + descriptor(labelled, positions, omit, capacity=capacity) + name[match.start() :]
 
 
 _CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
