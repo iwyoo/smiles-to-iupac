@@ -523,6 +523,7 @@ def name_noncarbon_oxoacid(mol) -> str:
     if parts is None:
         raise UnsupportedStructure("this is not a mononuclear noncarbon oxoacid modified by functional replacement")
     with cited_stereo_around(mol, parts["centre"].GetIdx()):
+        parts = _acid_parts(mol)
         return _name_from_parts(mol, parts, _centre_descriptor(mol, parts["centre"].GetIdx()))
 
 

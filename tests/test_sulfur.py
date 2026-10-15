@@ -916,6 +916,8 @@ def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):
         pytest.param("NS(=O)(=O)[O-]", "sulfamate", id="sulfamate"),
         pytest.param("[Na+].NS(=O)(=O)[O-]", "sodium sulfamate", id="sulfamate_in_a_salt"),
         pytest.param("NS(N)(=O)=O", "sulfuric diamide", id="sulfuric_diamide"),
+        pytest.param("C[C@H](CC)NS(=O)(=O)N", "N-[(2R)-butan-2-yl]sulfuric diamide", id="stereocentre_in_an_n_substituent"),
+        pytest.param("C/C=C/CNS(=O)O", "N-[(2E)-but-2-en-1-yl]sulfuramidous acid", id="double_bond_in_an_n_substituent"),
         pytest.param("CN(C)S(=O)(=O)N", "N,N-dimethylsulfuric diamide", id="substituents_on_one_nitrogen"),
         pytest.param("CNS(=O)(=O)N(C)C", "N,N,N'-trimethylsulfuric diamide", id="substituents_on_both_nitrogens"),
         pytest.param("CNS(N)=O", "N-methylsulfurous diamide", id="sulfurous_diamide"),
