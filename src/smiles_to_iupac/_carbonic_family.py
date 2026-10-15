@@ -314,6 +314,12 @@ def name_carbonic_family(mol):
         match[0] not in centres for query in _CARBOXYLIC_ACID for match in mol.GetSubstructMatches(query)
     ):
         raise UnsupportedStructure("a carboxylic acid outranks the carbonic acid group (P-41)")
+    if any(
+        a.GetFormalCharge() < 0
+        and not any(n.GetIdx() in centres or n.GetFormalCharge() > 0 for n in a.GetNeighbors())
+        for a in mol.GetAtoms()
+    ):
+        raise UnsupportedStructure("an anionic centre outside the acid group outranks the acid (P-41, P-72.6)")
     if len(centres) == 1:
         return _name_at(mol, centres[0])[1]
     if not all(_is_acid_centre(mol, c) for c in centres):
