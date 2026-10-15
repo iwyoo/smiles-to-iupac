@@ -65,21 +65,11 @@ def test_single_halogen_ethane_cites_every_locant():
     [
         ("C[13CH2]O", "(1-13C)ethan-1-ol"),
         ("[13CH3]O", "(13C)methanol"),
+        ("[18OH]CCC[18OH]", "propane-1,3-di[(18O)ol]"),
     ],
 )
 def test_isotope_alcohol_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[18OH]CCC[18OH]", id="identically_labelled_hydroxyls_raise"),
-    ],
-)
-def test_isotope_alcohol_cases_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -219,6 +209,31 @@ def test_descriptor_follows_the_prefixes_of_a_substituted_retained_acid(smiles, 
     ],
 )
 def test_nuclide_on_the_nitrogen_of_an_acylamino_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]C([2H])([2H])C(=O)Nc1cccc(C(=O)O)c1", "3-[(2H3)acetamido]benzoic acid", id="acylamino_prefix_beside_an_acid"),
+        pytest.param("[2H]C([2H])([2H])C(=O)Nc1ccc(C(=O)OC)cc1", "methyl 4-[(2H3)acetamido]benzoate", id="acylamino_prefix_beside_an_ester"),
+        pytest.param("[2H]C([2H])([2H])C(=O)OCC(=O)O", "[(2H3)acetyloxy]acetic acid", id="acyloxy_prefix_beside_an_acid"),
+    ],
+)
+def test_nuclides_on_the_acyl_group_of_a_prefix_beside_an_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=[18O])N", "(18O)acetamide", id="amide_oxygen"),
+        pytest.param("CC(=[18O])NC", "N-methyl(18O)acetamide", id="substituted_amide_oxygen"),
+        pytest.param("CC(=[18O])Cl", "(18O)acetyl chloride", id="acid_halide_oxygen"),
+        pytest.param("CC(=[18O])CC(=[18O])C", "pentane-2,4-di[(18O)one]", id="identically_labelled_ketones"),
+    ],
+)
+def test_nuclide_on_the_carbonyl_oxygen_of_an_amide_acid_halide_or_several_ketones(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

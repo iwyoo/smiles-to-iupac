@@ -667,6 +667,14 @@ def _has_isotope_label(mol) -> bool:
 
 
 def _name_isotope_label(mol) -> str:
+    from ._isotope_labels import split_isotopes
+
+    split = split_isotopes(mol)
+    if split is not None and has_amino_acid_shape(split[0]):
+        try:
+            return _name_labelled_substituents(mol)
+        except UnsupportedStructure:
+            pass
     try:
         return name_polyfunctional(mol)
     except UnsupportedStructure:
