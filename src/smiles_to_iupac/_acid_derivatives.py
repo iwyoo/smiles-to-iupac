@@ -604,8 +604,9 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     pendants = [l for c in centers for l in suffixed[c] if owner[l.far] != hub]
     if any(len(r_pieces[owner[l.far]]) != 1 for l in pendants):
         return None
+    modified = any(_chalcogen_modified(mol, l) for l in hub_links)
     if not pendants and (
-        any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 for l in hub_links)
+        (any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 for l in hub_links) and not modified)
         or any(_free_acid_hydroxyl(mol, a) for c in centers for a in acid_atoms[c])
     ):
         return None
@@ -617,9 +618,13 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
         return None
     multiplier = multiplying_prefix(len(centers), compound=not anion.isalpha())
     anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
+    if modified:
+        symbols = ["".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in l.chain) for l in hub_links]
+        diyl = ",".join(f"{symbol}{_PRIMES[i]}" for i, symbol in enumerate(sorted(symbols))) + "-" + diyl
     return " ".join(part for part in (_pendant_text(mol, graph, pendants), diyl, anion_text) if part)
 
 
+_PRIMES = ("", "\u2032", "\u2033", "\u2034", "\u2057")
 _ACETATE_TAIL = re.compile(r"(di|tri|tetra|penta|hexa)acetate$")
 
 
@@ -665,9 +670,28 @@ def _suffixed_links(mol, frags, acid_pieces):
     return {c: _suffix_links(mol, ls, frags[c], lambda l: l.chain[-1]) if len(ls) > 1 else ls for c, ls in acid_pieces.items()}
 
 
+def _chalcogen_modified(mol, link):
+    """Whether the acid group of `link` has an oxygen replaced by sulfur, selenium or tellurium (P-65.1.3)."""
+    return any(x != "O" for x in _oxo_slots(mol, link.center)) or any(
+        mol.GetAtomWithIdx(a).GetAtomicNum() != 8 for a in link.chain
+    )
+
+
+def _chalcogen_modified_carboxylic(mol, link):
+    """A thio-, seleno- or tellurocarboxylic acid group, which ranks below the carboxylic acid itself (P-41)."""
+    return (
+        mol.GetAtomWithIdx(link.center).GetAtomicNum() == 6
+        and (_center(mol, link.center) or ("",))[0] == "acyl"
+        and _chalcogen_modified(mol, link)
+    )
+
+
 def _acid_piece_rank(mol, frags, acid_pieces, r_pieces, piece):
     carboxylic = any(
-        mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 and (_center(mol, l.center) or ("",))[0] == "acyl" for l in acid_pieces[piece]
+        mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6
+        and (_center(mol, l.center) or ("",))[0] == "acyl"
+        and not _chalcogen_modified_carboxylic(mol, l)
+        for l in acid_pieces[piece]
     )
     return carboxylic, len(acid_pieces[piece]), _acid_rank(mol, frags[piece], acid_pieces[piece], r_pieces.get(piece, []))
 
@@ -845,7 +869,8 @@ def name_ester(mol, links):
         if len({owner[l.far] for ls in suffixed.values() for l in ls}) == 1:
             from ._diester_acyloxy import name_diester_acyloxy
 
-            return name_diester_acyloxy(mol)
+            if not any(_chalcogen_modified_carboxylic(mol, l) for ls in suffixed.values() for l in ls):
+                return name_diester_acyloxy(mol)
     principal = max(acid_pieces, key=lambda i: _acid_piece_rank(mol, frags, acid_pieces, r_pieces, i))
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])
