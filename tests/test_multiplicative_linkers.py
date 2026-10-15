@@ -946,6 +946,11 @@ def test_stereodescriptors_in_a_multiplicative_name(smiles, expected):
             id="centre_of_another_chalcogen_with_infixes_in_alphabetical_order",
         ),
         pytest.param(
+            "CN=S(=O)(CC(=O)O)CC(=O)O",
+            "2,2'-(N-methylsulfonimidoyl)diacetic acid",
+            id="n_substituent_of_an_imidoyl_linker_between_chains",
+        ),
+        pytest.param(
             "OC(=O)c1ccc(cc1)S(=N)c1ccc(cc1)C(O)=O",
             "4,4'-sulfinimidoyldibenzoic acid",
             id="sulfinyl_type_centre_with_one_replaced_position",

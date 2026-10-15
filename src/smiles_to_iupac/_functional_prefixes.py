@@ -133,8 +133,11 @@ def _acyl_prefix(mol, subtree, root, parent):
     except Chem.MolSanitizeException as error:
         raise UnsupportedStructure("the acyl group cannot be cut from its ring system as a valid molecule") from error
     root_atom = mol.GetAtomWithIdx(root)
+    own_acid = None
     if root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_CARBOXYLIC_CLASS):
-        raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
+        own_acid = _imido_acid_class(sub, sorted(subtree).index(root))
+        if own_acid is None:
+            raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
     from ._substituents import ISOTOPE_LABELS
@@ -142,7 +145,7 @@ def _acyl_prefix(mol, subtree, root, parent):
     token = SYSTEMATIC_ACID_PROBE.set(True)
     labels_token = ISOTOPE_LABELS.set(None)
     try:
-        probe = smiles_to_iupac(Chem.MolToSmiles(sub))
+        probe = smiles_to_iupac(Chem.MolToSmiles(sub)) if own_acid is None else _name_with_principal(sub, own_acid)
     finally:
         ISOTOPE_LABELS.reset(labels_token)
         SYSTEMATIC_ACID_PROBE.reset(token)
@@ -152,6 +155,27 @@ def _acyl_prefix(mol, subtree, root, parent):
     _cite_stereo_of_acyl(mol, sub, sorted(subtree))
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
     return "oxalo" if name == "oxalyl" else name
+
+
+def _imido_acid_class(sub, root):
+    """Class key of the sulfonimidic-type acid on `root` of the cut-out group, else None: the =NR position is lost when
+    such a group is cited as a prefix by the sulfonyl-type fallback (P-65.3.2.2)."""
+    from ._acid_groups import acid_group_at
+
+    group = acid_group_at(sub, root)
+    if group is None or not any(x in ("NH", "NNH2") for x in group.spec.oxo):
+        return None
+    return group.spec.key
+
+
+def _name_with_principal(sub, principal):
+    from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
+
+    token = FORCED_PRINCIPAL.set(principal)
+    try:
+        return name_polyfunctional(sub)
+    finally:
+        FORCED_PRINCIPAL.reset(token)
 
 
 def _cite_stereo_of_acyl(mol, sub, kept):

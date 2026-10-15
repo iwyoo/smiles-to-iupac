@@ -164,6 +164,11 @@ def test_sulfonate_diesters_and_hydroxyalkyl_disulfates(smiles, expected):
         pytest.param("OC(=O)CCOS(=O)(=N)O", "3-[(hydroxysulfonimidoyl)oxy]propanoic acid", id="imidic_o_bound"),
         pytest.param("OC(=O)CCS(=O)(=N)O", "3-(hydroxysulfonimidoyl)propanoic acid", id="imidic_c_bound"),
         pytest.param("OC(=O)CCS(=N)(=N)O", "3-(hydroxysulfonodiimidoyl)propanoic acid", id="diimidic"),
+        pytest.param(
+            "CCN=S(=O)(CC(=O)O)C(C)C(=O)O",
+            "2-(1-carboxy-N-ethylmethanesulfonimidoyl)propanoic acid",
+            id="n_substituent_of_an_imidoyl_between_two_acid_skeletons",
+        ),
         pytest.param("OC(=O)CCOS(=S)(=O)O", "3-[(thiosulfo)oxy]propanoic acid", id="thio_o_bound"),
         pytest.param("OC(=O)CCS(=O)(=S)O", "3-(thiosulfo)propanoic acid", id="thio_c_bound"),
         pytest.param("OC(=O)CCS(=O)(=O)S", "3-(thiosulfo)propanoic acid", id="thio_s_acid"),

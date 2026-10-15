@@ -12,6 +12,7 @@ from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
 from ._multiplicative_groups import KETONE_LIKE, chalcogen_linker_ligands
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
+from ._multiplicative_text import enclose
 from ._multiplicative_ring import name_ring_component
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
@@ -182,7 +183,7 @@ def _ligated_chalcogen_run(mol, atoms, attachments):
 
     def word(index):
         ligands = chalcogen_linker_ligands(mol.GetAtomWithIdx(index))
-        if ligands is None:
+        if ligands is None or any(mol.GetAtomWithIdx(a).GetDegree() > 1 for _, owned in ligands for a in owned):
             return None
         return acyl_suffix(make_spec(SULFONYL_CENTRES[z], [symbol for symbol, _ in ligands], ("O",)), False, 1)
 
@@ -195,6 +196,23 @@ def _ligated_chalcogen_run(mol, atoms, attachments):
     ):
         return Part(f"{_homo_run_word(z, len(inner)) if len(inner) > 1 else _SINGLE_ATOM_WORDS[z]}bis({words[0]})", True, False)
     return None
+
+
+def _imido_n_prefix(mol, centre, pend, ctx):
+    """'N-methyl' or 'N,N'-dimethyl' for the substituents of the =NR positions of a sulfonimidoyl-type linker (P-65.3.2.2)."""
+    grouped = {}
+    nitrogens = sorted((r for _, r in pend if mol.GetAtomWithIdx(r).GetAtomicNum() == 7), key=lambda r: -mol.GetAtomWithIdx(r).GetDegree())
+    for k, nitrogen in enumerate(nitrogens):
+        for n in mol.GetAtomWithIdx(nitrogen).GetNeighbors():
+            if n.GetIdx() != centre:
+                grouped.setdefault(_entry(mol, nitrogen, n.GetIdx(), ctx), []).append("N" + "'" * k)
+    parts = []
+    for (name, compound), locants in sorted(grouped.items(), key=lambda item: alpha_sort_key(item[0][0])):
+        body = enclose(name) if compound else name
+        if len(locants) > 1:
+            body = multiplying_prefix(len(locants), compound=compound) + body
+        parts.append(f"{','.join(locants)}-{body}")
+    return "-".join(parts)
 
 
 def _hetero_part(mol, atoms, attachments, ctx, directed=None):
@@ -267,7 +285,8 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
     ligands = chalcogen_linker_ligands(mol.GetAtomWithIdx(atoms[0]))
     if ligands is not None and len(ligands) == len(pend):
         spec = make_spec(SULFONYL_CENTRES[z], [symbol for symbol, _ in ligands], ("O",))
-        return Part(acyl_suffix(spec, False, 1), False, False)
+        n_prefix = _imido_n_prefix(mol, atoms[0], pend, ctx)
+        return Part(n_prefix + acyl_suffix(spec, False, 1), bool(n_prefix), False)
     if pend or z not in _SINGLE_ATOM_WORDS:
         raise UnsupportedStructure("a substituted chalcogen linker is not supported")
     return Part(_SINGLE_ATOM_WORDS[z], False, False)

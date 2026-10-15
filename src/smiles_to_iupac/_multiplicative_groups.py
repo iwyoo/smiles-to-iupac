@@ -157,6 +157,8 @@ def terminal_ligand(atom, centre):
     if z == 7 and atom.GetDegree() == 2 and not atom.GetTotalNumHs():
         partner = next(n for n in atom.GetNeighbors() if n.GetIdx() != centre.GetIdx())
         bond = atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), partner.GetIdx())
+        if partner.GetAtomicNum() == 6 and bond.GetBondTypeAsDouble() == 1.0:
+            return "NH", (atom.GetIdx(),)
         if partner.GetAtomicNum() == 7 and partner.GetDegree() == 1 and partner.GetTotalNumHs() == 2 and bond.GetBondTypeAsDouble() == 1.0:
             return "NNH2", (atom.GetIdx(), partner.GetIdx())
     return None
