@@ -2043,7 +2043,7 @@ def _split_hydro_labels(mol, position_of, labels, capacity, match):
     for x in locants:
         groups.setdefault(modified.get(atom_of[x]), []).append(x)
     if any(len(group) % 2 for group in groups.values()):
-        raise UnsupportedStructure("hydro prefixes of one isotopic modification are added in pairs")
+        return labels, kept_capacity, match.group(0)
     ordered = sorted(groups, key=lambda nuclide: (nuclide is None, nuclide or ""))
     text = "-".join(
         f"{','.join(groups[n])}-{multiplied_word(len(groups[n]), 'hydro' if n is None else f'[({n})hydro]')}" for n in ordered
@@ -2190,6 +2190,14 @@ def _principal_owned(mol):
     return principal, groups.get(principal, [])
 
 
+_NITROGEN_LABEL_CLASSES = frozenset(
+    (
+        "amide", "amine", "imine", "nitrile", "amidine", "hydrazide", "sulfonamide",
+        *_CHALCOGEN_AMIDE_CLASSES, *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER,
+    )
+)
+
+
 def _group_atom_labels(mol, rest, parent_atoms=None):
     """([(nuclide, locant, count, repeatable)], suffix descriptor text) for nuclides on atoms of the principal
     characteristic group: an amide or amine nitrogen and the oxygens of an acid are cited in front of the parent
@@ -2208,7 +2216,11 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     (element,) = elements
     before_suffix = principal in _SUFFIX_WORD and element == _SUFFIX_ELEMENT.get(principal, 8)
     if not before_suffix and any(
-        a.GetAtomicNum() == element and a.GetIdx() not in owned and a.GetIdx() not in rest and (parent_atoms is None or a.GetIdx() in parent_atoms)
+        a.GetAtomicNum() == element
+        and a.GetIdx() not in owned
+        and a.GetIdx() not in rest
+        and not (a.IsInRing() and a.GetIdx() in (parent_atoms or ()))
+        and (parent_atoms is None or a.GetIdx() in parent_atoms)
         for a in mol.GetAtoms()
     ):
         raise UnsupportedStructure("the modified atom of the characteristic group needs a locant that is not defined yet")
@@ -2231,10 +2243,10 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         if len(nuclides) != len(set(nuclides)) or (len(rest) != 1 and not identical):
             raise UnsupportedStructure("several isotopically modified atoms at the suffix are not supported yet")
         return [], ("(" + ",".join(nuclides) + ")", _SUFFIX_WORD[principal], len(owned_groups))
-    nitrogen = principal in ("amide", "amine", "imine", "nitrile") and element == 7
+    nitrogen = principal in _NITROGEN_LABEL_CLASSES and element == 7
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
-    acid = (_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and element == 8
+    acid = (_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and element in (8, 16, 34, 52)
     if not (nitrogen or acid):
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []
@@ -2242,9 +2254,15 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         return [(rest[heavy[0]]["skeleton"], None, len(heavy), False)], None
     several_atoms = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == element) > 1
     only_heavy = not any(e["H"] for e in rest.values())
+    hydrazide = principal == "hydrazide" or principal in _SULFONYL_HYDRAZIDE_ORDER
+    centres = {
+        n.GetIdx() for o in owned if mol.GetAtomWithIdx(o).GetAtomicNum() == 8 for n in mol.GetAtomWithIdx(o).GetNeighbors()
+    } - owned
     for atom, entry in rest.items():
         heavy_label = entry["skeleton"]
         locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
+        if hydrazide and not any(n.GetIdx() in centres for n in mol.GetAtomWithIdx(atom).GetNeighbors()):
+            locant += "'"
         if heavy_label:
             items.append((heavy_label, symbol if several_atoms and only_heavy else None, 1, False))
         for nuclide, count in entry["H"].items():
