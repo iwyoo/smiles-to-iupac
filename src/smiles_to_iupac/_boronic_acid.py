@@ -31,7 +31,7 @@ analogue (thioboronic acid etc.).
 from rdkit import Chem
 
 from ._acid_groups import acid_group_at
-from ._borinic_acid import _borinic_acid_boron_atoms
+from ._borinic_acid import BORON_ACID_ELEMENTS, _borinic_acid_boron_atoms
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON, boron_acid_parent
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
@@ -80,7 +80,7 @@ def name_boronic_acid(mol) -> str:
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx() and atom.GetIdx() not in junior_boron:
             raise UnsupportedStructure("more than one boron atom is not supported yet")
-        if atomic_num not in (1, 6, 7, 8, 16, _BORON, *HALOGEN_PREFIXES):
+        if atomic_num not in BORON_ACID_ELEMENTS:
             raise UnsupportedStructure(
                 "heteroatoms other than the boronic acid's own boron/"
                 "oxygens, nitrogen, sulfur and a halogen substituent are not supported yet"

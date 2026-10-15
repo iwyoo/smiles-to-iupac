@@ -19,7 +19,7 @@ Scope: a single borinic acid group (one boron bonded to exactly two
 non-oxygen substituents R1/R2 -- possibly identical -- and one hydroxyl
 oxygen; boron has no double-bonded oxygen here, unlike phosphinic acid's
 P=O), with no other heteroatom anywhere in the molecule except the
-group's own oxygen and, in R1/R2, any halogen. Each R is named via
+group's own oxygen and, in R1/R2, nitrogen, sulfur or any halogen. Each R is named via
 `name_branch`, so it may be any substituent shape that helper already
 supports (mirrors `_boronic_acid.py`/`_phosphinic_acid.py`'s own scope
 exactly). Explicitly out of scope (raise `UnsupportedStructure`): a
@@ -30,12 +30,14 @@ group, and any chalcogen-replacement analogue.
 
 from rdkit import Chem
 
+from ._acid_groups import acid_group_at
 from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON, boron_acid_parent
 from ._parent_choice import senior_parent_name
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 _BORON = 5
+BORON_ACID_ELEMENTS = (1, 6, 7, 8, 16, _BORON, *HALOGEN_PREFIXES)
 
 
 def _borinic_acid_boron_atoms(mol):
@@ -80,13 +82,15 @@ def name_borinic_acid(mol) -> str:
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _BORON and atom.GetIdx() not in borons:
             raise UnsupportedStructure("more than one boron atom is not supported yet")
-        if atomic_num not in (1, 6, 8, _BORON, *HALOGEN_PREFIXES):
+        if atomic_num not in BORON_ACID_ELEMENTS:
             raise UnsupportedStructure(
                 "heteroatoms other than the borinic acid's own boron/"
-                "oxygen and a halogen substituent are not supported yet"
+                "oxygen, nitrogen, sulfur and a halogen substituent are not supported yet"
             )
 
-    if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON):
+    if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON) or any(
+        acid_group_at(mol, a.GetIdx()) is not None for a in mol.GetAtoms()
+    ):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the borinic acid")
 
     if len(Chem.GetMolFrags(mol)) > 1:
