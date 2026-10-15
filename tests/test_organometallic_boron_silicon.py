@@ -109,7 +109,7 @@ def test_asymmetric_substituents():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("NCB(C)O", id="unrecognized_heteroatom"),
+        pytest.param("C[SiH2]CB(C)O", id="unrecognized_heteroatom"),
     ],
 )
 def test_rejects_second_borinic_and_related_raise(smiles):
@@ -1167,6 +1167,10 @@ def test_diamines_whose_nitrogens_carry_boranyl_groups(smiles, expected):
         ("OCCB(CCO)O", "bis(2-hydroxyethyl)borinic acid"),
         ("OCCB(O)O", "(2-hydroxyethyl)boronic acid"),
         ("OB(O)CCN(C)C", "[2-(dimethylamino)ethyl]boronic acid"),
+        ("CB(O)CCN", "(2-aminoethyl)(methyl)borinic acid"),
+        ("CB(O)c1ccc(NC(C)=O)cc1", "(4-acetamidophenyl)(methyl)borinic acid"),
+        ("CB(O)CNCc1ccccc1", "[(benzylamino)methyl](methyl)borinic acid"),
+        ("CB(O)CC#N", "(cyanomethyl)(methyl)borinic acid"),
         ("CSCCB(O)O", "[2-(methylsulfanyl)ethyl]boronic acid"),
         ("NC(=O)CCB(O)O", "(3-amino-3-oxopropyl)boronic acid"),
         ("OB(O)CC(=S)O", "boronoethanethioic O-acid"),
