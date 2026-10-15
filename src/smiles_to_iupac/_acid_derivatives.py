@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
-from ._common import assign_cip_labels, match_cip_labels
+from ._common import assign_cip_labels, has_acyloxy_amine_group, match_cip_labels
 from ._acid_lexicon import CHALCOGENS
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._amino_acid_retained import has_retained_amino_acid_shape
@@ -855,6 +855,8 @@ def _acid_rank(mol, atoms, links, entering):
 
 def name_ester(mol, links):
     _reject_unsupported(mol)
+    if has_acyloxy_amine_group(mol):
+        raise UnsupportedStructure("an acyclic nitrogen gives no traditional ester: the group is an acyloxy prefix (P-65.6.3.4.1)")
     kinds = {_center(mol, l.center)[0] == "inorganic" for l in links}
     if len(kinds) > 1 or kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
         raise UnsupportedStructure("the seniority of this phosphorus or boron ester among the other groups is not decided here")

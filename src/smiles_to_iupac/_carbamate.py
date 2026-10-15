@@ -92,6 +92,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._multiplicative_text import enclose
+from ._common import has_acyloxy_amine_group
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -105,6 +106,12 @@ _ALLOWED_ATOMIC_NUMS = {6, 7, 8}
 
 
 def _carbamate_cores(mol):
+    if has_acyloxy_amine_group(mol):
+        return []
+    return _carbamate_cores_unchecked(mol)
+
+
+def _carbamate_cores_unchecked(mol):
     """List of (carbamate_carbon, carbonyl_o, ester_o, alkyl_carbon,
     amide_n, n_alkyl_carbons) for every R-O-C(=O)-N(R'')R' pattern: a carbon
     carrying exactly one doubly-bonded (terminal) oxygen, one singly-bonded

@@ -4,7 +4,7 @@ H2N-O-SO2-OH is 'hydroxylamine-O-sulfonic acid', H2N-O-CO-OH 'hydroxylamine-O-ca
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, has_acyloxy_amine_group
 from ._substituents import format_substituent_prefixes, name_branch
 
 _SUFFIXES = (
@@ -19,6 +19,8 @@ _SUFFIXES = (
 def _match(mol):
     """(nitrogen, oxygen, acyl atom, suffix) of an H2N-O-acyl or RHN-O-acyl group with nothing else in the molecule."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
+        return None
+    if has_acyloxy_amine_group(mol):
         return None
     for nitrogen in (a for a in mol.GetAtoms() if a.GetAtomicNum() == 7):
         oxygens = [n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 2]

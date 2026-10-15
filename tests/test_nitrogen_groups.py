@@ -1706,10 +1706,10 @@ def test_chiral_substituent_groups_of_ureas_and_thioureas_cite_their_descriptors
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("NC(=O)ONC", "N-methylhydroxylamine-O-carboxamide"),
+        ("NC(=O)ONC", "N-(carbamoyloxy)methanamine"),
         ("NC(=O)ON", "hydroxylamine-O-carboxamide"),
-        ("NC(=O)ON(C)C", "N,N-dimethylhydroxylamine-O-carboxamide"),
-        ("CNC(=O)ONC", "(methylamino) N-methylcarbamate"),
+        ("NC(=O)ON(C)C", "N-(carbamoyloxy)-N-methylmethanamine"),
+        ("CNC(=O)ONC", "N-[(methylcarbamoyl)oxy]methanamine"),
     ],
 )
 def test_carbamic_acid_esters_of_amino_groups(smiles, expected):
@@ -2365,6 +2365,11 @@ def test_thiourea_with_a_ring_nitrogen_is_the_carbothioamide_of_the_ring(smiles,
         pytest.param("O=C(ON=Cc1ccccc1)c1cccs1", "[(benzylideneamino)oxy](thiophen-2-yl)methanone", id="aldoxime_of_a_ring_acid"),
         pytest.param("CNC(=O)ON=C(C)C", "N-[(methylcarbamoyl)oxy]propan-2-imine", id="carbamate_of_a_ketoxime_is_a_prefix_of_the_imine"),
         pytest.param("CC(C)=NOC(=O)OC", "N-[(methoxycarbonyl)oxy]propan-2-imine", id="carbonate_of_a_ketoxime_is_a_prefix_of_the_imine"),
+        pytest.param("CNC(=O)ON(C)C", "N-methyl-N-[(methylcarbamoyl)oxy]methanamine", id="carbamate_of_an_acyclic_amine_is_a_prefix_of_the_amine"),
+        pytest.param("COC(=O)ON(C)C", "N-[(methoxycarbonyl)oxy]-N-methylmethanamine", id="carbonate_of_an_acyclic_amine_is_a_prefix_of_the_amine"),
+        pytest.param("NC(=O)ON(C)C", "N-(carbamoyloxy)-N-methylmethanamine", id="unsubstituted_carbamate_of_an_acyclic_amine"),
+        pytest.param("CNC(=O)ONC", "N-[(methylcarbamoyl)oxy]methanamine", id="carbamate_of_a_secondary_amine"),
+        pytest.param("CNC(=O)ON1C(=O)CCC1=O", "2,5-dioxopyrrolidin-1-yl methylcarbamate", id="cyclic_nitrogen_keeps_the_traditional_ester"),
     ],
 )
 def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, expected):

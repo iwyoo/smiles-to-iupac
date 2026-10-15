@@ -1575,6 +1575,33 @@ STEREO_OVERRIDE = "_StereoOverride"
 _ENANTIOMORPHIC_BOND_CODE = {"z": "seqCis", "e": "seqTrans"}
 
 
+def has_acyloxy_amine_group(mol):
+    """Whether a carbamoyl or alkoxycarbonyl group of `mol` is bonded through its oxygen to an acyclic amine nitrogen that
+    carries a carbon: the acyclic nitrogen gives no traditional ester, so the group is the acyloxy prefix of the amine
+    (P-65.6.3.4.1)."""
+    for nitrogen in mol.GetAtoms():
+        if nitrogen.GetAtomicNum() != 7 or nitrogen.IsInRing() or nitrogen.GetIsAromatic() or nitrogen.GetFormalCharge():
+            continue
+        if any(b.GetBondTypeAsDouble() != 1.0 for b in nitrogen.GetBonds()):
+            continue
+        around = list(nitrogen.GetNeighbors())
+        if not any(n.GetAtomicNum() == 6 for n in around):
+            continue
+        for oxygen in (n for n in around if n.GetAtomicNum() == 8 and n.GetDegree() == 2):
+            carbon = next(n for n in oxygen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx())
+            if carbon.GetAtomicNum() != 6 or carbon.GetDegree() != 3 or carbon.IsInRing():
+                continue
+            ligands = [n for n in carbon.GetNeighbors() if n.GetIdx() != oxygen.GetIdx()]
+            carbonyl = [
+                n for n in ligands if n.GetAtomicNum() == 8 and n.GetDegree() == 1
+                and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            ]
+            other = [n for n in ligands if n not in carbonyl]
+            if len(carbonyl) == 1 and len(other) == 1 and (other[0].GetAtomicNum() == 7 or (other[0].GetAtomicNum() == 8 and other[0].GetDegree() == 2)):
+                return True
+    return False
+
+
 def is_nonstereogenic_centre(mol, idx):
     """Whether a tetrahedral atom of `mol` (CIP labels assigned) has two ligands of one constitution and one CIP
     descriptor, so that it is no stereogenic centre: the cyclopropane carbon of a trans-fused bicyclo[n.1.0]alkane
