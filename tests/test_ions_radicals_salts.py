@@ -305,6 +305,8 @@ def test_nitrile_imide_still_and_related_raise(smiles):
         pytest.param("[CH2]C([CH2])c1ccc(cc1)[P+]([O-])(c1ccccc1)c1ccccc1", "2-{4-[oxidodi(phenyl)phosphaniumyl]phenyl}propane-1,3-diyl", id="dipolar_phosphorus_substituent_group"),
         pytest.param("[CH2]C([CH2])c1ccc(cc1)CC#[N+][O-]", "2-{4-[2-(oxidoazaniumylidyne)ethyl]phenyl}propane-1,3-diyl", id="dipolar_nitrile_oxide_substituent_group"),
         pytest.param("[CH2]C[N+]([O-])(C)C", "2-[dimethyl(oxo)-\u03bb5-azanyl]ethyl", id="amine_oxide_substituent_group_as_oxo_azanyl"),
+        pytest.param("C[B-](C)(C)c1ccc([CH2])cc1", "[4-(trimethylboranuidyl)phenyl]methyl", id="ate_centre_cited_as_prefix_of_a_carbon_radical"),
+        pytest.param("C[N]CC[B-](C)(C)C", "N-methyl-2-(trimethylboranuidyl)ethan-1-aminyl", id="ate_centre_cited_as_prefix_of_an_aminyl_radical"),
     ],
 )
 def test_dipolar_compounds(smiles, expected):

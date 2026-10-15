@@ -4742,7 +4742,7 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)
             a.SetBoolProp("_cationic_amine", True)
-    if any(a.HasProp("_ring_cation_centre") for a in parent.GetAtoms()):
+    if any(a.HasProp("_ring_cation_centre") or a.HasProp("_anion_word") for a in parent.GetAtoms()):
         parent.UpdatePropertyCache(strict=False)
         Chem.FastFindRings(parent)
     else:
