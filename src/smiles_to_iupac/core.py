@@ -607,9 +607,19 @@ def _name_checked(smiles: str) -> str:
     if mol is not None:
         _require_isotopes_cited(mol, name)
         _require_radicals_cited(mol, name)
+        _require_ring_triple_bonds_cited(mol, name)
     if mol is not None and _has_free_anion(mol):
         name = acetyl_names(name)
     return name
+
+
+def _require_ring_triple_bonds_cited(mol, name):
+    ring_triple = any(
+        b.GetBondTypeAsDouble() == 3.0 and b.IsInRing() and b.GetBeginAtom().GetAtomicNum() == 6 and b.GetEndAtom().GetAtomicNum() == 6
+        for b in mol.GetBonds()
+    )
+    if ring_triple and "yn" not in name and "dehydro" not in name:
+        raise UnsupportedStructure("the name does not cite the ring triple bond")
 
 
 _RADICAL_ENDINGS = ("yl", "ylidene", "ylidyne", "yne", "ylium", "yloxy", "yliumyl")
