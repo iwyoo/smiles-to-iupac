@@ -2730,7 +2730,7 @@ def _joined_imine_alternatives(mol, graph, groups, ring_groups):
     return alternatives
 
 
-_AMINE_STEREO_ELEMENTS = {6, 7, 8, 9, 16, 17, 34, 35, 52, 53}
+_AMINE_STEREO_ELEMENTS = {6, 7, 8, 9, 14, 16, 17, 32, 34, 35, 52, 53}
 
 
 def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo):
