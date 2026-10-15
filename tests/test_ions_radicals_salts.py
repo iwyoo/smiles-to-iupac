@@ -896,6 +896,7 @@ def test_radical_beside_characteristic_groups(smiles, expected):
         pytest.param("c1cc[n+](cc1)c1ccccc1", "1-phenylpyridin-1-ium", id="n_arylpyridinium"),
         pytest.param("Cc1cc[n+](C)c(C)c1", "1,2,4-trimethylpyridin-1-ium", id="substituents_numbered_from_the_cationic_nitrogen"),
         pytest.param("C[n+]1ccccc1C(=O)O", "2-carboxy-1-methylpyridin-1-ium", id="cation_outranks_acid"),
+        pytest.param("OCc1ccc[n+](CO)c1CO", "1,2,3-tris(hydroxymethyl)pyridin-1-ium", id="cation_outranks_identical_alcohol_groups"),
         pytest.param("C[n+]1ccccc1[N+](=O)[O-]", "1-methyl-2-nitropyridin-1-ium", id="nitro_beside_the_cation"),
         pytest.param("C[n+]1cccc2ccccc12", "1-methylquinolin-1-ium", id="quinolinium"),
         pytest.param("CC[n+]1ccc2ccccc2c1", "2-ethylisoquinolin-2-ium", id="isoquinolinium"),
