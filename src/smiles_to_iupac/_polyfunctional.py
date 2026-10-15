@@ -3656,14 +3656,18 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
             for second in orientations(1 - unprimed):
                 locants = {atom: (0, number) for atom, number in first.items()}
                 locants.update({atom: (1, number) for atom, number in second.items()})
-                ene = ()
+                ene, closing = (), 0
                 if unsaturated:
-                    ene = tuple(sorted(_locant_order(loc) for loc in _assembly_multiple_locants(specs, locants)[0] + _assembly_multiple_locants(specs, locants)[1]))
+                    found = sum(_assembly_multiple_locants(specs, locants), [])
+                    size = len(specs[0].cycle)
+                    closing = sum(1 for loc in found if loc[1] == size)
+                    ene = tuple(sorted(_locant_order((loc[0], 1 if loc[1] == size else loc[1])) for loc in found))
                 key = (
                     (locants[join[unprimed]][1], locants[join[1 - unprimed]][1]),
                     _replacement_locants(mol, locants)[0] if replaced else (),
                     tuple(sorted(_locant_order(locants[a]) for a in marked)),
                     tuple(_locant_order(locants[a]) for a in cite_marked) if cite_marked else (),
+                    closing,
                     ene,
                     tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
                     _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),
@@ -3672,8 +3676,6 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, ene)
-    if unsaturated and any(loc[0] == len(rings[0]) for loc in best[2]):
-        raise UnsupportedStructure("a ring double bond closing the numbering (1(n) locant) is not supported in an assembly")
     return best[1]
 
 
@@ -3697,8 +3699,17 @@ def _assembly_unsaturation(specs, locants):
     if not ene and not yne:
         return ""
 
+    size = len(specs[0].cycle)
+
+    def spot(prime, n):
+        mark = chr(39) * prime
+        return f"1{mark}({n}{mark})" if n == size else f"{n}{mark}"
+
     def cite(found):
-        return ",".join(f"{n}{chr(39) * prime}" for prime, n in found)
+        # P-31.1.4.2.4: a bond closing the ring is cited from its lower end with the other end in parentheses and
+        # takes its place in the order by that lower end
+        ordered = sorted(found, key=lambda item: (1 if item[1] == size else item[1], item[0]))
+        return ",".join(spot(prime, n) for prime, n in ordered)
 
     ene_word, yne_word = multiplied_word(len(ene), "ene"), multiplied_word(len(yne), "yne")
     if ene and yne:
