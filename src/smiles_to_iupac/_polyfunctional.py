@@ -5770,10 +5770,11 @@ def _is_ester_like(mol, carbon):
     atom = mol.GetAtomWithIdx(carbon)
     if not _double_oxygens(mol, carbon):
         return False
+    if any(_acyloxy_amine_oxygen(mol, n, carbon) for n in atom.GetNeighbors()):
+        return False
     return any(
         n.GetAtomicNum() in (8, 7, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0
         and not _diacyl_chalcogen_chain(mol, carbon, n)
-        and not (_acyloxy_amine_oxygen(mol, n, carbon) and any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()))
         and not _acyloxy_lambda_centre_oxygen(n, carbon)
         and not (
             n.GetAtomicNum() == 7
