@@ -4472,11 +4472,11 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         if named is not None:
             return named
         return _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens)
-    if len(amine_nitrogens) > 1 and not ISOTOPE_LABELS.get() and not SUBSTITUTED_AMINE_PREFIX.get():
+    if len(amine_nitrogens) > 1 and not SUBSTITUTED_AMINE_PREFIX.get() and _labels_on_backbone_only(mol, graph, amine_nitrogens):
         named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
         if named is not None:
             return named
-    if len(amine_nitrogens) != 1 or (primaries and ISOTOPE_LABELS.get()):
+    if len(amine_nitrogens) != 1 or (primaries and ISOTOPE_LABELS.get() and not _labels_on_backbone_only(mol, graph, amine_nitrogens)):
         raise UnsupportedStructure("several amine groups with N-substitution are not handled by the chain engine")
     nitrogen = amine_nitrogens[0]
     n_idx = nitrogen.GetIdx()
@@ -4576,7 +4576,9 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         new_index = {old: new for new, old in enumerate(keep)}
         parent_labels = {new_index[a]: e for a, e in context["labels"].items() if a in new_index}
         if parent_labels:
-            parent, _ = _amine_parent_molecule(mol, arms[best[4]], best[4], n_idx)
+            parent, mapped = _amine_parent_molecule(mol, arms[best[4]], best[4], n_idx)
+            if primaries:
+                n_names = [(name, compound, ("N", mapped)) for name, compound in n_names]
             sub_context = {"labels": parent_labels, "consumed": set(), "mol": parent}
             sub_token = ISOTOPE_LABELS.set(sub_context)
             try:
@@ -4614,9 +4616,30 @@ def _is_assembly_result(result):
     return any(isinstance(locant, PrimedLocant) for locant in result[2][4].values())
 
 
+def _labels_on_backbone_only(mol, graph, nitrogens):
+    """No nuclide, or only nuclides on the carbon chain that joins the nitrogens, not on a nitrogen or a group of it."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if not context:
+        return True
+    indexes = {n.GetIdx() for n in nitrogens}
+    chain = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
+    reached, stack = set(), [n for i in indexes for n in graph[i] if n in chain]
+    while stack:
+        atom = stack.pop()
+        if atom not in reached:
+            reached.add(atom)
+            stack.extend(n for n in graph[atom] if n in chain and n not in reached)
+    arm_roots = {x for i in indexes for x in graph[i] if x not in reached}
+    return all(a in reached and not any(a in _arm_atoms(graph, root, i) for i in indexes for root in arm_roots if root in graph[i]) for a in context["labels"])
+
+
 def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
     """Several N-substituted amines on one chain: the chain with an amine suffix at each of those nitrogens is the parent
     and the other groups on the nitrogens are N-prefixes (P-62.2.2, P-62.2.4.1.2); None when the nitrogens do not hang on a single backbone."""
+    from ._substituents import ISOTOPE_LABELS
+
     if any(
         n.IsInRing() or n.GetFormalCharge() or n.GetTotalNumHs() > 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
         or any(
@@ -4683,12 +4706,14 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
                 name, compound = name_branch(graph, arm, i, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                 n_names.append((name, compound, ("N", mapped[position_of_carbon[carbons[i]]], i)))
         token = SUBSTITUTED_AMINE_PREFIX.set(True) if kept else None
+        unlabelled = ISOTOPE_LABELS.set(None)
         try:
             with _renumbered_branch_stereo(keep):
                 result = _select(parent, None, n_names)
         except UnsupportedStructure:
             return None, set()
         finally:
+            ISOTOPE_LABELS.reset(unlabelled)
             if token is not None:
                 SUBSTITUTED_AMINE_PREFIX.reset(token)
         missing = {i for i in cut if mapped[position_of_carbon[carbons[i]]] not in result[2][4]}
