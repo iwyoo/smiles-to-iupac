@@ -1738,7 +1738,11 @@ def _terminal_double_atom(mol, center, idx):
         return False
     if atom.GetDegree() == 2:
         end = next((m for m in atom.GetNeighbors() if m.GetIdx() != center), None)
-        return atom.GetAtomicNum() == 7 and end is not None and end.GetAtomicNum() == 7 and end.GetDegree() == 1 and end.GetTotalNumHs() == 2
+        if atom.GetAtomicNum() != 7 or end is None:
+            return False
+        if end.GetAtomicNum() == 6 and not end.GetFormalCharge() and mol.GetBondBetweenAtoms(atom.GetIdx(), end.GetIdx()).GetBondTypeAsDouble() == 1.0:
+            return mol.GetAtomWithIdx(center).GetAtomicNum() in (16, 34, 52)
+        return end.GetAtomicNum() == 7 and end.GetDegree() == 1 and end.GetTotalNumHs() == 2
     return atom.GetDegree() == 1 and (atom.GetAtomicNum() in (8, 16, 34, 52) or (atom.GetAtomicNum() == 7 and atom.GetTotalNumHs() == 1))
 
 
@@ -1754,6 +1758,14 @@ def _stereo_cited(name, atom):
     return f"({context['atoms'][atom]})-{plain}"
 
 
+def _imido_symbol(mol, nitrogen):
+    """'NH' for =NH and =N-R, 'NNH2' for =N-NH2 on a sulfur-type acyl centre."""
+    atom = mol.GetAtomWithIdx(nitrogen)
+    if atom.GetDegree() == 2 and any(m.GetAtomicNum() == 7 for m in atom.GetNeighbors()):
+        return "NNH2"
+    return "NH"
+
+
 def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """Prefixes of the acyl groups of sulfonic, sulfinic, selenonic ... acids (P-65.3.2): 'sulfo', 'sulfamoyl',
     'benzenesulfonyl', 'methoxysulfonyl', 'chlorosulfinyl', 'trithiosulfo'."""
@@ -1766,7 +1778,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     center = _E_SYMBOL[atom.GetAtomicNum()]
     others = [n for n in graph[root] if n != coming_from]
     oxo = [
-        (n, ("NNH2" if mol.GetAtomWithIdx(n).GetDegree() == 2 else "NH") if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 else mol.GetAtomWithIdx(n).GetSymbol())
+        (n, _imido_symbol(mol, n) if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 else mol.GetAtomWithIdx(n).GetSymbol())
         for n in others
         if _terminal_double_atom(mol, root, n)
     ]
@@ -1776,7 +1788,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     x = rest[0]
     zx = mol.GetAtomWithIdx(x).GetAtomicNum()
     acid_amide = zx == 7 and all(e == "O" for _, e in oxo)
-    if not EXTENDED_PREFIXES.get() and not acid_amide and ((center != "S" and zx != 6) or any(e != "O" for _, e in oxo)):
+    if not EXTENDED_PREFIXES.get() and not acid_amide and ((center != "S" and zx != 6) or any(e not in ("O", "NH") for _, e in oxo)):
         raise UnsupportedStructure("this sulfur-linked group is not supported yet")
     symbols = [e for _, e in oxo]
     if zx == 8 and mol.GetAtomWithIdx(x).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, x).GetBondTypeAsDouble() == 1.0:
