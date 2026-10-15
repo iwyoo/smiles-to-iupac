@@ -7,6 +7,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
+from ._multiplicative_text import enclose
 
 _CENTRES = {15, 33, 51}
 _OXO = {8, 16, 34, 52}
@@ -178,7 +179,7 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
     ]
     substituted = not stem.startswith(("phosph", "ars", "stib"))
     if entries:
-        stem = f"({stem})" if substituted else stem
+        stem = enclose(stem) if substituted else stem
     return (format_mononuclear_prefixes(entries) if entries else "") + stem, bool(entries) or substituted
 
 
