@@ -19,6 +19,7 @@ _TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
 _ESTER = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2;!R]([#6])")
 _ACYL_HALIDE = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[F,Cl,Br,I;X1]")
+_FREE_ACID = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2H1]")
 
 
 def _anion_stem(plain):
@@ -207,6 +208,8 @@ def _derivative_name(mol):
     if anion is None:
         return None
     if not diacid:
+        if neutral.HasSubstructMatch(_FREE_ACID):
+            return None
         return _ester_words(groups, None, anion) if len(groups) == 1 else None
     alpha = next(a.GetIntProp("_orig") for a in acid.GetAtoms() if a.GetIdx() == found[1])
     graph = adjacency(neutral)
