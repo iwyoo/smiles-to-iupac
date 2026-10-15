@@ -2060,9 +2060,17 @@ def _carbon_group_label(mol, rest, reselect):
     modified = {g for g in carbon_groups if any(a in rest for a in g)}
 
     def nuclides(group):
-        return sorted(
-            (n for a in group if a in rest for n in _modifications(rest[a])), key=_nuclide_sort_key
-        )
+        """The descriptor items of the group: the nuclides of its atoms, those of the hydrogens of its carbon with the
+        number of hydrogens modified (P-82.2.1)."""
+        items = []
+        for a in group:
+            if a in rest:
+                if rest[a]["skeleton"]:
+                    items.append((rest[a]["skeleton"], rest[a]["skeleton"]))
+                for nuclide, count in rest[a]["H"].items():
+                    on_carbon = mol.GetAtomWithIdx(a).GetAtomicNum() == 6
+                    items.extend((nuclide, f"{nuclide}{count}" if on_carbon else nuclide) for _ in range(1 if on_carbon else count))
+        return [text for _, text in sorted(items, key=lambda item: _nuclide_sort_key(item[0]))]
 
     from ._isotope_labels import _nuclide_sort_key
 
@@ -2072,7 +2080,6 @@ def _carbon_group_label(mol, rest, reselect):
         or modified != carbon_groups
         or any(a not in set().union(*carbon_groups) for a in rest)
         or len({tuple(nuclides(g)) for g in carbon_groups}) != 1
-        or any(e["H"] for a, e in rest.items() if mol.GetAtomWithIdx(a).GetAtomicNum() == 6)
         or any(sum(1 for a in g if a in rest and mol.GetAtomWithIdx(a).GetAtomicNum() == 6) != 1 for g in carbon_groups)
     ):
         raise UnsupportedStructure("an isotopically modified carbon of this characteristic group is not supported yet")
