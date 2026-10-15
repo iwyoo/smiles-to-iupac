@@ -54,6 +54,9 @@ def _chain(mol):
             return None
         used.add(step[0])
         order.append(next(e for e in step[1] if e != order[-1]))
+    chain_atoms = set(order) | set(bridges) | {n for c in order for n in _terminal_nitrogens(mol, c, bridges)}
+    if any(mol.GetAtomWithIdx(a).IsInRing() for a in chain_atoms):
+        return None
     return order, bridges
 
 

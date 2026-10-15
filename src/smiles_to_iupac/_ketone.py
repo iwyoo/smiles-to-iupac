@@ -1661,10 +1661,20 @@ def has_hetero_ring_ketone_shape(mol) -> bool:
     both neighboring carbons (e.g. 'O=C1CCC(=O)O1') is itself a cyclic
     anhydride shape, and moving this check any earlier would silently
     reclassify it before `_anhydride.py`'s own explicit ring rejection."""
-    return (
+    return _has_ring_carbonyl(mol) and (
         _hetero_ring_heteroatom(mol) is not None
         or _hetero_ring_two_heteroatoms(mol) is not None
         or _hetero_ring_seven_membered_1_4(mol) is not None
+    )
+
+
+def _has_ring_carbonyl(mol):
+    """A ring atom doubly bonded to an oxygen or other chalcogen outside the ring."""
+    return any(
+        b.GetBondTypeAsDouble() == 2.0
+        and (b.GetBeginAtom().IsInRing() != b.GetEndAtom().IsInRing())
+        and (b.GetEndAtom() if b.GetBeginAtom().IsInRing() else b.GetBeginAtom()).GetAtomicNum() in (8, 16, 34, 52)
+        for b in mol.GetBonds()
     )
 
 

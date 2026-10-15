@@ -1422,6 +1422,11 @@ def test_chalcogen_urea_and_amide_groups_are_not_skeletal_units(smiles, expected
             "N-{[4-(dimethylsulfamoyl)phenyl]methyl}-N'-methylthiomorpholine-4-carboximidamide",
             id="ring_nitrogen_carries_the_carboximidamide_group",
         ),
+        pytest.param("C1CCN(CC1)C(=N)NC(=N)N", "N-carbamimidoylpiperidine-1-carboximidamide", id="biguanide_group_on_a_ring_nitrogen"),
+        pytest.param("NC1=NCN=C(N)N1", "3,6-dihydro-1,3,5-triazine-2,4-diamine", id="guanidine_units_inside_a_ring"),
+        pytest.param("N#CNC(=N)N1CCCCC1", "N-cyanopiperidine-1-carboximidamide", id="cyano_on_the_amidine_nitrogen"),
+        pytest.param("C1CCN(CC1)C(=N)NC(N)=O", "(piperidine-1-carboximidoyl)urea", id="amide_outranks_the_ring_amidine"),
+        pytest.param("C1CCN(CC1)C(=N)NC(C)=O", "N-(piperidine-1-carboximidoyl)acetamide", id="acyl_on_the_amidine_nitrogen"),
     ],
 )
 def test_ring_nitrogens_are_never_chain_or_acyl_group_atoms_with_ring_copies(smiles, expected):

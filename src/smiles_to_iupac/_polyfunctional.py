@@ -368,7 +368,7 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
         rest[0].GetAtomicNum() == 6 and not is_functional_carbon(mol, rest[0].GetIdx())
         and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
     ) or (
-        rest[0].GetAtomicNum() == 7 and not rest[0].GetFormalCharge() and not rest[0].IsInRing()
+        rest[0].GetAtomicNum() == 7 and not rest[0].GetFormalCharge() and not rest[0].GetIsAromatic()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
         and _carbamimidoyl_nitrogen_substituents(mol, rest[0], atom.GetIdx())
     )
@@ -5958,6 +5958,20 @@ def _imidoyl_carbon(mol, carbon, nitrogen):
     )
 
 
+def _cyano_on(mol, carbon, nitrogen):
+    """Whether `carbon` is the carbon of a cyano group on `nitrogen`: a nitrile ranks below the amidine (P-41)."""
+    return (
+        carbon.GetAtomicNum() == 6
+        and carbon.GetDegree() == 2
+        and mol.GetBondBetweenAtoms(carbon.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and any(
+            n.GetAtomicNum() == 7 and n.GetIdx() != nitrogen.GetIdx() and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 3.0
+            for n in carbon.GetNeighbors()
+        )
+    )
+
+
 def _amidine_nitrogens(mol, atom):
     """(imino N, amino N) of a -C(=NR)-NR2 group (P-66.4.1.1) whose carbon has at most one carbon neighbour; the
     imino nitrogen carries hydrogen, a carbon group or an oxygen (an amidoxime, P-66.4.4)."""
@@ -5987,7 +6001,9 @@ def _amidine_nitrogens(mol, atom):
                 continue
             if n.GetAtomicNum() not in allowed or n.GetFormalCharge():
                 return None
-            if is_functional_carbon(mol, n.GetIdx()) and not _imidoyl_carbon(mol, n, nitrogen):
+            if is_functional_carbon(mol, n.GetIdx()) and not (
+                _imidoyl_carbon(mol, n, nitrogen) or _carbamimidoyl_on(mol, n, nitrogen) or _cyano_on(mol, n, nitrogen)
+            ):
                 return None
     if imino.GetDegree() > 2 or amino.GetDegree() > 3:
         return None
