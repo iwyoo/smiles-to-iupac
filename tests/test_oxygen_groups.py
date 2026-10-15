@@ -1200,6 +1200,7 @@ def test_carbonic_family_names(smiles, expected):
         ("NC(=O)OCCCNCCCOC(N)=O", "azanediyldi(propane-3,1-diyl) dicarbamate"),
         ("CC(=O)OCNCOC(C)=O", "azanediylbis(methylene) diacetate"),
         ("CC(=O)OCCOCCOC(=O)CC", "2-[2-(acetyloxy)ethoxy]ethyl propanoate"),
+        ("COC(=O)CCN(CC)CC(=O)OC", "methyl 3-[ethyl(2-methoxy-2-oxoethyl)amino]propanoate"),
         ("CC(=O)SCCOC(=O)CC", "2-(acetylsulfanyl)ethyl propanoate"),
         (
             "COC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OC",

@@ -137,6 +137,27 @@ def _senior_units(mol, units):
     return [u for u in ranked if key(u) == key(ranked[0])]
 
 
+def _senior_by_acid(mol, graph, matches, units):
+    """Equally ranked alkyl groups of esters of different acids: the ester of the acid with the longest chain is the
+    principal one and the other is cited as a prefix (P-44.1.2.2, P-65.6.3.2.3); rings and ties keep the units."""
+    from ._common import component_subgraph, longest_chains
+    from ._diester_anions import _acyl_component
+
+    if any(u[0] != "chain" for u in units) or mol.GetRingInfo().NumRings():
+        return units
+    carbon_graph = carbon_adjacency(mol)
+
+    def length(unit):
+        return max(
+            len(longest_chains(component_subgraph(carbon_graph, m[0].GetIdx()))[0])
+            for m in matches
+            if m[3].GetIdx() in unit[3] and m[0].GetAtomicNum() == 6
+        )
+
+    ranked = sorted(units, key=lambda u: -length(u))
+    return [u for u in ranked if length(u) == length(ranked[0])]
+
+
 def select_skeleton(mol, graph, matches):
     """(kind, rings_or_paths, atoms) of the single best ring system or chain, or None when no skeleton carries
     an ester oxygen; raises when several equally ranked units tie (multiplicative/ring-assembly names)."""
@@ -175,6 +196,8 @@ def select_skeleton(mol, graph, matches):
         best = [u for u in best if u[0] == "ring"]
     if len(best) > 1:
         best = _senior_units(mol, best)
+    if len(best) > 1:
+        best = _senior_by_acid(mol, graph, matches, best)
     if len(best) > 1:
         raise UnsupportedStructure(
             "several equally ranked ring/chain units carry the esters (multiplicative or ring-assembly names, "
