@@ -1040,20 +1040,24 @@ def name_polyfunctional(mol) -> str:
     anionic_parent = any(a.HasProp(ANION_PROP) for a in mol.GetAtoms())
     cation = None if anionic_parent else _aminium_base(mol)
     if cation is not None:
-        return _name_aminium(cation)
+        with ion_stereo_carried(mol, cation):
+            return _name_aminium(cation)
     amidinium = None if anionic_parent else _amidinium_base(mol)
     if amidinium is not None:
-        name = _name_labelled(amidinium, {})
+        with ion_stereo_carried(mol, amidinium):
+            name = _name_labelled(amidinium, {})
         if not name.endswith("imidamide"):
             raise UnsupportedStructure("the amidinium cation is not named as an amidine parent")
         return name[:-1] + "ium"
     iminium = None if anionic_parent else _iminium_base(mol)
     if iminium is not None:
-        return _name_aminium(iminium, parent="imine", cationic=sum(1 for a in mol.GetAtoms() if a.GetFormalCharge()))
+        with ion_stereo_carried(mol, iminium):
+            return _name_aminium(iminium, parent="imine", cationic=sum(1 for a in mol.GetAtoms() if a.GetFormalCharge()))
     for kind in ("amide", "nitrile"):
         acylated = _group_cation_base(mol, kind)
         if acylated is not None:
-            return _name_aminium(acylated, parent=kind)
+            with ion_stereo_carried(mol, acylated):
+                return _name_aminium(acylated, parent=kind)
     grouped = _ring_cation_with_group(mol)
     if grouped is not None:
         return _name_ring_group_cation(*grouped)
@@ -1821,6 +1825,39 @@ def _cationic_group_suffix(name, parent, cationic=None):
 
 
 STEREO_OF_ISOTOPOLOGUE = contextvars.ContextVar("stereo_of_isotopologue", default=None)
+
+
+def _located_elements(mol):
+    located = []
+    for kind, idx, code in specified_stereo_elements(mol) or []:
+        if kind == "bond":
+            bond = mol.GetBondWithIdx(idx)
+            located.append(("bond", (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), code))
+        else:
+            located.append((kind, idx, code))
+    return located
+
+
+@contextlib.contextmanager
+def ion_stereo_carried(mol, neutral):
+    """The descriptors of an ion carried over to its neutral copy that names it: a charged ligand ranks below its
+    neutral twin, and rings that differ only in the charged atom leave a centre unrecognised (P-92.1.4.4, P-92.2.1)."""
+    try:
+        elements = _located_elements(mol)
+    except UnsupportedStructure:
+        elements = None
+    try:
+        carried = elements is not None and elements != _located_elements(neutral)
+    except UnsupportedStructure:
+        carried = elements is not None
+    if not carried:
+        yield
+        return
+    token = STEREO_OF_ISOTOPOLOGUE.set(elements)
+    try:
+        yield
+    finally:
+        STEREO_OF_ISOTOPOLOGUE.reset(token)
 JUNIOR_GROUP = "_junior_group"
 ACYL_ROOT = "_acyl_root"
 

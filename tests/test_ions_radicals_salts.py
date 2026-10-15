@@ -2012,6 +2012,19 @@ def test_cip_descriptor_of_a_stereogenic_azanium_or_phosphanium_centre(smiles, e
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("C[C@@H]([O-])[C@H](O)[C@H](C)O", "(2R,3S,4S)-3,4-dihydroxypentan-2-olate", id="olate_beside_an_alcohol"),
+        pytest.param("[O-][C@@H]1[C@@H](O)[C@@H](O)CO[C@H]1C", "(2S,3R,4R,5S)-4,5-dihydroxy-2-methyloxan-3-olate", id="olate_on_a_ring"),
+        pytest.param("C[C@H]([NH3+])[C@H](O)[C@H](C)N", "(2S,3R,4S)-4-amino-3-hydroxypentan-2-aminium", id="aminium_beside_an_amine"),
+    ],
+)
+def test_charged_ligand_ranks_below_its_neutral_twin_in_cip_descriptors(smiles, expected):
+    # P-92.1.1, P-92.2.1
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC[S+](C)CCOCCOCC[S+](C)CC", "3,12-dimethyl-6,9-dioxa-3,12-dithioniatetradecane", id="onia_on_a_chain_with_a_multiplied_suffix"),
         pytest.param("C[N+]12CCC(CC1)C2.[Cl-]", "1-methyl-1-azoniabicyclo[2.2.1]heptane chloride", id="onia_on_von_baeyer_with_a_counter_ion"),
         pytest.param("C1CCC[As+]12CCCC2", "5-arsoniaspiro[4.4]nonane", id="ylium_on_a_lambda_parent_becomes_onia"),
