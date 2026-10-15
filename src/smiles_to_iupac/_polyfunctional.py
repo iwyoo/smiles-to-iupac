@@ -18,6 +18,7 @@ from rdkit.Chem import CanonicalRankAtoms
 from ._common import KEEP_ASSEMBLY_ENDING
 from ._common import assign_cip_labels
 from ._common import (
+    CITE_SKELETAL_LAMBDA,
     alphanumerical_name_key,
     citation_order_key,
     assembly_join,
@@ -1237,10 +1238,14 @@ def _cation_inserted(name, base, center, placed_in_parent):
     ring_mol = ring.GetMol()
     ring_mol.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(ring_mol)
+    lambda_token = CITE_SKELETAL_LAMBDA.set(True)
     try:
-        bare, placed = _bare_ring_name(ring_mol, new_center, hydro_ok=True)
-    except ValueError:
-        bare, placed = _bare_ring_name(_mancude_ring(ring_mol), new_center, hydro_ok=True)
+        try:
+            bare, placed = _bare_ring_name(ring_mol, new_center, hydro_ok=True)
+        except ValueError:
+            bare, placed = _bare_ring_name(_mancude_ring(ring_mol), new_center, hydro_ok=True)
+    finally:
+        CITE_SKELETAL_LAMBDA.reset(lambda_token)
     if not bare.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
     stem = bare[:-1]

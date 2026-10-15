@@ -1546,6 +1546,26 @@ def test_cations_that_are_not_a_multiplicative_assembly(smiles):
             "3-(3-methyl-1H-imidazol-3-ium-1-yl)propanoate",
             id="ring_cation_as_prefix_with_second_nitrogen",
         ),
+        pytest.param(
+            "O=C([O-])CCCC[NH+]1CCS(=O)CC1",
+            "5-(1-oxo-1\u03bb4,4-thiazinan-4-ium-4-yl)pentanoate",
+            id="ring_cation_prefix_with_a_sulfoxide_sulfur",
+        ),
+        pytest.param(
+            "O=C([O-])CCC[NH+]1CCS(=O)(=O)CC1",
+            "4-(1,1-dioxo-1\u03bb6,4-thiazinan-4-ium-4-yl)butanoate",
+            id="ring_cation_prefix_with_a_sulfone_sulfur",
+        ),
+        pytest.param(
+            "[O-]S(=O)(=O)CC[NH+]1CCS(=O)CC1",
+            "2-(1-oxo-1\u03bb4,4-thiazinan-4-ium-4-yl)ethane-1-sulfonate",
+            id="ring_cation_prefix_with_a_sulfoxide_beside_a_sulfonate",
+        ),
+        pytest.param(
+            "O=C([O-])CCC[NH+]1CCCS(=O)C1",
+            "4-(1-oxo-1\u03bb4,3-thiazinan-3-ium-3-yl)butanoate",
+            id="sulfoxide_sulfur_and_cationic_nitrogen_in_a_1_3_relation",
+        ),
         pytest.param("[CH2+]CC(=O)[O-]", "propan-3-ylium-1-oate", id="carbocation_with_chain_anion"),
         pytest.param("[O-]C(=O)CC[CH+]CC(=O)[O-]", "hexan-4-ylium-1,6-dioate", id="carbocation_with_two_anion_groups"),
         pytest.param("[CH2+]CS(=O)(=O)[O-]", "ethan-2-ylium-1-sulfonate", id="carbocation_with_sulfonate"),
