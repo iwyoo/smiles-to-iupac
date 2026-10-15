@@ -7,6 +7,7 @@ salts' with the ester groups cited first, then 'hydrogen' (P-65.6.2.3, P-65.6.3.
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._hetero_prefixes import _ONIUM_PREFIX_STEMS
 from ._numerals import multiplying_prefix
 from ._phosphate import citing_stereo, format_ester_entries
 from ._substituents import format_mononuclear_prefixes, name_branch
@@ -98,7 +99,10 @@ def name_oxoacid_anion(mol, center):
         raise UnsupportedStructure("a multi-fragment structure is not named by one oxoacid anion")
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
     anions = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0]
-    ammonium_only = all(a.GetAtomicNum() == 7 and a.GetFormalCharge() == 1 and not a.GetIsotope() for a in cations)
+    ammonium_only = all(
+        (a.GetAtomicNum() == 7 or a.GetAtomicNum() in _ONIUM_PREFIX_STEMS) and a.GetFormalCharge() == 1 and not a.GetIsotope()
+        for a in cations
+    )
     if len(mol.GetAtoms()) < 2 or (cations and not (ammonium_only and len(cations) == len(anions))):
         raise UnsupportedStructure("cationic atoms beside an oxoacid anion are not supported here")
     infix = _pseudohalide_infix_anion(mol, center)

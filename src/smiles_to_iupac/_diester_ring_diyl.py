@@ -665,7 +665,11 @@ def _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order):
     from ._polyfunctional import _ring_center_base
 
     suffix = suffix_of(order)
-    if sum(1 for a in mol.GetAtoms() if a.GetFormalCharge() and a.IsInRing()) > 1 or len(Chem.GetMolFrags(mol)) != 1:
+    if (
+        sum(1 for a in mol.GetAtoms() if a.GetFormalCharge() and a.IsInRing()) > 1
+        or len(Chem.GetMolFrags(mol)) != 1
+        or any(a.GetFormalCharge() and not a.IsInRing() for a in mol.GetAtoms())
+    ):
         unit = _ring_unit(mol, graph, root, parent, atoms)
         if unit is not None:
             mol, graph, root, parent, rings, atoms = unit
