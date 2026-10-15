@@ -7,7 +7,7 @@ hydrogen-bearing elements are cited when the ligands differ ('phosphorothioic O,
 from rdkit import Chem
 
 from ._hetero_prefixes import pentavalent_nitrogen_oxo
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents, is_halide_ligand
 from ._numerals import numerical_term
 from ._substituents import cited_stereo_around, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -41,7 +41,7 @@ _PSEUDOHALIDE_PATTERNS = [(Chem.MolFromSmarts(smarts), infix) for smarts, infix 
 
 def _replacer(mol, center, neighbor):
     """(infix, atoms) of a halogen or pseudohalogen group bonded to the acid centre, else None."""
-    if neighbor.GetAtomicNum() in _HALIDE_INFIX and neighbor.GetDegree() == 1:
+    if neighbor.GetAtomicNum() in _HALIDE_INFIX and is_halide_ligand(neighbor):
         return _HALIDE_INFIX[neighbor.GetAtomicNum()], {neighbor.GetIdx()}
     for pattern, infix in _PSEUDOHALIDE_PATTERNS:
         for match in mol.GetSubstructMatches(pattern):

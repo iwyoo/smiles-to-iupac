@@ -4,7 +4,7 @@ where its members sit on the skeleton and which neighbours are cited as prefixes
 from collections import Counter
 from dataclasses import dataclass, field
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, is_halide_ligand
 
 SENIORITY = (
     "acid",
@@ -91,7 +91,7 @@ def acyl_class(mol, carbon, anchor, mapped):
         if _double_oxygens(mol, alkyl.GetIdx()):
             return "anhydride", {"atoms": (carbon, oxo[0], rest[0]), "oxygen": rest[0], "other": alkyl.GetIdx()}
         return "ester", {"atoms": (carbon, oxo[0], rest[0]), "oxygen": rest[0], "alkyl": alkyl.GetIdx()}
-    if x.GetAtomicNum() in _HALOGENS and x.GetDegree() == 1:
+    if x.GetAtomicNum() in _HALOGENS and is_halide_ligand(x):
         return "halide", {"atoms": (carbon, oxo[0], rest[0]), "halide": _HALOGENS[x.GetAtomicNum()]}
     if x.GetAtomicNum() == 7 and not x.IsInRing() and x.GetFormalCharge() == 0:
         hydrazine = [n for n in x.GetNeighbors() if n.GetAtomicNum() == 7]

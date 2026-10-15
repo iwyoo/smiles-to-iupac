@@ -14,6 +14,7 @@ from ._alkoxy import alkoxy_prefix
 from ._common import nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
+from ._nitro_group import nitro_or_nitroso_group
 from ._numerals import alkane_name, multiplying_prefix
 from ._pin import mark
 
@@ -1520,6 +1521,9 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     (x,) = rest
     z = mol.GetAtomWithIdx(x).GetAtomicNum()
     if z in _ACYL_HALIDE_PREFIXES and mol.GetAtomWithIdx(x).GetDegree() == 1:
+        placeholder = named_prefix(mol.GetAtomWithIdx(x))
+        if placeholder in ("nitro", "nitroso"):
+            return placeholder + "formyl", True
         return _ACYL_HALIDE_PREFIXES[z], False
     if z == 8:
         tail = [n for n in graph[x] if n != root]
@@ -1533,6 +1537,9 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(x).HasProp("_anion_word"):
             raise UnsupportedStructure("an anionic amide nitrogen is not named as a carbamoyl prefix")
         subs = [n for n in graph[x] if n != root]
+        nitro = nitro_or_nitroso_group(mol, mol.GetAtomWithIdx(x))
+        if nitro is not None:
+            return nitro[0] + "formyl", True
         if not subs:
             return "carbamoyl", False
         if mol.GetAtomWithIdx(x).IsInRing():

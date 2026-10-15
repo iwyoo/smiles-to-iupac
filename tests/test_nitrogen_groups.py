@@ -1549,6 +1549,34 @@ def test_nitro_and_nitroso_prefixes_in_parent_families_with_their_own_module(smi
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("NC(=O)N=O", "nitrosoformamide", id="amide_of_nitrosoformic_acid"),
+        pytest.param("CNC(=O)N=O", "N-methylnitrosoformamide", id="n_substituted_amide_of_nitrosoformic_acid"),
+        pytest.param("ClC(=O)N=O", "nitrosoformyl chloride", id="acyl_halide_of_nitrosoformic_acid"),
+        pytest.param("OC(=O)c1ccc(C(=O)N=O)cc1", "4-(nitrosoformyl)benzoic acid", id="nitrosoformyl_prefix"),
+    ],
+)
+def test_nitroso_on_a_carbonyl_carbon_is_a_substituent_of_formic_acid(smiles, expected):
+    # P-65.1.8.2, P-65.1.8.3: the hydrogen of formic acid and of formyl is substitutable by nitroso; it is not a halide
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("CC(=O)N=O", id="acyl_nitroso"),
+        pytest.param("CC(=O)[N+](=O)[O-]", id="acyl_nitro"),
+        pytest.param("CCC(=O)C(=O)N=O", id="acyl_nitroso_beside_a_ketone"),
+    ],
+)
+def test_acyl_group_on_nitroso_or_nitro_nitrogen_is_not_an_acyl_halide_or_aldehyde(smiles):
+    # P-65.5.1, P-65.5.2.1: neither N=O nor NO2 is a halide or pseudohalide; the carbonyl carbon has no hydrogen
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("CC(=O)NOC", "N-methoxyacetamide", id="n_alkoxy_amide"),
         pytest.param("CC(=O)NOCC(C)C", "N-(2-methylpropoxy)acetamide", id="branched_alkoxy_on_amide_nitrogen"),
         pytest.param("CC(=O)NOc1ccccc1", "N-phenoxyacetamide", id="n_aryloxy_amide"),

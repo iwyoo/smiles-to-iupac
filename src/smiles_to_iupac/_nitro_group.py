@@ -11,7 +11,7 @@ from ._common import NITRO_MAP_NUMBER, NITROSO_MAP_NUMBER, is_nitro_nitrogen
 _MAP_OF = {"nitro": NITRO_MAP_NUMBER, "nitroso": NITROSO_MAP_NUMBER}
 
 
-def _group(mol, atom):
+def nitro_or_nitroso_group(mol, atom):
     """(prefix, oxygen atoms) of the nitro or nitroso group whose nitrogen is `atom`, or None."""
     if atom.GetAtomicNum() != 7 or atom.IsInRing() or atom.GetIsotope():
         return None
@@ -36,7 +36,7 @@ def contract_nitro_groups(mol):
     placeholder, so the neighbours of the host keep their order and its stereodescriptor stays valid."""
     if any(a.GetAtomicNum() == 53 or a.GetAtomMapNum() for a in mol.GetAtoms()):
         return None
-    groups = [(a.GetIdx(), *found) for a in mol.GetAtoms() if (found := _group(mol, a))]
+    groups = [(a.GetIdx(), *found) for a in mol.GetAtoms() if (found := nitro_or_nitroso_group(mol, a))]
     if not groups:
         return None
     rw = Chem.RWMol(mol)

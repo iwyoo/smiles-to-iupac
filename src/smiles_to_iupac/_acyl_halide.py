@@ -50,6 +50,7 @@ from rdkit import Chem
 from ._common import (
     HALIDE_WORDS,
     HALOGEN_PREFIXES,
+    is_halide_ligand,
     UnsupportedStructure,
     adjacency,
     all_chains,
@@ -84,7 +85,7 @@ def _acyl_halide_carbons(mol):
         if atom.GetAtomicNum() != 6:
             continue
         oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
-        halogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES and not n.HasProp("_named_prefix")]
+        halogens = [n for n in atom.GetNeighbors() if is_halide_ligand(n)]
         if len(oxygens) != 1 or len(halogens) != 1:
             continue
         (oxygen,) = oxygens

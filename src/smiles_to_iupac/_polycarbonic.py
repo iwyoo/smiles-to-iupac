@@ -11,7 +11,7 @@ from ._acid_lexicon import _INFIX
 from ._carbonic_family import _HALIDE_INFIX, _SYMBOL, PSEUDO_INFIX, _chain, pseudohalide_at
 from ._alkoxy import alkoxy_prefix
 from ._carbonic_amide import _arm_atoms
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
@@ -319,7 +319,7 @@ def _terminal(mol, graph, center, atom_idx, position, replaced, letters, substit
         elif symbols[0] != "O":
             replaced.append((position, _INFIX[symbols[0]]))
         return
-    if atom.GetAtomicNum() in _HALIDE_INFIX and atom.GetDegree() == 1:
+    if atom.GetAtomicNum() in _HALIDE_INFIX and is_halide_ligand(atom):
         replaced.append((position, _PREFIX_WORDS[_HALIDE_INFIX[atom.GetAtomicNum()]]))
         return
     pseudo = pseudohalide_at(mol, atom_idx, center)

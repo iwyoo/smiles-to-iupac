@@ -74,7 +74,7 @@ def _extra_aldehydes(mol, excluded_oxygens):
         if any(n.GetAtomicNum() == 7 for n in carbon.GetNeighbors()):
             continue
         carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
-        if len(carbon_neighbors) == 1:
+        if len(carbon_neighbors) == 1 and carbon.GetTotalNumHs() == 1:
             aldehydes.add(atom.GetIdx())
     return aldehydes
 

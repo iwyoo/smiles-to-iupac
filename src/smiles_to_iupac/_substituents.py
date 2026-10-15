@@ -207,7 +207,7 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False, omit_all: b
         if i == 0:
             result = text
         else:
-            sep = "-" if (explicit or entries[i - 1][1]) else ""
+            sep = "-" if explicit else ""
             result += sep + text
     return result
 

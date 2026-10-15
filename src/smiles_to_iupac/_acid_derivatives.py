@@ -15,7 +15,7 @@ from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._amino_acid_retained import has_retained_amino_acid_shape
 from ._carbonic_family import pseudohalide_at
 from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_halide_ligand
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
@@ -81,7 +81,7 @@ def _oxo_slots(mol, center):
 
 def _role(mol, center, atom):
     z = atom.GetAtomicNum()
-    if z in _HALIDES and atom.GetTotalDegree() == 1:
+    if z in _HALIDES and atom.GetTotalDegree() == 1 and is_halide_ligand(atom):
         return "hal"
     if pseudohalide_at(mol, atom.GetIdx(), center) is not None:
         return "pseudo"
@@ -1346,9 +1346,16 @@ def _halocarbonic_amide(mol, graph):
     for carbon in mol.GetAtoms():
         if carbon.GetAtomicNum() != 6 or carbon.GetDegree() != 3 or carbon.IsInRing() or carbon.GetFormalCharge():
             continue
-        halide = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() in _HALIDES and n.GetDegree() == 1]
+        halide = [n for n in carbon.GetNeighbors() if is_halide_ligand(n)]
         oxo = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and _bond(mol, carbon.GetIdx(), n.GetIdx()) == 2.0]
-        amino = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 7 and not n.GetFormalCharge() and not n.IsInRing() and _bond(mol, carbon.GetIdx(), n.GetIdx()) == 1.0]
+        amino = [
+            n
+            for n in carbon.GetNeighbors()
+            if n.GetAtomicNum() == 7
+            and not n.GetFormalCharge()
+            and not n.IsInRing()
+            and not any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() != 6 for b in n.GetBonds())
+        ]
         if len(halide) != 1 or len(oxo) != 1 or len(amino) != 1:
             continue
         nitrogen = amino[0]
