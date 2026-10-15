@@ -127,6 +127,23 @@ def test_multiplicative_esters_of_sulfur_and_phosphorus_acids(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("CC[C@H](C)OS(=O)(=O)O", "(2S)-butan-2-yl hydrogen sulfate", id="sulfate_monoester"),
+        pytest.param("CC[C@H](C)OS(=O)(=O)OC", "(2S)-butan-2-yl methyl sulfate", id="sulfate_diester"),
+        pytest.param("CC[C@H](C)OS(=O)(=O)[O-]", "(2S)-butan-2-yl sulfate", id="sulfate_anion"),
+        pytest.param("CC[C@H](C)OS(=O)(=O)[O-].[Na+]", "sodium (2S)-butan-2-yl sulfate", id="sulfate_salt"),
+        pytest.param("C[C@H](O)COS(=O)(=O)O", "(2S)-2-hydroxypropyl hydrogen sulfate", id="hydroxy_beside_the_ester"),
+        pytest.param("CC[C@H](C)O[N+](=O)[O-]", "(2S)-butan-2-yl nitrate", id="nitrate"),
+        pytest.param("CC[C@H](C)ON=O", "(2S)-butan-2-yl nitrite", id="nitrite"),
+    ],
+)
+def test_stereocentre_of_the_organyl_group_of_a_noncarbon_oxoacid_ester(smiles, expected):
+    # P-67.1.3.2, P-93.5: the CIP descriptor stands in front of the organyl group of the ester
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC(OS(C)(=O)=O)OS(C)(=O)=O", "ethane-1,1-diyl dimethanesulfonate", id="geminal_sulfonate_diester"),
         pytest.param(
             "CC#CC#CC(OS(=O)(=O)c1ccc(C)cc1)OS(=O)(=O)c1ccc(C)cc1",

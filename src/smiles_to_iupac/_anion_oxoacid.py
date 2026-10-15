@@ -8,7 +8,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._numerals import multiplying_prefix
-from ._phosphate import format_ester_entries
+from ._phosphate import citing_stereo, format_ester_entries
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _PHOSPHORUS = {
@@ -96,8 +96,6 @@ def _pseudohalide_infix_anion(mol, center):
 def name_oxoacid_anion(mol, center):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a multi-fragment structure is not named by one oxoacid anion")
-    if any(s.specified == Chem.StereoSpecified.Specified for s in Chem.FindPotentialStereo(mol)):
-        raise UnsupportedStructure("the stereochemistry of an oxoacid ester anion is not cited yet")
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
     anions = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0]
     ammonium_only = all(a.GetAtomicNum() == 7 and a.GetFormalCharge() == 1 and not a.GetIsotope() for a in cations)
@@ -109,49 +107,50 @@ def name_oxoacid_anion(mol, center):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    carbons, oxo, hydroxyls, esters = [], 0, 0, []
-    for n in center.GetNeighbors():
-        z = n.GetAtomicNum()
-        bond = mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble()
-        if z == 6 and bond == 1.0:
-            carbons.append(n.GetIdx())
-        elif z == 8 and bond == 2.0 and n.GetDegree() == 1:
-            oxo += 1
-        elif z == 8 and n.GetFormalCharge() == -1:
-            continue
-        elif z == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
-            hydroxyls += 1
-        elif z == 8 and n.GetDegree() == 2:
-            other = next(x for x in n.GetNeighbors() if x.GetIdx() != center.GetIdx())
-            if other.GetAtomicNum() != 6:
-                raise UnsupportedStructure("this oxoacid ester oxygen is not bonded to carbon")
-            esters.append(name_branch(graph, other.GetIdx(), n.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True))
+    with citing_stereo(mol):
+        carbons, oxo, hydroxyls, esters = [], 0, 0, []
+        for n in center.GetNeighbors():
+            z = n.GetAtomicNum()
+            bond = mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble()
+            if z == 6 and bond == 1.0:
+                carbons.append(n.GetIdx())
+            elif z == 8 and bond == 2.0 and n.GetDegree() == 1:
+                oxo += 1
+            elif z == 8 and n.GetFormalCharge() == -1:
+                continue
+            elif z == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
+                hydroxyls += 1
+            elif z == 8 and n.GetDegree() == 2:
+                other = next(x for x in n.GetNeighbors() if x.GetIdx() != center.GetIdx())
+                if other.GetAtomicNum() != 6:
+                    raise UnsupportedStructure("this oxoacid ester oxygen is not bonded to carbon")
+                esters.append(name_branch(graph, other.GetIdx(), n.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True))
+            else:
+                raise UnsupportedStructure("this oxoacid substituent is not supported yet")
+        if any(a.GetIdx() != center.GetIdx() and a.GetAtomicNum() in (5, 15, 16) for a in mol.GetAtoms()):
+            raise UnsupportedStructure("several phosphorus atoms are not supported here")
+        if center.GetAtomicNum() == 5:
+            if oxo or len(carbons) > 2:
+                raise UnsupportedStructure("this boron acid pattern is not supported yet")
+            entries = [
+                name_branch(graph, c, center.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True) for c in carbons
+            ]
+            parent = (format_mononuclear_prefixes(entries) if entries else "") + _BORON[len(carbons)]
+        elif center.GetAtomicNum() in (15, 33, 51):
+            key = (5 if oxo else 3, len(carbons))
+            if key not in _PHOSPHORUS:
+                raise UnsupportedStructure("this phosphorus oxoacid pattern is not supported yet")
+            entries = [
+                name_branch(graph, c, center.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True) for c in carbons
+            ]
+            parent = (format_mononuclear_prefixes(entries) if entries else "") + _pnictogen_anion(center.GetAtomicNum(), key)
         else:
-            raise UnsupportedStructure("this oxoacid substituent is not supported yet")
-    if any(a.GetIdx() != center.GetIdx() and a.GetAtomicNum() in (5, 15, 16) for a in mol.GetAtoms()):
-        raise UnsupportedStructure("several phosphorus atoms are not supported here")
-    if center.GetAtomicNum() == 5:
-        if oxo or len(carbons) > 2:
-            raise UnsupportedStructure("this boron acid pattern is not supported yet")
-        entries = [
-            name_branch(graph, c, center.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True) for c in carbons
-        ]
-        parent = (format_mononuclear_prefixes(entries) if entries else "") + _BORON[len(carbons)]
-    elif center.GetAtomicNum() in (15, 33, 51):
-        key = (5 if oxo else 3, len(carbons))
-        if key not in _PHOSPHORUS:
-            raise UnsupportedStructure("this phosphorus oxoacid pattern is not supported yet")
-        entries = [
-            name_branch(graph, c, center.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True) for c in carbons
-        ]
-        parent = (format_mononuclear_prefixes(entries) if entries else "") + _pnictogen_anion(center.GetAtomicNum(), key)
-    else:
-        if oxo == 2:
-            parent = "sulfate"
-        elif oxo == 1:
-            parent = "sulfite"
-        else:
-            raise UnsupportedStructure("this sulfur oxoacid pattern is not supported yet")
+            if oxo == 2:
+                parent = "sulfate"
+            elif oxo == 1:
+                parent = "sulfite"
+            else:
+                raise UnsupportedStructure("this sulfur oxoacid pattern is not supported yet")
     words = []
     if esters:
         words.append(_ester_words(esters))
