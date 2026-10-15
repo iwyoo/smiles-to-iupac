@@ -2347,6 +2347,8 @@ def test_thiourea_with_a_ring_nitrogen_is_the_carbothioamide_of_the_ring(smiles,
         pytest.param("CC(=O)ON=C(C)C", "1-{[(propan-2-ylidene)amino]oxy}ethan-1-one", id="ketoxime"),
         pytest.param("CC(=O)ON=C1CCCCC1", "1-[(cyclohexylideneamino)oxy]ethan-1-one", id="ring_ylidene"),
         pytest.param("O=C(ON=Cc1ccccc1)c1cccs1", "[(benzylideneamino)oxy](thiophen-2-yl)methanone", id="aldoxime_of_a_ring_acid"),
+        pytest.param("CNC(=O)ON=C(C)C", "N-[(methylcarbamoyl)oxy]propan-2-imine", id="carbamate_of_a_ketoxime_is_a_prefix_of_the_imine"),
+        pytest.param("CC(C)=NOC(=O)OC", "N-[(methoxycarbonyl)oxy]propan-2-imine", id="carbonate_of_a_ketoxime_is_a_prefix_of_the_imine"),
     ],
 )
 def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, expected):
