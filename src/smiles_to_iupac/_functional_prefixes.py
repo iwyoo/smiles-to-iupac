@@ -3,6 +3,8 @@ bottom-up so `name_branch`/`_name_acyl_part` can cite them as plain leaves: hydr
 (alkyl)amino, nitro, cyano, sulfanyl, alkoxy, alkylsulfanyl and acyl/acyloxy (acid name '-ic acid' to '-yl').
 """
 
+import re
+
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
@@ -151,7 +153,7 @@ def _acyl_prefix(mol, subtree, root, parent):
         SYSTEMATIC_ACID_PROBE.reset(token)
     if zwitterion and probe.endswith("ate"):
         probe = probe[: -len("ate")] + "ic acid"
-    name = acyl_name(probe)
+    name = _attached_bond_descriptor(mol, sub, sorted(subtree), acyl_name(probe))
     _cite_stereo_of_acyl(mol, sub, sorted(subtree))
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
     return "oxalo" if name == "oxalyl" else name
@@ -176,6 +178,32 @@ def _name_with_principal(sub, principal):
         return name_polyfunctional(sub)
     finally:
         FORCED_PRINCIPAL.reset(token)
+
+
+def _attached_bond_descriptor(mol, sub, kept, name):
+    """The descriptor of a double bond that the acid name cites is the free acid's; where the attachment atom, in
+    place of the acid's hydroxy group, ranks the ligands the other way the letter is the opposite one (P-92.1.4.2,
+    P-93.4.2.1.1)."""
+    from ._common import assign_cip_labels
+
+    whole, cut = Chem.Mol(mol), Chem.Mol(sub)
+    assign_cip_labels(whole)
+    assign_cip_labels(cut)
+    in_acyl = {index: new for new, index in enumerate(kept)}
+    differing = 0
+    for bond in whole.GetBonds():
+        begin, end = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        if begin not in in_acyl or end not in in_acyl or not bond.HasProp("_CIPCode"):
+            continue
+        twin = cut.GetBondBetweenAtoms(in_acyl[begin], in_acyl[end])
+        if twin is not None and twin.HasProp("_CIPCode") and twin.GetProp("_CIPCode") != bond.GetProp("_CIPCode"):
+            differing += 1
+    if not differing:
+        return name
+    leading = re.match(r"\(\d*([EZ])\)-", name)
+    if differing > 1 or leading is None:
+        raise UnsupportedStructure("the descriptors of this acyl group depend on its attachment atom")
+    return name[: leading.start(1)] + ("Z" if leading.group(1) == "E" else "E") + name[leading.end(1) :]
 
 
 def _cite_stereo_of_acyl(mol, sub, kept):

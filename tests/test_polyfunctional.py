@@ -1600,6 +1600,7 @@ def test_esters_keep_the_descriptors_of_substituents_in_the_part_they_belong_to(
         pytest.param("COC(=O)c1ccccc1N/N=C/c1ccccc1", "methyl 2-{[(E)-benzylidene]hydrazinyl}benzoate", id="hydrazone_on_the_acid_ring"),
         pytest.param("COC(=O)c1ccccc1/N=N\\c1ccccc1", "methyl 2-[(Z)-phenyldiazenyl]benzoate", id="diazenyl_on_the_acid_ring"),
         pytest.param("OC(=O)c1ccccc1N/N=C/c1ccccc1", "2-{[(E)-benzylidene]hydrazinyl}benzoic acid", id="hydrazone_on_a_free_acid_ring"),
+        pytest.param("N#C/C(=N\\O)c1ccc(C(=O)O)cc1", "4-[(Z)-1-cyano-N-hydroxymethanimidoyl]benzoic acid", id="descriptor_of_the_group_as_attached_not_of_its_acid"),
         pytest.param("CC(=O)Oc1ccccc1/C=N/O", "2-[(E)-N-hydroxymethanimidoyl]phenyl acetate", id="imidoyl_on_the_alcohol_ring"),
         pytest.param("CC(=O)Oc1ccccc1/N=C/C", "2-{[(1E)-ethylidene]amino}phenyl acetate", id="ylideneamino_on_the_alcohol_ring"),
         pytest.param("CC(=O)Oc1ccccc1CC/C=N/O", "2-[(3E)-3-(hydroxyimino)propyl]phenyl acetate", id="oxime_on_a_chain_of_the_alcohol_ring"),
