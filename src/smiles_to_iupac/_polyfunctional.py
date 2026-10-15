@@ -387,8 +387,25 @@ def _carbamimidoyl_nitrogen_substituents(mol, nitrogen, origin):
             and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
         )
         or _carbamimidoyl_on(mol, n, nitrogen)
+        or _plain_acyl_on(mol, n, nitrogen)
         for n in nitrogen.GetNeighbors()
         if n.GetIdx() != origin
+    )
+
+
+def _plain_acyl_on(mol, atom, nitrogen):
+    """Whether `atom` is the carbonyl carbon of an acyl group R-CO- (R a plain carbon group) bonded to `nitrogen`: the second
+    acyl group of a guanidine is an N-substituent of the carbamimidoyl prefix of the amide parent (P-66.4.1.2.1)."""
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    oxo = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+    rest = [n for n in atom.GetNeighbors() if n.GetIdx() not in (nitrogen.GetIdx(), *(o.GetIdx() for o in oxo))]
+    return (
+        len(oxo) == 1
+        and len(rest) == 1
+        and rest[0].GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not is_functional_carbon(mol, rest[0].GetIdx())
     )
 
 
@@ -4292,6 +4309,10 @@ _RING_SUFFIX = _RingSuffix({
 })
 
 
+# P-66.4.1.2.1: an acylated guanidine is named with an amide as the parent and the guanidine as a prefix, not multiplicatively
+_DIACYLGUANIDINE = Chem.MolFromSmarts("[CX3](=O)[NX3][CX3](=[NX2])[NX3][CX3]=O")
+
+
 def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names=(), stereo=None):
     """(principal group count, (key, name, parts)) of the monocycle bearing
     the most principal groups, or None."""
@@ -4335,7 +4356,7 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
     if len(leading) == 1:
         return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
     ranks = CanonicalRankAtoms(mol, breakTies=False)
-    if len({ranks[next(iter(c[3]))[1]] for c in leading}) == 1:
+    if len({ranks[next(iter(c[3]))[1]] for c in leading}) == 1 and not mol.HasSubstructMatch(_DIACYLGUANIDINE):
         raise UnsupportedStructure("several rings bear the principal group; a multiplicative name is needed")
     ranked = _isolated_candidates(
         [
