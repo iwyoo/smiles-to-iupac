@@ -13,6 +13,7 @@ from ._numerals import multiplying_prefix
 from ._substituents import BRANCH_STEREO, name_branch
 
 _ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
+_PEROXY_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][OX2;!R][#6]")
 _FREE_ACID = Chem.MolFromSmarts("[CX3](=O)[OX2H1]")
 _HYDROGEN_WORDS = {1: "hydrogen", 2: "dihydrogen", 3: "trihydrogen"}
 
@@ -185,11 +186,18 @@ def _require_ester_with_its_free_acid(mol, matches):
             raise UnsupportedStructure("an ester that is not on the carbon skeleton of the free acid is an alkoxy-oxo prefix")
 
 
+def _ester_matches(mol):
+    """(acyl carbon, carbonyl oxygen, ester oxygen, alkyl carbon) of each ester group; the ester oxygen of a peroxy ester
+    is the one bonded to the alkyl carbon, so the peroxoic acid is what the split leaves."""
+    peroxy = [(m[0], m[1], m[3], m[4]) for m in mol.GetSubstructMatches(_PEROXY_ESTER)]
+    return (*mol.GetSubstructMatches(_ESTER), *peroxy)
+
+
 def _name_ester_parts(mol, labels) -> str:
     from ._substituents import ISOTOPE_LABELS
     from .core import smiles_to_iupac
 
-    matches = mol.GetSubstructMatches(_ESTER)
+    matches = _ester_matches(mol)
     if not matches:
         raise UnsupportedStructure("an acyclic ester group is required for part-wise ester naming")
     if len(matches) > 1 and not labels:
