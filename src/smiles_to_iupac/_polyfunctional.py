@@ -1065,7 +1065,7 @@ def _ring_center_base(mol):
         a
         for a in mol.GetAtoms()
         if a.GetFormalCharge()
-        and not _is_nitro_part(a)
+        and (not _is_nitro_part(a) or _is_ring_azoxy_part(a))
         and not _anionic_group_atom(mol, a)
         and not _is_chain_amine_oxide_part(a)
     ]
@@ -5488,6 +5488,18 @@ def _is_isocyanate_carbon(atom):
         and neighbors[1].GetDegree() == 1
         and all(b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds())
     )
+
+
+def _is_ring_azoxy_part(atom):
+    """The oxide nitrogen of an azoxy group whose N=N bond lies in a ring, or its oxygen: the ring N-oxide of a heteroatom
+    oxide (P-74.2.2.1.4), not a group cited beside another parent."""
+    if atom.GetAtomicNum() == 8:
+        return atom.GetDegree() == 1 and any(_is_ring_azoxy_part(n) for n in atom.GetNeighbors())
+    found = azoxy_atoms(atom.GetOwningMol(), atom) if atom.GetAtomicNum() == 7 else None
+    if found is None:
+        return False
+    bond = atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), found[1].GetIdx())
+    return bond.IsInRing()
 
 
 def _is_chain_amine_oxide_part(atom):

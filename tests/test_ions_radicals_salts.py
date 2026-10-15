@@ -1013,6 +1013,8 @@ def test_nitrogen_and_peroxyl_radicals_beside_groups(smiles, expected):
     "smiles, expected",
     [
         pytest.param("[O-][n+]1cccnc1", "pyrimidine 1-oxide", id="diazine_n_oxide"),
+        pytest.param("[O-][N+]1=NCCCc2ccccc21", "4,5-dihydro-3H-1,2-benzodiazepine 1-oxide", id="azoxy_ring_with_hydro_prefixes"),
+        pytest.param("[O-][N+]1=NCCCC1", "3,4,5,6-tetrahydropyridazine 1-oxide", id="saturated_azoxy_ring"),
         pytest.param("Cc1cc[n+]([O-])cn1", "4-methylpyrimidine 1-oxide", id="n_oxide_locant_before_substituents"),
         pytest.param("Cc1ccnc[n+]1[O-]", "6-methylpyrimidine 1-oxide", id="oxide_nitrogen_numbered_lowest"),
         pytest.param("[O-][n+]1ccnc2ccccc12", "quinoxaline 1-oxide", id="fused_diazine_n_oxide"),
