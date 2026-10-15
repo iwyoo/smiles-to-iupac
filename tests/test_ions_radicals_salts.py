@@ -1172,6 +1172,7 @@ def test_radical_ions_named_through_the_filled_ion(smiles, expected):
         pytest.param("[B-]1C=C2C=CC=CC2=C1", "2H-2-benzoborol-2-uid-2-ylidene", id="uide_and_ylidene_on_one_ring_atom"),
         pytest.param("[O-]C(=O)Cc1ccccc1C(=O)[O-]", "2-(carboxylatomethyl)benzoate", id="carboxylato_prefix"),
         pytest.param("[O-]S(=O)(=O)Cc1ccccc1C(=O)[O-]", "2-(sulfonatomethyl)benzoate", id="sulfonato_prefix"),
+        pytest.param("[O-]C(=O)CC[Se](=O)[O-]", "3-seleninatopropanoate", id="seleninato_prefix"),
         pytest.param("[O-]c1cc2ccccc2cc1C(=O)[O-]", "3-oxidonaphthalene-2-carboxylate", id="oxido_prefix"),
         pytest.param("[O-]CC[NH3+]", "2-azaniumylethan-1-olate", id="ammonium_prefix_on_an_olate"),
         pytest.param("[S-]CC[N+](C)(C)C", "2-(trimethylazaniumyl)ethane-1-thiolate", id="ammonium_prefix_on_a_thiolate"),

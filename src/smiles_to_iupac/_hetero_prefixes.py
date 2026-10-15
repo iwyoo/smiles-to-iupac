@@ -1807,7 +1807,9 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         base = _E_ACID_PREFIX[(center, len(oxo))]
         replaced = [e for e in symbols if e != "O"]
         if not replaced:
-            return ("sulfonato" if base == "sulfo" and _is_anionic_oxygen(mol.GetAtomWithIdx(x)) else base), False
+            if not _is_anionic_oxygen(mol.GetAtomWithIdx(x)):
+                return base, False
+            return ("sulfonato" if base == "sulfo" else base[:-1] + "ato"), False
         if len(set(replaced)) == 1 and replaced[0] in _REPLACEMENT_PREFIX:
             return {1: "", 2: "di", 3: "tri"}[len(replaced)] + _REPLACEMENT_PREFIX[replaced[0]] + base, True
         if not any(e in ("NH", "NNH2") for e in replaced):
