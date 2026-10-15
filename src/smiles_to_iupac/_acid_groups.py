@@ -31,6 +31,8 @@ def _oxo_slot(mol, center, atom):
     z = atom.GetAtomicNum()
     if _bond(mol, center, atom.GetIdx()) != 2.0 or atom.GetFormalCharge():
         return None
+    if z == 7 and mol.GetBondBetweenAtoms(center, atom.GetIdx()).IsInRing():
+        return None
     if z in _SYMBOL:
         return (_SYMBOL[z], {atom.GetIdx()}, []) if atom.GetDegree() == 1 else None
     if z != 7:

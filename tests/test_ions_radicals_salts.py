@@ -271,6 +271,8 @@ def test_nitrile_imide_still_and_related_raise(smiles):
             id="ring_chalcogenium_with_ring_carbanide",
         ),
         pytest.param("[O-]c1cc[n+](C)cc1", "1-methylpyridin-1-ium-4-olate", id="ring_cation_with_an_anionic_group_suffix"),
+        pytest.param("C[N+]1(C)C=CC([O-])=N1", "1,1-dimethyl-1H-pyrazol-1-ium-3-olate", id="olate_on_a_ring_carbon_double_bonded_to_a_ring_nitrogen"),
+        pytest.param("C[N+]1(C)C=CC([S-])=N1", "1,1-dimethyl-1H-pyrazol-1-ium-3-thiolate", id="thiolate_beside_a_disubstituted_ring_nitrogen"),
         pytest.param(
             "c1ccccc1[N-]c1nn(-c2ccccc2)c[n+]1-c1ccccc1",
             "N,1,4-triphenyl-1H-1,2,4-triazol-4-ium-3-aminide",
