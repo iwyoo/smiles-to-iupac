@@ -10,7 +10,7 @@ import re
 from rdkit import Chem
 
 from ._common import GROUP_13, UnsupportedStructure, adjacency, halogen_substituents
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 _PARENTS = {
     5: ("boran", 3),
@@ -91,9 +91,10 @@ def _mononuclear_name(mol, root):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    entries = [
-        name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in graph[root]
-    ]
+    with cited_branch_stereo(mol, graph, {root}, graph[root]):
+        entries = [
+            name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in graph[root]
+        ]
     prefixes = format_mononuclear_prefixes(entries) if entries else ""
     parent = f"{prefixes}{'-' if prefixes and lam else ''}{f'λ{lam}-' if lam else ''}{stem}"
     return parent + ("e" if charge > 1 else "") + _MULTIPLIED[charge] + word

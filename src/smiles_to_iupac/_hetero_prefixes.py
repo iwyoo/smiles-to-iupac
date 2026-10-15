@@ -212,6 +212,17 @@ def _carbonyl_oxygen(mol, idx):
 DIPOLAR_GROUPS = contextvars.ContextVar("dipolar_groups", default=False)
 
 
+def _oximate_nitrogen(atom):
+    """The nitrogen of an oximate anion C=N-O(-), whose carbon is a chain member of the ylideneamino prefix of the
+    oxidanide parent (P-72.2.2.1)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetDegree() == 2
+        and not atom.GetFormalCharge()
+        and any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 and (n.GetFormalCharge() == -1 or n.HasProp("_anion_word")) for n in atom.GetNeighbors())
+    )
+
+
 def is_functional_carbon(mol, idx):
     """A carbon that is a substituent group of its own (-C#N, -COOH, -COOR,
     -CONR2, ...) rather than a chain member. Ketone and aldehyde carbons stay
@@ -225,7 +236,7 @@ def is_functional_carbon(mol, idx):
             if other.GetFormalCharge() == 1:
                 continue
             return True
-        if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS and not (other.GetFormalCharge() and other.GetAtomicNum() != 7):
+        if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS and not (other.GetFormalCharge() and other.GetAtomicNum() != 7) and not _oximate_nitrogen(other):
             if atom.IsInRing():
                 return False
             return any(
