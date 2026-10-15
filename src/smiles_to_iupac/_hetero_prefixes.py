@@ -203,7 +203,7 @@ def _carbonyl_oxygen(mol, idx):
         (
             b.GetOtherAtom(atom).GetIdx()
             for b in atom.GetBonds()
-            if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8
+            if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 and not b.GetOtherAtom(atom).GetFormalCharge()
         ),
         None,
     )
@@ -222,10 +222,10 @@ def is_functional_carbon(mol, idx):
     for b in atom.GetBonds():
         other = b.GetOtherAtom(atom)
         if b.GetBondTypeAsDouble() == 3.0 and other.GetAtomicNum() == 7:
-            if DIPOLAR_GROUPS.get() and other.GetFormalCharge() == 1:
+            if other.GetFormalCharge() == 1:
                 continue
             return True
-        if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS:
+        if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS and not (other.GetFormalCharge() and other.GetAtomicNum() != 7):
             if atom.IsInRing():
                 return False
             return any(
@@ -301,6 +301,7 @@ def is_diazonium_nitrogen(atom):
 
 
 _YLIDYNIUM_STEMS = {7: "azaniumylidyne", 8: "oxidaniumylidyne", 16: "sulfaniumylidyne"}
+_YLIDENIUM_STEMS = {8: "oxidaniumylidene", 16: "sulfaniumylidene", 34: "selaniumylidene", 52: "telluraniumylidene"}
 
 
 def _terminal_anion(mol, idx):
@@ -630,7 +631,7 @@ def _thioacyl(mol, idx):
     terminal = [
         n
         for n in atom.GetNeighbors()
-        if n.GetDegree() == 1 and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        if n.GetDegree() == 1 and not n.GetFormalCharge() and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
     ]
     if atom.GetAtomicNum() == 6:
         return any(n.GetAtomicNum() in (8, 16, 34, 52) for n in terminal)
@@ -765,13 +766,24 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         z in _YLIDYNIUM_STEMS
         and atom.GetFormalCharge() == 1
         and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 3.0
-        and DIPOLAR_GROUPS.get()
-        and all(_terminal_anion(mol, n) for n in graph[root] if n != coming_from)
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 or _terminal_anion(mol, n) for n in graph[root] if n != coming_from)
     ):
         from ._substituents import format_mononuclear_prefixes
 
         entries = _group_names(graph, mol, [n for n in graph[root] if n != coming_from], root, halogens, aromatic_atoms)
         return (format_mononuclear_prefixes(entries) if entries else "") + _YLIDYNIUM_STEMS[z], True
+    if (
+        z in _YLIDENIUM_STEMS
+        and atom.GetFormalCharge() == 1
+        and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0
+        and atom.GetTotalValence() == 3
+        and not atom.IsInRing()
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in graph[root] if n != coming_from)
+    ):
+        from ._substituents import format_mononuclear_prefixes
+
+        entries = _group_names(graph, mol, [n for n in graph[root] if n != coming_from], root, halogens, aromatic_atoms)
+        return (format_mononuclear_prefixes(entries) if entries else "") + _YLIDENIUM_STEMS[z], True
     if atom.GetFormalCharge() and z != 7:
         raise UnsupportedStructure("a charged atom in a substituent group is not supported yet")
     if atom.IsInRing():
