@@ -643,6 +643,20 @@ def test_substituted_amino_acids(smiles, expected):
         pytest.param("CC[C@H](C)C(N)C(=O)O", "(3S)-2-amino-3-methylpentanoic acid", id="beta_without_alpha_stays_systematic"),
         pytest.param("C[C@H](NC(C)=O)C(=O)OC", "methyl N-acetyl-L-alaninate", id="ester_of_substituted_acid"),
         pytest.param("CC(C)[C@H](N)C(=O)OC[C@@H](N)C(C)C", "(2S)-2-amino-3-methylbutyl L-valinate", id="ester_group_with_stereo"),
+        pytest.param(
+            "CCOC(=O)CN(C)CCOC(C)=O", "ethyl N-[2-(acetyloxy)ethyl]-N-methylglycinate", id="second_ester_as_acyloxy_on_the_nitrogen_substituent"
+        ),
+        pytest.param("CCOC(=O)CNCCOC(C)=O", "ethyl N-[2-(acetyloxy)ethyl]glycinate", id="secondary_amine_between_the_two_esters"),
+        pytest.param(
+            "CCOC(=O)[C@@H](C)N(C)CCOC(C)=O",
+            "ethyl N-[2-(acetyloxy)ethyl]-N-methyl-D-alaninate",
+            id="second_ester_beside_a_stereo_amino_acid",
+        ),
+        pytest.param(
+            "CCOC(=O)CN(CCOC(C)=O)CCOC(C)=O",
+            "ethyl N,N-bis[2-(acetyloxy)ethyl]glycinate",
+            id="two_identical_acyloxy_substituents_on_the_nitrogen",
+        ),
         pytest.param("OC(=O)C[C@H](N)C(=O)OC", "1-methyl L-aspartate", id="diacid_monoester_locant"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OCC", "1-ethyl 4-methyl L-aspartate", id="diacid_mixed_esters"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OC", "dimethyl L-aspartate", id="diacid_identical_esters"),
