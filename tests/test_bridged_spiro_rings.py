@@ -149,6 +149,21 @@ def test_ring_tetrahedral_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[C@@H]1[C@H]2CCCC[C@@H]12", "(1R,6S,7r)-7-methylbicyclo[4.1.0]heptane", id="cis_fusion_makes_the_substituted_carbon_pseudoasymmetric"),
+        pytest.param("C[C@@H]1[C@H]2CCCC[C@H]12", "(1R,6R)-7-methylbicyclo[4.1.0]heptane", id="trans_fusion_leaves_the_substituted_carbon_without_descriptor"),
+        pytest.param("C[C@@H]1[C@@H]2CCC[C@@H]12", "(1S,5S)-6-methylbicyclo[3.1.0]hexane", id="trans_fused_bicyclo_hexane"),
+        pytest.param("C[C@@H]1[C@H]2CC[C@H]12", "(1R,4R)-5-methylbicyclo[2.1.0]pentane", id="trans_fused_bicyclo_pentane"),
+        pytest.param("OC[C@@H]1[C@H]2CCCC[C@H]12", "[(1S,6S)-bicyclo[4.1.0]heptan-7-yl]methanol", id="trans_fused_ring_as_a_substituent"),
+        pytest.param("CC1(C)[C@@H]2CCCC[C@H]21", "(1R,6R)-7,7-dimethylbicyclo[4.1.0]heptane", id="identical_groups_on_the_cyclopropane_carbon"),
+    ],
+)
+def test_bridgehead_descriptors_of_a_bicyclo_n_1_0_alkane_with_one_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_ring_stereocenter_with_two_substituents():
     assert smiles_to_iupac("CC[C@H](C)[C@H]1CC(C)C=CC1") == "(5R)-5-[(2S)-butan-2-yl]-3-methylcyclohex-1-ene"
 

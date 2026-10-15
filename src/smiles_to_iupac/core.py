@@ -174,7 +174,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import CITE_SKELETAL_LAMBDA, STEREO_OVERRIDE, UnsupportedStructure, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -1232,19 +1232,18 @@ def _cites_every_tetrahedral_center(mol, name) -> bool:
     """A name without a D/L, alpha/beta or multiplying word needs one R or S for each specified tetrahedral centre."""
     if _CODE_WORDS.search(name):
         return True
-    centers = sum(
-        1
-        for s in Chem.FindPotentialStereo(mol)
-        if s.type == Chem.StereoType.Atom_Tetrahedral and s.specified == Chem.StereoSpecified.Specified
-    )
-    return len(_CENTER_CODE.findall(name)) >= centers
+    return len(_CENTER_CODE.findall(name)) >= len(genuine_stereo_centres(mol))
 
 
 def _cites_every_stereo_element(mol, name) -> bool:
     cited = len(_STEREO_TOKENS.findall(name))
     if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)[(\[{]", name):
         return cited > 0
-    return cited >= sum(1 for s in Chem.FindPotentialStereo(mol) if s.specified == Chem.StereoSpecified.Specified)
+    return cited >= len(genuine_stereo_centres(mol)) + sum(
+        1
+        for s in Chem.FindPotentialStereo(mol)
+        if s.specified == Chem.StereoSpecified.Specified and s.type != Chem.StereoType.Atom_Tetrahedral
+    )
 
 
 def _cites_every_double_bond(mol, name) -> bool:

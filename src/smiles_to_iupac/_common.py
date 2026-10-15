@@ -1575,6 +1575,36 @@ STEREO_OVERRIDE = "_StereoOverride"
 _ENANTIOMORPHIC_BOND_CODE = {"z": "seqCis", "e": "seqTrans"}
 
 
+def is_nonstereogenic_centre(mol, idx):
+    """Whether a tetrahedral atom of `mol` (CIP labels assigned) has two ligands of one constitution and one CIP
+    descriptor, so that it is no stereogenic centre: the cyclopropane carbon of a trans-fused bicyclo[n.1.0]alkane
+    (P-93.5.1.1)."""
+    ranks = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=False)
+    around = list(mol.GetAtomWithIdx(idx).GetNeighbors())
+
+    def descriptor(atom):
+        return atom.GetProp("_CIPCode") if atom.HasProp("_CIPCode") else None
+
+    return any(
+        ranks[a.GetIdx()] == ranks[b.GetIdx()] and descriptor(a) == descriptor(b)
+        for i, a in enumerate(around)
+        for b in around[i + 1 :]
+    )
+
+
+def genuine_stereo_centres(mol):
+    """Specified tetrahedral stereo elements of `mol` that are stereogenic centres."""
+    labelled = Chem.Mol(mol)
+    assign_cip_labels(labelled)
+    return [
+        e
+        for e in Chem.FindPotentialStereo(mol)
+        if e.type == Chem.StereoType.Atom_Tetrahedral
+        and e.specified == Chem.StereoSpecified.Specified
+        and not is_nonstereogenic_centre(labelled, e.centeredOn)
+    ]
+
+
 def assign_cip_labels(mol):
     """`rdCIPLabeler.AssignCIPLabels` with the lowercase double-bond labels written as the descriptors of
     enantiomorphic double bonds, seqCis and seqTrans (P-92.1.1, P-93.5.1.4.2.2)."""
@@ -1666,6 +1696,8 @@ def specified_stereocenters(mol):
         if atom.HasProp(STEREO_OVERRIDE):
             continue
         if not atom.HasProp("_CIPCode"):
+            if is_nonstereogenic_centre(mol, atom_idx):
+                continue
             raise UnsupportedStructure(
                 "could not determine a CIP R/S label for this stereocenter"
             )
@@ -1824,6 +1856,8 @@ def specified_stereo_elements(mol):
         if element.type == Chem.StereoType.Atom_Tetrahedral:
             atom = mol.GetAtomWithIdx(element.centeredOn)
             if not atom.HasProp("_CIPCode"):
+                if is_nonstereogenic_centre(mol, element.centeredOn):
+                    continue
                 raise UnsupportedStructure(
                     "could not determine a CIP R/S label for this stereocenter"
                 )
