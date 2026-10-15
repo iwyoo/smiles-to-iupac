@@ -30,6 +30,7 @@ _JUNIOR_CARBON_PATTERNS = (
     (0.1, "[#6][OX2;!R][#6]"),
     (0.2, "[#6][SX2,SeX2,TeX2,SX3,SeX3,TeX3,SX4,SeX4,TeX4,OX2;!R][#6,O,S,Se,Te]"),
 )
+_HALOGEN_SYMBOLS = {9, 17, 35, 53}
 _DONOR_ATOMS = {7, 8, 15, 16, 33, 34, 51, 52}
 _PARENT_ATOMS = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52)
 _CARBON_RANK = max(SUFFIX_CLASS_RANK.values()) + 1
@@ -65,6 +66,24 @@ def _inorganic_name(frag):
         return None
     z = atoms[0].GetAtomicNum()
     return _NOBLE_GAS_NAMES.get(z) or _METAL_NAMES.get(z) or _MAIN_GROUP_NAMES.get(z)
+
+
+def metal_halide_salt(frag):
+    """SMILES of the ionic salt that a neutral molecule of one metal atom and two or more halogens bonded to it is
+    named as (P-14.8.2): the covalently drawn ZnCl2 is cited as 'zinc dichloride', None for any other fragment."""
+    from ._coordination import _METAL_NAMES
+
+    atoms = list(frag.GetAtoms())
+    metals = [a for a in atoms if a.GetAtomicNum() in _METAL_NAMES]
+    if len(metals) != 1 or len(atoms) < 3 or any(a.GetIsotope() or a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in atoms):
+        return None
+    metal = metals[0]
+    halogens = [a for a in atoms if a.GetIdx() != metal.GetIdx()]
+    if any(a.GetAtomicNum() not in _HALOGEN_SYMBOLS or a.GetDegree() != 1 or a.GetTotalNumHs() for a in halogens):
+        return None
+    if metal.GetTotalNumHs() or any(frag.GetBondBetweenAtoms(metal.GetIdx(), a.GetIdx()) is None for a in halogens):
+        return None
+    return f"[{metal.GetSymbol()}+{len(halogens)}]" + "".join(f".[{a.GetSymbol()}-]" for a in halogens)
 
 
 def _parent_atom_class(frag):
@@ -182,13 +201,17 @@ def has_bare_inorganic_component(mol) -> bool:
     from ._ocene import has_ocene_shape
 
     index_frags = Chem.GetMolFrags(mol)
-    if len(index_frags) < 2 or not any(len(f) <= 2 for f in index_frags):
+    if len(index_frags) < 2 or not any(len(f) <= 8 for f in index_frags):
         return False
     try:
         frags = Chem.GetMolFrags(mol, asMols=True)
     except Chem.rdchem.MolSanitizeException:
         return False
-    return any(_inorganic_name(f) for f in frags) and has_adduct_shape(mol) and not has_ocene_shape(mol)
+    return (
+        any(_inorganic_name(f) or metal_halide_salt(f) for f in frags)
+        and has_adduct_shape(mol)
+        and not has_ocene_shape(mol)
+    )
 
 
 def has_inorganic_component(mol) -> bool:
@@ -206,7 +229,8 @@ def _is_lewis_acid(frag):
 def name_adduct(mol, namer) -> str:
     named = []
     for smiles, (frag, count) in _components(mol):
-        name = "water" if _is_bare_water(frag) else _inorganic_name(frag) or namer(smiles)
+        salt = metal_halide_salt(frag)
+        name = "water" if _is_bare_water(frag) else _inorganic_name(frag) or namer(salt or smiles)
         named.append((_class_rank(frag), alpha_sort_key(name), name, count, frag))
     if len(named) == 1:
         raise UnsupportedStructure("identical components form a repeated molecule, not an adduct")

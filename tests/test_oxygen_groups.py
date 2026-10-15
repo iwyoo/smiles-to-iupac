@@ -581,6 +581,14 @@ def test_adduct_components_ordered_by_class_seniority(smiles, expected):
         pytest.param("C.[H+]", "methane—hydron (1/1)", id="hydron"),
         pytest.param("C.[H-]", "methane—hydride (1/1)", id="hydride"),
         pytest.param("C.O.[Xe]", "methane—xenon—water (1/1/1)", id="water_cited_last"),
+        pytest.param("CCCC.[H-].[Na+]", "butane—sodium hydride (1/1)", id="hydride_with_a_cation_is_one_salt"),
+        pytest.param("CCC(=O)O.[H-].[Na+]", "propanoic acid—sodium hydride (1/1)", id="hydride_salt_after_an_acid"),
+        pytest.param("CCCC.[H-].[H-].[Mg+2]", "butane—magnesium dihydride (1/1)", id="repeated_hydride_is_multiplied"),
+        pytest.param("CCO.Cl[Zn]Cl", "ethanol—zinc dichloride (1/1)", id="covalent_metal_dihalide"),
+        pytest.param("CCO.Cl[Mg]Cl", "ethanol—magnesium dichloride (1/1)", id="group_2_metal_dihalide"),
+        pytest.param("CCO.[Cl][Ti]([Cl])[Cl]", "ethanol—titanium(3+) trichloride (1/1)", id="trihalide_of_a_variable_valence_metal"),
+        pytest.param("CCO.Br[Zn]Cl", "ethanol—zinc bromide chloride (1/1)", id="different_halogens_cited_alphabetically"),
+        pytest.param("CCO.Cl[Zn]Cl.Cl[Zn]Cl", "ethanol—zinc dichloride (1/2)", id="proportion_counts_the_metal_halide"),
     ],
 )
 def test_adduct_with_inorganic_components(smiles, expected):
