@@ -7,7 +7,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import assign_cip_labels, match_cip_labels
+from ._common import assign_cip_labels, is_nonstereogenic_centre, match_cip_labels
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -99,6 +99,8 @@ def cip_labels(mol, side, chain_double_bonds=False):
         elif element.type == Chem.StereoType.Atom_Tetrahedral:
             atom = mol.GetAtomWithIdx(element.centeredOn)
             if not atom.HasProp("_CIPCode"):
+                if is_nonstereogenic_centre(mol, element.centeredOn):
+                    continue
                 raise UnsupportedStructure("could not determine a CIP label for a stereocenter")
             labels.append((element.centeredOn, atom.GetProp("_CIPCode")))
         else:
