@@ -1473,10 +1473,11 @@ def has_isotope_acyl_halide_shape(mol):
     """A single acyl or sulfonyl halide group whose isotopic labels all sit on carbon or hydrogen atoms."""
     if not any(a.GetIsotope() for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) != 1:
         return False
-    if any(a.GetIsotope() and a.GetAtomicNum() not in (1, 6) for a in mol.GetAtoms()):
-        return False
     links, acid = find_links(_without_nuclides(mol))
-    return bool(links) and not acid and all(l.kind == "halide" for l in links)
+    if not links or acid or not all(l.kind == "halide" for l in links):
+        return False
+    carbonyl_oxygens = {n.GetIdx() for l in links for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetAtomicNum() == 8}
+    return all(a.GetAtomicNum() in (1, 6) or a.GetIdx() in carbonyl_oxygens for a in mol.GetAtoms() if a.GetIsotope())
 
 
 def _without_nuclides(mol):
@@ -1506,6 +1507,8 @@ def name_isotope_acyl_halide(mol):
         for a in mol.GetAtoms()
         if a.GetAtomicNum() == 1 or a.GetTotalNumHs()
     }
+    if sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 8) == 1:
+        name = re.sub(r"^\(O-(\d+O)\)", r"(\1)", name)
     found = _LEADING_HYDROGEN_NUCLIDES.match(name)
     only_hydrogen = all(a.GetAtomicNum() == 1 for a in mol.GetAtoms() if a.GetIsotope())
     if found and only_hydrogen and len(hydrogen_bearing) == 1:

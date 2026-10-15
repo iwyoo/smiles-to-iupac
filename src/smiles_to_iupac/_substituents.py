@@ -405,6 +405,49 @@ def _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, m
     return name.replace("amino", inner, 1)
 
 
+def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated):
+    """`name`, the prefix of an acylamino or acyloxy group, with the descriptor of the nuclides of its acyl group in front,
+    cited as for the acyl group itself and in front of the name that group has without nuclides: '(2H3)acetamido',
+    '(2H3)acetyloxy' (P-82.2.1)."""
+    element = mol.GetAtomWithIdx(root).GetAtomicNum() if mol is not None else None
+    if element not in (7, 8) or not name.endswith(("amido", "ylamino") if element == 7 else ("yloxy",)):
+        return None
+    acyl = [
+        n for n in graph[root]
+        if n != coming_from and mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and _carbonyl_carbon(mol, n)
+    ]
+    if len(acyl) != 1 or any(a not in _subtree_atoms(graph, acyl[0], root) for a in labelled):
+        return None
+    acyl_name, _ = name_branch(graph, acyl[0], root, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+    match = re.match(r"^(\([^()]*\))(.+)$", acyl_name)
+    if match is None:
+        return None
+    descriptor_text, bare = match.groups()
+    if element == 8:
+        return descriptor_text + name if name == bare + "oxy" else None
+    from ._hetero_prefixes import _chalcogen_amido
+
+    token = ISOTOPE_LABELS.set(None)
+    try:
+        amido = _chalcogen_amido(graph, root, [n for n in graph[root] if n != coming_from], mol)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    base = amido[0] if amido is not None and amido[0].startswith(bare[:-2]) else name
+    if base != bare + "amino" and not (base.endswith("amido") and base.startswith(bare[:-2])):
+        return None
+    return descriptor_text + base
+
+
+def _subtree_atoms(graph, root, blocked):
+    seen, stack = {root}, [root]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != blocked and n not in seen:
+                seen.add(n)
+                stack.append(n)
+    return seen
+
+
 def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aromatic_atoms=frozenset(), unsaturated=None):
     """`result` with the isotopic descriptor of the labelled atoms of the substituent: inserted before the stem of its
     principal chain with that chain's locants (P-82.2.1, P-82.6.1), before 'phenyl' for a phenyl group, or before
@@ -427,6 +470,9 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     amino = _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
     if amino is not None:
         return amino, compound
+    amido = _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
+    if amido is not None:
+        return amido, compound
     if name == "methoxy":
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)

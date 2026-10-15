@@ -2169,20 +2169,22 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if before_suffix:
         if principal == "peroxol" and any(mol.GetAtomWithIdx(a).GetDegree() != 1 for a in rest):
             raise UnsupportedStructure("the oxygen of a peroxol that is bonded to carbon has no defined descriptor")
-        if len(owned_groups) != 1:
-            raise UnsupportedStructure("this isotopically modified oxygen has no defined suffix descriptor")
-        nuclides = []
+        per_group = []
         for entry in rest.values():
-            if entry["skeleton"]:
-                nuclides.append(entry["skeleton"])
+            nuclides = [entry["skeleton"]] if entry["skeleton"] else []
             nuclides.extend(n for n, c in entry["H"].items() for _ in range(c))
-        if len(nuclides) != len(set(nuclides)) or len(rest) != 1:
+            per_group.append(tuple(sorted(nuclides, key=_nuclide_sort_key)))
+        identical = len(rest) == len(owned_groups) and len(set(per_group)) == 1
+        if len(owned_groups) != 1 and not (identical and all(sum(1 for a in rest if a in group) == 1 for group in owned_groups)):
+            raise UnsupportedStructure("this isotopically modified oxygen has no defined suffix descriptor")
+        nuclides = per_group[0]
+        if len(nuclides) != len(set(nuclides)) or (len(rest) != 1 and not identical):
             raise UnsupportedStructure("several isotopically modified atoms at the suffix are not supported yet")
-        return [], ("(" + ",".join(sorted(nuclides, key=_nuclide_sort_key)) + ")", _SUFFIX_WORD[principal])
+        return [], ("(" + ",".join(nuclides) + ")", _SUFFIX_WORD[principal], len(owned_groups))
     nitrogen = principal in ("amide", "amine", "imine", "nitrile") and element == 7
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
-    acid = _is_acid_family(principal) and element == 8
+    acid = (_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and element == 8
     if not (nitrogen or acid):
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []
@@ -2257,7 +2259,17 @@ def _locants_omitted(mol, in_parent, parts):
     )
 
 
-def _before_suffix(name, text, word):
+_GROUP_MULTIPLIER = {2: "di", 3: "tri", 4: "tetra", 5: "penta", 6: "hexa"}
+
+
+def _before_suffix(name, text, word, count=1):
+    """`name` with the descriptor in front of the suffix `word`; identical modified groups are multiplied with the
+    modified suffix enclosed: 'pentane-2,4-di[(18O)one]' (P-82.2.2.2)."""
+    if count > 1:
+        tail = _GROUP_MULTIPLIER[count] + word
+        if not name.endswith(tail):
+            raise UnsupportedStructure("the suffix of this name is not delimited")
+        return name[: -len(tail)] + _GROUP_MULTIPLIER[count] + "[" + text + word + "]"
     if not name.endswith(word):
         raise UnsupportedStructure("the suffix of this name is not delimited")
     return name[: -len(word)] + text + word
