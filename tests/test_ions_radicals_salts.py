@@ -1727,6 +1727,8 @@ def test_onium_centres_that_carry_characteristic_groups(smiles, expected):
         pytest.param("C[N+](C)=C=N", "(iminomethylidene)di(methyl)azanium", id="imino_group_on_an_ylidene"),
         pytest.param("C#[N+]C=C=C", "methylidyne(propa-1,2-dien-1-yl)azanium", id="formonitrile_is_not_substituted"),
         pytest.param("CC#[N+]C", "N-methylacetonitrilium", id="n_substituted_nitrilium"),
+        pytest.param("OCCC#[N+]C", "3-hydroxy-N-methylpropanenitrilium", id="n_prefix_cited_among_the_chain_prefixes"),
+        pytest.param("Cc1ccc(C#[N+]C)cc1", "N,4-dimethylbenzonitrilium", id="n_prefix_merged_with_a_ring_prefix"),
         pytest.param("N#CCC#[NH+]", "(2-cyanoethylidyne)azanium", id="one_cationic_group_of_two_nitriles"),
         pytest.param("C=[P+](O)OC", "hydroxy(methoxy)(methylidene)phosphanium", id="phosphanium_with_ylidene_and_heteroatom_groups"),
         pytest.param("CCSC#[O+]", "[(ethylsulfanyl)methylidyne]oxidanium", id="oxidanium_with_ylidyne"),
