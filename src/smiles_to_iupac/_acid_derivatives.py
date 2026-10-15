@@ -670,6 +670,9 @@ def _suffixed_links(mol, frags, acid_pieces):
     return {c: _suffix_links(mol, ls, frags[c], lambda l: l.chain[-1]) if len(ls) > 1 else ls for c, ls in acid_pieces.items()}
 
 
+_ORGANIC_ELEMENTS_OF_LINKERS = frozenset({1, 6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
+
+
 def _chalcogen_modified(mol, link):
     """Whether the acid group of `link` has an oxygen replaced by sulfur, selenium or tellurium (P-65.1.3)."""
     return any(x != "O" for x in _oxo_slots(mol, link.center)) or any(
@@ -870,7 +873,19 @@ def name_ester(mol, links):
             from ._diester_acyloxy import name_diester_acyloxy
 
             if not any(_chalcogen_modified_carboxylic(mol, l) for ls in suffixed.values() for l in ls):
-                return name_diester_acyloxy(mol)
+                try:
+                    return name_diester_acyloxy(mol)
+                except UnsupportedStructure:
+                    if all(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 for l in esters) and all(
+                        a.GetAtomicNum() in _ORGANIC_ELEMENTS_OF_LINKERS for a in mol.GetAtoms()
+                    ):
+                        from ._chain_multiplicative import ester_multiplicative_name
+
+                        multiplicative = ester_multiplicative_name(mol, [l.chain[-1] for l in esters])
+                        if multiplicative is not None:
+                            return multiplicative
+                    if len({_piece_key(mol, frags[i]) for i in acid_pieces}) == 1:
+                        raise
     principal = max(acid_pieces, key=lambda i: _acid_piece_rank(mol, frags, acid_pieces, r_pieces, i))
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])

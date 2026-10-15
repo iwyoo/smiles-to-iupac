@@ -1188,6 +1188,10 @@ def test_carbonic_family_names(smiles, expected):
         ("CC(=O)OCCOC(=O)CCC(=O)OCCOC(=O)CCC(=O)OC", "2-(acetyloxy)ethyl methyl ethane-1,2-diyl dibutanedioate"),
         ("CC(=O)SCC(SC(C)=O)CSC(C)=O", "S,S\u2032,S\u2033-propane-1,2,3-triyl triethanethioate"),
         ("CC(=S)OCCOC(C)=S", "O,O\u2032-ethane-1,2-diyl diethanethioate"),
+        ("CC(=O)OCCOCCOC(C)=O", "oxydi(ethane-2,1-diyl) diacetate"),
+        ("NC(=O)OCCCNCCCOC(N)=O", "azanediyldi(propane-3,1-diyl) dicarbamate"),
+        ("CC(=O)OCNCOC(C)=O", "azanediylbis(methylene) diacetate"),
+        ("CC(=O)OCCOCCOC(=O)CC", "2-[2-(acetyloxy)ethoxy]ethyl propanoate"),
         ("CC(=O)SCCOC(=O)CC", "2-(acetylsulfanyl)ethyl propanoate"),
         (
             "COC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OCCOC(=O)c1cccc(c1)C(=O)OC",

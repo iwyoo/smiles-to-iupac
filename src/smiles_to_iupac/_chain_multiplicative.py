@@ -592,6 +592,12 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         if unit_kind == "anion":
             linker = _linker_text(branches, central, arm_parts, True)
             return f"{linker}{multiplier_word(count, True)}({text})"
+        if unit_kind == "ester":
+            from ._hetero_prefixes import _without_enclosing_marks
+
+            linker = _without_enclosing_marks(_linker_text(branches, central, arm_parts))
+            compound = not text.isalpha()
+            return f"{linker} {multiplier_word(count, compound)}{enclose(text) if compound else text}"
         if unit_kind == "polyamine":
             lead = _polyamine_lead(units[0][0], count)
             if lead is None:
@@ -713,6 +719,10 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return name if _CARBAMIC_ACID.search(name) else None
     if unit_kind == "anion":
         return name if re.search(r"(?:ide|uide|ate)$", name) else None
+    if unit_kind == "ester":
+        from ._acid_derivatives import anion_name
+
+        return anion_name(name, letters_in_anion=False) if name.endswith(" acid") else None
     return name if name.endswith(_HYDRIDE_ENDINGS) else None
 
 
@@ -768,6 +778,28 @@ def anion_multiplicative_name(mol, centers):
         if len(arms) != len(centers):
             continue
         name = _attempt(mol, graph, [], arms, "anion")
+        if name is not None:
+            return name
+    return None
+
+
+def ester_multiplicative_name(mol, ester_oxygens):
+    """Identical ester groups joined by a linker that contains heteroatoms: 'oxydi(ethane-2,1-diyl) diacetate'
+    (P-65.6.3.2.2)."""
+    if len(Chem.GetMolFrags(mol)) != 1 or len(ester_oxygens) < 2:
+        return None
+    graph = adjacency(mol)
+    candidates = {}
+    for r in ester_oxygens:
+        for h in graph[r]:
+            atoms = _arm(graph, r, h)
+            if h in atoms or any(c in atoms for c in ester_oxygens if c != r and c not in graph[r]):
+                continue
+            candidates.setdefault(_key(mol, atoms, r), []).append((r, h, atoms))
+    for arms in _rank_candidates(candidates, None):
+        if len(arms) != len(ester_oxygens):
+            continue
+        name = _attempt(mol, graph, [], arms, "ester")
         if name is not None:
             return name
     return None
