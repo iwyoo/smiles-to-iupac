@@ -190,7 +190,11 @@ def _phosphoryl_parts(mol, node, parent, kids, named, bond_order):
     atom = mol.GetAtomWithIdx(node)
     if atom.GetFormalCharge() != 0 or atom.GetDegree() != 4:
         raise UnsupportedStructure("a charged or non-tetracoordinate phosphorus substituent is not supported yet")
-    oxo = [k for k in kids if bond_order(mol, node, k) == 2.0 and mol.GetAtomWithIdx(k).GetDegree() == 1]
+    oxo = [
+        k
+        for k in kids
+        if bond_order(mol, node, k) == 2.0 and mol.GetAtomWithIdx(k).GetDegree() == 1 and mol.GetAtomWithIdx(k).GetAtomicNum() == 8
+    ]
     rest = [k for k in kids if k not in oxo]
     if len(oxo) != 1 or len(rest) != 2 or any(bond_order(mol, node, k) != 1.0 for k in rest):
         raise UnsupportedStructure("this phosphorus-bearing substituent is not supported yet")
@@ -334,6 +338,13 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if z in HALOGEN_PREFIXES:
             continue
         if z == 15 and mol.GetAtomWithIdx(parent).GetAtomicNum() == 8:
+            from ._oxoacid_acyl import infix_acyl_name
+
+            replaced = infix_acyl_name(mol, graph, node, parent, shown, aromatic_atoms)
+            if replaced is not None:
+                phosphoryl_nodes.add(node)
+                record(node, *replaced)
+                continue
             group = phosphoryl_name(_phosphoryl_parts(mol, node, parent, kids, named, _bond_order))
             phosphoryl_nodes.add(node)
             record(node, group, group != "phosphono")
