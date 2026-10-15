@@ -1420,7 +1420,7 @@ def cited_stereo_around(mol, centre):
         yield
 
 
-def _branch_stereo_entries(positions, ring=False, record=False):
+def _branch_stereo_entries(positions, ring=False, record=False, parent=None):
     """[(locant, code)] for the stereo elements of the enclosing molecule that
     lie on a substituent chain or ring numbered by `positions`
     ({atom: locant}); set by the polyfunctional engine through
@@ -1440,7 +1440,7 @@ def _branch_stereo_entries(positions, ring=False, record=False):
                 entries.append((min(positions[a], positions[b]), code))
                 if record:
                     context["used"].add(("bond", (a, b)))
-            elif (a in positions) != (b in positions) and _ylidene_to_heteroatom(a, b, positions):
+            elif (a in positions) != (b in positions) and _ylidene_to_heteroatom(a, b, positions, parent):
                 # P-93.5.1.4.2.1: the double bond to an ylidene group takes the locant of the parent atom
                 entries.append((positions[a] if a in positions else positions[b], code))
                 if record:
@@ -1448,12 +1448,15 @@ def _branch_stereo_entries(positions, ring=False, record=False):
     return sorted(entries)
 
 
-def _ylidene_to_heteroatom(a, b, positions):
+def _ylidene_to_heteroatom(a, b, positions, parent=None):
+    """A double bond from the chain to a nitrogen, or to a ring carbon of the substituent itself (not to the parent
+    the substituent hangs from, whose own locant cites that bond)."""
     mol = BRANCH_STEREO_MOL.get()
     if mol is None:
         return False
     outside = mol.GetAtomWithIdx(b if a in positions else a)
-    return outside.GetAtomicNum() == 7 and not mol.GetBondBetweenAtoms(a, b).IsInRing()
+    ylidene = outside.GetAtomicNum() == 7 or (outside.GetAtomicNum() == 6 and outside.IsInRing() and outside.GetIdx() != parent)
+    return ylidene and not mol.GetBondBetweenAtoms(a, b).IsInRing()
 
 
 def _branch_stereo_rank(entries):
@@ -1595,7 +1598,7 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
             unambiguous=len(chain) == 2 and len(ene) + len(yne) == 1 and bool(grouped) and has_single_arrangement(mol, chain_set),
         )
         multiple = sorted(ene + yne)
-        stereo_rank = _branch_stereo_rank(_branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}))
+        stereo_rank = _branch_stereo_rank(_branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, parent=coming_from))
         key = (
             -len(multiple), -len(ene), root_position, multiple, sorted(ene), -total_count, locant_set, citation,
             _chain_isotope_key(chain), stereo_rank, name,
@@ -1605,7 +1608,7 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
     _, chain, root_position, name, is_compound, gained = best
     consumed.clear()
     consumed.update(gained)
-    entries = _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True)
+    entries = _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True, parent=coming_from)
     stereo_prefix = _branch_stereo_prefix(entries, single_atom=len(chain) == 1 or (len(chain) == 2 and "ethen" in name and [code for _, code in entries] in (['E'], ['Z'], ['seqCis'], ['seqTrans'])))
     return chain, root_position, stereo_prefix + name, is_compound or bool(stereo_prefix)
 

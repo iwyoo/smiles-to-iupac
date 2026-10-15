@@ -876,6 +876,8 @@ def test_ring_stereodescriptors_are_cited_once(smiles, expected):
     "smiles,expected",
     [
         pytest.param("CCC/C(=C\\OC)CC", "(3Z)-3-(methoxymethylidene)hexane", id="ylidene_ether_beside_a_longer_chain"),
+        pytest.param("c1ccccc1/C=C1/CCCC1C", "[(Z)-(2-methylcyclopentylidene)methyl]benzene", id="ring_ylidene_of_a_benzylic_carbon"),
+        pytest.param("c1ccccc1/C=C1\\CCCC1C", "[(E)-(2-methylcyclopentylidene)methyl]benzene", id="ring_ylidene_of_a_benzylic_carbon_e"),
     ],
 )
 def test_ylidene_double_bond_is_cited_for_the_chosen_parent_only(smiles, expected):
