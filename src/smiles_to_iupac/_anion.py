@@ -211,7 +211,7 @@ def _is_nitro_nitrogen(atom):
 _CARBANIDE_PARENT = re.compile(r"(?:-\d+(?:,\d+)*-(?:di|tri|tetra)?|an(?:e(?:di|tri|tetra))?)ide$")
 _THIOIC_TAIL = re.compile(r"((?:di|tri|tetra)?(?:carbo)?)thioic acid$")
 _ANION_TOKEN = re.compile(r"(?:ide|ate|ite)(?![a-z])|ato|ido|idyl|uid-|id-|ide-")
-_MULTIPLE_ANION = re.compile(r"(?:di|tri|tetra|bis|tris|tetrakis|bi\()\(?[A-Za-z0-9,'-]*(?:ide|uide|ate|ite)")
+_MULTIPLE_ANION = re.compile(r"(?:di|tri|tetra|bis|tris|tetrakis|bi\()\(?(?:hydrogen )?[A-Za-z0-9,'-]*(?:ide|uide|ate|ite)")
 
 
 def name_anion(mol):
@@ -301,6 +301,11 @@ def _name_substitutive(mol):
     oxoacid = oxoacid_center(mol)
     if oxoacid is not None:
         return name_oxoacid_anion(mol, oxoacid)
+    from ._anion_oxoacid import multiplied_phosphonate_name
+
+    multiplied = multiplied_phosphonate_name(mol)
+    if multiplied is not None:
+        return multiplied
     if has_center_anion_shape(mol) and (not _has_group_or_carbon(mol) or _ring_mixed_centers(mol)):
         return name_center_anion(mol)
     ide_parent = _ide_parent_name(mol)
