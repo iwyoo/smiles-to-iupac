@@ -42,8 +42,60 @@ def _acyl(base):
 
 
 def _last_forms(base):
-    """The names a C-terminal residue can take: the amino acid and its ester anion (P-103.2.6)."""
-    return {base: base, base[:-1] + "ate": base[:-1] + "ate"} if base.endswith("ine") else {base: base}
+    """The names a C-terminal residue can take: the amino acid, its ester anion and its amide (P-103.2.6, P-103.2.7)."""
+    if not base.endswith("ine"):
+        return {base: base}
+    return {base: base, base[:-1] + "ate": base[:-1] + "ate", base[:-1] + "amide": base[:-1] + "amide"}
+
+
+_C_TERMINAL_AMIDE = Chem.MolFromSmarts("[CX4]-[CX3;!R](=O)-[NX3;!R]")
+
+
+def _amide_residue(piece):
+    """'N-methyl-L-alaninamide': the C-terminal residue whose carboxy group is a plain or N-alkylated amide; the name of the
+    amino acid with the amide group closed to a hydroxy group, its final 'e' changed to 'amide' (P-103.2.7)."""
+    from ._amidine import _format_n_prefix
+    from ._common import adjacency, halogen_substituents
+    from ._substituents import name_branch
+    from .core import smiles_to_iupac
+
+    matches = piece.GetSubstructMatches(_C_TERMINAL_AMIDE)
+    if len(matches) != 1:
+        return None
+    _, carbon, _, nitrogen = matches[0]
+    graph = adjacency(piece)
+    halogens = halogen_substituents(piece)
+    names, removed = [], set()
+    for neighbor in graph[nitrogen]:
+        if neighbor == carbon:
+            continue
+        name, compound = name_branch(graph, neighbor, nitrogen, halogens, mol=piece)
+        if compound:
+            return None
+        names.append(("N", name))
+        stack = [neighbor]
+        while stack:
+            atom = stack.pop()
+            if atom not in removed:
+                removed.add(atom)
+                stack.extend(n for n in graph[atom] if n != nitrogen)
+    editable = Chem.RWMol(piece)
+    editable.GetAtomWithIdx(nitrogen).SetAtomicNum(8)
+    for atom in editable.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    for index in sorted(removed, reverse=True):
+        editable.RemoveAtom(index)
+    acid = editable.GetMol()
+    try:
+        Chem.SanitizeMol(acid)
+        residue = smiles_to_iupac(Chem.MolToSmiles(acid))
+    except (UnsupportedStructure, ValueError):
+        return None
+    if not residue.endswith("ine") or " " in residue:
+        return None
+    prefix = _format_n_prefix(names)
+    return (f"{prefix}-" if prefix else "") + residue[:-1] + "amide"
 
 
 def acyl_word(residue, last=False, xi=True, side_chain=None, locanted_prefix=False):
@@ -133,7 +185,7 @@ def _name(smiles):
     for position, index in enumerate(order):
         last = position == len(order) - 1
         try:
-            residue = smiles_to_iupac(Chem.MolToSmiles(molecules[index]))
+            residue = (last and _amide_residue(molecules[index])) or smiles_to_iupac(Chem.MolToSmiles(molecules[index]))
         except (UnsupportedStructure, ValueError):
             return None
         if last:

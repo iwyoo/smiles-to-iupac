@@ -55,4 +55,18 @@ def amino_acyl_group(mol, graph, root, coming_from):
         name = acyl_word(smiles_to_iupac(Chem.MolToSmiles(acid)), xi=False)
     except (UnsupportedStructure, ValueError):
         return None
-    return (name, True) if name else None
+    if not name:
+        return None
+    _cite_stereo_of_group(inside)
+    return name, True
+
+
+def _cite_stereo_of_group(inside):
+    """The name of the amino acid cites the configuration of every stereo element of the group (P-103.2.5)."""
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    if context is None:
+        return
+    context["used"].update(("atom", a) for a in context["atoms"] if a in inside)
+    context["used"].update(("bond", b) for b in context["bonds"] if b[0] in inside and b[1] in inside)
