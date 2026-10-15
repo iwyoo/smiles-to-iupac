@@ -3413,7 +3413,9 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     stereo_context = BRANCH_STEREO.get()
     used_before = set(stereo_context["used"]) if stereo_context else set()
     best_used = set()
-    for path in _paths(graph, eligible):
+    paths = _paths(graph, eligible)
+    longest = max((len(p) for p in paths), default=0)
+    for path in (p for p in paths if len(p) == longest):
         for chain in (path, path[::-1]):
             if stereo_context:
                 stereo_context["used"] &= used_before

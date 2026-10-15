@@ -535,7 +535,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
             positions, stem_index, omit = _ring_system_label_positions(mol, graph, root, coming_from, labelled, name, capacity)
     else:
         named = {**{a: "x" for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}, **(halogens or {})}
-        chain, _, _, _ = _select_winning_structure(graph, root, coming_from, named, mol, aromatic_atoms, unsaturated)
+        multiple = any(
+            b.GetBondTypeAsDouble() > 1.0 and b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms for b in mol.GetBonds()
+        )
+        chain, _, _, _ = _select_winning_structure(graph, root, coming_from, named, mol, aromatic_atoms, unsaturated or multiple)
         if any(a not in chain for a in labelled):
             raise UnsupportedStructure("an isotopically modified atom off the principal chain of a substituent is not supported yet")
         positions = _lowest_chain_positions(mol, chain, root, labelled)
