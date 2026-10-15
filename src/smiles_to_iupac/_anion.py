@@ -245,30 +245,6 @@ def _name_anion_unchecked(mol):
     return name
 
 
-@contextlib.contextmanager
-def _anion_stereo(mol, neutral):
-    """The stereo elements of the anion carried over to its protonated copy, where two rings that differ only in
-    the charged atom would otherwise leave a centre unrecognised (P-92.1.4.4)."""
-    from ._polyfunctional import STEREO_OF_ISOTOPOLOGUE
-
-    elements = specified_stereo_elements(mol) or []
-    if len(elements) == len(specified_stereo_elements(neutral) or []):
-        yield
-        return
-    located = []
-    for kind, idx, code in elements:
-        if kind == "bond":
-            bond = mol.GetBondWithIdx(idx)
-            located.append(("bond", (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), code))
-        else:
-            located.append((kind, idx, code))
-    token = STEREO_OF_ISOTOPOLOGUE.set(located)
-    try:
-        yield
-    finally:
-        STEREO_OF_ISOTOPOLOGUE.reset(token)
-
-
 def _ide_parent_name(mol):
     """The name with the ring 'ide' centres as the parent and the anionic groups as prefixes, when that parent is senior
     (P-72.7: as many anionic centres as a group parent can carry, then more 'ide' centres) and every anion is cited."""
@@ -293,6 +269,7 @@ def _name_substitutive(mol):
     from ._anion_oxoacid import name_oxoacid_anion, oxoacid_center
     from ._polyfunctional import (
         chalcogen_acid_variant,
+        ion_stereo_carried,
         name_polyfunctional,
         peroxy_carbonyl_thio,
         peroxy_variant,
@@ -321,7 +298,7 @@ def _name_substitutive(mol):
         from ._polycation import _name_ring_polycation
 
         return _name_ring_polycation(neutral, ring_cations)
-    with _anion_stereo(mol, neutral):
+    with ion_stereo_carried(mol, neutral):
         try:
             name = name_polyfunctional(neutral)
         except UnsupportedStructure:
