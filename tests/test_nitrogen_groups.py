@@ -16,6 +16,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         pytest.param("O=CNc1ccccc1", "N-phenylformamide", id="n_phenyl_formamide"),
         pytest.param("CC(=O)N(C)c1ccccc1", "N-methyl-N-phenylacetamide", id="n_phenyl_amide_with_second_n_substituent"),
         pytest.param("CC(=O)Nc1ccc(O)cc1", "N-(4-hydroxyphenyl)acetamide", id="n_phenyl_amide_substituted_ring"),
+        pytest.param("CC(=O)NC1=NCCS1", "N-(4,5-dihydro-1,3-thiazol-2-yl)acetamide", id="ring_amidine_carbon_is_a_ring_atom_of_the_n_substituent"),
+        pytest.param(
+            "CN(C)CCNC1=NCCC1",
+            "N2-(3,4-dihydro-2H-pyrrol-5-yl)-N1,N1-dimethylethane-1,2-diamine",
+            id="ring_amidine_substituent_of_a_diamine",
+        ),
     ],
 )
 def test_n_n_disubstituted_and_related(smiles, expected):

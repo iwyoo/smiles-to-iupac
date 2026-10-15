@@ -222,7 +222,7 @@ def is_functional_carbon(mol, idx):
                 continue
             return True
         if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS:
-            if atom.IsInRing() and not b.IsInRing():
+            if atom.IsInRing():
                 return False
             return any(
                 n.GetIdx() != other.GetIdx() and n.GetAtomicNum() in _MULTIPLE_TARGETS and not _non_amino_nitrogen(n)
