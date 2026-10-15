@@ -800,6 +800,10 @@ def test_heteroaromatic_assemblies_and_primed_locant_order(smiles, expected):
         ("OCCB(C)C", "2-(dimethylboranyl)ethan-1-ol"),
         ("C[Si](C)(C)OCCO", "2-[(trimethylsilyl)oxy]ethan-1-ol"),
         ("OCCNN", "2-hydrazinylethan-1-ol"),
+        ("C[Si](C)(C)OC1CCNC1", "3-[(trimethylsilyl)oxy]pyrrolidine"),
+        ("C[Si](C)(C)ON1CCOCC1", "4-[(trimethylsilyl)oxy]morpholine"),
+        ("C[Si](C)(C)Oc1ncccn1", "2-[(trimethylsilyl)oxy]pyrimidine"),
+        ("C[Si](C)(C)Nc1ncccn1", "2-[(trimethylsilyl)amino]pyrimidine"),
     ],
 )
 def test_mononuclear_hydride_prefixes_and_parents(smiles, expected):

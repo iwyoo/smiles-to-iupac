@@ -13,6 +13,7 @@ from ._hetero_prefixes import (
     POLYACID_SUBSTITUENT_REASON,
     ANIONIC_PREFIXES,
     CHALCOGEN_PREFIXES,
+    MONONUCLEAR_HYDRIDES,
     azoxy_atoms,
     _functional_carbon,
     IMINE_PARENT,
@@ -376,7 +377,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             elif (
                 len(kids) == 1
                 and not atom.IsInRing()
-                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in (7, 8, 16, 34, 52)
+                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in (7, 8, 16, 34, 52, *MONONUCLEAR_HYDRIDES)
                 and _bond_order(mol, node, kids[0]) == 1.0
                 and _bond_order(mol, node, parent) == 1.0
             ):
@@ -464,6 +465,9 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             if not atom.IsInRing() and any(
                 mol.GetAtomWithIdx(k).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(k).IsInRing() for k in kids
             ):
+                record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
+                continue
+            if not atom.IsInRing() and any(mol.GetAtomWithIdx(k).GetAtomicNum() in MONONUCLEAR_HYDRIDES for k in kids):
                 record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
                 continue
             if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 and k not in named for k in kids):
