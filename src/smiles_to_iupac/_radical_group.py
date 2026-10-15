@@ -23,6 +23,7 @@ from ._substituents import name_branch
 _MAX_ATOMS = 80
 _IMINE = Chem.MolFromSmarts("[CX3]=[NX2]")
 _CHALCOGENS = {8, 16, 34, 52}
+_NOT_ATE_CENTRE = {1, 6, 7, 8, 9, 16, 17, 34, 35, 52, 53}
 _SENIORITY = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52, 6)
 
 
@@ -109,6 +110,18 @@ def _centre(mol):
     return None
 
 
+def _sanitize(mol):
+    """Sanitize, leaving the valence of an ate centre marked by `marked_neutral` unchecked (it is neutral there)."""
+    if any(a.HasProp("_anion_word") for a in mol.GetAtoms()):
+        mol.UpdatePropertyCache(strict=False)
+        Chem.SanitizeMol(mol, Chem.SANITIZE_ALL ^ Chem.SANITIZE_PROPERTIES)
+        for atom in mol.GetAtoms():
+            if atom.HasProp("_anion_word"):
+                atom.SetNumRadicalElectrons(0)
+    else:
+        Chem.SanitizeMol(mol)
+
+
 def _hydride(mol, centre):
     """`mol` with the radical electrons of `centre` capped: one hydrogen for a 'yl' centre, a doubly or triply bonded
     methylene or methine for 'ylidene' and 'ylidyne'; (capped mol, capping atom index)."""
@@ -121,7 +134,7 @@ def _hydride(mol, centre):
     cap = capped.AddAtom(Chem.Atom(1 if order == 1 else 6))
     capped.AddBond(centre.GetIdx(), cap, {1: Chem.BondType.SINGLE, 2: Chem.BondType.DOUBLE, 3: Chem.BondType.TRIPLE}[order])
     hydride = capped.GetMol()
-    Chem.SanitizeMol(hydride)
+    _sanitize(hydride)
     return hydride, cap
 
 
@@ -172,6 +185,11 @@ def _name_radical_group(mol) -> str:
         raise UnsupportedStructure("this radical is not a single radical centre on a plain skeleton")
     if labels and centre.GetAtomicNum() != 6:
         raise UnsupportedStructure("isotopic modification of this radical is not supported yet")
+    if any(a.GetFormalCharge() < 0 and a.GetAtomicNum() not in _NOT_ATE_CENTRE and not a.IsInRing() for a in mol.GetAtoms()):
+        from ._anion import marked_neutral
+
+        mol = marked_neutral(mol)
+        centre = mol.GetAtomWithIdx(centre.GetIdx())
     if centre.GetAtomicNum() == 7 and not centre.IsInRing():
         return _name_aminyl(mol, centre)
     if centre.GetAtomicNum() != 6 and centre.GetNumRadicalElectrons() > 1:
@@ -245,7 +263,7 @@ def _nitrogen_hydride(mol, centre):
     target.SetNoImplicit(True)
     target.SetNumExplicitHs(target.GetNumExplicitHs() + centre.GetNumRadicalElectrons())
     hydride = capped.GetMol()
-    Chem.SanitizeMol(hydride)
+    _sanitize(hydride)
     return hydride
 
 
@@ -282,7 +300,8 @@ def _name_aminyl(mol, centre):
         )
 
     amide = any(acyl(c) for c in carbons)
-    hydride = Chem.RemoveHs(hydride)
+    hydride = Chem.RemoveHs(hydride, sanitize=False)
+    _sanitize(hydride)
     token = FORCED_PRINCIPAL.set("amide" if amide else "amine")
     try:
         name = _name_labelled(hydride, {})
