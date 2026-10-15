@@ -309,7 +309,7 @@ _SIDE_CHAIN_SUBSTITUTION_SITE = {
 _BETA_NATURAL = {"isoleucine": "S", "threonine": "R"}
 _ALPHA_NITROGEN_LOCANT = {"lysine": "N2", "asparagine": "N2", "glutamine": "N2", "arginine": "Nα", "ornithine": "N2", "citrulline": "N2"}
 _SIDE_NITROGEN_LOCANT = {"lysine": "N6", "asparagine": "N4", "glutamine": "N5", "ornithine": "N5"}
-_MAX_CUT_CANDIDATES = 8
+_MAX_CUT_CANDIDATES = 10
 _ALPHA_AMINO_ACID = Chem.MolFromSmarts("[NX3;+0][CX4][CX3](=O)[OX2H1]")
 _GLYCINE = Chem.MolFromSmarts("[NX3][CH2][CX3](=O)[OX2H1]")
 
@@ -372,7 +372,7 @@ def _match(mol):
             frag = _skeleton_after_cuts(mol, cuts)
             if frag is None:
                 continue
-            name, frag_alpha, side_chain, _ = _match_skeleton(frag)
+            name, frag_alpha, side_chain, frag_phosphoryl = _match_skeleton(frag)
             if frag_alpha is None:
                 frag_alpha = frag.GetSubstructMatch(_GLYCINE)[1]
             to_orig = {a.GetIdx(): a.GetIntProp("_orig") for a in frag.GetAtoms()}
@@ -381,7 +381,8 @@ def _match(mol):
             # an alpha carbon with a second nitrogen: only the nitrogen kept in the skeleton is the amino group
             amine = next(to_orig[n.GetIdx()] for n in frag.GetAtomWithIdx(frag_alpha).GetNeighbors() if n.GetAtomicNum() == 7)
             allowed = {amine: _ALPHA_NITROGEN_LOCANT.get(name, "N")}
-            for site in side_chain:
+            phosphoryl = tuple(to_orig[i] for i in frag_phosphoryl) if frag_phosphoryl else None
+            for site in side_chain if phosphoryl is None else ():
                 element = mol.GetAtomWithIdx(site).GetSymbol()
                 if element == _SIDE_CHAIN_SUBSTITUTION_SITE.get(name):
                     allowed[site] = _SIDE_NITROGEN_LOCANT.get(name, element)
@@ -391,7 +392,7 @@ def _match(mol):
                 continue
             if len(frag.GetSubstructMatches(_ALPHA_AMINO_ACID)) != len(mol.GetSubstructMatches(_ALPHA_AMINO_ACID)):
                 continue
-            found = (name, alpha, side_chain, None, tuple((allowed[site], site, root) for site, root in cuts))
+            found = (name, alpha, side_chain, phosphoryl, tuple((allowed[site], site, root) for site, root in cuts))
             if best is None or frag.GetNumAtoms() > best[0]:
                 best = (frag.GetNumAtoms(), found)
     return best[1] if best else None
@@ -516,7 +517,7 @@ def has_amino_acid_shape(mol) -> bool:
     return True
 
 
-def _substituent_prefixes(mol, graph, substituents):
+def _substituent_prefixes(mol, graph, substituents, phosphoryl=None, side_chain_atoms=frozenset()):
     from ._common import halogen_substituents
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, format_substituent_prefixes, name_branch
 
@@ -545,6 +546,9 @@ def _substituent_prefixes(mol, graph, substituents):
         BRANCH_STEREO.reset(token)
     if any(("atom", a) not in context["used"] for a in atoms) or any(("bond", b) not in context["used"] for b in bonds):
         raise UnsupportedStructure("a stereo element of an N-substituent is not cited by any supported name")
+    if phosphoryl is not None:
+        name = _phosphoryl_group_name(mol, graph, *phosphoryl, side_chain_atoms)
+        grouped.setdefault(name, {"locants": [], "compound": False})["locants"].append("O")
     return format_substituent_prefixes(grouped)
 
 
@@ -560,10 +564,8 @@ def name_amino_acid(mol) -> str:
         if beta != natural:
             name = "allo" + name
     prefix = ""
-    if phosphoryl is not None:
-        prefix = f"O-{_phosphoryl_group_name(mol, adjacency(mol), *phosphoryl, side_chain_atoms)}"
-    elif substituents:
-        prefix = _substituent_prefixes(mol, adjacency(mol), substituents)
+    if phosphoryl is not None or substituents:
+        prefix = _substituent_prefixes(mol, adjacency(mol), substituents, phosphoryl, side_chain_atoms)
     if not label:
         return prefix + name
     return f"{prefix}-{mapping[label]}-{name}" if prefix else f"{mapping[label]}-{name}"

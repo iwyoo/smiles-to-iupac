@@ -622,6 +622,8 @@ def test_alditols_and_sugar_acids(smiles, expected):
         pytest.param('C/C=C/CN[C@@H](C)C(=O)O', 'N-[(2E)-but-2-en-1-yl]-L-alanine', id="specified_double_bond_in_the_substituent"),
         pytest.param('OC(C)CN[C@@H](C)C(=O)O', 'N-(2-hydroxypropyl)-L-alanine', id="unspecified_stereocentre_in_the_substituent"),
         pytest.param('CC=NC(C)(N)C(=O)O', '2-amino-2-(ethylideneamino)propanoic acid', id="second_alpha_nitrogen_is_not_the_amino_group"),
+        pytest.param('CC(=O)N[C@@H](COP(=O)(O)O)C(=O)O', 'N-acetyl-O-phosphono-L-serine', id="phosphono_beside_n_substituent"),
+        pytest.param('CC(=O)N[C@@H](COP(=O)(OC)OC)C(=O)O', 'N-acetyl-O-(dimethoxyphosphoryl)-L-serine', id="phosphoryl_beside_n_substituent"),
     ],
 )
 def test_substituted_amino_acids(smiles, expected):
