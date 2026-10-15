@@ -12,6 +12,7 @@ from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_p
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
+from ._multiplicative_groups import terminal_ligand
 from ._multiplicative_linker import DecompositionRejected, name_component
 from ._multiplicative_text import enclose, join_parts, multiplier_word, unit_phrase
 from ._substituents import name_branch
@@ -78,8 +79,7 @@ def _is_linker_atom(mol, atom, acyl_prefixes=frozenset()):
         sulfonyl_oxygen = (
             atom.GetAtomicNum() == 16
             and bond.GetBondTypeAsDouble() == 2.0
-            and other.GetAtomicNum() == 8
-            and other.GetDegree() == 1
+            and (terminal_ligand(other, atom) or (None,))[0] in ("O", "NH")
         )
         if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen and not sulfonyl_oxygen:
             return False
