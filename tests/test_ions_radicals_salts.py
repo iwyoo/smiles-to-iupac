@@ -2074,3 +2074,18 @@ def test_ionic_skeletal_replacement_prefixes(smiles, expected):
 )
 def test_no_ionic_prefix_name_without_a_skeletal_replacement_name(smiles):
     assert [a for a in smiles_to_alternative_names(smiles) if a.kind == "ionic-prefix"] == []
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[CH2]CC(=O)[O-].[Na+]", "sodium 2-carboxylatoethyl", id="radical_on_a_carboxylate_anion"),
+        pytest.param("[CH2]C[N+](C)(C)C.[Cl-]", "2-(trimethylazaniumyl)ethyl chloride", id="radical_on_an_ammonium_cation"),
+        pytest.param("[CH2]C[B-](C)(C)C.[Na+]", "sodium 2-(trimethylboranuidyl)ethyl", id="radical_on_a_boranuide_anion"),
+        pytest.param("[CH2]CC(=O)[O-].[K+]", "potassium 2-carboxylatoethyl", id="other_counter_cation"),
+    ],
+)
+def test_salt_cites_the_radical_centre_of_an_ionic_fragment(smiles, expected):
+    # P-75.4: the radical parent carries the ionic centres as prefixes; the Blue Book names no salt of such an ion
+    with pytest.warns(NonPreferredNameWarning, match="P-75.4"):
+        assert smiles_to_iupac(smiles) == expected

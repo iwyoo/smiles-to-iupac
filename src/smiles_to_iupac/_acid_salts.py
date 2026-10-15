@@ -64,6 +64,26 @@ def _charged_metal_cation(atom):
     return (f"{name}({charge}+)", charge) if name else None
 
 
+_NONMETALS = frozenset({5, 6, 7, 8, 9, 14, 15, 16, 17, 32, 33, 34, 35, 51, 52, 53})
+
+
+def _has_radical_group(frag):
+    """Whether a bonded non-metal atom of the ionic fragment carries an unpaired electron; the open-shell count RDKit gives
+    a bare metal ion is no radical centre."""
+    return any(a.GetNumRadicalElectrons() and a.GetDegree() and a.GetAtomicNum() in _NONMETALS for a in frag.GetAtoms())
+
+
+def _radical_ion_name(key):
+    """Name of an ionic fragment with an unpaired electron: the radical parent with the ionic centres as prefixes
+    (P-75.4), which cites the radical where the ion names of a salt would drop it."""
+    from .core import smiles_to_iupac
+
+    name = smiles_to_iupac(key)
+    if " " in name or not name.endswith(("yl", "ylidene", "ylidyne")):
+        raise UnsupportedStructure("the radical ion of this salt has no group name that cites its radical centre")
+    return name
+
+
 def _anion_name(frag):
     from ._salt import _ANION_KINDS, _POLYATOMIC_ANION_KINDS
     from .core import smiles_to_iupac
@@ -137,10 +157,14 @@ def name_acid_salt(mol):
     if has_ocene_shape(mol):
         raise UnsupportedStructure("a metallocene is named by P-69.2.7, not as a salt")
     cations, anions = {}, {}
+    radical_ion = False
     for frag in frags:
         net = sum(a.GetFormalCharge() for a in frag.GetAtoms())
         key = Chem.MolToSmiles(frag)
-        if net > 0:
+        if net and _has_radical_group(frag):
+            radical_ion = True
+            entry = (cations if net > 0 else anions).setdefault(key, [_radical_ion_name(key), abs(net), 0, False])
+        elif net > 0:
             found = _cation(frag)
             if found is None or found[1] != net:
                 raise UnsupportedStructure("this cation is not named by the salt engine")
@@ -157,8 +181,13 @@ def name_acid_salt(mol):
         raise UnsupportedStructure("a salt needs cations and anions")
     if sum(c * n for _, c, n, _ in cations.values()) != sum(c * n for _, c, n, _ in anions.values()):
         raise UnsupportedStructure("the charges of the ions do not balance")
-    return (
+    name = (
         _counted([(n, k, simple) for n, _, k, simple in cations.values()])
         + " "
         + _counted([(n, k, simple) for n, _, k, simple in anions.values()])
     )
+    if radical_ion:
+        from ._pin import mark
+
+        return mark(name, "the Blue Book defines no salt name for an ion that carries a radical centre (P-75.4, P-77)")
+    return name
