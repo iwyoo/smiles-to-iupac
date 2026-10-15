@@ -69,6 +69,9 @@ def _anion_name(frag):
     from .core import smiles_to_iupac
 
     charge = -sum(a.GetFormalCharge() for a in frag.GetAtoms())
+    lone = frag.GetAtomWithIdx(0)
+    if frag.GetNumAtoms() == 1 and lone.GetAtomicNum() == 1 and not lone.GetIsotope() and charge == 1:
+        return "hydride", charge
     if not _is_nucleotide_anion(frag):
         for has_shape, namer in (*_POLYATOMIC_ANION_KINDS[:-1], *_ANION_KINDS[:-1]):
             if has_shape(frag):
