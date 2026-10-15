@@ -256,7 +256,7 @@ def chain_assembly(
     return total, ((-total,), name, (None, None, None, 0, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core)))
 
 
-def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
+def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees, stereo=None):
     """Name of the polyvalent group formed by identical monocycles joined directly ([1,1'-biphenyl]-4,4'-diyl),
     `frees` = [(attached ring atom, outside neighbour)]; None when the atoms are not such an assembly."""
     inside = set(atoms)
@@ -269,22 +269,23 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
         return None
     fused = system_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
     if fused is not None:
-        return fused[0]
+        return None if stereo else fused[0]
     if len(rings) >= 3:
         found = chain_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
         if found is not None:
-            return found[0]
+            return None if stereo else found[0]
     if not mixed:
         from ._vb_ring_assembly import vb_assembly
 
         von_baeyer = vb_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
         if von_baeyer is not None:
-            return von_baeyer[0]
+            return None if stereo else von_baeyer[0]
     if len(rings) != 2:
         return None
     from ._polyfunctional import (
         _assembly_base,
         _assembly_numbering,
+        _assembly_stereo_prefix,
         _assembly_replacement,
         _assembly_spec,
         _locant_order,
@@ -311,8 +312,9 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     marked = [f[0] for f in frees]
     cite_marked = sorted(marked, key=lambda a: orders[a]) if mixed else None
-    locants = _assembly_numbering(graph, rings, joins[0], marked, entries, specs, cite_marked, mol)
+    locants = _assembly_numbering(graph, rings, joins[0], marked, entries, specs, cite_marked, mol, stereo)
     replacement = _assembly_replacement(mol, specs, locants)
+    lead = _assembly_stereo_prefix(locants, stereo) if stereo else ""
 
     def cite(locant):
         return f"{locant[1]}{chr(39) * locant[0]}"
@@ -333,7 +335,7 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
             spots = ",".join(cite(c) for c in sorted((locants[m] for m in group), key=_locant_order))
             pieces.append(f"{spots}-{valence_word(len(group), order)}")
         core = f"{replacement}[{base}]-" + "-".join(pieces)
-        return assembly_join(prefix, core)
+        return lead + assembly_join(prefix, core)
     spots = ",".join(cite(c) for c in sorted((locants[m] for m in marked), key=_locant_order))
     core = f"{replacement}[{base}]-{spots}-{multiplied_word(len(frees), 'yl')}"
-    return assembly_join(prefix, core)
+    return lead + assembly_join(prefix, core)

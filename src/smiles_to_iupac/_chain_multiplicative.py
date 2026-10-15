@@ -362,7 +362,7 @@ def _mixed_ring_part(mol, graph, atoms, attachments):
     return Part(found[1], False, True) if found else None
 
 
-def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=None):
+def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=None, stereo=None):
     mixed = len({order for _, _, order in attachments}) > 1
     if kind == "ring" and mixed:
         if directed is not None:
@@ -382,7 +382,7 @@ def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=N
     from ._chain_assembly import assembly_diyl
     from ._multiplicative_linker import Part
 
-    name = assembly_diyl(mol, graph, halogen_substituents(mol), frozenset(), atoms, [(x, y) for x, y, _ in attachments])
+    name = assembly_diyl(mol, graph, halogen_substituents(mol), frozenset(), atoms, [(x, y) for x, y, _ in attachments], stereo)
     if name is None:
         raise DecompositionRejected("this ring assembly is not supported as a linker")
     return Part(name, False, True)
@@ -504,10 +504,15 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         return None
     unit_stereo, branch_stereo = [], [[] for _ in edges[center]]
     branch_atoms = [_arm_atoms(graph, y, x) for x, y, _ in edges[center]]
+    kind, atoms = components[center]
+    centre_stereo = {}
     for element in stereo:
         touched = {element[1]} if isinstance(element[1], int) else set(element[1])
         if touched <= arm_atoms:
             unit_stereo.append(element)
+            continue
+        if kind == "assembly" and element[0] == "atom" and touched <= set(atoms):
+            centre_stereo[element[1]] = element[2]
             continue
         holders = [i for i, atoms_ in enumerate(branch_atoms) if touched <= atoms_]
         if len(holders) != 1:
@@ -516,7 +521,6 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     if len({tuple(sorted(code for _, _, code in found)) for found in branch_stereo}) != 1:
         return None
     ctx = _make_context(mol, graph, [_context_element(mol, e) for e in branch_stereo[0]])
-    kind, atoms = components[center]
     # P-15.6.1.5, P-51.5: a ring bearing a side chain with a further principal group is a substituent of the chain
     # parent that carries them, not a multiplicative centre
     found = _principal_atoms(mol) if unit_kind == "chain" else None
@@ -545,7 +549,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             else None
         )
         if central is None:
-            central = _component_part(mol, graph, kind, atoms, edges[center], ctx, None)
+            central = _component_part(mol, graph, kind, atoms, edges[center], ctx, None, stereo=centre_stereo or None)
         arm_parts = []
         for cid, toward_center, onward, fan in chain:
             akind, aatoms = components[cid]
