@@ -413,6 +413,8 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
         pytest.param("[O-]P([O-])(=O)OC[C@H]1O[C@](O)(COP([O-])([O-])=O)[C@@H](O)[C@@H]1O", "β-D-fructofuranose 1,6-bis(phosphate)", id="two_phosphate_anions"),
         pytest.param("CC(=O)[C@@H](O)[C@H](O)[C@H](O)[C@H](O)[C@@H](O)CO", "1-deoxy-L-glycero-D-altro-oct-2-ulose", id="higher_ketose"),
         pytest.param("C[C@H](O)[C@@H](O)[C@H](O)C[C@@H](O)[C@@H](O)C[C@@H](O)C=O", "3,6,10-trideoxy-L-threo-L-talo-decose", id="methylene_divides_the_centres"),
+        pytest.param("CCCCCCCC[C@H](O)[C@H](O)C=O", "(2S,3S)-2,3-dihydroxyundecanal", id="aldose_skeleton_beyond_the_stem_range"),
+        pytest.param("CCCCCCCC[C@H](O)C(=O)CO", "(3S)-1,3-dihydroxyundecan-2-one", id="ketose_skeleton_beyond_the_stem_range"),
         pytest.param("O=C[C@H](O)[C@@H](N(C)C)C[C@@H](C)O", "3,4,6-trideoxy-3-(dimethylamino)-D-xylo-hexose", id="amino_group_replacing_a_hydroxy_group"),
         pytest.param("OC[C@H]1O[C@H](O)[C@H](C)[C@@H](O)[C@@H]1O", "2-deoxy-2-methyl-α-D-glucopyranose", id="carbon_group_replacing_a_hydroxy_group"),
         pytest.param("OC[C@H]1O[C@H](O)[C@H](c2ccccc2)[C@@H](O)[C@@H]1O", "2-deoxy-2-phenyl-α-D-glucopyranose", id="aryl_replacing_a_hydroxy_group"),
