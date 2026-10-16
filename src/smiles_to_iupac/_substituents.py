@@ -405,6 +405,24 @@ def _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, m
     return name.replace("amino", inner, 1)
 
 
+def _labelled_substituted_amino(name, root, labelled, mol, capacity):
+    """'methyl(2H)amino': the descriptor of the nuclide on the nitrogen of a substituted amino prefix stands in front of
+    'amino', after the groups that the nitrogen carries (P-82.2.1)."""
+    from ._isotope_labels import descriptor
+
+    if mol is None or set(labelled) != {root} or name == "amino" or not name.endswith(("amino", "anilino")):
+        return None
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() != 7 or atom.IsInRing() or atom.GetFormalCharge():
+        return None
+    if name.endswith("anilino"):
+        entry = labelled[root]
+        extra = [(entry["skeleton"], None, 1, False)] if entry["skeleton"] else []
+        extra += [(nuclide, "N", count, False) for nuclide, count in entry["H"].items()]
+        return name[: -len("anilino")] + descriptor({}, {}, False, extra=extra) + "anilino"
+    return name[: -len("amino")] + descriptor(labelled, {root: 1}, True, capacity=capacity) + "amino"
+
+
 def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated):
     """`name`, the prefix of an acylamino or acyloxy group, with the descriptor of the nuclides of its acyl group in front,
     cited as for the acyl group itself and in front of the name that group has without nuclides: '(2H3)acetamido',
@@ -470,6 +488,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     amino = _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
     if amino is not None:
         return amino, compound
+    secondary = _labelled_substituted_amino(name, root, labelled, mol, capacity)
+    if secondary is not None:
+        context["consumed"].update(labelled)
+        return secondary, True
     amido = _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
     if amido is not None:
         return amido, compound
