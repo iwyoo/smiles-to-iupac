@@ -7,6 +7,7 @@ import math
 from collections import defaultdict
 from fractions import Fraction
 from functools import lru_cache
+from itertools import combinations
 
 from rdkit import Chem
 
@@ -15,6 +16,8 @@ from ._common import UnsupportedStructure
 HETERO_ORDER = ("F", "Cl", "Br", "I", "O", "S", "Se", "Te", "N", "P", "As", "Sb", "Bi", "Si", "Ge", "Sn", "Pb", "B", "Al", "Ga", "In", "Tl")
 HETERO_RANK = {e: i for i, e in enumerate(HETERO_ORDER)}
 _EPS = 1e-6
+_MAX_TREES = 64
+_MAX_TREE_SEARCH = 20000
 
 # Edge normals (turns) of the drawn shapes, clockwise from the right-hand vertical edge (P-25.3.2.3.1)
 _HOUSE = {
@@ -193,11 +196,21 @@ def _distinct_picks(system, order, choices, parent, root, cache, agreeing):
 
 def _layouts(system):
     """Every drawing of the ring system: per ring the shape role choices, giving ring centres and the normal of
-    each ring edge. Yields (centres, normals)."""
+    each ring edge. Yields (centres, normals). A system that cannot be drawn consistently (rings of different sizes
+    meeting at one atom) is drawn from every spanning tree of its rings, so that the drawings do not depend on the
+    order of its atoms."""
+    drawn = _tree_layouts(system, system.tree, True)
+    if not drawn:
+        drawn = [layout for tree in _spanning_trees(system) for layout in _tree_layouts(system, tree, False)]
+    for centres, normals in drawn:
+        yield centres, normals
+
+
+def _tree_layouts(system, tree, consistent_only):
     rings = system.rings
-    parent = {j: i for i, j in system.tree}
+    parent = {j: i for i, j in tree}
     root = system.root
-    order = [root] + [j for _, j in system.tree]
+    order = [root] + [j for _, j in tree]
     choices = []
     for r in order:
         size = len(rings[r])
@@ -207,12 +220,38 @@ def _layouts(system):
         else:
             choices.append([(0, 0)])
     cache = {}
-    drawn = _draw(system, order, parent, root, _distinct_picks(system, order, choices, parent, root, cache, True), True, cache)
-    if not drawn:
-        picks = _distinct_picks(system, order, choices, parent, root, cache, False)
-        drawn = _draw(system, order, parent, root, picks, False, cache)
-    for centres, normals in drawn:
-        yield centres, normals
+    picks = _distinct_picks(system, order, choices, parent, root, cache, consistent_only)
+    return _draw(system, order, parent, root, picks, consistent_only, cache)
+
+
+def _spanning_trees(system):
+    """The tree of `system` first, then the other spanning trees of its ring graph (a bounded number)."""
+    yield system.tree
+    n = len(system.rings)
+    edges = sorted({(min(i, j), max(i, j)) for i in system.adj for j in system.adj[i]})
+    default = {(min(i, j), max(i, j)) for i, j in system.tree}
+    produced = examined = 0
+    for subset in combinations(edges, n - 1):
+        examined += 1
+        if examined > _MAX_TREE_SEARCH or produced >= _MAX_TREES:
+            return
+        if set(subset) == default:
+            continue
+        linked = defaultdict(list)
+        for i, j in subset:
+            linked[i].append(j)
+            linked[j].append(i)
+        tree, seen, queue = [], {system.root}, [system.root]
+        while queue:
+            i = queue.pop(0)
+            for j in sorted(linked[i]):
+                if j not in seen:
+                    seen.add(j)
+                    tree.append((i, j))
+                    queue.append(j)
+        if len(seen) == n:
+            produced += 1
+            yield tree
 
 
 def _draw(system, order, parent, root, picks, consistent_only, cache):
