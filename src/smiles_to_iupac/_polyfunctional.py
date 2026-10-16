@@ -1495,7 +1495,7 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
         try:
             name, placed = _bare_ring_name(base, center)
         except UnsupportedStructure:
-            if not _ortho_fused_only(base):
+            if not (_ortho_fused_only(base) or _saturated_rings(base)):
                 raise
             name = None
         if name is not None:
@@ -1548,6 +1548,11 @@ def _ortho_fused_only(mol):
     prefixes on its mancude parent, a bridged one needs bridge prefixes."""
     rings = [set(r) for r in Chem.GetSymmSSSR(mol)]
     return all(len(a & b) <= 2 for i, a in enumerate(rings) for b in rings[i + 1 :])
+
+
+def _saturated_rings(mol):
+    """Whether no ring bond is aromatic or multiple, so that a bridged system is a von Baeyer hydride."""
+    return all(b.GetBondTypeAsDouble() == 1.0 for b in mol.GetBonds() if b.IsInRing())
 
 
 def _numbered_monocycle(base, center):
