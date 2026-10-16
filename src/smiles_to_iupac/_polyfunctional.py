@@ -1984,7 +1984,8 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
     from ._isotope_labels import descriptor
     from ._substituents import ISOTOPE_LABELS
 
-    in_parent = {a: e for a, e in labels.items() if a in parts[4]}
+    cited = (ISOTOPE_LABELS.get() or {}).get("cited", ())
+    in_parent = {a: e for a, e in labels.items() if a in parts[4] and a not in cited}
     if in_parent and len(parts[4]) > 1 and not _locants_omitted(mol, in_parent, parts):
         force_token = FORCE_LOCANTS.set(True)
         try:
@@ -1997,7 +1998,6 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         if any(a in parts[4] or any(n.GetIdx() in parts[4] for n in mol.GetAtomWithIdx(a).GetNeighbors()) for a in group)
     ]
     suffix_atoms = set().union(*parent_groups) if parent_groups else set()
-    cited = (ISOTOPE_LABELS.get() or {}).get("cited", ())
     rest = {a: e for a, e in labels.items() if a not in in_parent and a not in cited and (a not in consumed or a in suffix_atoms)}
     if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in rest):
         name, parts, suffix_text = _carbon_group_label(mol, rest, reselect)
@@ -4718,11 +4718,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             context.setdefault("cited", set()).update(a for a in context["labels"] if a in new_index)
             placed = {}
             if stereo_context and (stereo_context["atoms"] or stereo_context["bonds"]):
-                placed = {
-                    keep[new]: locant
-                    for new, locant in selected[2][4].items()
-                    if new < len(keep) and keep[new] not in context["labels"]
-                }
+                placed = {keep[new]: locant for new, locant in selected[2][4].items() if new < len(keep)}
             return selected[0], name, (*selected[2][:4], placed, *selected[2][5:])
     kept = sorted(set(arms[best[4]]) | {n_idx})
     positions = best[3][2][4]

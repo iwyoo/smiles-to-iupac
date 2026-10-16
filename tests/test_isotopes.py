@@ -339,6 +339,7 @@ def test_unplaceable_isotope_label_is_never_dropped(smiles):
         pytest.param("[2H]N(C)CCN(C)[2H]", "N1,N2-dimethyl(N1,N2-2H2)ethane-1,2-diamine", id="substituted_amines_modified_alike_are_multiplied"),
         pytest.param("[2H]NCCN([2H])C", "N1-methyl(N1,N2-2H2)ethane-1,2-diamine", id="primary_and_substituted_amine_modified_alike_are_multiplied"),
         pytest.param("CC[C@H](N(C)[2H])C", "(2R)-N-methyl(N-2H)butan-2-amine", id="stereocentre_of_a_modified_substituted_amine_parent"),
+        pytest.param("CC[C@@]([2H])(N(C)[2H])C", "(2S)-N-methyl(2,N-2H2)butan-2-amine", id="nuclide_makes_the_centre_of_a_substituted_amine_parent_stereogenic"),
         pytest.param("[2H]NC[C@H](N(C)[2H])C", "(2R)-N2-methyl(N1,N2-2H2)propane-1,2-diamine", id="stereocentre_beside_amines_modified_alike"),
         pytest.param("CN([3H])CC(=O)O", "[methyl(3H)amino]acetic acid", id="substituted_amino_prefix_beside_a_carboxy_group"),
         pytest.param("OCC[15NH]c1ccc(C)cc1", "2-[4-methyl(15N)anilino]ethan-1-ol", id="skeletal_nitrogen_of_an_anilino_prefix"),
