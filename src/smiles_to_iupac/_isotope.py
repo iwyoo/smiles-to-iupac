@@ -288,8 +288,8 @@ def _substituted_hydride(mol):
 
 
 def has_isotope_substituted_hydride_shape(mol) -> bool:
-    """A hydrogen nuclide on the parent hydride of a hydrazine or phosphane-type compound that carries carbon groups, no
-    other atom of the molecule being modified."""
+    """A nuclide on the atoms or hydrogens of the parent hydride of a hydrazine or phosphane-type compound that carries
+    carbon groups, no other atom of the molecule being modified."""
     from ._isotope_labels import split_isotopes
 
     split = split_isotopes(mol)
@@ -297,15 +297,13 @@ def has_isotope_substituted_hydride_shape(mol) -> bool:
         return False
     clean, labels, _ = split
     found = _substituted_hydride(clean)
-    return found is not None and all(
-        a in found[0] and not entry["skeleton"] for a, entry in labels.items()
-    )
+    return found is not None and all(a in found[0] for a in labels)
 
 
 def name_isotope_substituted_hydride(mol) -> str:
-    """'1-methyl(2-2H1)hydrazine', 'methyl(2H1)phosphane': the unmodified name with the descriptor of the hydride's own
-    hydrogens in front of the parent hydride, after the prefixes; once the descriptor needs locants every locant is cited
-    (P-82.2.1, P-82.6.1.1, P-82.5.2)."""
+    """'1-methyl(2-2H1)hydrazine', 'methyl(2H1)phosphane', 'trimethyl(31P)phosphane': the unmodified name with the descriptor of
+    the hydride's own atoms and hydrogens in front of the parent hydride, after the prefixes; once the descriptor needs
+    locants every locant is cited (P-82.2.1, P-82.6.1.1, P-82.5.2)."""
     from .core import smiles_to_iupac
     from ._common import adjacency, halogen_substituents
     from ._isotope_labels import descriptor, split_isotopes

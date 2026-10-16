@@ -536,6 +536,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if sulfonyl is not None:
         context["consumed"].update(labelled)
         return sulfonyl, compound
+    sulfonyl = _labelled_sulfonyl_centre(name, mol, root, labelled, capacity)
+    if sulfonyl is not None:
+        context["consumed"].update(labelled)
+        return sulfonyl, compound
     run = _chalcogen_run(mol, graph, root, coming_from) if mol is not None else None
     if run is not None and all(a in run for a in labelled):
         stem = _CHALCOGEN_RUN_STEM.search(name)
@@ -543,6 +547,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
             context["consumed"].update(labelled)
             text = descriptor(labelled, {a: i + 1 for i, a in enumerate(run)}, False, capacity=capacity)
             return name[: stem.start()] + text + name[stem.start() :], compound
+    centre = _labelled_centre_prefix(name, mol, root, labelled, capacity)
+    if centre is not None:
+        context["consumed"].update(labelled)
+        return centre, compound
     if name == "acetyl" and mol is not None:
         methyl = [n for n in graph[root] if n != coming_from and mol.GetAtomWithIdx(n).GetAtomicNum() == 6]
         if len(methyl) == 1 and set(labelled) == {methyl[0]}:
@@ -701,7 +709,84 @@ def _labelled_sulfonyl_alkane(name, graph, root, coming_from, mol, labelled, cap
     return name[: match.start()] + descriptor(labelled, positions, omit, capacity=capacity) + name[match.start() :]
 
 
+def _labelled_sulfonyl_centre(name, mol, root, labelled, capacity):
+    """'(34S)methanesulfonyl': the nuclide of the chalcogen of a sulfonyl-type group is cited in front of the hydride name that
+    carries the group, as for the sulfonic acid (P-82.2.1, P-82.6.1)."""
+    if mol is None or set(labelled) != {root} or labelled[root]["H"] or mol.GetAtomWithIdx(root).GetAtomicNum() not in (16, 34, 52):
+        return None
+    match = _HYDRIDE_BEFORE_SULFONYL.search(name)
+    if match is None:
+        return None
+    from ._isotope_labels import descriptor
+
+    return name[: match.start()] + descriptor(labelled, {root: 1}, True, capacity=capacity) + name[match.start() :]
+
+
 _CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
+
+_CENTRE_PREFIX_STEM = {
+    5: "boranyl",
+    7: "nitroso|nitro",
+    13: "alumanyl",
+    14: "silyl",
+    15: "phosphanyl|phosphoryl|phosphorothioyl|phosphinoyl|phosphinothioyl|phosphono|phosphinico",
+    16: "sulfanyl|sulfo|sulfino",
+    32: "germyl",
+    33: "arsanyl",
+    34: "selanyl",
+    50: "stannyl",
+    51: "stibanyl",
+    52: "tellanyl",
+}
+
+
+def centre_nuclides(centre, consume=True):
+    """'(32P)': the nuclide of the one atom that a parent name is built on, cited in front of that parent without a locant
+    (P-82.2.1, P-82.6.1.1); '' when the atom is unmodified or already cited. With `consume` false the atom stays open for
+    the name that is finally chosen."""
+    context = ISOTOPE_LABELS.get()
+    entry = context["labels"].get(centre) if context else None
+    if entry is None or centre in context["consumed"]:
+        return ""
+    if entry["H"] or not entry["skeleton"]:
+        raise UnsupportedStructure("a hydrogen nuclide on the atom of a mononuclear parent is not supported yet")
+    if consume:
+        context["consumed"].add(centre)
+    from ._isotope_labels import descriptor
+
+    return descriptor({centre: entry}, {centre: 1}, True)
+
+
+def suffix_nuclides(atoms, word):
+    """The suffix `word` (such as 'one') multiplied for the doubly bonded chalcogens `atoms`, with their nuclide in front of
+    it: '(18O)one', 'di[(18O)one]' for identical groups (P-82.2.1, P-82.2.2.2)."""
+    from ._common import multiplied_word
+
+    plain = multiplied_word(len(atoms), word)
+    context = ISOTOPE_LABELS.get()
+    entries = [context["labels"].get(a) if context and a not in context["consumed"] else None for a in atoms]
+    if not any(entries):
+        return plain
+    nuclides = {e["skeleton"] for e in entries if e}
+    if None in entries or len(nuclides) != 1 or any(e["H"] for e in entries):
+        raise UnsupportedStructure("only identical modified atoms at the suffix of a mononuclear parent are supported")
+    context["consumed"].update(atoms)
+    text = f"({nuclides.pop()})"
+    return text + word if len(atoms) == 1 else plain[: -len(word)] + "[" + text + word + "]"
+
+
+def _labelled_centre_prefix(name, mol, root, labelled, capacity):
+    """'methyl(34S)sulfanyl', '(15N)nitro': the nuclide of the one atom a heteroatom prefix is named from stands in front of
+    the stem that names that atom, after the groups cited on it (P-82.2.1, P-82.6.3.3)."""
+    if mol is None or set(labelled) != {root} or labelled[root]["H"]:
+        return None
+    stems = _CENTRE_PREFIX_STEM.get(mol.GetAtomWithIdx(root).GetAtomicNum())
+    found = re.search(f"(?<!di)(?<!tri)(?<!tetra)(?:{stems})$", name) if stems else None
+    if found is None:
+        return None
+    from ._isotope_labels import descriptor
+
+    return name[: found.start()] + descriptor(labelled, {root: 1}, True, capacity=capacity) + name[found.start() :]
 
 
 def _chalcogen_run(mol, graph, root, coming_from):

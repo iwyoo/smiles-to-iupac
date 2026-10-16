@@ -7,7 +7,14 @@ valence differs from the standard one. Carbon and amino groups are cited as pref
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, alphanumerical_name_key, halogen_substituents, multiplied_word
-from ._substituents import cited_centre_stereo, format_mononuclear_prefixes, name_branch
+from ._substituents import (
+    ISOTOPE_LABELS,
+    centre_nuclides,
+    cited_centre_stereo,
+    format_mononuclear_prefixes,
+    name_branch,
+    suffix_nuclides,
+)
 
 _CENTERS = {
     14: "silane", 32: "germane", 50: "stannane", 82: "plumbane",
@@ -94,7 +101,11 @@ def name_phosphanone(mol) -> str:
     if len(candidates) > 1 and any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
         raise UnsupportedStructure("stereodescriptors beside several chalcogenide centres are not supported yet")
     ranked = []
+    context = ISOTOPE_LABELS.get()
+    cited = set(context["consumed"]) if context else set()
     for center, chalcogens in candidates:
+        if context:
+            context["consumed"] = set(cited)
         name, roots = _name_at(mol, center, chalcogens)
         key = (
             _CHALCOGEN_ORDER.index(chalcogens[0].GetAtomicNum()),
@@ -103,8 +114,11 @@ def name_phosphanone(mol) -> str:
             -roots,
             alphanumerical_name_key(name),
         )
-        ranked.append((key, name))
-    return min(ranked)[1]
+        ranked.append((key, name, center, chalcogens))
+    if context:
+        context["consumed"] = cited
+    _, name, center, chalcogens = min(ranked, key=lambda entry: entry[0])
+    return _name_at(mol, center, chalcogens)[0] if context else name
 
 
 def _name_at(mol, center, chalcogens):
@@ -115,13 +129,14 @@ def _name_at(mol, center, chalcogens):
     with cited_centre_stereo(mol, center.GetIdx(), [c.GetIdx() for c in chalcogens]) as stereo:
         entries = [name_branch(graph, r, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for r in roots]
     parent = _CENTERS[center.GetAtomicNum()]
-    suffix = multiplied_word(len(chalcogens), _SUFFIX[chalcogens[0].GetAtomicNum()])
-    stem = parent[:-1] if suffix[0] in "aeiouy" else parent
+    plain = multiplied_word(len(chalcogens), _SUFFIX[chalcogens[0].GetAtomicNum()])
+    stem = parent[:-1] if plain[0] in "aeiouy" else parent
+    suffix = suffix_nuclides([c.GetIdx() for c in chalcogens], _SUFFIX[chalcogens[0].GetAtomicNum()])
     valence = center.GetTotalValence()
     lambda_label = f"λ{valence}-" if valence != _STANDARD_VALENCE[center.GetAtomicNum()] else ""
-    prefixes = format_mononuclear_prefixes(entries) if entries else ""
-    joint = "-" if prefixes and lambda_label else ""
-    return f"{stereo}{prefixes}{joint}{lambda_label}{stem}{suffix}", len(roots)
+    head = (format_mononuclear_prefixes(entries) if entries else "") + centre_nuclides(center.GetIdx())
+    joint = "-" if head and lambda_label else ""
+    return f"{stereo}{head}{joint}{lambda_label}{stem}{suffix}", len(roots)
 
 
 _IMINE_CENTERS = {

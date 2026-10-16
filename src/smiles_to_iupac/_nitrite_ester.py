@@ -28,6 +28,7 @@ acetates of the same polyol (P-65.6.3.2.2).
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._substituents import centre_nuclides
 from ._phosphate import check_ester_organyl, cited_ester_groups, format_ester_words, name_polyester_through_acetates
 
 _NITROGEN = 7
@@ -99,4 +100,4 @@ def name_nitrite_ester(mol) -> str:
 
     (root,) = [n for n in graph[ester_oxygen_idx] if n != nitrogen.GetIdx()]
     ((name, _),) = cited_ester_groups(mol, graph, [(root, ester_oxygen_idx)], halogens, aromatic_atoms)
-    return format_ester_words([name]) + " nitrite"
+    return f"{format_ester_words([name])} {centre_nuclides(nitrogen.GetIdx())}nitrite"

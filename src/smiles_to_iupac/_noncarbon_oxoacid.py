@@ -22,6 +22,7 @@ from ._oxoacid_acyl import senior_centres
 from ._phosphate import format_ester_words
 from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import (
+    centre_nuclides,
     cited_stereo_around,
     format_mononuclear_prefixes,
     format_substituent_prefixes,
@@ -547,8 +548,10 @@ def name_noncarbon_oxoacid(mol) -> str:
     for centre in centres:
         with cited_stereo_around(mol, centre):
             parts = next(part for part in _acid_candidates(mol) if part["centre"].GetIdx() == centre)
-            names.append(_name_from_parts(mol, parts, _centre_descriptor(mol, centre)))
-    return min(names, key=alphanumerical_name_key)
+            names.append((_name_from_parts(mol, parts, _centre_descriptor(mol, centre)), centre))
+    name, centre = min(names, key=lambda entry: alphanumerical_name_key(entry[0]))
+    centre_nuclides(centre)
+    return name
 
 
 def _centre_descriptor(mol, centre):
@@ -566,6 +569,7 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
     graph, halogens, centre = parts["graph"], parts["halogens"], parts["centre"]
     parts["centre_entries"] = [name_branch(graph, c.GetIdx(), centre.GetIdx(), halogens, mol=mol) for c in parts["organyl"]]
     z = parts["z"]
+    nuclide = centre_nuclides(centre.GetIdx(), consume=False)
     singles, ylidenes = parts["singles"], parts["ylidenes"]
     acidic = any(s["H"] or s.get("anion") for s in singles)
     esters = [x for x in singles if x["kind"] == "ester"]
@@ -590,7 +594,7 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
         if acyl is not None:
             amide = [g for g in groups if g["kind"] == "amide"]
             prefix = _substituent_prefix(dict(parts, centre_entries=[]), amide) if n_substituted and amide else ""
-            return prefix + acyl
+            return prefix + nuclide + acyl
     imido = any(g["kind"] == "imide" for g in groups)
     prefix = _substituent_prefix(parts, groups if n_substituted or imido else [])
     only_amide_modifies = acidic and z in _PENTAVALENT_STEMS and all(p["kind"] == "amide" or (p["kind"] == "chalcogen" and p["z"] == 8) for p in (*ylidenes, *singles))
@@ -604,6 +608,7 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
         stem = _CHALCOGEN_STEMS[z]
         if z == 16 and pentavalent and infixes and infixes[0][0] == "amid" and all(t in ("thio", "seleno", "telluro") for t, _ in infixes[1:]):
             stem, infixes = "sulfam", infixes[1:]
+    stem = nuclide + stem
     if esters:
         return _ester_name(mol, parts, esters, prefix, stem, infixes, descriptor)
     if parts["cation"] or parts["free_anion"]:

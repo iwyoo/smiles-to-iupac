@@ -6,6 +6,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._numerals import numerical_term
+from ._substituents import centre_nuclides
 
 # (atomic number, oxo, hydroxy, hydrogen) -> name
 _ACIDS = {
@@ -80,7 +81,7 @@ _IRREGULAR = {
 }
 
 
-def _anion_name(acid, hydrogens):
+def _anion_name(acid, hydrogens, nuclide=""):
     stem = acid[: -len(" acid")]
     if stem in _IRREGULAR:
         stem = _IRREGULAR[stem]
@@ -89,7 +90,7 @@ def _anion_name(acid, hydrogens):
     else:
         stem = stem[:-3] + "ite"
     words = f"{numerical_term(hydrogens) if hydrogens > 1 else ''}hydrogen " if hydrogens else ""
-    return words + stem
+    return words + nuclide + stem
 
 
 def has_mononuclear_oxoacid_shape(mol) -> bool:
@@ -107,6 +108,7 @@ def name_mononuclear_oxoacid(mol) -> str:
     if key is None or key[:4] not in _ACIDS or not _balanced(mol, key):
         raise UnsupportedStructure("this is not a free mononuclear noncarbon oxoacid")
     acid = _ACIDS[key[:4]]
+    nuclide = centre_nuclides(next(a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() != 8))
     if not key[4]:
-        return acid
-    return _anion_name(acid, key[2] - key[4])
+        return nuclide + acid
+    return _anion_name(acid, key[2] - key[4], nuclide)

@@ -7,7 +7,7 @@ from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_su
 from ._chalcogen_imide import ylidene_group_atoms
 from ._hydride_chain import _is_pseudohalide_nitrogen
 from ._phosphonic_acid import CENTER_STEMS
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import centre_nuclides, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _MULTIPLIER = {1: "", 2: "di"}
@@ -125,6 +125,8 @@ def _name_nitrogen_amide(mol, found):
         parent, spare_nitro, spare_nitroso = "nitramide", nitro[1:], nitroso
     else:
         parent, spare_nitro, spare_nitroso = "nitrous amide", [], nitroso[1:]
+    if not nitro:
+        parent = centre_nuclides(nitroso[0].GetIdx()) + parent
     excluded = {n.GetIdx() for n in (*nitro, *nitroso)}
     entries = _prefix_entries(mol, centre, excluded, graph)
     entries += [("nitro", False)] * len(spare_nitro) + [("nitroso", False)] * len(spare_nitroso)
@@ -171,7 +173,7 @@ def _name_halide(mol, found):
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     ending = "inous" if len(halides) == 1 else "onous"
     halide = _MULTIPLIER[len(halides)] + _HALIDE[halides[0].GetAtomicNum()]
-    return f"{prefix}{CENTER_STEMS[centre.GetAtomicNum()]}{ending} {halide}"
+    return f"{prefix}{centre_nuclides(centre.GetIdx())}{CENTER_STEMS[centre.GetAtomicNum()]}{ending} {halide}"
 
 
 def _azinic_centre(mol):
@@ -200,7 +202,7 @@ def _name_azinic(mol, found):
     prefix = format_mononuclear_prefixes(entries) if len(entries) > 1 else (entries[0][0] if entries else "")
     if len(entries) == 1 and entries[0][1]:
         prefix = f"({prefix})"
-    return f"{prefix}azinic acid"
+    return f"{prefix}{centre_nuclides(centre.GetIdx())}azinic acid"
 
 
 def has_inorganic_acid_derivative_shape(mol) -> bool:

@@ -12,8 +12,9 @@ from ._common import (
     nonstandard_bonding,
     substituent_locant_set_and_citation,
 )
+from ._isotope_labels import descriptor
 from ._numerals import multiplying_prefix
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import ISOTOPE_LABELS, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 
@@ -317,20 +318,20 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
         branched_alternating = _branched_alternating_paths(mol, graph)
         if branched_alternating is not None:
             terminal_z, inner_z, paths = branched_alternating
-            return min(
+            return _cited(min(
                 (
                     _keyed_chain_name(mol, graph, halogens, aromatic_atoms, terminal_z, path, False, (terminal_z, inner_z, path))
                     for path in paths
                 ),
                 key=lambda option: option[0],
-            )[1]
+            ))
         branched = _branched_chain_paths(mol, graph)
         if branched is not None:
             z, paths = branched
-            return min(
+            return _cited(min(
                 (_keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, path, False, None) for path in paths),
                 key=lambda option: option[0],
-            )[1]
+            ))
     unsaturated = False
     if found is None:
         found = _chain_atoms(mol, graph, allow_double=True, allow_triple=True)
@@ -350,9 +351,17 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
     else:
         z, chain = found
     if tied and len(tied) > 1:
-        names = [_chain_name(mol, graph, halogens, aromatic_atoms, z, run, unsaturated, alternating) for run in tied]
-        return min(names, key=alphanumerical_name_key)
-    return _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating)
+        options = [_keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, run, unsaturated, alternating) for run in tied]
+        return _cited(min(options, key=lambda option: alphanumerical_name_key(option[1])))
+    return _cited(_keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating))
+
+
+def _cited(option):
+    """The name of the winning chain, its nuclides now cited."""
+    context = ISOTOPE_LABELS.get()
+    if context:
+        context["consumed"].update(option[2])
+    return option[1]
 
 
 def _one_arrangement(substituents, capacity, mirror=None):
@@ -392,10 +401,6 @@ def _one_arrangement(substituents, capacity, mirror=None):
 
     place(0, list(capacity), [()] * positions)
     return len(seen) == 1
-
-
-def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating):
-    return _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating)[1]
 
 
 _HETEROL_ELEMENTS = {14, 32, 50, 82}
@@ -446,6 +451,10 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
         or (z == 7 and unsaturated and len(chain) == 2 and mol.GetBondBetweenAtoms(chain[0], chain[1]).GetBondTypeAsDouble() == 2.0)
     )
     codes = _bond_codes(mol) if unsaturated else {}
+    context = ISOTOPE_LABELS.get()
+    labelled = (
+        {a: context["labels"][a] for a in chain if a in context["labels"] and a not in context["consumed"]} if context else {}
+    )
     for candidate in (chain, chain[::-1]):
         substituents = {}
         hydroxy = []
@@ -489,12 +498,19 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
             parent = f"{lam_text}-{parent}"
         if hydroxy:
             parent, omit = _with_hydroxy_suffix(parent, hydroxy, len(chain), grouped, omit)
+        positions = {atom: i + 1 for i, atom in enumerate(candidate)}
+        omit = omit and not (labelled and len(chain) > 1)
+        text = (
+            descriptor(labelled, positions, len(chain) == 1, capacity={a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in chain})
+            if labelled
+            else ""
+        )
         if omit and len(grouped) > 1:
             entries = [(n, info["compound"]) for n, info in grouped.items() for _ in info["locants"]]
-            name = format_mononuclear_prefixes(entries) + parent
+            name = format_mononuclear_prefixes(entries) + text + parent
         else:
             prefixes = format_substituent_prefixes(grouped, omit_locants=omit)
-            name = prefixes + ("-" if prefixes and lam_text else "") + parent
+            name = prefixes + text + ("-" if (prefixes or text) and lam_text else "") + parent
         stereo = sorted(
             (i + 1, codes[frozenset((candidate[i], candidate[i + 1]))])
             for i in range(len(candidate) - 1)
@@ -502,7 +518,10 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
         )
         if stereo:
             name = f"({stereo[0][1]})-{name}" if len(chain) == 2 else f"({','.join(f'{p}{c}' for p, c in stereo)})-{name}"
-        key = (sorted(hydroxy), sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation, name)
+        key = (
+            sorted(hydroxy), sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation,
+            sorted(positions[a] for a in labelled), name,
+        )
         if best is None or key < best[0]:
-            best = (key, name)
+            best = (key, name, set(labelled))
     return best

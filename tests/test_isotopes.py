@@ -292,7 +292,7 @@ def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
     assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
-@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1[15N+](=O)[O-]", "[2H]I(C)C"])
+@pytest.mark.parametrize("smiles", ["C[15N+](C)(C)[O-]", "[2H]I(C)C"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -812,4 +812,36 @@ def test_nuclides_on_the_end_groups_of_a_polychalcogen_chain(smiles, expected):
     ],
 )
 def test_nuclides_on_the_skeleton_of_a_diazonium_cation(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.1.1, P-82.6.3.3: the nuclide of a heteroatom stands in front of the part of the name that denotes that atom
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[34S]C", "[methyl(34S)sulfanyl]methane", id="sulfide_linking_two_carbon_groups"),
+        pytest.param("OCC[15N+](=O)[O-]", "2-(15N)nitroethan-1-ol", id="nitro_prefix"),
+        pytest.param("CC(=[34S])C", "propane-2-(34S)thione", id="thione_suffix"),
+        pytest.param("C[32P](=O)(O)O", "methyl(32P)phosphonic acid", id="phosphonic_acid"),
+        pytest.param("C[32P](=O)(C)O", "dimethyl(32P)phosphinic acid", id="phosphinic_acid"),
+        pytest.param("C[32P](=O)(Cl)Cl", "methyl(32P)phosphonic dichloride", id="phosphorus_acid_halide"),
+        pytest.param("CP(=[18O])(C)C", "trimethyl-λ5-phosphan(18O)one", id="phosphanone_oxygen"),
+        pytest.param("C[32P](=O)(C)C", "trimethyl(32P)-λ5-phosphanone", id="phosphanone_centre"),
+        pytest.param("CN(C)[15N]=O", "dimethyl(15N)nitrous amide", id="nitrous_amide"),
+        pytest.param("CS(=[34S])(=O)C", "1,1-dimethyl(2-34S)-1λ6-disulfen-1-one", id="chalcogen_chain_atom"),
+        pytest.param("C[31P](C)C", "trimethyl(31P)phosphane", id="phosphane"),
+        pytest.param("ClC[31P](C)C", "(chloromethyl)di(methyl)(31P)phosphane", id="mononuclear_parent_beside_a_halogen"),
+        pytest.param("OC[29SiH2]C", "[methyl(29Si)silyl]methanol", id="hydride_atom_as_a_prefix"),
+        pytest.param("C[SiH2][29SiH2]C", "1,2-dimethyl(1-29Si)disilane", id="hydride_chain_parent"),
+        pytest.param("O=[32P](O)(O)O", "(32P)phosphoric acid", id="mononuclear_oxoacid"),
+        pytest.param("CO[32P](=O)(OC)OC", "trimethyl (32P)phosphate", id="phosphate_ester"),
+        pytest.param("CO[34S](=O)(=O)OC", "dimethyl (34S)sulfate", id="sulfate"),
+        pytest.param("C[34S](=O)(=O)Cl", "(34S)methanesulfonyl chloride", id="sulfonyl_chloride"),
+        pytest.param("C[34S](=O)(=O)N", "(34S)methanesulfonamide", id="sulfonamide_sulfur"),
+        pytest.param("C[11B](O)O", "methyl(11B)boronic acid", id="boronic_acid"),
+        pytest.param("O=C(O)C[31P](=O)(O)O", "(31P)phosphonoacetic acid", id="phosphono_prefix"),
+        pytest.param("N[34S](N)(=O)=O", "(34S)sulfuric diamide", id="parent_stem_of_a_lone_atom"),
+    ],
+)
+def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
