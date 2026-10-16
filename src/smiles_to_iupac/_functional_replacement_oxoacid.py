@@ -196,7 +196,7 @@ def name_functional_replacement_oxoacid(mol) -> str:
         # the replacing atoms that carry hydrogen, else the oxygens that do (P-67.1.2.4.1)
         cited = [a.GetAtomicNum() for a in hydroxy if a.GetAtomicNum() != 8] or [a.GetAtomicNum() for a in hydroxy]
         word = word[: -len("acid")] + ",".join(_CHALCOGENS[z] for z in sorted(cited, key=lambda z: _ORDER[z])) + "-acid"
-    return _substituent_prefix(center, entries, arms) + centre_nuclides(center.GetIdx()) + word
+    return _substituent_prefix(center, entries, arms) + centre_nuclides(center.GetIdx(), oxygens=True) + word
 
 
 def _substituent_prefix(center, entries, arms):

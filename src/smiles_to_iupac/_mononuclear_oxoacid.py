@@ -108,7 +108,7 @@ def name_mononuclear_oxoacid(mol) -> str:
     if key is None or key[:4] not in _ACIDS or not _balanced(mol, key):
         raise UnsupportedStructure("this is not a free mononuclear noncarbon oxoacid")
     acid = _ACIDS[key[:4]]
-    nuclide = centre_nuclides(next(a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() != 8))
+    nuclide = centre_nuclides(next(a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() != 8), oxygens=True)
     if not key[4]:
         return nuclide + acid
     return _anion_name(acid, key[2] - key[4], nuclide)
