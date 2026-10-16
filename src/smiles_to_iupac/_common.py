@@ -756,7 +756,8 @@ def is_nitro_nitrogen(mol, idx):
 YLO_MAP_NUMBER = 9001
 NITRO_MAP_NUMBER = 9002
 NITROSO_MAP_NUMBER = 9003
-_MAPPED_PREFIXES = {YLO_MAP_NUMBER: "ylo", NITRO_MAP_NUMBER: "nitro", NITROSO_MAP_NUMBER: "nitroso"}
+AZIDO_MAP_NUMBER = 9004
+_MAPPED_PREFIXES = {YLO_MAP_NUMBER: "ylo", NITRO_MAP_NUMBER: "nitro", NITROSO_MAP_NUMBER: "nitroso", AZIDO_MAP_NUMBER: "azido"}
 
 
 def is_prefix_placeholder(atom):
@@ -766,8 +767,8 @@ def is_prefix_placeholder(atom):
 
 def named_prefix(atom):
     """The prefix a placeholder atom stands for ('ylo' marks a radical centre cited as a prefix, P-71.5; 'nitro' and
-    'nitroso' mark a collapsed nitro or nitroso group, P-61.5); the map number carries it through a SMILES round
-    trip."""
+    'nitroso' mark a collapsed nitro or nitroso group, P-61.5, and 'azido' a collapsed azide group, P-61.7); the map
+    number carries it through a SMILES round trip."""
     if atom.HasProp("_named_prefix"):
         return atom.GetProp("_named_prefix")
     return _MAPPED_PREFIXES.get(atom.GetAtomMapNum())
