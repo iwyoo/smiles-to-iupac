@@ -40,7 +40,32 @@ def hydrogen_salt_name(smiles, namer):
             break
     marker = (numerical_term(count) if count > 1 else "") + word
     if marker not in cations:
-        raise UnsupportedStructure("the cation words of the salt name were not found")
+        return _acid_adduct_name(others, count, namer)
     cations.remove(marker)
     hydrogen = (numerical_term(count) if count > 1 else "") + "hydrogen"
     return " ".join([*cations, hydrogen, *tokens[len(cations) + 1 :]])
+
+
+def _acid_adduct_name(others, count, namer):
+    """A hydron beside a neutral component and an anion is the acid of that anion in an adduct (P-14.8.1): the hydrons
+    are put on the anionic atoms they can saturate, the rest are named as 'hydron' components."""
+    mol = Chem.MolFromSmiles(".".join(others))
+    editable = Chem.RWMol(mol)
+    remaining = count
+    for atom in list(editable.GetAtoms()):
+        while remaining and atom.GetFormalCharge() < 0:
+            trial = Chem.RWMol(editable)
+            target = trial.GetAtomWithIdx(atom.GetIdx())
+            target.SetFormalCharge(target.GetFormalCharge() + 1)
+            target.SetNumExplicitHs(target.GetTotalNumHs() + 1)
+            target.SetNoImplicit(True)
+            try:
+                Chem.SanitizeMol(trial)
+            except Exception:
+                break
+            editable = trial
+            atom = editable.GetAtomWithIdx(atom.GetIdx())
+            remaining -= 1
+    if remaining == count:
+        return None
+    return namer(".".join([Chem.MolToSmiles(editable.GetMol()), *["[H+]"] * remaining]))

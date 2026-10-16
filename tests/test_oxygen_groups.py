@@ -597,6 +597,19 @@ def test_adduct_with_inorganic_components(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCN.[Cl-].[H+]", "ethanamine—hydrogen chloride (1/1)", id="hydron_on_a_halide"),
+        pytest.param("CCN.O=P([O-])(O)O.[H+]", "ethanamine—phosphoric acid (1/1)", id="hydron_on_an_oxoacid_anion"),
+        pytest.param("CCN.[H+].[H+].[Cl-]", "ethanamine—hydrogen chloride—hydron (1/1/1)", id="hydron_left_over_is_a_component"),
+    ],
+)
+def test_hydron_beside_a_neutral_base_and_an_anion_is_the_acid_of_the_anion(smiles, expected):
+    with pytest.warns(NonPreferredNameWarning):
+        assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("COO", "methaneperoxol"),
