@@ -715,7 +715,9 @@ def _name_isotope_label(mol) -> str:
             return name_guanidine(mol)
         except UnsupportedStructure:
             pass
-    if split is not None and (has_amino_acid_shape(split[0]) or has_inorganic_acid_derivative_shape(split[0])):
+    if split is not None and (
+        has_amino_acid_shape(split[0]) or has_inorganic_acid_derivative_shape(split[0]) or has_sulfuric_amide_shape(split[0])
+    ):
         try:
             return _name_labelled_substituents(mol)
         except UnsupportedStructure:
@@ -793,19 +795,20 @@ def _name_labelled_substituents(mol):
     try:
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
-            name, partial = None, None
-            for namer in (name_chalcogen_imide, _name_mol, name_polynuclear_oxoacid, name_chalcogen_chain_heterone):
+            name, partial, failure = None, None, None
+            for namer in (name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS):
                 context["consumed"].clear()
                 try:
                     candidate = namer(clean)
-                except UnsupportedStructure:
-                    if namer is name_chalcogen_chain_heterone and partial is None:
-                        raise
+                except UnsupportedStructure as error:
+                    failure = error if namer is _name_mol else failure
                     continue
                 if not set(labels) - context["consumed"]:
                     name, partial = candidate, None
                     break
                 partial = partial or (candidate, set(context["consumed"]))
+            if name is None and partial is None:
+                raise failure or UnsupportedStructure("this isotopically modified structure is not supported yet")
             if name is None:
                 name = partial[0]
                 context["consumed"].clear()
@@ -1500,6 +1503,35 @@ def _name_hydride_onium(mol):
     return name_hydride_onium(mol)
 
 
+_FALLBACK_NAMERS = (
+    name_chalcogen_aldehyde,
+    name_carbonic_hydrazide,
+    name_chalcogen_hydrazide,
+    name_ring_nitrogen_hydrazide,
+    name_condensed_guanidine,
+    name_ring_heteroatom_nitrile,
+    name_polynuclear_oxoacid,
+    name_halogen_amide,
+    name_halogen_acid_ester,
+    name_halogen_oxo,
+    name_hydrazine_with_heteroatom_groups,
+    name_polyfunctional,
+    name_guanidine,
+    name_urea,
+    name_thiourea,
+    name_selenourea,
+    name_tellurourea,
+    name_carbamate_ester,
+    _name_o_substituted_hydroxylamine,
+    _name_hydride_onium,
+    _name_chain_onium,
+    name_anion,
+    name_carbonic_ester_anion,
+    name_ester_by_parts,
+    name_chalcogen_chain_heterone,
+)
+
+
 def _run_fallbacks(smiles, original):
     mol = _parse_smiles(smiles)
     key = Chem.MolToSmiles(mol)
@@ -1519,33 +1551,7 @@ def _run_fallbacks(smiles, original):
                 continue
             if name is not None:
                 return name
-        for fallback in (
-            name_chalcogen_aldehyde,
-            name_carbonic_hydrazide,
-            name_chalcogen_hydrazide,
-            name_ring_nitrogen_hydrazide,
-            name_condensed_guanidine,
-            name_ring_heteroatom_nitrile,
-            name_polynuclear_oxoacid,
-            name_halogen_amide,
-            name_halogen_acid_ester,
-            name_halogen_oxo,
-            name_hydrazine_with_heteroatom_groups,
-            name_polyfunctional,
-            name_guanidine,
-            name_urea,
-            name_thiourea,
-            name_selenourea,
-            name_tellurourea,
-            name_carbamate_ester,
-            _name_o_substituted_hydroxylamine,
-            _name_hydride_onium,
-            _name_chain_onium,
-            name_anion,
-            name_carbonic_ester_anion,
-            name_ester_by_parts,
-            name_chalcogen_chain_heterone,
-        ):
+        for fallback in _FALLBACK_NAMERS:
             try:
                 name = fallback(mol)
             except UnsupportedStructure:
@@ -1816,7 +1822,8 @@ def _name_mol(mol) -> str:
     # before this shape's own num_rings==3..6 check would run if it stayed
     # down with the other ring modules further below.
     boron_acid = has_boronic_acid_shape(mol) or has_borinic_acid_shape(mol)
-    if 3 <= mol.GetRingInfo().NumRings() <= 6 and not boron_acid:
+    acid_centre = boron_acid or has_phosphonic_acid_shape(mol) or has_phosphinic_acid_shape(mol)
+    if 3 <= mol.GetRingInfo().NumRings() <= 6 and not acid_centre:
         ring_assembly_chain_core = find_ring_assembly_chain_core(mol)
         if ring_assembly_chain_core is not None:
             return name_ring_assembly_chain(mol, ring_assembly_chain_core)
@@ -1829,7 +1836,7 @@ def _name_mol(mol) -> str:
     # 6-membered aromatic carbocycle and doesn't require the rings to be
     # fused, so it would otherwise claim the benzo case too and then fail in
     # name_aromatic_fused's ring-fusion-graph validation).
-    if mol.GetRingInfo().NumRings() == 2 and not boron_acid:
+    if mol.GetRingInfo().NumRings() == 2 and not acid_centre:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
