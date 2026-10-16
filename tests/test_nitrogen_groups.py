@@ -1150,7 +1150,7 @@ def test_phenyl_nitroso_chain():
         pytest.param("C=CN1CCCCC1", "1-ethenylpiperidine", id="unsaturated_n_substituent__ring_amine"),
         pytest.param("CN1CC(C)C(C)C1", "1,3,4-trimethylpyrrolidine", id="ring_amine_two_ring_carbon_substituents"),
         pytest.param("CS(=O)(=O)N1CCC(C)CC1", "1-(methanesulfonyl)-4-methylpiperidine", id="ring_amine_sulfonyl_with_ring_carbon_substituent"),
-        pytest.param("CS(=O)(=O)N1CCOCC1", "4-methylsulfonylmorpholine", id="methylsulfonylmorpholine"),
+        pytest.param("CS(=O)(=O)N1CCOCC1", "4-(methanesulfonyl)morpholine", id="methanesulfonylmorpholine"),
         pytest.param("NC(=O)N", "urea", id="urea"),
         pytest.param("CNC(=O)N", "methylurea", id="n_methylurea"),
         pytest.param("CN(C)C(=O)N", "N,N-dimethylurea", id="n_n_dimethylurea_same_nitrogen"),
