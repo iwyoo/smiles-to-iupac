@@ -186,6 +186,16 @@ def unprimed_first(n1_names, n2_names):
     return key(n1_names) <= key(n2_names)
 
 
+def unprimed_first_labelled(n1_idx, n2_idx, n1_names, n2_names, labels):
+    """`unprimed_first` for nitrogens that may carry nuclides: of two otherwise equivalent nitrogens the labelled one takes
+    the unprimed locant (P-14.3.5)."""
+    if n1_names != n2_names:
+        return unprimed_first(n1_names, n2_names)
+    if n1_idx in labels and n2_idx in labels and labels[n1_idx] != labels[n2_idx]:
+        raise UnsupportedStructure("differently modified equivalent amino nitrogens are not supported yet")
+    return n1_idx in labels or n2_idx not in labels
+
+
 @dataclass(frozen=True)
 class Chalcogenourea:
     atomic_num: int

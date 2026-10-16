@@ -43,8 +43,15 @@ substituent, and the imino nitrogen takes N''. A ring fused to the guanidine cor
 
 from rdkit import Chem
 
-from ._chalcogenourea import is_core_substituent_root, is_urea_substituent_root, n_substituent_names, unprimed_first
+from ._chalcogenourea import (
+    is_core_substituent_root,
+    is_urea_substituent_root,
+    n_substituent_names,
+    unprimed_first,
+    unprimed_first_labelled,
+)
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents, multiplied_word
+from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
 from ._substituents import format_substituent_prefixes
 from ._urea import _is_hydrazine_tail
 
@@ -243,7 +250,33 @@ def _hydrazinecarboximidamide_name(mol, core):
     return f"{format_substituent_prefixes(grouped) if grouped else ''}hydrazine{'-1-' if numbered else ''}carboximidamide"
 
 
+def _labelled_guanidine_name(mol, labels):
+    """Guanidine with hydrogen nuclides on its nitrogens: the descriptor with their N, N', N'' locants stands in front of
+    the retained name (P-82.2.5, P-66.4.1.2.1.1); of two equivalent amino nitrogens the labelled one takes the unprimed
+    locant (P-14.3.5)."""
+    core = _guanidine_core(mol)
+    if core is None or len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("only a plain guanidine core can carry nuclide labels on its nitrogens here")
+    carbon_idx, imino_idx, (n1_idx, n2_idx) = core
+    if set(labels) - {n1_idx, n2_idx, imino_idx}:
+        raise UnsupportedStructure("only the three nitrogens of a guanidine can carry nuclide labels here")
+    n1_names, n2_names, imino_names = n_substituent_names(
+        mol, adjacency(mol), {carbon_idx, imino_idx, n1_idx, n2_idx}, (n1_idx, n2_idx, imino_idx), carbon_idx, junior_groups=True
+    )
+    first = unprimed_first_labelled(n1_idx, n2_idx, n1_names, n2_names, labels)
+    (unprimed, primed), (unprimed_names, primed_names) = (
+        ((n1_idx, n2_idx), (n1_names, n2_names)) if first else ((n2_idx, n1_idx), (n2_names, n1_names))
+    )
+    locant = {unprimed: "N", primed: "N'", imino_idx: "N''"}
+    nuclides = nitrogen_hydrogen_descriptor(mol, {n: (locant[n], entry) for n, entry in sorted(labels.items(), key=lambda i: locant[i[0]])})
+    prefixes = format_substituent_prefixes(group_substituents({k: v for k, v in {"N": unprimed_names, "N'": primed_names, "N''": imino_names}.items() if v}))
+    return f"{prefixes}{nuclides}guanidine"
+
+
 def name_guanidine(mol) -> str:
+    split = split_isotopes(mol)
+    if split is not None:
+        return _labelled_guanidine_name(*split[:2])
     core = _guanidine_core(mol)
     if core is None and len(Chem.GetMolFrags(mol)) == 1:
         hydrazine_core = _guanidine_core(mol, hydrazine=True)
