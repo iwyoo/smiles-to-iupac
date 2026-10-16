@@ -498,7 +498,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if name == "methoxy" or (mol is not None and _labelled_ether_oxygen(mol, root, labelled, name)):
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
-        return text + name, False
+        return text + name, compound
     if name == "cyano" and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
         context["consumed"].update(labelled)
         return descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity) + name, False
