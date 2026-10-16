@@ -44,7 +44,7 @@ def is_core_substituent_root(mol, atom):
     )
 
 
-_UREA_SUBSTITUENT_ELEMENTS = {6, 7, 8, 16, 34, 52, *HALOGEN_PREFIXES}
+_UREA_SUBSTITUENT_ELEMENTS = {5, 6, 7, 8, 14, 15, 16, 32, 34, 50, 52, *HALOGEN_PREFIXES}
 
 
 def is_urea_substituent_root(mol, atom):

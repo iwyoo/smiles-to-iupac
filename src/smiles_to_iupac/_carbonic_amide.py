@@ -148,9 +148,10 @@ def cyanamide_name(mol):
 
 
 def carbonohydrazonic_diamide_name(mol):
-    """C(=N-NH2)(NH2)2 with carbon groups on its nitrogens (P-66.4.2.2): N and N' on the two amide nitrogens, N'' on
-    the terminal hydrazone nitrogen, as the locants of an amidrazone follow the nitrogens in the order of the group."""
-    if not _plain(mol):
+    """C(=N-NH2)(NH2)2 with groups on its nitrogens (P-66.4.2.2): N and N' on the two amide nitrogens, N'' on the
+    terminal hydrazone nitrogen, as the locants of an amidrazone follow the nitrogens in the order of the group; the
+    configuration of the C=N bond is cited as (1E) or (1Z) when the two amide nitrogens differ (P-93.4.2.1.3)."""
+    if not _plain(mol, stereo=True):
         return None
     graph = adjacency(mol)
     for carbon in mol.GetAtoms():
@@ -173,25 +174,36 @@ def carbonohydrazonic_diamide_name(mol):
             continue
         if any(n.GetAtomicNum() == 7 for amide in nitrogens[:2] for n in amide.GetNeighbors() if n.GetIdx() != carbon.GetIdx()):
             continue
-        found = []
-        used = {carbon.GetIdx(), imine.GetIdx(), terminal.GetIdx(), *amides}
-        for nitrogen, skip in ((nitrogens[0], {carbon.GetIdx()}), (nitrogens[1], {carbon.GetIdx()}), (terminal, {imine.GetIdx()})):
-            arms = _hydrocarbon_arms(mol, graph, nitrogen.GetIdx(), skip)
-            if arms is None:
-                break
-            found.append(arms[0])
-            used |= arms[1]
-        else:
-            if len(used) != mol.GetNumAtoms():
-                continue
-            first, second = sorted(found[:2], key=lambda names: (-len(names), sorted(name for name, _ in names)))
-            grouped = {}
-            for locant, names in (("N", first), ("N'", second), ("N''", found[2])):
-                for name, compound in names:
-                    grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
-            head = format_substituent_prefixes(grouped) if grouped else ""
-            return f"{head}carbonohydrazonic diamide"
+        core = {carbon.GetIdx(), imine.GetIdx(), terminal.GetIdx(), *amides}
+        try:
+            found = n_substituent_names(
+                mol, graph, core, tuple(n.GetIdx() for n in nitrogens), carbon.GetIdx(), junior_groups=True
+            )
+        except UnsupportedStructure:
+            continue
+        if _has_stereo(mol) and not _only_imine_configuration(mol, imine, carbon):
+            continue
+        first, second = sorted(found[:2], key=lambda names: (-len(names), sorted(name for name, _ in names)))
+        grouped = {}
+        for locant, names in (("N", first), ("N'", second), ("N''", found[2])):
+            for name, compound in names:
+                grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+        head = format_substituent_prefixes(grouped) if grouped else ""
+        return f"{_imine_configuration(mol)}{head}carbonohydrazonic diamide"
     return None
+
+
+def _only_imine_configuration(mol, imine, carbon):
+    stereo = [e for e in Chem.FindPotentialStereo(mol) if e.specified == Chem.StereoSpecified.Specified]
+    bond = mol.GetBondBetweenAtoms(imine.GetIdx(), carbon.GetIdx())
+    return all(e.type == Chem.StereoType.Bond_Double and e.centeredOn == bond.GetIdx() for e in stereo)
+
+
+def _imine_configuration(mol):
+    from ._common import specified_double_bond_stereo
+
+    stereo = specified_double_bond_stereo(mol)
+    return f"(1{stereo[0][1]})-" if stereo else ""
 
 
 def _carbonyl_chalcogen(atom):
