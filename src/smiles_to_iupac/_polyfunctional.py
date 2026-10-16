@@ -12,6 +12,7 @@ from collections import Counter
 from types import MappingProxyType
 import re
 
+import networkx as nx
 from rdkit import Chem, rdBase
 from rdkit.Chem import CanonicalRankAtoms
 
@@ -1101,6 +1102,8 @@ def _ring_center_base(mol):
         and not _is_chain_amine_oxide_part(a)
     ]
     centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
+    if len(centers) > 1:
+        return _ring_oxide_centres(mol, centers, charged)
     if len(centers) != 1 or len(charged) - len(centers) > 1:
         return None
     center = centers[0]
@@ -1144,6 +1147,51 @@ def _ring_center_base(mol):
         if center.GetIsAromatic():
             base.GetAtomWithIdx(index).SetBoolProp("_ring_cation_centre", True)
     return base, index, "oxide" if oxides else "ium", probe
+
+
+def _oxidized_set_is_fixed(mol, members, centre_atoms):
+    """Whether every symmetry of the ring atoms (matched by element) maps the oxidized nitrogens onto themselves, so that
+    all permitted numberings give them the same locants."""
+    from networkx.algorithms import isomorphism
+
+    graph = nx.Graph()
+    graph.add_nodes_from((i, {"z": mol.GetAtomWithIdx(i).GetAtomicNum()}) for i in members)
+    graph.add_edges_from((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds() if {b.GetBeginAtomIdx(), b.GetEndAtomIdx()} <= members)
+    matcher = isomorphism.GraphMatcher(graph, graph, node_match=lambda a, b: a["z"] == b["z"])
+    return all({m[c] for c in centre_atoms} == centre_atoms for m in matcher.isomorphisms_iter())
+
+
+def _ring_oxide_centres(mol, centers, charged):
+    """(neutral analogue, [centre atoms in it], 'oxide', None) for several N-oxides on ring nitrogens whose set the symmetry of
+    the ring atoms cannot change, so that the parent numbering alone fixes the locants (P-62.5, P-74.2.1.2); None otherwise."""
+    if len(charged) != 2 * len(centers) or mol.GetNumAtoms() > _MAX_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    oxides = []
+    charged_atoms = {a.GetIdx() for a in charged}
+    for center in centers:
+        found = [
+            n
+            for n in center.GetNeighbors()
+            if n.GetFormalCharge() == -1 and n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetIdx() in charged_atoms
+        ]
+        if len(found) != 1:
+            return None
+        oxides.append(found[0].GetIdx())
+    members = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    centre_atoms = {c.GetIdx() for c in centers}
+    if not centre_atoms <= members or not _oxidized_set_is_fixed(mol, members, centre_atoms):
+        return None
+    neutral = Chem.RWMol(mol)
+    for center in centers:
+        atom = neutral.GetAtomWithIdx(center.GetIdx())
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(center.GetTotalNumHs())
+    for oxide in sorted(oxides, reverse=True):
+        neutral.RemoveAtom(oxide)
+    base = neutral.GetMol()
+    Chem.SanitizeMol(base)
+    return base, [c.GetIdx() - sum(1 for o in oxides if o < c.GetIdx()) for c in centers], "oxide", None
 
 
 _CENTRE_MARKERS = ((35, "bromo"), (17, "chloro"), (9, "fluoro"), (53, "iodo"))
@@ -1192,6 +1240,20 @@ def _without_marker(name, locant, word):
     return text
 
 
+def _attach_oxides(name, placed, centers):
+    from ._pin import mark
+    from ._substituents import _locant_sort_key
+
+    locants = [placed.get(c) for c in centers]
+    if None in locants or " " in name:
+        raise UnsupportedStructure("the ring nitrogens are not numbered in the parent hydride")
+    word = {2: "dioxide", 3: "trioxide", 4: "tetraoxide"}.get(len(centers))
+    if word is None:
+        raise UnsupportedStructure("this many N-oxides are not named here")
+    text = ",".join(str(x) for x in sorted(locants, key=_locant_sort_key))
+    return mark(f"{name} {text}-{word}", "the Blue Book generates the preferred name of two or more amine oxides by the lambda-convention (P-74.2.1.2)")
+
+
 def _attach(name, placed, center, kind):
     locant = placed.get(center)
     if locant is None or " " in name:
@@ -1205,6 +1267,8 @@ def _attach(name, placed, center, kind):
 
 def _name_labelled_ring_center(clean, labels, found):
     base, center, kind, probe = found
+    if isinstance(center, list):
+        raise UnsupportedStructure("an isotopic modification of several N-oxides is not supported yet")
     shift = clean.GetNumAtoms() - base.GetNumAtoms()
     removed = next((a.GetIdx() for a in clean.GetAtoms() if a.GetFormalCharge() == -1 and a.GetAtomicNum() == 8), None)
     if shift and removed is None:
@@ -1385,6 +1449,18 @@ def _ylium_inserted(name, base, center, placed):
 def _name_ring_center(base, center, kind, probe=None, labels=None):
     from ._diester_ring_diyl import _system_of
 
+    if isinstance(center, list):
+        if labels:
+            raise UnsupportedStructure("an isotopic modification of several N-oxides is not supported yet")
+        token = RING_CENTER.set(True)
+        cation_token = CATION_PARENT.set(True)
+        atom_token = CATION_RING_ATOM.set(center[0])
+        try:
+            return _name_labelled(base, {}, lambda name, placed: _attach_oxides(name, placed, center))
+        finally:
+            CATION_RING_ATOM.reset(atom_token)
+            CATION_PARENT.reset(cation_token)
+            RING_CENTER.reset(token)
     if kind == "ium" and any(_anionic_group_atom(base, a) or a.HasProp(ANION_PROP) for a in base.GetAtoms()):
         marked = Chem.Mol(base)
         marked.GetAtomWithIdx(center).SetBoolProp(CATION_INSERT_PROP, True)
