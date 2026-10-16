@@ -781,6 +781,24 @@ def test_multiplier_of_identical_ester_groups_of_a_phosphorus_acid(smiles, expec
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-41, P-42, P-67.1.3.2: a dimethylphosphinate ester is junior to the esters of carbon and sulfur acids, to acids, cations and carbon-acid
+# esters of cyanic acid, and its phosphinoyl group is a prefix of whatever outranks it
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C(OS(=O)(=O)C)CCOP(=O)(C)C", "3-[(dimethylphosphinoyl)oxy]propyl methanesulfonate", id="sulfonate_ester"),
+        pytest.param("C(SC#N)CCOP(=O)(C)C", "3-[(dimethylphosphinoyl)oxy]propyl thiocyanate", id="thiocyanate_ester"),
+        pytest.param("c1(OC(=O)C)ccc(OP(=O)(C)C)cc1", "4-[(dimethylphosphinoyl)oxy]phenyl acetate", id="carboxylic_ester_on_a_ring"),
+        pytest.param("c1(C=NO)ccc(OP(=O)(C)C)cc1", "4-(N-hydroxymethanimidoyl)phenyl dimethylphosphinate", id="oxime_on_the_ring_stays_a_prefix"),
+        pytest.param("c1([N+](C)(C)C)ccc(OP(=O)(C)C)cc1", "4-[(dimethylphosphinoyl)oxy]-N,N,N-trimethylanilinium", id="cation_outranks_the_ester"),
+        pytest.param("C(P(=O)(O)O)CCP(=O)(C)C", "[3-(dimethylphosphinoyl)propyl]phosphonic acid", id="phosphonic_acid_outranks_a_phosphine_oxide"),
+        pytest.param("OB(O)c1ccc(OP(=O)(C)C)cc1", "{4-[(dimethylphosphinoyl)oxy]phenyl}boronic acid", id="boronic_acid_outranks_the_ester"),
+    ],
+)
+def test_phosphinate_beside_a_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-41, P-65.6.3, P-67.1.3.2: the ester of the senior acid is the parent, the phosphate a (phosphonooxy) prefix, and an amide or an acid halide on the organyl group (classes 11 and 10, below the ester) a prefix too
 @pytest.mark.parametrize(
     "smiles, expected",

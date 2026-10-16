@@ -414,6 +414,10 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 phosphoryl_nodes.add(node)
                 record(node, *replaced)
                 continue
+            if any(mol.GetAtomWithIdx(k).GetAtomicNum() == 6 for k in kids):
+                record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol, unsaturated=True))
+                phosphoryl_nodes.add(node)
+                continue
             group = phosphoryl_name(_phosphoryl_parts(mol, node, parent, kids, named, _bond_order))
             phosphoryl_nodes.add(node)
             record(node, group, group != "phosphono")
@@ -526,6 +530,14 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 and len(kids) == 1
                 and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 6
                 and _bond_order(mol, node, kids[0]) == 1.0
+            ):
+                continue
+            if (
+                bond == 2.0
+                and z == 7
+                and not atom.IsInRing()
+                and mol.GetAtomWithIdx(parent).GetAtomicNum() == 6
+                and all(_bond_order(mol, node, k) == 1.0 for k in kids)
             ):
                 continue
             if bond != 1.0 or any(_bond_order(mol, node, k) != 1.0 for k in kids):

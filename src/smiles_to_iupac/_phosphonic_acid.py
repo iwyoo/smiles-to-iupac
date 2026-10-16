@@ -84,7 +84,7 @@ def acid_centre_rank(mol, atom):
             organyl += 1
         else:
             return None
-    if not oxo and not hydroxyl:
+    if not hydroxyl:
         return _ELEMENT_RANK[atom.GetAtomicNum()], len(_ACID_CLASS_RANK)
     if hydroxyl + organyl != 3 or (oxo, hydroxyl) not in _ACID_CLASS_RANK:
         return None
