@@ -656,7 +656,11 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
 
 
 _CENTER_ACIDS = ("phosphonic acid", "arsonic acid", "stibonic acid", "phosphonous acid", "arsonous acid", "stibonous acid")
-_HYDRIDE_ENDINGS = ("phosphane", "arsane", "silane", "germane", "stannane", "plumbane")
+_HYDRIDE_STEMS = ("phosphane", "arsane", "silane", "germane", "stannane", "plumbane")
+_HETERONE_SUFFIXES = ("one", "thione", "selone", "tellone")
+_HYDRIDE_ENDINGS = _HYDRIDE_STEMS + tuple(
+    (stem[:-1] if suffix[0] in "aeiou" else stem) + suffix for stem in _HYDRIDE_STEMS for suffix in _HETERONE_SUFFIXES
+)
 _HYDRIDE_ORDER = (15, 33, 14, 32, 50, 82)
 _MULTIPLIED_HYDRIDE = re.compile(r"^(?:di|tri|tetra|penta|hexa|hepta|octa)(?:phosphane|arsane|silane|germane|stannane|plumbane)$")
 
