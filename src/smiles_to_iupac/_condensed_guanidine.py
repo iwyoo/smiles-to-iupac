@@ -5,7 +5,7 @@ skeletal replacement ('a') names 'triimino-tetraazanonane-diimidamide'."""
 from rdkit import Chem
 
 from ._chalcogenourea import has_group_senior_to_urea, unprimed_first
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, assign_cip_labels, halogen_substituents
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -129,17 +129,39 @@ def _substituted_name(mol, order, bridges):
             raise UnsupportedStructure("an unusual condensed guanidine tautomer is not supported yet")
         units.append(_unit_entries(mol, graph, carbon, terminals, halogens, aromatic_atoms))
     best = None
-    for direction in (units, units[::-1]):
+    for carbons, direction in ((order, units), (order[::-1], units[::-1])):
         located = sorted(
             ((2 * index + 1, prime), name, compound)
             for index, entries in enumerate(direction)
             for prime, name, compound in entries
         )
-        key = ([place for place, _, _ in located], [alpha_sort_key(name) for _, name, _ in located])
+        double_bonds = _configuration(mol, carbons)
+        key = (
+            [place for place, _, _ in located],
+            [alpha_sort_key(name) for _, name, _ in located],
+            [index for index, code in double_bonds if code == "Z"],
+            [index for index, _ in double_bonds],
+        )
         if best is None or key < best[0]:
-            best = (key, located)
+            best = (key, located, double_bonds)
     positions = {}
     for (digit, prime), name, compound in best[1]:
         positions.setdefault(name, {"locants": [], "compound": compound})["locants"].append(f"N{prime}{digit}")
     prefix = format_substituent_prefixes(positions) if positions else ""
-    return f"{prefix}{_ACID_STEMS[len(order)]} diamide"
+    cited = ",".join(f"{2 * index + 1}{code}" for index, code in best[2])
+    return f"{f'({cited})-' if cited else ''}{prefix}{_ACID_STEMS[len(order)]} diamide"
+
+
+def _configuration(mol, carbons):
+    """[(position of the guanidine carbon in `carbons`, CIP code)] of the specified C=N double bonds, which are cited
+    with the locant of the carbon in front of the name (P-93.4.2.1.3)."""
+    assign_cip_labels(mol)
+    found = []
+    for element in Chem.FindPotentialStereo(mol):
+        if element.type != Chem.StereoType.Bond_Double or element.specified != Chem.StereoSpecified.Specified:
+            continue
+        bond = mol.GetBondWithIdx(element.centeredOn)
+        carbon = next((a.GetIdx() for a in (bond.GetBeginAtom(), bond.GetEndAtom()) if a.GetIdx() in carbons), None)
+        if carbon is not None and bond.HasProp("_CIPCode"):
+            found.append((carbons.index(carbon), bond.GetProp("_CIPCode")))
+    return sorted(found)
