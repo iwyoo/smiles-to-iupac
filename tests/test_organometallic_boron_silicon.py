@@ -106,30 +106,27 @@ def test_asymmetric_substituents():
     assert smiles_to_iupac("CC(C)B(C)O") == "methyl(propan-2-yl)borinic acid"
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C[SiH2]CB(C)O", id="unrecognized_heteroatom"),
-    ],
-)
-def test_rejects_second_borinic_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_benzene_ring():
     assert smiles_to_iupac("c1ccccc1B(O)O") == "phenylboronic acid"
 
 
+# P-68.1.4, P-41: boron acids outrank imines, esters, acid halides and the element classes, which become prefixes
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("OB(O)C[SiH3]", id="unrecognized_heteroatom__boronic_acid"),
+        ("C(C=NO)CCB(O)O", "[4-(hydroxyimino)butyl]boronic acid"),
+        ("OB(O)c1ccc(C=NO)cc1", "[4-(N-hydroxymethanimidoyl)phenyl]boronic acid"),
+        ("C(B(O)O)CCS(=O)(=O)Cl", "[3-(chlorosulfonyl)propyl]boronic acid"),
+        ("C(B(O)O)CCS(=O)(=O)OC", "[3-(methoxysulfonyl)propyl]boronic acid"),
+        ("C(B(O)O)CCOC(=O)OC", "{3-[(methoxycarbonyl)oxy]propyl}boronic acid"),
+        ("OB(O)CC[Si](C)(C)C", "[2-(trimethylsilyl)ethyl]boronic acid"),
+        ("C(B(O)O)CC[Se]C", "[3-(methylselanyl)propyl]boronic acid"),
+        ("CB(O)CCOC(=O)OC", "{2-[(methoxycarbonyl)oxy]ethyl}(methyl)borinic acid"),
+        ("OB(O)CCP(=O)(O)O", "(2-boronoethyl)phosphonic acid"),
     ],
 )
-def test_rejects_second_boronic_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_boron_acids_outrank_imine_ester_and_element_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
