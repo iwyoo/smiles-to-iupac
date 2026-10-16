@@ -12,11 +12,10 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
-    heteroatom_stereo_prefix,
     multiplied_word,
 )
 from ._multiplicative_text import enclose
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import cited_centre_stereo, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _PARENT = {16: "sulfane", 34: "selane", 52: "tellane"}
 _ONE = {8: "one", 16: "thione", 34: "selone", 52: "tellone"}
@@ -158,7 +157,10 @@ def name_chalcogen_imide(mol) -> str:
     found = _find(mol)
     if found is None:
         raise UnsupportedStructure("no chalcogen imide shape found")
-    return (heteroatom_stereo_prefix(mol, found[0].GetIdx()) or "") + _name(mol, *found)
+    center, imines, chalcogens, _ = found
+    ligands = [a.GetIdx() for a in (*imines, *chalcogens)]
+    with cited_centre_stereo(mol, center.GetIdx(), ligands) as prefix:
+        return prefix + _name(mol, *found)
 
 
 def _name(mol, center, imines, chalcogens, carbons) -> str:
