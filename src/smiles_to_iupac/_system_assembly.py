@@ -65,8 +65,8 @@ def _systems(mol):
 _HYDRO_HEAD = re.compile(r"^(?:[\d,a-z]+-)?(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca|undeca|dodeca)?hydro-?")
 
 
-def _stem(numbering):
-    if numbering.added:
+def _stem(numbering, carries_suffix=False):
+    if numbering.added and not carries_suffix:
         return None
     if numbering.stem:
         return re.sub(r"^\d+[a-z]*H(?:,\d+[a-z]*H)*-", "", numbering.stem)
@@ -85,11 +85,15 @@ def _fully_hydro(numbering):
     return numbering.fully_hydro or bool(re.match(r"^(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca|undeca|dodeca)hydro", numbering.text((), 0, frozenset(), "")))
 
 
-def _lit_hydrogens(mol, numbering):
-    """Indicated-hydrogen positions that still carry a hydrogen: a junction atom whose only hydrogen was
-    replaced by the bond between the components needs none (P-28.2.3)."""
+def _lit_hydrogens(mol, numbering, join=()):
+    """Indicated-hydrogen positions of a fused component, except a junction atom whose only hydrogen was replaced by the
+    bond between the components (P-28.2.3); a substituted or oxo position keeps its indicated hydrogen (P-31.1.4.2.4)."""
     atom_of = {p: a for a, p in numbering.position_of.items()}
-    return [p for p in numbering.ih_positions if mol.GetAtomWithIdx(atom_of[p]).GetTotalNumHs() > 0]
+    return [
+        p
+        for p in numbering.ih_positions
+        if atom_of[p] not in join or mol.GetAtomWithIdx(atom_of[p]).GetTotalNumHs() > 0
+    ]
 
 
 def _lit(mol, numbering, positions, monocycles, join=()):
@@ -98,7 +102,7 @@ def _lit(mol, numbering, positions, monocycles, join=()):
     a substituent in its place, or carries =O (a pseudoketone, P-64.3.1): the junction atoms and the positions of double
     bonds need none. A ring without =O is read in its Kekule form, so the NH of an azole is saturated."""
     if not monocycles:
-        return _lit_hydrogens(mol, numbering) + list(positions)
+        return _lit_hydrogens(mol, numbering, join) + list(positions)
     ring = set(numbering.position_of)
     aromatic_is_double = any(
         b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtomIdx(a) not in ring
@@ -289,14 +293,14 @@ def system_assembly(
     suffix_atoms = {o[1] for o in occurrences}
 
     def carries_suffix(numbering):
-        return monocycles and not ylidene and not frees and bool(suffix_atoms & set(numbering.position_of))
+        return not ylidene and not frees and bool(suffix_atoms & set(numbering.position_of))
 
     best = None
     for unprimed in (0, 1):
         for first in numbered[unprimed]:
-            stem_first = _stem(first)
+            stem_first = _stem(first, carries_suffix(first))
             for second in numbered[1 - unprimed]:
-                stem_second = _stem(second)
+                stem_second = _stem(second, carries_suffix(second))
                 if monocycles:
                     hydro_first = tuple(first.hydro_positions) if carries_suffix(first) else ()
                     hydro_second = tuple(second.hydro_positions) if carries_suffix(second) else ()
@@ -317,7 +321,7 @@ def system_assembly(
                         if monocycles and ylidene
                         else None
                     )
-                    if found is None and carries_suffix(numbering):
+                    if found is None and monocycles and carries_suffix(numbering):
                         atom_of = {q: a for a, q in numbering.position_of.items()}
                         found = [q for q in numbering.ih if atom_of[q] not in join], {}
                     if found is None:

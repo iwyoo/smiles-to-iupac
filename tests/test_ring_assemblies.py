@@ -195,6 +195,7 @@ def test_4_chlorobiphenyl_and_related(smiles, expected):
         pytest.param("Cn1ccnc1-c1ncc[nH]1", "1-methyl-1H,1'H-2,2'-biimidazole", id="substituted_nitrogen_keeps_its_indicated_hydrogen"),
         pytest.param("c1c[nH]c(n1)-c1cnc[nH]1", "1H,3'H-2,4'-biimidazole", id="lowest_attachment_locant_before_indicated_hydrogen"),
         pytest.param("Cn1nccc1-c1ccnn1C", "2,2'-dimethyl-2H,2'H-3,3'-bipyrazole", id="substituted_nitrogen_beside_the_junction"),
+        pytest.param("Cn1cc(-c2cn(C)c3ccccc23)c2ccccc12", "1,1'-dimethyl-1H,1'H-3,3'-biindole", id="substituted_nitrogen_of_a_fused_component"),
     ],
 )
 def test_azole_assembly_cites_the_indicated_hydrogen_of_both_rings(smiles, expected):
@@ -208,6 +209,8 @@ def test_azole_assembly_cites_the_indicated_hydrogen_of_both_rings(smiles, expec
         pytest.param("O=c1[nH]c(-c2ccc(=O)[nH]c2)ccc1", "[2,3'-bipyridine]-6,6'(1H,1'H)-dione", id="added_hydrogen_after_the_suffix_locants"),
         pytest.param("S=c1[nH]nc(-c2n[nH]c(=S)s2)s1", "[2,2'-bi(1,3,4-thiadiazole)]-5,5'(4H,4'H)-dithione", id="sulfanylidene_suffixes"),
         pytest.param("O=c1ccn(-c2ccc(=O)[nH]c2)cc1", "[1,3'-bipyridine]-4,6'(1H,1'H)-dione", id="junction_on_the_ring_nitrogen_keeps_its_added_hydrogen"),
+        pytest.param("O=c1[nH]c2ccccc2cc1-c1cc2ccccc2[nH]c1=O", "[3,3'-biquinoline]-2,2'(1H,1'H)-dione", id="added_hydrogen_of_fused_components"),
+        pytest.param("O=c1oc2ccccc2cc1-c1cc2ccccc2oc1=O", "2H,2'H-[3,3'-bi(1-benzopyran)]-2,2'-dione", id="indicated_hydrogen_at_the_suffix_of_fused_components"),
         pytest.param("O=c1ccc(-c2ccc(=O)oc2)co1", "6H,6'H-[3,3'-bipyran]-6,6'-dione", id="indicated_hydrogen_accommodates_the_suffix"),
         pytest.param(
             "O=c1cc(-c2cc(=O)[nH][nH]2)[nH][nH]1",
