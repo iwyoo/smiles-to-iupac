@@ -722,6 +722,7 @@ _P72_ANIONS = [
     ("C=C[S-]", "ethenethiolate"),
     ("P=C[S-]", "phosphanylidenemethanethiolate"),
     ("CN(C)[O-]", "dimethylaminoxide"),
+    ("C/C=C\\C(C)N(C)[O-]", "methyl[(3Z)-pent-3-en-2-yl]aminoxide"),
     ("CO[O-]", "methaneperoxolate"),
     ("CCS[O-]", "ethane(SO-thioperoxolate)"),
     ("[O-]OCCO[O-]", "ethane-1,2-bis(peroxolate)"),

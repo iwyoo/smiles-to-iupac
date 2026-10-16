@@ -116,15 +116,7 @@ def _single_center_special(mol, center):
         if named is not None:
             return named
     if z == 8 and charge == 1 and len(heavy) == 1 and _is_plain_amino_nitrogen(heavy[0], center):
-        graph = adjacency(mol)
-        halogens = halogen_substituents(mol)
-        aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-        nitrogen = heavy[0]
-        subs = [
-            name_branch(graph, n.GetIdx(), nitrogen.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
-            for n in nitrogen.GetNeighbors()
-            if n.GetIdx() != center.GetIdx()
-        ]
+        subs = _centre_substituents(mol, heavy[0], center)
         return (format_mononuclear_prefixes(subs) if subs else "") + "aminoxide"
     return None
 
@@ -141,16 +133,21 @@ def _hydride_olate(mol, center, host):
         return None
     if sum(a.GetAtomicNum() == 8 for a in mol.GetAtoms()) != 1:
         return None
-    graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
-    aromatic_atoms = frozenset()
-    entries = [
-        name_branch(graph, n, host.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
-        for n in graph[host.GetIdx()]
-        if n != center.GetIdx()
-    ]
+    entries = _centre_substituents(mol, host, center)
     prefixes = format_mononuclear_prefixes(entries) if entries else ""
     return prefixes + _PARENTS[host.GetAtomicNum()][0] + "olate"
+
+
+def _centre_substituents(mol, host, center):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    with cited_branch_stereo(mol, graph, {host.GetIdx(), center.GetIdx()}, graph[host.GetIdx()]):
+        return [
+            name_branch(graph, n, host.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            for n in graph[host.GetIdx()]
+            if n != center.GetIdx()
+        ]
 
 
 def _is_nitro_oxygen(atom):
@@ -373,14 +370,7 @@ def center_prefix(mol, root, coming_from):
 
 
 def _imide_of_hydride(mol, center, host):
-    graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
-    aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    entries = [
-        name_branch(graph, n.GetIdx(), host.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
-        for n in host.GetNeighbors()
-        if n.GetIdx() != center.GetIdx()
-    ]
+    entries = _centre_substituents(mol, host, center)
     stem, standard = _PARENTS[host.GetAtomicNum()]
     bonds = int(sum(b.GetBondTypeAsDouble() for b in host.GetBonds()) + host.GetTotalNumHs())
     prefixes = format_mononuclear_prefixes(entries) if entries else ""
