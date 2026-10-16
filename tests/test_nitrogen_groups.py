@@ -234,6 +234,23 @@ def test_enamine_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C/C=C\\C(=C/C)CNC(N)=O", "[(2E,3Z)-2-ethylidenepent-3-en-1-yl]urea", id="ylidene_and_chain_bond_of_a_substituent_on_a_urea"),
+        pytest.param("C/C=C\\C(=C/C)CNC(C)=O", "N-[(2E,3Z)-2-ethylidenepent-3-en-1-yl]acetamide", id="substituent_on_an_amide_nitrogen"),
+        pytest.param(
+            "C=N/C=C/C/C(CCC)=C(/C)Cl",
+            "N-[(1E,4Z)-4-(1-chloroethylidene)hept-1-en-1-yl]methanimine",
+            id="ylidene_bond_of_an_alkenyl_group_on_an_imine",
+        ),
+    ],
+)
+def test_descriptors_of_an_ylidene_bearing_alkenyl_substituent(smiles, expected):
+    # P-93.4.2.1.1: the descriptor of the double bond to an ylidene group is cited with the locant of the chain atom
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("CC=C[C@H]1CCCN1", "(2R)-2-(prop-1-en-1-yl)pyrrolidine", id="nitrogen_ring"),
