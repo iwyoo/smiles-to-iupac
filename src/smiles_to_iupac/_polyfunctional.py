@@ -4267,6 +4267,10 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     von_baeyer = vb_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
     if von_baeyer is not None:
         return _without_n_prefixes(von_baeyer, n_names)
+    if occurrences and len(_joined_system_sets(mol, 2)) > 1:
+        fused = _joined_pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names)
+        if fused is not None:
+            return fused
     ring_info = mol.GetRingInfo()
     all_rings = [list(r) for r in ring_info.AtomRings()]
     if occurrences:
@@ -4293,6 +4297,28 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
             key = (-found[0], not ylidene, ring_seniority_key(mol, set(first) | set(second), assembly=True), found[1][1])
             if best is None or key < best[0]:
                 best = (key, (found[0], found[1]))
+    return best[1] if best else None
+
+
+def _joined_pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names):
+    """The assembly of two identical ring systems that hold every principal group, named by the system assembly with the
+    other ring systems of the molecule cited as substituents (P-44.1.1, P-28.2.3); None when no pair is one."""
+    from ._system_assembly import system_assembly
+
+    wanted = {o[1] for o in occurrences}
+    best = None
+    for atoms, members in _joined_system_sets(mol, 2):
+        if len(members) != 2 or not wanted <= atoms:
+            continue
+        try:
+            found = system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, within=atoms, n_names=n_names)
+        except UnsupportedStructure:
+            continue
+        if found is None:
+            continue
+        key = (-found[0], ring_seniority_key(mol, atoms, assembly=True), found[1][1])
+        if best is None or key < best[0]:
+            best = (key, found)
     return best[1] if best else None
 
 
