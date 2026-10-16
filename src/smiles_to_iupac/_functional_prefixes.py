@@ -120,7 +120,14 @@ def _acyl_prefix(mol, subtree, root, parent):
     """'-yl' name of the acyl group rooted at `root`, from its parent acid's name."""
     from .core import smiles_to_iupac
 
+    from ._isotope_labels import restore_labels
+    from ._substituents import ISOTOPE_LABELS
+
     rw = Chem.RWMol(mol)
+    context = ISOTOPE_LABELS.get()
+    centre = {n.GetIdx() for n in mol.GetAtomWithIdx(root).GetNeighbors() if n.GetDegree() == 1}
+    labelled = {a: e for a, e in context["labels"].items() if a in subtree and a not in centre} if context else {}
+    restore_labels(rw, mol, labelled)
     new_o = rw.AddAtom(Chem.Atom(8))
     rw.AddBond(root, new_o, Chem.BondType.SINGLE)
     # an ammonium group in the acid outranks it as a parent, so the acid is named as its anion beside the cation
@@ -142,8 +149,6 @@ def _acyl_prefix(mol, subtree, root, parent):
             raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
-    from ._substituents import ISOTOPE_LABELS
-
     token = SYSTEMATIC_ACID_PROBE.set(True)
     labels_token = ISOTOPE_LABELS.set(None)
     try:
@@ -155,6 +160,8 @@ def _acyl_prefix(mol, subtree, root, parent):
         probe = probe[: -len("ate")] + "ic acid"
     name = _attached_bond_descriptor(mol, sub, sorted(subtree), acyl_name(probe))
     _cite_stereo_of_acyl(mol, sub, sorted(subtree))
+    if labelled:
+        context["consumed"].update(labelled)
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
     return "oxalo" if name == "oxalyl" else name
 
