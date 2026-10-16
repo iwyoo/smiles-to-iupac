@@ -495,7 +495,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     amido = _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
     if amido is not None:
         return amido, compound
-    if name == "methoxy":
+    if name == "methoxy" or (mol is not None and _labelled_ether_oxygen(mol, root, labelled, name)):
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
         return text + name, False
@@ -578,6 +578,22 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     context["consumed"].update(labelled)
     text = descriptor(labelled, positions, omit, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
     return name[:stem_index] + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
+
+
+_ALKOXY_STEM = re.compile(r"[a-z]+oxy")
+
+
+def _labelled_ether_oxygen(mol, root, labelled, name):
+    """Whether the only labelled atom of an alkoxy or aryloxy prefix is its oxygen, so the nuclide is cited in front of
+    the whole prefix as for methoxy (P-82.2.1)."""
+    oxygen = mol.GetAtomWithIdx(root)
+    return (
+        set(labelled) == {root}
+        and oxygen.GetAtomicNum() == 8
+        and oxygen.GetDegree() == 2
+        and _ALKOXY_STEM.fullmatch(name) is not None
+        and all(n.GetAtomicNum() == 6 and not _carbonyl_carbon(mol, n.GetIdx()) for n in oxygen.GetNeighbors())
+    )
 
 
 def _carbonyl_carbon(mol, atom):
