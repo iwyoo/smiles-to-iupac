@@ -207,6 +207,7 @@ def test_azole_assembly_cites_the_indicated_hydrogen_of_both_rings(smiles, expec
     "smiles, expected",
     [
         pytest.param("O=c1[nH]c(-c2ccc(=O)[nH]c2)ccc1", "[2,3'-bipyridine]-6,6'(1H,1'H)-dione", id="added_hydrogen_after_the_suffix_locants"),
+        pytest.param("O=c1[nH]cccc1-c1c[nH]c(=O)cc1-c1ccccc1", "4'-phenyl[3,3'-bipyridine]-2,6'(1H,1'H)-dione", id="ring_substituent_beside_the_components"),
         pytest.param("S=c1[nH]nc(-c2n[nH]c(=S)s2)s1", "[2,2'-bi(1,3,4-thiadiazole)]-5,5'(4H,4'H)-dithione", id="sulfanylidene_suffixes"),
         pytest.param("O=c1ccn(-c2ccc(=O)[nH]c2)cc1", "[1,3'-bipyridine]-4,6'(1H,1'H)-dione", id="junction_on_the_ring_nitrogen_keeps_its_added_hydrogen"),
         pytest.param("O=c1[nH]c2ccccc2cc1-c1cc2ccccc2[nH]c1=O", "[3,3'-biquinoline]-2,2'(1H,1'H)-dione", id="added_hydrogen_of_fused_components"),
