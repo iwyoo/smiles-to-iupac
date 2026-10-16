@@ -945,6 +945,8 @@ def test_von_baeyer_exocyclic_double_bond_is_an_ylidene_prefix(smiles, expected)
         pytest.param("P12(=Nc3ccccc3C=N1)NC4=CC=CC=C4C=N2", "1H-2λ5,2′-spirobi[[1,3,2]benzodiazaphosphinine]", id="lambda_spiro_atom_taking_part_in_the_mancude_system"),
         pytest.param("CP12(Oc3ccccc3O1)Oc1ccccc1O2", "2-methyl-2H-2λ5,2′-spirobi[[1,3,2]benzodioxaphosphole]", id="lambda_spiro_atom_substituent_stands_for_the_indicated_hydrogen"),
         pytest.param("N1=P2(N=C[PH2]=C1)OC1=C(N2)C=CC=C1", "3H-2λ5,5′λ5-spiro[[1,3,2]benzoxazaphosphole-2,2′-[1,3,2,5]diazadiphosphinine]", id="second_lambda_atom_in_a_mancude_component"),
+        pytest.param("N[C@H]1C[C@]12CCc1ccccc12", "(1S,2S)-2′,3′-dihydrospiro[cyclopropane-1,1′-inden]-2-amine", id="stereocentres_with_a_suffix_group"),
+        pytest.param("N[C@H]1C[C@]12CC[C@@H](C)c1ccccc12", "(1S,2S,4′R)-4′-methyl-3′,4′-dihydro-2′H-spiro[cyclopropane-1,1′-naphthalen]-2-amine", id="stereocentre_at_a_primed_locant"),
         pytest.param("C1[N+]2(C=CC3=CC=CC=C13)C=CN4C=CC=CC4=C2", "1H-2λ5-spiro[isoquinoline-2,2′-pyrido[1,2-a]pyrazin]-2-ylium", id="cationic_spiro_atom_of_different_components"),
         pytest.param("C1=CC=C2C(=C1)C[N+]3(C2)CC4=CC=CC=C4C3", "1,1′,3,3′-tetrahydro-2λ5,2′-spirobi[isoindol]-2-ylium", id="cationic_spiro_atom_of_identical_components"),
     ],
