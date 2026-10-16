@@ -671,6 +671,11 @@ def _name_isotope_label(mol) -> str:
     from ._isotope_labels import split_isotopes
 
     split = split_isotopes(mol)
+    if split is not None and has_guanidine_shape(split[0]):
+        try:
+            return name_guanidine(mol)
+        except UnsupportedStructure:
+            pass
     if split is not None and has_amino_acid_shape(split[0]):
         try:
             return _name_labelled_substituents(mol)
