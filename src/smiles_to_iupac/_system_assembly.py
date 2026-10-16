@@ -262,7 +262,9 @@ def system_assembly(
     for _, atoms in systems:
         _require_mancude_system(mol, atoms)
     join = joins[0]
-    token = SUFFIX_ATOMS.set(frozenset(join) | frozenset(o[1] for o in occurrences))
+    token = SUFFIX_ATOMS.set(
+        (frozenset() if monocycles and occurrences else frozenset(join)) | frozenset(o[1] for o in occurrences)
+    )
     links = LINK_ATOMS.set(frozenset(join))
     try:
         numbered = [
@@ -285,6 +287,10 @@ def system_assembly(
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     suffix_atoms = {o[1] for o in occurrences}
+
+    def carries_suffix(numbering):
+        return monocycles and not ylidene and not frees and bool(suffix_atoms & set(numbering.position_of))
+
     best = None
     for unprimed in (0, 1):
         for first in numbered[unprimed]:
@@ -292,7 +298,8 @@ def system_assembly(
             for second in numbered[1 - unprimed]:
                 stem_second = _stem(second)
                 if monocycles:
-                    hydro_first = hydro_second = ()
+                    hydro_first = tuple(first.hydro_positions) if carries_suffix(first) else ()
+                    hydro_second = tuple(second.hydro_positions) if carries_suffix(second) else ()
                     added_first = added_second = []
                 else:
                     hydro_first, added_first = _split_added(first, frees) if frees and free_ylidene else (_hydro(first), [])
@@ -310,11 +317,18 @@ def system_assembly(
                         if monocycles and ylidene
                         else None
                     )
+                    if found is None and carries_suffix(numbering):
+                        atom_of = {q: a for a, q in numbering.position_of.items()}
+                        found = [q for q in numbering.ih if atom_of[q] not in join], {}
                     if found is None:
                         found = _lit(mol, numbering, extra, monocycles, join), {}
                     ih += [(n, p) for p in found[0]]
                     added.update({(n, p): (n, q) for p, q in found[1].items()})
                 ih.sort(key=_order)
+                suffix_added = sorted(
+                    ((n, p) for n, numbering in ((0, first), (1, second)) if carries_suffix(numbering) for p in numbering.added_positions),
+                    key=_order,
+                )
                 members = (atoms_a, atoms_b)
                 junction = (locants[join[0 if join[0] in members[unprimed] else 1]][1], locants[join[1 if join[0] in members[unprimed] else 0]][1])
                 ih_key = tuple(_order(x) for x in ih)
@@ -323,6 +337,7 @@ def system_assembly(
                 key = (
                     junction,
                     (marked_key, ih_key) if frees and free_ylidene else (ih_key, marked_key),
+                    tuple(_order(x) for x in suffix_added),
                     hydro_key,
                     tuple(sorted((_order(loc), _order(extra)) for loc, extra in added.items())),
                     tuple(sorted(_order(locants[r]) for r, _, _ in entries)),
@@ -331,11 +346,12 @@ def system_assembly(
                 )
                 if best is None or key < best[0]:
                     best = (
-                        key, locants, stem_first, ih, unprimed, (hydro_first, hydro_second), _fully_hydro(first) and _fully_hydro(second), added
+                        key, locants, stem_first, ih, unprimed, (hydro_first, hydro_second), _fully_hydro(first) and _fully_hydro(second), added,
+                        suffix_added,
                     )
     if best is None:
         raise UnsupportedStructure("this ring assembly of fused systems needs hydro or added hydrogen, not supported yet")
-    _, locants, stem, ih, unprimed, hydro, fully_hydro, added = best
+    _, locants, stem, ih, unprimed, hydro, fully_hydro, added, suffix_added = best
     grouped = {}
     for r, name, compound in entries:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(_cite(locants[r]))
@@ -389,6 +405,8 @@ def system_assembly(
             _cite(locants[o[1]]) + (f"({_primed(added[locants[o[1]]][1], added[locants[o[1]]][0])}H)" if locants[o[1]] in added else "")
             for o in sorted(occurrences, key=lambda o: _order(locants[o[1]]))
         )
+        if suffix_added:
+            spots_text += "(" + ",".join(f"{_primed(p, n)}H" for n, p in suffix_added) + ")"
         core = f"{ih_text}[{base(word[0] in 'aeiouy')}]-{spots_text}-{word}"
     name = assembly_join(prefix, core)
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core)))
