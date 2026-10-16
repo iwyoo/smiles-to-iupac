@@ -86,6 +86,20 @@ def test_group_15_chalcogenide_with_any_organyl_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CP(C)(=O)CCP(C)(C)=S", "[2-(dimethylphosphinothioyl)ethyl]di(methyl)-λ5-phosphanone", id="senior_chalcogen_is_the_parent"),
+        pytest.param("CP(C)(=O)CCP(C)(=O)CC", "[2-(dimethylphosphinoyl)ethyl](ethyl)(methyl)-λ5-phosphanone", id="alphanumerical_order_decides_a_tie"),
+        pytest.param("CP(C)(=O)CCP(C)C", "[2-(dimethylphosphanyl)ethyl]di(methyl)-λ5-phosphanone", id="heterone_outranks_a_phosphane"),
+        pytest.param("C[As](C)(=O)CCP(C)(C)=O", "[2-(dimethylarsinoyl)ethyl]di(methyl)-λ5-phosphanone", id="senior_element_is_the_parent"),
+    ],
+)
+def test_two_heterone_centres_on_one_chain_name_one_as_the_parent(smiles, expected):
+    # P-41, P-44.1.1, P-44.1.2.2, P-45.2.1, P-45.5
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_ring_phosphorus_oxide_is_a_lambda5_heterone():
     assert smiles_to_iupac("O=P1CCCCC1") == "1λ5-phosphinan-1-one"
 

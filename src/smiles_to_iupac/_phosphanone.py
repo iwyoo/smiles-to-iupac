@@ -6,7 +6,7 @@ valence differs from the standard one. Carbon and amino groups are cited as pref
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
+from ._common import UnsupportedStructure, adjacency, alphanumerical_name_key, halogen_substituents, multiplied_word
 from ._substituents import cited_centre_stereo, format_mononuclear_prefixes, name_branch
 
 _CENTERS = {
@@ -34,15 +34,17 @@ _SENIOR_TO_IMINE = [
 ]
 
 
-def _find_center(mol):
-    centers = [
-        a
-        for a in mol.GetAtoms()
-        if a.GetAtomicNum() in _CENTERS and (a.GetDegree() > 1 or a.GetAtomicNum() not in _YLIDENE_ONLY)
-    ]
-    if len(centers) != 1 or centers[0].IsInRing():
+_SENIOR_CENTER_ORDER = (15, 33, 51, 83, 14, 32, 50, 82, 16, 34, 52)
+_CHALCOGEN_ORDER = (8, 16, 34, 52)
+
+
+def _heterone_at(mol, center):
+    """(center, chalcogens) when `center` is an acyclic hydride atom carrying terminal =O/=S/=Se/=Te and otherwise only
+    carbon and amino groups, else None."""
+    if center.GetAtomicNum() not in _CENTERS or center.IsInRing():
         return None
-    center = centers[0]
+    if center.GetAtomicNum() in _YLIDENE_ONLY and center.GetDegree() <= 1:
+        return None
     chalcogens = [
         b.GetOtherAtom(center)
         for b in center.GetBonds()
@@ -68,21 +70,44 @@ def _find_center(mol):
     return center, chalcogens
 
 
+def heterone_centers(mol):
+    return [found for atom in mol.GetAtoms() if (found := _heterone_at(mol, atom)) is not None]
+
+
 def has_phosphanone_shape(mol) -> bool:
-    return _find_center(mol) is not None
+    return bool(heterone_centers(mol))
 
 
 def name_phosphanone(mol) -> str:
-    found = _find_center(mol)
-    if found is None:
+    """The parent is the heterone centre with the senior chalcogen, then the most suffixes, the senior element
+    (P-41, P-44.1.1, P-44.1.2.2), the most substituent prefixes (P-45.2.1) and the name earlier in alphanumerical order
+    (P-45.5); every other centre is a substituent group."""
+    candidates = heterone_centers(mol)
+    if not candidates:
         raise UnsupportedStructure("no group 15 chalcogenide (R3E=X) shape found")
-    center, chalcogens = found
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    if center.GetFormalCharge() or any(a.GetIsotope() for a in mol.GetAtoms()):
+    if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
     if any(mol.HasSubstructMatch(query) for query in _SENIOR):
         raise UnsupportedStructure("an acid, ester, amide, nitrile or aldehyde group outranks the chalcogenide")
+    if len(candidates) > 1 and any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
+        raise UnsupportedStructure("stereodescriptors beside several chalcogenide centres are not supported yet")
+    ranked = []
+    for center, chalcogens in candidates:
+        name, roots = _name_at(mol, center, chalcogens)
+        key = (
+            _CHALCOGEN_ORDER.index(chalcogens[0].GetAtomicNum()),
+            -len(chalcogens),
+            _SENIOR_CENTER_ORDER.index(center.GetAtomicNum()),
+            -roots,
+            alphanumerical_name_key(name),
+        )
+        ranked.append((key, name))
+    return min(ranked)[1]
+
+
+def _name_at(mol, center, chalcogens):
     graph = adjacency(mol)
     roots = [n for n in graph[center.GetIdx()] if n not in {c.GetIdx() for c in chalcogens}]
     halogens = halogen_substituents(mol)
@@ -96,7 +121,7 @@ def name_phosphanone(mol) -> str:
     lambda_label = f"λ{valence}-" if valence != _STANDARD_VALENCE[center.GetAtomicNum()] else ""
     prefixes = format_mononuclear_prefixes(entries) if entries else ""
     joint = "-" if prefixes and lambda_label else ""
-    return f"{stereo}{prefixes}{joint}{lambda_label}{stem}{suffix}"
+    return f"{stereo}{prefixes}{joint}{lambda_label}{stem}{suffix}", len(roots)
 
 
 _IMINE_CENTERS = {
