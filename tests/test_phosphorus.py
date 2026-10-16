@@ -43,6 +43,19 @@ def test_phosphane_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-67.1.1.2, P-28.2.1: a phosphonic or phosphinic acid on a ring assembly cites the assembly substituent group in enclosing marks
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=P(O)(O)c1ccc(-c2ccccc2)cc1", "([1,1'-biphenyl]-4-yl)phosphonic acid", id="biphenylyl_phosphonic_acid"),
+        pytest.param("O=[PH](O)c1ccc(-c2ccccc2)cc1", "([1,1'-biphenyl]-4-yl)phosphinic acid", id="biphenylyl_phosphinic_acid"),
+        pytest.param("O=P(O)(O)c1ccc(-c2ccc(-c3ccccc3)cc2)cc1", "([1¹,2¹:2⁴,3¹-terphenyl]-1⁴-yl)phosphonic acid", id="terphenylyl_phosphonic_acid"),
+    ],
+)
+def test_phosphorus_acid_on_a_ring_assembly(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_branched_phosphane_chain():
     assert smiles_to_iupac("P(P)(P)P") == "2-phosphanyltriphosphane"
 
