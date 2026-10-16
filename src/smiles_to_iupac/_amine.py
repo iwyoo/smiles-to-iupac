@@ -313,10 +313,29 @@ def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substi
             -total_count,
             locant_set,
             citation_locants,
+            *_n_locant_ranks(n_names, n_locants),
             name,
         ),
         name,
     )
+
+
+def _n_locant_ranks(n_names, n_locants):
+    """The locants of the N-substituents of several amine nitrogens as a set, then in the alphanumerical order of their
+    prefixes, so the numbering gives the lowest locants to the substituents together and then to the one cited first
+    (P-31.1.4.3.4); empty for a single nitrogen."""
+    if not n_locants or any(locant is None for locant in n_locants):
+        return ((), ())
+
+    def rank(locant):
+        digits = "".join(ch for ch in locant if ch.isdigit())
+        return (int(digits) if digits else 0, locant.count("'"))
+
+    by_name = {}
+    for (name, _), locant in zip(n_names, n_locants):
+        by_name.setdefault(name, []).append(rank(locant))
+    cited = tuple(r for name in sorted(by_name, key=citation_order_key) for r in sorted(by_name[name]))
+    return (tuple(sorted(rank(locant) for locant in n_locants)), cited)
 
 
 def _amine_locants(position_of, amines, graph):
@@ -578,6 +597,7 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
                 "an amine nitrogen bonded to the shared carbon backbone more than "
                 "once is not supported yet"
             )
+        _reject_enamine_carbons(graph, [n], [b for b in bonds if b[0] in chain_component and b[1] in chain_component])
         extra_roots = [c for c in n_carbons_by_nitrogen[n] if c not in chain_component]
         names = []
         for root in extra_roots:
@@ -1102,11 +1122,12 @@ def name_amine(mol) -> str:
             "a bond order other than single, double, or triple is not "
             "supported (see P-31.1.1.1)"
         )
-    _reject_enamine_carbons(graph, amines, bonds)
+    has_secondary_or_tertiary = any(len(n_carbons_by_nitrogen[n]) > 1 for n in amines)
+    if not (len(amines) >= 2 and has_secondary_or_tertiary):
+        _reject_enamine_carbons(graph, amines, bonds)
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
-    has_secondary_or_tertiary = any(len(n_carbons_by_nitrogen[n]) > 1 for n in amines)
     if has_secondary_or_tertiary and num_rings > 0 and len(amines) < 2:
         raise UnsupportedStructure(
             "a secondary/tertiary amine nitrogen on or attached to a ring "

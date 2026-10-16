@@ -112,6 +112,11 @@ def test_phenyl_chain_amidine_ring_halogen():
     "smiles, expected",
     [
         pytest.param("NCCN(C)CC=C", "N1-methyl-N1-(prop-2-en-1-yl)ethane-1,2-diamine", id="chain_diamine_with_an_unsaturated_n_substituent"),
+        pytest.param(
+            "C=CN(C)CCNCCN(C)C",
+            "N2-[2-(dimethylamino)ethyl]-N1-ethenyl-N1-methylethane-1,2-diamine",
+            id="triamine_with_an_ethenyl_group_and_lowest_n_locants_for_all_substituents",
+        ),
         pytest.param("CNCc1ncccc1N", "2-[(methylamino)methyl]pyridin-3-amine", id="secondary_amine_prefix_on_a_pyridine_amine"),
         pytest.param("CNCc1nc(Br)ccc1N", "6-bromo-2-[(methylamino)methyl]pyridin-3-amine", id="halogenated_pyridine_amine_with_a_secondary_amine_prefix"),
         pytest.param("CNc1cccnc1N", "N3-methylpyridine-2,3-diamine", id="secondary_amine_nitrogen_on_the_ring_is_a_principal_group"),

@@ -24,13 +24,17 @@ def has_stereo(mol) -> bool:
     )
 
 
-def _acyclic_single(mol) -> bool:
+def _carbon_multiple(bond) -> bool:
+    return bond.GetBondTypeAsDouble() in (2.0, 3.0) and all(a.GetAtomicNum() == 6 for a in (bond.GetBeginAtom(), bond.GetEndAtom()))
+
+
+def _acyclic_single(mol, carbon_multiple=False) -> bool:
     return (
         not has_stereo(mol)
         and mol.GetRingInfo().NumRings() == 0
         and len(Chem.GetMolFrags(mol)) == 1
         and all(a.GetAtomicNum() in _ALLOWED and a.GetFormalCharge() == 0 and a.GetIsotope() == 0 for a in mol.GetAtoms())
-        and all(b.GetBondTypeAsDouble() == 1.0 for b in mol.GetBonds())
+        and all(b.GetBondTypeAsDouble() == 1.0 or (carbon_multiple and _carbon_multiple(b)) for b in mol.GetBonds())
     )
 
 
@@ -130,7 +134,7 @@ def contract_hetero_groups(mol):
 def contract_hetero_groups_candidates(mol, principal_atoms=None):
     """Every contraction over the equally senior backbones: most principal groups attached, then the longest
     carbon backbone, then the most substituents (P-44.1.1, P-44.3, P-45.2.1)."""
-    if not _acyclic_single(mol):
+    if not _acyclic_single(mol, carbon_multiple=True):
         return []
     graph = adjacency(mol)
     hydroxyls = [
@@ -155,6 +159,8 @@ def contract_hetero_groups_candidates(mol, principal_atoms=None):
     best = max(score(comp) for comp in comps)
     contracted = []
     for backbone in (comp for comp in comps if score(comp) == best):
+        if any(_carbon_multiple(b) and b.GetBeginAtomIdx() in backbone for b in mol.GetBonds()):
+            continue
         found = _contract(mol, graph, comps, backbone, principal)
         if found is not None:
             contracted.append(found)
