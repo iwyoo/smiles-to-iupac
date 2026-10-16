@@ -53,20 +53,12 @@ Recommendations ("the Blue Book"):
   '4-methylthiomorpholine' (CID 523249), 'CN1CCNCC1' ->
   '1-methylpiperazine' (CID 53167).
 
-- A third path handles a sulfonyl group (P-65.3.1's -SO2- substituent
+- A third path handles a sulfonyl group (P-65.3.2.2's -SO2- substituent
   prefix, not the '-sulfonic acid'/'-sulfonamide' suffix) as the ring
-  nitrogen's substituent -- e.g. 'CS(=O)(=O)N1CCCCC1' ->
-  '1-methylsulfonylpiperidine' (PubChem CID 273952). The prefix fuses the
-  R group's own plain substituent name directly with 'sulfonyl' (not the
-  '-ane'-stem acid form, i.e. 'methylsulfonyl' not 'methanesulfonyl'),
-  inheriting R's own compound/parenthesization status unchanged -- e.g.
-  'ClCS(=O)(=O)N1CCCCC1' -> '1-(chloromethylsulfonyl)piperidine' (CID
-  1519936, since 'chloromethyl' is itself a compound substituent name,
-  P-14.3.4.2(a)) but 'CCS(=O)(=O)N1CCCCC1' -> '1-ethylsulfonylpiperidine'
-  (CID 3418537, no parens -- plain 'ethyl' isn't compound). Works
-  uniformly with both the single- and two-heteroatom ring paths above:
-  'CS(=O)(=O)N1CCOCC1' -> '4-methylsulfonylmorpholine' (CID 519344),
-  'CS(=O)(=O)N1CCNCC1' -> '1-methylsulfonylpiperazine' (CID 709161).
+  nitrogen's substituent, named by the shared substituent namer so that the
+  preferred acyl prefix is cited: 'CS(=O)(=O)N1CCCCC1' ->
+  '1-(methanesulfonyl)piperidine', 'CS(=O)(=O)N1CCOCC1' ->
+  '4-(methanesulfonyl)morpholine'.
 
 `core.py` routes to this module from three places: the oxygen-free "any
 nitrogen" branch (immediately before its final `name_amine` fallback --
@@ -384,10 +376,6 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    if sulfonyl is not None:
-        r_carbon, _ = sulfonyl
-        r_name, r_is_compound = name_branch(graph, r_carbon, root, halogens, mol=mol)
-        return f"{r_name}sulfonyl", r_is_compound
     return name_branch(graph, root, n_idx, halogens, mol=mol)
 
 
