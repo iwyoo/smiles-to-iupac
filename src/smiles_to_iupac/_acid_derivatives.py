@@ -20,6 +20,7 @@ from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._isotope_labels import restore_labels
+from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
@@ -883,7 +884,7 @@ def name_ester(mol, links):
     _reject_unsupported(mol)
     if has_acyloxy_amine_group(mol):
         raise UnsupportedStructure("an acyclic nitrogen gives no traditional ester: the group is an acyloxy prefix (P-65.6.3.4.1)")
-    kinds = {_center(mol, l.center)[0] == "inorganic" for l in links}
+    kinds = {_center(mol, l.center)[0] == "inorganic" for l in links if l.kind == "ester"}
     if len(kinds) > 1 or kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
         raise UnsupportedStructure("the seniority of this phosphorus or boron ester among the other groups is not decided here")
     esters = [l for l in links if l.kind == "ester"]
@@ -937,6 +938,7 @@ def name_ester(mol, links):
     named = {}
     per_link = []
     token = BRANCH_STEREO.set(context)
+    prefixes = EXTENDED_PREFIXES.set(True)
     try:
         for l in chosen:
             name, compound = name_branch(graph, l.far, l.chain[-1], halogens, mol=mol)
@@ -945,6 +947,7 @@ def name_ester(mol, links):
             entry[2].append(_letters(mol, l))
             per_link.append((l, name))
     finally:
+        EXTENDED_PREFIXES.reset(prefixes)
         BRANCH_STEREO.reset(token)
     if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
         ("bond", b) not in context["used"] for b in context["bonds"]
@@ -1635,9 +1638,10 @@ def name_acid_derivative(mol):
     if name_appendix3_skeleton(mol) is not None:
         raise UnsupportedStructure("an acid derivative on an Appendix 3 retained parent is named on that parent")
     if acid:
-        if all(_center(mol, c)[0] in ("carbonic", "inorganic") for c in acid) and all(
-            l.kind == "ester" and _center(mol, l.center)[0] in ("carbonic", "inorganic") for l in links
-        ):
+        esters = [l for l in links if l.kind == "ester"]
+        if all(_center(mol, c)[0] in ("carbonic", "inorganic") for c in acid) and esters and all(
+            _center(mol, l.center)[0] in ("carbonic", "inorganic") for l in esters
+        ) and all(l.kind in ("ester", "halide") for l in links):
             return name_ester(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
             if any("cyanic" in (_center(mol, l.center)[0], _center(mol, l.far)[0]) for l in links if l.kind == "anhydride"):
