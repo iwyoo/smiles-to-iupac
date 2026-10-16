@@ -274,6 +274,10 @@ def test_isotope_descriptor_before_retained_acid_name(smiles, expected):
         pytest.param("Cc1cccnc1[13CH3]", "2-(13C)methyl-3-methylpyridine", id="isotopic_substituent_cited_before_unmodified_one"),
         pytest.param("CC(=O)Nc1ccc([131I])cc1", "N-[4-(131I)iodophenyl]acetamide", id="isotopic_halogen_inside_a_ring_substituent"),
         pytest.param("[2H]C([2H])([2H])OC(=O)/C=C/C(C)C", "(2H3)methyl (2E)-4-methylpent-2-enoate", id="alkyl_label_stays_off_the_acid_branch"),
+        pytest.param("[2H]CC(=O)OC(C)=O", "(2-2H1)acetic acetic anhydride", id="anhydride_word_with_the_modified_acid_cited_first"),
+        pytest.param("[2H]CC(=O)SC", "S-methyl (2-2H1)ethanethioate", id="thioester_acyl_part"),
+        pytest.param("[2H]CSC(C)=O", "S-(2H1)methyl ethanethioate", id="thioester_organyl_part"),
+        pytest.param("[2H]C(=O)CNC(=O)OC", "methyl [2-oxo(2-2H)ethyl]carbamate", id="carbamate_substituent_on_nitrogen"),
     ],
 )
 def test_isotopic_descriptor_follows_the_unmodified_name(smiles, expected):

@@ -15,11 +15,12 @@ from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._amino_acid_retained import has_retained_amino_acid_shape
 from ._carbonic_family import pseudohalide_at
 from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_halide_ligand
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, citation_order_key, halogen_substituents, is_halide_ligand
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
-from ._substituents import BRANCH_STEREO, name_branch
+from ._isotope_labels import restore_labels
+from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CENTERS = {6: "C", 16: "S", 34: "Se", 52: "Te"}
@@ -252,6 +253,17 @@ def find_links(mol):
     return links, acid
 
 
+def _restore_nuclides(editable, mol, keep):
+    """The nuclide labels of the kept atoms go back on an acid cut from the unlabelled `mol` (P-82.2.4): the acid is
+    named, and its descriptor cited, as a word of its own."""
+    context = ISOTOPE_LABELS.get()
+    if not context or context.get("mol") is not mol:
+        return
+    kept = set(keep)
+    restore_labels(editable, mol, context["labels"], skip=set(range(mol.GetNumAtoms())) - kept)
+    context["consumed"].update(kept & set(context["labels"]))
+
+
 def _capped_acid(mol, keep, caps):
     """The free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`, and the index
     of each kept atom in it."""
@@ -260,6 +272,7 @@ def _capped_acid(mol, keep, caps):
         atom = editable.GetAtomWithIdx(idx)
         atom.SetNumExplicitHs(1)
         atom.SetNoImplicit(True)
+    _restore_nuclides(editable, mol, keep)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
@@ -500,7 +513,7 @@ def _multiplied(entries):
     """Citation of the organyl groups in alphanumerical order with multipliers and element letters;
     entries are (name, compound, count, letters) tuples."""
     parts = []
-    for name, compound, count, letters in sorted(entries, key=lambda e: alpha_sort_key(e[0])):
+    for name, compound, count, letters in sorted(entries, key=lambda e: citation_order_key(e[0])):
         if count > 1:
             multiplier = multiplying_prefix(count, compound=compound and not _plain(name))
             text = f"{multiplier}{enclose(name)}" if compound else f"{multiplier}{name}"
@@ -1054,6 +1067,7 @@ def _component_acid(mol, atoms, centers):
     for center in centers:
         oxygen = editable.AddAtom(Chem.Atom(8))
         editable.AddBond(center, oxygen, Chem.BondType.SINGLE)
+    _restore_nuclides(editable, mol, atoms)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
@@ -1197,7 +1211,7 @@ def _mononuclear_noncarbon_center(mol, centers):
 def _alphabetical_acid_words(counts, class_word):
     """P-67.1.3.3: the acids of an anhydride of a mononuclear noncarbon oxoacid are cited alphabetically; one kind of
     acyl group is cited once, mixed kinds keep their multipliers so that the name stays unambiguous."""
-    cited = [_multiplied_word(w, counts[w]) for w in sorted(counts, key=alpha_sort_key)]
+    cited = [_multiplied_word(w, counts[w]) for w in sorted(counts, key=citation_order_key)]
     return f"{' '.join(cited)} {class_word}"
 
 
@@ -1234,7 +1248,7 @@ def name_anhydride(mol, links):
     }
     if count == 1:
         words = list(word_of.values())
-        text = words[0] if words[0] == words[1] else " ".join(sorted(words, key=alpha_sort_key))
+        text = words[0] if words[0] == words[1] else " ".join(sorted(words, key=citation_order_key))
         if word == "anhydride" and any(
             _acid_group_count(mol, [a for a in frags[i] if a not in bridge_atoms], centers[i]) > 1 for i in components
         ):
@@ -1266,13 +1280,13 @@ def name_anhydride(mol, links):
             counts = {w: len(g) if len(groups) > 1 else 1 for w, g in groups.items()}
             return _alphabetical_acid_words({**counts, word_of[hub]: 1}, class_word)
         cited = []
-        for leaf_word in sorted(groups, key=alpha_sort_key):
+        for leaf_word in sorted(groups, key=citation_order_key):
             group = sorted(groups[leaf_word], key=lambda t: (len(t), t))
             body = _multiplied_word(leaf_word, len(group))
             cited.append(f"{','.join(group)}-{body}" if carbon_hub else body)
         return f"{' '.join(cited)} {word_of[hub]} {class_word}"
     ends = [i for i in components if degrees[i] == 1]
-    order = [min(ends, key=lambda i: alpha_sort_key(word_of[i]))]
+    order = [min(ends, key=lambda i: citation_order_key(word_of[i]))]
     while len(order) < len(components):
         order.append(next(n for n in adjacency_of[order[-1]] if n not in order))
     if len(order) == 3:
@@ -1323,7 +1337,7 @@ def name_anhydride(mol, links):
             items[2][1] = str(locants[center_in(bridge_between(order[1], order[2]), order[1])])
     cited = [
         f"{locant}-{enclose(word) if re.search(r'[-(]', word) else word}" if locant else word
-        for word, locant in sorted(items, key=lambda item: alpha_sort_key(item[0]))
+        for word, locant in sorted(items, key=lambda item: citation_order_key(item[0]))
     ]
     return f"{' '.join(cited)} dianhydride"
 
