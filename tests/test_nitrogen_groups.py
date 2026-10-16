@@ -367,6 +367,8 @@ def test_azido_prefix_beside_a_noncarbon_oxoacid_and_a_urea(smiles, expected):
     [
         pytest.param("CC(C)=NN=C(C)C", "di(propan-2-ylidene)hydrazine", id="symmetric_azine"),
         pytest.param("CCC(C)=NN=C1CCCCC1", "(butan-2-ylidene)(cyclohexylidene)hydrazine", id="unsymmetrical_azine_with_a_ring"),
+        pytest.param("C=CC=NN=CC", "ethylidene(prop-2-en-1-ylidene)hydrazine", id="azine_with_an_unsaturated_ylidene_group"),
+        pytest.param("C/C=C/C(C)=N/N=C(C)C", "[(2E,3E)-pent-3-en-2-ylidene](propan-2-ylidene)hydrazine", id="unsaturated_ylidene_group_with_its_descriptors"),
         pytest.param("OC(=O)C1CCC(CC1)=NN=C(C)C", "4-[(propan-2-ylidene)hydrazinylidene]cyclohexane-1-carboxylic acid", id="azine_as_a_prefix_on_an_acid"),
         pytest.param("NC(=S)NN=C(C)C", "2-(propan-2-ylidene)hydrazine-1-carbothioamide", id="thiosemicarbazone"),
         pytest.param("NNC(N)=[Se]", "hydrazinecarboselenoamide", id="selenosemicarbazide"),

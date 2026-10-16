@@ -228,17 +228,20 @@ def name_hydrazine(mol) -> str:
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
     n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
-    if any(
-        not (a in aromatic_atoms and b in aromatic_atoms)
-        and not (a in pseudohalide and b in pseudohalide)
-        and not (order == 2.0 and (a in (n1_idx, n2_idx)) != (b in (n1_idx, n2_idx)) and 6 in _atomic_nums(mol, a, b))
-        for a, b, order in non_single_bonds(mol)
-    ):
+    unsaturated = False
+    for a, b, order in non_single_bonds(mol):
+        if (a in aromatic_atoms and b in aromatic_atoms) or (a in pseudohalide and b in pseudohalide):
+            continue
+        if order == 2.0 and (a in (n1_idx, n2_idx)) != (b in (n1_idx, n2_idx)) and 6 in _atomic_nums(mol, a, b):
+            continue
+        if _atomic_nums(mol, a, b) == {6}:
+            unsaturated = True
+            continue
         raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    return hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms)
+    return hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated=unsaturated)
 
 
 def _sole_stereo_element_is_ylidene_bond(mol, n1_idx, n2_idx):
