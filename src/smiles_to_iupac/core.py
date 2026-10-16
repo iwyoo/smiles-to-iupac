@@ -1332,16 +1332,16 @@ def _has_specified_stereo(mol) -> bool:
 
 
 def _engine_name(mol):
-    return _hydro_fusion_name(mol)
+    return _hydro_fusion_name(mol, name_anion if any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()) else name_polyfunctional)
 
 
-def _hydro_fusion_name(mol):
+def _hydro_fusion_name(mol, namer=name_polyfunctional):
     key = Chem.MolToSmiles(mol)
     if key in _HYDRO_FUSION_RUNNING:
         return None
     _HYDRO_FUSION_RUNNING.add(key)
     try:
-        return name_polyfunctional(mol)
+        return namer(mol)
     except UnsupportedStructure:
         return None
     finally:

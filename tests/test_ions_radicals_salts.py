@@ -41,6 +41,8 @@ def test_phenoxide():
         pytest.param("[O-]CCOC", "2-methoxyethan-1-olate", id="ether_oxygen_alongside_alkoxide_is_named"),
         pytest.param("CC[C@@H](Cl)[O-]", "(1R)-1-chloropropan-1-olate", id="alkoxide_stereocenter_with_coexisting_halogen"),
         pytest.param("[O-]C(O)c1ccccc1", "hydroxy(phenyl)methanolate", id="neutral_hydroxy_on_the_alkoxide_carbon_is_a_prefix"),
+        pytest.param("CC[C@H](C)CC[NH-]", "(3S)-3-methylpentan-1-aminide", id="primary_aminide_stereocenter"),
+        pytest.param("CC[C@H](C)C[CH2-]", "(3R)-3-methylpentan-1-ide", id="carbanide_stereocenter_ranks_the_anionic_carbon_below_its_twin"),
     ],
 )
 def test_phenoxide_unsaturated_ring_and_related(smiles, expected):
