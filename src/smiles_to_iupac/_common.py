@@ -1789,6 +1789,20 @@ def heteroatom_stereo_prefix(mol, heteroatom_idx):
     )
 
 
+_DESCRIPTOR_LIST = re.compile(r"\(((?:\d+[a-z]?['\u2032]*[RSEZrs]|[RS])(?:,(?:\d+[a-z]?['\u2032]*[RSEZrs]|[RS]))*)\)-")
+
+
+def with_unlocated_descriptor(name, code):
+    """`name` with the descriptor `code` of a stereogenic atom of the principal group, which the parent does not number,
+    cited after the locanted descriptors at the front (P-91.3, P-93.4.2.1.2)."""
+    if code is None:
+        return name
+    found = _DESCRIPTOR_LIST.match(name)
+    if found is None:
+        return f"({code})-{name}"
+    return f"({found.group(1)},{code})-{name[found.end():]}"
+
+
 def specified_double_bond_stereo(mol):
     """`Bond_Double` analogue of `specified_stereocenters` above (see its
     docstring for the same unspecified-vs-rejected reasoning). None if
