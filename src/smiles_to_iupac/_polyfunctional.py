@@ -1299,10 +1299,9 @@ def _name_labelled_ring_center(clean, labels, found):
     removed = next((a.GetIdx() for a in clean.GetAtoms() if a.GetFormalCharge() == -1 and a.GetAtomicNum() == 8), None)
     if shift and removed is None:
         raise UnsupportedStructure("the isotopic modification of this ring cation is not supported")
-    centre_in_clean = center + (1 if shift and center >= removed else 0)
-    if STEREO_OF_ISOTOPOLOGUE.get() or any(i in (removed, centre_in_clean) for i in labels):
-        raise UnsupportedStructure("an isotopic modification of the cationic centre or its stereo is not supported yet")
-    moved = {i - (1 if shift and i > removed else 0): e for i, e in labels.items()}
+    if STEREO_OF_ISOTOPOLOGUE.get() or removed in labels:
+        raise UnsupportedStructure("an isotopic modification of the oxide group or the stereo of the centre is not supported yet")
+    moved = labels if probe is not None else {i - (1 if shift and i > removed else 0): e for i, e in labels.items()}
     return _name_ring_center(base, center, kind, probe, moved)
 
 

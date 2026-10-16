@@ -292,7 +292,7 @@ def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
     assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
-@pytest.mark.parametrize("smiles", ["C[15N+](C)(C)[O-]", "[2H]I(C)C"])
+@pytest.mark.parametrize("smiles", ["C[N+](C)(C)[18O-]", "[2H]I(C)C"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -872,4 +872,18 @@ def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expecte
     ],
 )
 def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.5.1, P-62.5: the nuclide of the oxidized nitrogen stands in front of the amine name as for the neutral amine, the class word follows
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[15N+](C)(C)[O-]", "N,N-dimethyl(15N)methanamine N-oxide", id="acyclic_amine_oxide"),
+        pytest.param("C[15N+]1([O-])CCCCC1", "1-methyl(15N)piperidine 1-oxide", id="ring_amine_oxide"),
+        pytest.param("[O-][15n+]1ccncc1", "(1-15N)pyrazine 1-oxide", id="oxidized_nitrogen_of_a_diazine"),
+        pytest.param("[O-][n+]1cc[15n]cc1", "(4-15N)pyrazine 1-oxide", id="other_nitrogen_of_a_diazine_oxide"),
+    ],
+)
+def test_nuclide_on_the_nitrogen_of_an_n_oxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
