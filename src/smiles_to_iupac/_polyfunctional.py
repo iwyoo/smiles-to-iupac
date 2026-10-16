@@ -2427,7 +2427,7 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
     acid = (_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and element in (8, 16, 34, 52)
-    acid = acid or (principal in ("sulfonamide", *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER) and element in (16, 34, 52))
+    acid = acid or (principal in ("sulfonamide", *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER) and element in (8, 16, 34, 52))
     if not (nitrogen or acid):
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []

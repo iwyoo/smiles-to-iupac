@@ -715,7 +715,9 @@ def _name_isotope_label(mol) -> str:
             return name_guanidine(mol)
         except UnsupportedStructure:
             pass
-    if split is not None and (has_amino_acid_shape(split[0]) or has_inorganic_acid_derivative_shape(split[0])):
+    if split is not None and (
+        has_amino_acid_shape(split[0]) or has_inorganic_acid_derivative_shape(split[0]) or has_sulfuric_amide_shape(split[0])
+    ):
         try:
             return _name_labelled_substituents(mol)
         except UnsupportedStructure:
