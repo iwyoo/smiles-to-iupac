@@ -3023,7 +3023,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values())
                 and atom.GetIdx() in groups.get(principal, {})
             )
-            and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and atom.GetIdx() in groups.get("hydrazide", {}))
+            and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE) and atom.GetIdx() in groups.get("hydrazide", {}))
             and _is_ester_like(mol, atom.GetIdx())
             and not (principal in _AMIDE_FAMILY and _nitrogen_acyl(mol, atom.GetIdx()))
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
