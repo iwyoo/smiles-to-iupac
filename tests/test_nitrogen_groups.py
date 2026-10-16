@@ -1269,6 +1269,8 @@ def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expe
         pytest.param("O=C(NN=Cc1ccccc1)c1ccncc1", "N'-benzylidenepyridine-4-carbohydrazide", id="ring_carbohydrazide_hydrazone"),
         pytest.param("CC(=O)N(c1ccccc1)Nc1ccccc1", "N,N'-diphenylacetohydrazide", id="n_and_n_prime_substituents"),
         pytest.param("NC(=Nc1ccccn1)N", "N''-(pyridin-2-yl)guanidine", id="guanidine_with_heteroaromatic_ring"),
+        pytest.param("N=C(N)NC1=NCCN1", "N-(4,5-dihydro-1H-imidazol-2-yl)guanidine", id="guanidine_on_a_ring_amidine_carbon_is_not_a_condensed_guanidine"),
+        pytest.param("CCCCCN=C(N)NC1=NCCCN1", "N''-pentyl-N-(1,4,5,6-tetrahydropyrimidin-2-yl)guanidine", id="ring_amidine_group_with_a_substituent_on_the_imino_nitrogen"),
         pytest.param("CN(C)C(=NC)N(C)C", "N,N,N',N',N''-pentamethylguanidine", id="guanidine_with_substituents_on_every_nitrogen"),
         # P-66.4.1.1, P-68.3.1.2.4: an amidine on a hydrazine nitrogen is a suffix of the hydrazine; N and N' are the amidine nitrogens
         pytest.param("CC=NN(C)C(N)=N", "2-ethylidene-1-methylhydrazine-1-carboximidamide", id="aminoguanidine_hydrazone_with_a_substituent"),
