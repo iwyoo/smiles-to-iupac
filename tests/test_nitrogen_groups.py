@@ -1145,6 +1145,8 @@ def test_phenyl_nitroso_unsaturation_and_related(smiles, expected):
         pytest.param("O=C(N[SiH3])N[SiH3]", "N,N'-disilylurea", id="same_element_group_on_both_urea_nitrogens"),
         pytest.param("NC(=O)N[GeH3]", "germylurea", id="element_hydride_atom_is_a_substituent_of_the_urea"),
         pytest.param("NC(=N)N[Ge](C)(C)C", "N-(trimethylgermyl)guanidine", id="germyl_group_on_a_guanidine_nitrogen"),
+        pytest.param("NC(=N)NP", "N-phosphanylguanidine", id="phosphanyl_group_outranked_by_the_guanidine"),
+        pytest.param("CNC(=O)NP(C)C", "N-(dimethylphosphanyl)-N'-methylurea", id="phosphanyl_group_outranked_by_the_urea"),
         pytest.param("NC(=N)N(C)[SiH3]", "N-methyl-N-silylguanidine", id="silyl_and_carbon_group_on_one_guanidine_nitrogen"),
     ],
 )

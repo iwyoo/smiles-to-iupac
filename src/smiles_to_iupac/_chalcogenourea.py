@@ -44,7 +44,29 @@ def is_core_substituent_root(mol, atom):
     )
 
 
-_UREA_SUBSTITUENT_ELEMENTS = {5, 6, 7, 8, 14, 15, 16, 32, 34, 50, 52, *HALOGEN_PREFIXES}
+_HYDRIDE_GROUP_CENTRES = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
+_UREA_SUBSTITUENT_ELEMENTS = {6, 7, 8, 16, 34, 52, *_HYDRIDE_GROUP_CENTRES, *HALOGEN_PREFIXES}
+
+
+def is_element_hydride_group(atom):
+    """The centre of a boranyl, silyl, germyl, stannyl, phosphanyl, ... group on a nitrogen: a Group 13-15 atom with single
+    bonds to hydrogen, carbon, halogen and that nitrogen only, so that no acid or oxo group makes it a senior class (P-68.2.1)."""
+    return (
+        atom.GetAtomicNum() in _HYDRIDE_GROUP_CENTRES
+        and not atom.GetFormalCharge()
+        and not atom.IsInRing()
+        and all(
+            b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() in (6, 7, *HALOGEN_PREFIXES)
+            for b in atom.GetBonds()
+        )
+    )
+
+
+def carries_only_element_hydride_groups(mol):
+    """Whether the molecule holds a Group 13-15 atom and every such atom is the centre of a plain hydride group, none of
+    them an oxoacid or amide centre that would outrank a urea or guanidine (P-41)."""
+    centres = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDE_GROUP_CENTRES]
+    return bool(centres) and all(is_element_hydride_group(a) for a in centres)
 
 
 def is_urea_substituent_root(mol, atom):
