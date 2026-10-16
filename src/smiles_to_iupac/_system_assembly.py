@@ -138,6 +138,15 @@ def _lit(mol, numbering, positions, monocycles, join=()):
     return sorted(found)
 
 
+def unit_indicated_hydrogens(mol, numbering, link, carries, monocycle, extra=()):
+    """Indicated-hydrogen positions of one unit of an assembly. A monocycle that carries the suffix keeps those of its
+    numbering except at a junction atom (its added hydrogen is cited after the suffix locant, P-31.1.4.3.4)."""
+    if monocycle and carries:
+        atom_of = {q: a for a, q in numbering.position_of.items()}
+        return [q for q in numbering.ih if atom_of[q] not in link]
+    return _lit(mol, numbering, extra, monocycle, link)
+
+
 def _matching_size(nodes, edges):
     if not nodes:
         return 0
@@ -321,11 +330,8 @@ def system_assembly(
                         if monocycles and ylidene
                         else None
                     )
-                    if found is None and monocycles and carries_suffix(numbering):
-                        atom_of = {q: a for a, q in numbering.position_of.items()}
-                        found = [q for q in numbering.ih if atom_of[q] not in join], {}
                     if found is None:
-                        found = _lit(mol, numbering, extra, monocycles, join), {}
+                        found = unit_indicated_hydrogens(mol, numbering, join, carries_suffix(numbering), monocycles, extra), {}
                     ih += [(n, p) for p in found[0]]
                     added.update({(n, p): (n, q) for p, q in found[1].items()})
                 ih.sort(key=_order)
