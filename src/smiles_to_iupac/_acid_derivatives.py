@@ -1423,9 +1423,19 @@ def _halocarbonic_amide(mol, graph):
         substituents = [n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
         halogens = halogen_substituents(mol)
         grouped = {}
-        for root in substituents:
-            name, compound = name_branch(graph, root, nitrogen.GetIdx(), halogens, mol=mol, unsaturated=True)
-            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
+        arms = set().union(*(_far_side(graph, root, nitrogen.GetIdx()) for root in substituents)) if substituents else set()
+        context = _stereo_context(mol, arms)
+        token = BRANCH_STEREO.set(context)
+        try:
+            for root in substituents:
+                name, compound = name_branch(graph, root, nitrogen.GetIdx(), halogens, mol=mol, unsaturated=True)
+                grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
+        finally:
+            BRANCH_STEREO.reset(token)
+        if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+            ("bond", b) not in context["used"] for b in context["bonds"]
+        ):
+            continue
         covered = {carbon.GetIdx(), halide[0].GetIdx(), oxo[0].GetIdx(), nitrogen.GetIdx()}
         if has_group_senior_to_urea(mol, covered) or any(
             a.GetIdx() not in covered and not is_urea_substituent_root(mol, a) for a in mol.GetAtoms()
