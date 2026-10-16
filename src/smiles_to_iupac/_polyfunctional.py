@@ -3231,9 +3231,15 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     modified = _isotope_counts(stereo, [(a, None) for a in ring_set if a in labels])
     spec = monocycle_spec(mol, ring)
     if spec is None:
-        from ._diester_ring_diyl import evaluate_skeleton
+        from ._diester_ring_diyl import CATION_CENTRES, evaluate_skeleton
 
-        found = evaluate_skeleton(mol, graph, "ring", [ring], ring_set, [], set(), "")
+        cation = CATION_RING_ATOM.get()
+        centres_token = CATION_CENTRES.set(((cation, "ium"),)) if cation in ring_set else None
+        try:
+            found = evaluate_skeleton(mol, graph, "ring", [ring], ring_set, [], set(), "")
+        finally:
+            if centres_token is not None:
+                CATION_CENTRES.reset(centres_token)
         if found is None:
             raise UnsupportedStructure("this ring has no supported name")
         from ._diester_ring_diyl import PARENT_START
