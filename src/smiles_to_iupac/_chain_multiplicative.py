@@ -376,7 +376,7 @@ def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=N
             raise DecompositionRejected("a ylidene ring inside a concatenated linker is not supported")
         return _ylidene_ring_part(mol, graph, atoms, attachments)
     if kind != "assembly":
-        return name_component(mol, kind, atoms, attachments, ctx, directed, first)
+        return name_component(mol, kind, atoms, attachments, ctx, directed, first, stereo or ())
     if directed is not None or any(order != 1 for _, _, order in attachments) and not mixed:
         raise DecompositionRejected("a ring assembly inside a concatenated linker is not supported")
     from ._chain_assembly import assembly_diyl
@@ -505,6 +505,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     branch_atoms = [_arm_atoms(graph, y, x) for x, y, _ in edges[center]]
     kind, atoms = components[center]
     centre_stereo = {}
+    ring_stereo = []
     for element in stereo:
         touched = {element[1]} if isinstance(element[1], int) else set(element[1])
         if touched <= arm_atoms:
@@ -512,6 +513,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             continue
         if kind == "assembly" and element[0] == "atom" and touched <= set(atoms):
             centre_stereo[element[1]] = element[2]
+            continue
+        if kind == "ring" and element[0] == "atom" and touched <= set(atoms):
+            ring_stereo.append(element)
             continue
         holders = [i for i, atoms_ in enumerate(branch_atoms) if touched <= atoms_]
         if len(holders) != 1:
@@ -548,7 +552,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             else None
         )
         if central is None:
-            central = _component_part(mol, graph, kind, atoms, edges[center], ctx, None, stereo=centre_stereo or None)
+            central = _component_part(
+                mol, graph, kind, atoms, edges[center], ctx, None, stereo=centre_stereo or ring_stereo or None
+            )
         arm_parts = []
         for cid, toward_center, onward, fan in chain:
             akind, aatoms = components[cid]
