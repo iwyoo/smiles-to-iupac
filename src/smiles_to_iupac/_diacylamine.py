@@ -96,6 +96,14 @@ def donor_names(mol, graph, donors, halogens, aromatic, labels=None):
     return names
 
 
+def placeholder_carbon(atom):
+    """The donor atom as the unlabelled methyl carbon that stands in for its acyl group."""
+    atom.SetAtomicNum(6)
+    atom.SetIsotope(0)
+    atom.SetNoImplicit(False)
+    atom.SetNumExplicitHs(0)
+
+
 def forced_for_unlabelled(stand_in, position, names):
     """(atom count, {atom index: name}) of the stand-in without its isotopic hydrogen atoms, in the SMILES order."""
     heavy = sorted(position[a.GetIdx()] for a in stand_in.GetAtoms() if a.GetAtomicNum() != 1)
@@ -112,9 +120,9 @@ def modified_atoms_beyond(graph, labels, root, nitrogen):
     )
 
 
-def unlabelled_with_labels(mol):
-    """(mol without its nuclide labels, labels), or (None, {}) when a nuclide sits on a heteroatom or the structure has
-    stereo elements."""
+def unlabelled_with_labels(mol, heteroatoms=False):
+    """(mol without its nuclide labels, labels), or (None, {}) when the structure has stereo elements or, unless
+    `heteroatoms`, a nuclide on a heteroatom."""
     try:
         split = split_isotopes(mol)
     except UnsupportedStructure:
@@ -125,7 +133,7 @@ def unlabelled_with_labels(mol):
     stereo = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) or any(
         b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY) for b in clean.GetBonds()
     )
-    if stereo or any(clean.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in labels):
+    if stereo or (not heteroatoms and any(clean.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in labels)):
         return None, {}
     return clean, labels
 
@@ -134,7 +142,7 @@ def diacylamine_name(mol):
     """The name of a molecule with an acyclic nitrogen bearing two or three acyl groups, else None."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
-    mol, labels = unlabelled_with_labels(mol)
+    mol, labels = unlabelled_with_labels(mol, heteroatoms=True)
     if mol is None:
         return None
     nitrogens = [
@@ -168,7 +176,7 @@ def diacylamine_name(mol):
     keep = sorted(removed, reverse=True)
     for donor in donors:
         atom = editable.GetAtomWithIdx(donor)
-        atom.SetAtomicNum(6)
+        placeholder_carbon(atom)
         for bond in list(atom.GetBonds()):
             if bond.GetOtherAtomIdx(donor) in removed:
                 editable.RemoveBond(donor, bond.GetOtherAtomIdx(donor))

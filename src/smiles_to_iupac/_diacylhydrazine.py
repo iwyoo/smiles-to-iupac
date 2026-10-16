@@ -5,7 +5,16 @@ stood in for by methyl groups whose names are replaced by the acyl prefixes, as 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._diacylamine import _acyl_roots, _rank, _side, donor_names, forced_for_unlabelled, modified_atoms_beyond, unlabelled_with_labels
+from ._diacylamine import (
+    _acyl_roots,
+    _rank,
+    _side,
+    donor_names,
+    forced_for_unlabelled,
+    modified_atoms_beyond,
+    placeholder_carbon,
+    unlabelled_with_labels,
+)
 from ._dipolar import _smiles_with_order
 from ._isotope_labels import restore_labels
 from ._substituents import FORCED_BRANCH_NAMES
@@ -90,7 +99,7 @@ def diacylhydrazine_name(mol):
         editable.RemoveBond(n, r)
     for r, n in donors:
         atom = editable.GetAtomWithIdx(r)
-        atom.SetAtomicNum(6)
+        placeholder_carbon(atom)
         for bond in list(atom.GetBonds()):
             if bond.GetOtherAtomIdx(r) in removed:
                 editable.RemoveBond(r, bond.GetOtherAtomIdx(r))

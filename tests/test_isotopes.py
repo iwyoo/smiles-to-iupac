@@ -781,6 +781,20 @@ def test_nuclides_on_a_diacylhydrazine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-82.6.3.3: the nitrogen of the amide parent takes its nuclide in front of the amide name, the sulfur of the
+# sulfonyl group in front of the hydride name inside its prefix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)[15NH]S(C)(=O)=O", "N-(methanesulfonyl)(15N)acetamide", id="amide_nitrogen_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)N[34S](C)(=O)=O", "N-[(34S)methanesulfonyl]acetamide", id="sulfonyl_sulfur_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)[15NH]C(C)=O", "N-acetyl(15N)acetamide", id="nitrogen_of_a_diacylamine"),
+    ],
+)
+def test_nuclides_on_an_acylsulfonamide_or_diacylamine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-68.4.1.1: a nuclide on an end group of a polychalcogen chain is cited in that organyl prefix
 @pytest.mark.parametrize(
     "smiles,expected",
