@@ -27,7 +27,13 @@ from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_ani
 from ._functional_prefixes import functional_names, nitro_atoms
 from ._locant_omission import omits_all_locants
 from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, ENCLOSE_MULTIPARENT, chain_numberings, monocycle_numberings, system_numberings
-from ._substituents import cite_heteroatom_double_bonds, format_substituent_prefixes, label_functional_branch, name_branch
+from ._substituents import (
+    cite_heteroatom_double_bonds,
+    format_substituent_prefixes,
+    label_functional_branch,
+    name_branch,
+    skeleton_nuclides,
+)
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3, "Z": 0, "E": 1, "seqCis": 0, "seqTrans": 1, "M": 0, "P": 1, "m": 2, "p": 3}
 PARENT_START = contextvars.ContextVar("parent_start", default=0)
@@ -286,6 +292,7 @@ def name_diester_ring_diyl(mol, matches):
             best = result
     if best is None:
         raise UnsupportedStructure("no admissible numbering places every attachment and substituent on this skeleton")
+    skeleton_nuclides({a: p for a, p in best[2].items()})
     return best[1]
 
 
@@ -294,7 +301,8 @@ def _best_for_option(mol, graph, kind, body, pool, matches_on):
     ester_oxygens = [m[2].GetIdx() for m in matches_on]
     anions = acid_anions(mol, matches_on)
     found = evaluate_skeleton(
-        mol, graph, kind, body, pool, alcohol_idxs, set(ester_oxygens), "yl", anions=anions, matches_on=matches_on
+        mol, graph, kind, body, pool, alcohol_idxs, set(ester_oxygens), "yl", anions=anions, matches_on=matches_on,
+        nuclides=True,
     )
     if found is None:
         return None
@@ -303,7 +311,9 @@ def _best_for_option(mol, graph, kind, body, pool, matches_on):
     locants = [position_of[a] for a in alcohol_idxs]
     names = {name for name, _ in anions}
     cite = len(names) > 1 and not (valence == 2 and not ring_stereo and _diyl_is_symmetric(mol, side, ester_oxygens))
-    return key, f"{group_name} {cite_anions(anions, locants, cite)}"
+    text = skeleton_nuclides(position_of, False)
+    cited = position_of if text and text in group_name else {}
+    return key, f"{group_name} {cite_anions(anions, locants, cite)}", cited
 
 
 def _mixed_valence_text(diyl, free, valence, position_of, orders):
@@ -333,7 +343,7 @@ CATION_CENTRES = contextvars.ContextVar("cation_centres", default=())
 
 def evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
-    key_centers=(), n_names=(),
+    key_centers=(), n_names=(), nuclides=False,
 ):
     from ._substituents import BRANCH_STEREO
 
@@ -350,7 +360,7 @@ def evaluate_skeleton(
     try:
         return _evaluate_skeleton(
             mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on, orders, centers, key_centers,
-            n_names,
+            n_names, nuclides,
         )
     finally:
         SUFFIX_ATOMS.reset(token)
@@ -376,7 +386,7 @@ def _cited_code(context, element, code):
 
 def _evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
-    key_centers=(), n_names=(),
+    key_centers=(), n_names=(), nuclides=False,
 ):
     """Best numbering of a ring system or chain with free valences/suffix at `attach`; returns
     (key, group_name, position_of, ring_stereo, side) or None."""
@@ -512,6 +522,8 @@ def _evaluate_skeleton(
         parent = numbering.text(free, valence, substituted, suffix)
     finally:
         ENCLOSE_MULTIPARENT.reset(enclose_token)
+    if nuclides and parent[:1].isalpha() and not (numbering.hydro or numbering.added or numbering.ih):
+        parent = skeleton_nuclides({a: p for a, p in position_of.items() if a in (pool if kind == "ring" else position_of)}, False) + parent
     if mixed:
         parent = _mixed_valence_text(parent, free, valence, position_of, orders)
         if parent is None:
