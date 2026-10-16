@@ -2505,6 +2505,14 @@ def test_hydrazido_prefix_of_a_substituted_or_carbonic_acylhydrazide(smiles, exp
         pytest.param("c1ccccc1/C=N/Nc1ccccc1", "[(E)-benzylidene](phenyl)hydrazine", id="hydrazone_with_a_single_atom_ylidene"),
         pytest.param("N/C(=N\\O)c1ccccc1", "(Z)-N'-hydroxybenzenecarboximidamide", id="amidoxime_on_a_ring_without_a_locant"),
         pytest.param("N/C(=N/O)C1CC1", "(E)-N'-hydroxycyclopropanecarboximidamide", id="amidoxime_other_configuration"),
+        pytest.param(
+            "N/C(=N\\O)c1ccc(/C(N)=N/O)cc1", "(Z,Z)-N'1,N'4-dihydroxybenzene-1,4-dicarboximidamide", id="multiplied_amidoxime_without_locants"
+        ),
+        pytest.param(
+            "N/C(=N\\O)c1ccc(/C(N)=N\\O)c(Cl)c1",
+            "(E,Z)-2-chloro-N'1,N'4-dihydroxybenzene-1,4-dicarboximidamide",
+            id="descriptors_without_locants_follow_the_numbering_of_the_ring",
+        ),
     ],
 )
 def test_configuration_of_the_c_n_bond_of_hydrazones_and_amidoximes(smiles, expected):

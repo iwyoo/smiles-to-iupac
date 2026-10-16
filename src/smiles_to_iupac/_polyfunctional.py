@@ -1931,6 +1931,7 @@ def _cationic_group_suffix(name, parent, cationic=None):
 
 
 STEREO_OF_ISOTOPOLOGUE = contextvars.ContextVar("stereo_of_isotopologue", default=None)
+STEREO_SUFFIX = contextvars.ContextVar("stereo_suffix", default=None)
 
 
 def _located_elements(mol):
@@ -2238,6 +2239,7 @@ def _name_labelled(mol, labels, finish=None):
         "used": set(),
     }
     token = BRANCH_STEREO.set(context if stereo else None)
+    suffix_token = None
     isotope_context = {"labels": labels, "consumed": set(), "mol": mol}
     isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
@@ -2258,6 +2260,8 @@ def _name_labelled(mol, labels, finish=None):
         isotope_context["consumed"].clear()
         isotope_context.pop("cache", None)
         isotope_context.pop("cited", None)
+        owned = set().union(*_principal_owned(mol)[1]) if stereo else frozenset()
+        suffix_token = STEREO_SUFFIX.set((mol, owned) if owned else None)
         _, name, parts = _select(mol, stereo=stereo)
         LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:
@@ -2266,12 +2270,13 @@ def _name_labelled(mol, labels, finish=None):
             )
         if finish is not None:
             name = finish(name, parts[4])
-        owned = set().union(*_principal_owned(mol)[1]) if stereo else frozenset()
         if AMINIUM.get() is True:
             owned |= {w for kind, w, _ in stereo if kind == "atom" and mol.GetAtomWithIdx(w).GetAtomicNum() == 7}
         prefix = _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"], suffix=owned)
         return name if prefix and name.startswith(prefix) else prefix + name
     finally:
+        if suffix_token is not None:
+            STEREO_SUFFIX.reset(suffix_token)
         BRANCH_STEREO.reset(token)
         ISOTOPE_LABELS.reset(isotope_token)
 
@@ -2580,7 +2585,10 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset(), su
     """[(locant, code)] for the stereo elements found on the parent, plus
     whether every element was placed (on the parent or inside a substituent). A double bond inside the atoms of the
     principal suffix group, whose carbon the parent does not number, takes no locant (P-93.4.2.1.3)."""
-    entries, complete = [], True
+    entries, complete, unlocated = [], True, []
+    carried = STEREO_SUFFIX.get()
+    if not suffix and carried is not None:
+        suffix = carried[1]
     for kind, where, code in stereo or []:
         if kind == "isotope":
             continue
@@ -2588,7 +2596,7 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset(), su
             if where in position_of:
                 entries.append((position_of[where], code))
             elif where in suffix:
-                entries.append(("", code))
+                unlocated.append((_suffix_position(carried, position_of, (where,)), code))
             elif ("atom", where) not in used:
                 complete = False
         else:
@@ -2604,12 +2612,26 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset(), su
                     # of the parent atom
                     entries.append((position_of[inside[0]], code))
                 elif a in suffix and b in suffix:
-                    entries.append(("", code))
+                    unlocated.append((_suffix_position(carried, position_of, (a, b)), code))
                 else:
                     complete = False
             else:
                 entries.append((_bond_locant(position_of[a], position_of[b]), code))
-    return sorted(entries, key=lambda entry: (entry[0] == "", entry)), complete
+    unlocated.sort(key=lambda found: (found[0] is None, found[0], found[1]))
+    return sorted(entries) + [("", code) for _, code in unlocated], complete
+
+
+def _suffix_position(carried, position_of, atoms):
+    """The position in the parent of the atom that bears a principal group whose own atoms the parent does not number,
+    which orders the descriptors that take no locant (P-93.4.2.1.2)."""
+    if carried is None:
+        return None
+    mol, owned = carried
+    for atom in atoms:
+        for neighbor in mol.GetAtomWithIdx(atom).GetNeighbors():
+            if neighbor.GetIdx() in position_of and neighbor.GetIdx() not in owned:
+                return position_of[neighbor.GetIdx()]
+    return None
 
 
 def _stereo_rank(stereo, position_of, ring_parent=False):
@@ -2672,7 +2694,7 @@ def _parent_configuration_rank(stereo, position_of, ring_parent=False, direction
     A chain numbered in either direction leaves R ahead of S to the stereo rank, after the isotopic locants (P-31.1.4.3.4)."""
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
     marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
-    cis = [locant for locant, code in entries if code == "Z"]
+    cis = [locant for locant, code in entries if code == "Z" and locant != ""]
     centres = [code for _, code in entries if code in ("R", "S", "r", "s")]
     like = sum(1 for code in centres[1:] if code == centres[0])
     return (
