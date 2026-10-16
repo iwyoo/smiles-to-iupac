@@ -1062,6 +1062,7 @@ def test_ester_class_names(smiles, expected):
         ("C(N)(=O)Cl", "carbonochloridic amide"),
         ("CNC(=O)Cl", "N-methylcarbonochloridic amide"),
         ("CC(N)=NC(=O)Cl", "N-(1-aminoethylidene)carbonochloridic amide"),
+        ("C/C=N/NC(=O)Cl", "N-{[(1E)-ethylidene]amino}carbonochloridic amide"),
         ("C(C)OC(=O)OC(C(=O)OCC)C(C(C)(C)C)=O", "ethyl 2-[(ethoxycarbonyl)oxy]-4,4-dimethyl-3-oxopentanoate"),
         ("NC(CC1=CC=C(O1)C(=O)O)=O", "5-(2-amino-2-oxoethyl)furan-2-carboxylic acid"),
         ("C(C)(=S)C(C(C)=S)C(C)=S", "3-(ethanethioyl)pentane-2,4-dithione"),
