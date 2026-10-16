@@ -133,6 +133,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   modification.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._common import (
@@ -245,6 +247,96 @@ def name_isotope_hydride(mol) -> str:
         return text + _ion_or_radical_name(clean)
     parent = stem if len(chain) == 1 else "hydrazine" if z == 7 and len(chain) == 2 else multiplying_prefix(len(chain)) + stem
     return text + parent
+
+
+def _substituted_hydride(mol):
+    """(chain atoms, substituent roots by chain atom) of an unbranched acyclic chain of one hydride-forming element that
+    carries only carbon groups, else None: 'methylhydrazine', 'dimethylphosphane'."""
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
+    elements = {a.GetAtomicNum() for a in mol.GetAtoms() if a.GetAtomicNum() not in (1, 6)}
+    if len(elements) != 1 or (z := next(iter(elements))) not in _MONONUCLEAR_HYDRIDES:
+        return None
+    chain_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == z}
+    degrees = {i: sum(1 for n in mol.GetAtomWithIdx(i).GetNeighbors() if n.GetIdx() in chain_atoms) for i in chain_atoms}
+    ends = [i for i, d in degrees.items() if d <= 1]
+    if any(d > 2 for d in degrees.values()) or len(ends) != (2 if len(chain_atoms) > 1 else 1):
+        return None
+    if len(chain_atoms) == 1 and z in (7, 8, 16, 34, 52):
+        return None
+    if len(chain_atoms) > 1 and z in (5, 13):
+        return None
+    order, previous = [ends[0]], None
+    while len(order) < len(chain_atoms):
+        onward = [n.GetIdx() for n in mol.GetAtomWithIdx(order[-1]).GetNeighbors() if n.GetIdx() in chain_atoms and n.GetIdx() != previous]
+        if not onward:
+            return None
+        previous = order[-1]
+        order.append(onward[0])
+    roots = {}
+    for i in order:
+        for n in mol.GetAtomWithIdx(i).GetNeighbors():
+            if n.GetIdx() in chain_atoms or n.GetAtomicNum() == 1:
+                continue
+            bond = mol.GetBondBetweenAtoms(i, n.GetIdx())
+            if n.GetAtomicNum() != 6 or bond.GetBondTypeAsDouble() != 1.0 or bond.IsInRing():
+                return None
+            roots.setdefault(i, []).append(n.GetIdx())
+    if not roots or any(b.GetBondTypeAsDouble() != 1.0 for i in order for b in mol.GetAtomWithIdx(i).GetBonds()):
+        return None
+    return order, roots
+
+
+def has_isotope_substituted_hydride_shape(mol) -> bool:
+    """A hydrogen nuclide on the parent hydride of a hydrazine or phosphane-type compound that carries carbon groups, no
+    other atom of the molecule being modified."""
+    from ._isotope_labels import split_isotopes
+
+    split = split_isotopes(mol)
+    if split is None:
+        return False
+    clean, labels, _ = split
+    found = _substituted_hydride(clean)
+    return found is not None and all(
+        a in found[0] and not entry["skeleton"] for a, entry in labels.items()
+    )
+
+
+def name_isotope_substituted_hydride(mol) -> str:
+    """'1-methyl(2-2H1)hydrazine', 'methyl(2H1)phosphane': the unmodified name with the descriptor of the hydride's own
+    hydrogens in front of the parent hydride, after the prefixes; once the descriptor needs locants every locant is cited
+    (P-82.2.1, P-82.6.1.1, P-82.5.2)."""
+    from .core import smiles_to_iupac
+    from ._common import adjacency, halogen_substituents
+    from ._isotope_labels import descriptor, split_isotopes
+    from ._numerals import multiplying_prefix
+    from ._substituents import name_branch
+
+    clean, labels, _ = split_isotopes(mol)
+    chain, roots = _substituted_hydride(clean)
+    graph = adjacency(clean)
+    halogens = halogen_substituents(clean)
+    z = clean.GetAtomWithIdx(chain[0]).GetAtomicNum()
+    stem = _MONONUCLEAR_HYDRIDES[z]
+    parent = stem if len(chain) == 1 else "hydrazine" if z == 7 and len(chain) == 2 else multiplying_prefix(len(chain)) + stem
+    best = None
+    for candidate in (chain, chain[::-1]):
+        positions = {atom: place for place, atom in enumerate(candidate, start=1)}
+        key = (sorted(positions[a] for a in roots for _ in roots[a]), sorted(positions[a] for a in labels))
+        if best is None or key < best[0]:
+            best = (key, positions)
+    positions = best[1]
+    substituents = {
+        positions[a]: [name_branch(graph, root, a, halogens, mol=clean) for root in group] for a, group in roots.items()
+    }
+    prefixes = format_substituent_prefixes(group_substituents(substituents), omit_locants=len(chain) == 1)
+    capacity = {a: clean.GetAtomWithIdx(a).GetTotalNumHs() for a in chain}
+    text = descriptor(labels, positions, len(chain) == 1, capacity=capacity)
+    name = prefixes + text + parent
+    plain = re.sub(r"(?<![\w,])\d+(?:,\d+)*-", "", prefixes + parent)
+    if re.sub(r"(?<![\w,])\d+(?:,\d+)*-", "", smiles_to_iupac(Chem.MolToSmiles(clean))) != plain:
+        raise UnsupportedStructure("the substituted hydride is named in another way when unmodified")
+    return name
 
 
 def _validate_other_atoms(other_atoms, mol, bonded_carbon_idx):

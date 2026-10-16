@@ -1,6 +1,6 @@
-"""A nuclide on the O-H or N-H of a phosphorus, arsenic, antimony, sulfur or carbamic acid group (P-82.2.1, P-82.6.2): the
-acid is named without it and the descriptor, with the letter locant of the modified atom, is inserted before the acid
-parent, after its prefixes: 'methyl(O-2H)phosphonic acid'."""
+"""A nuclide on the O-H or N-H of a boron, phosphorus, arsenic, antimony, sulfur, carbonic, oxalic, cyanic or carbamic acid
+group or of cyanamide (P-82.2.1, P-82.6.2): the compound is named without it and the descriptor, with the letter locant of
+the modified atom, is inserted before the parent, after its prefixes: 'methyl(O-2H)phosphonic acid'."""
 
 import re
 
@@ -10,8 +10,23 @@ from ._common import UnsupportedStructure
 from ._isotope_labels import split_isotopes
 
 _ACID_PARENT = re.compile(
-    r"(?:(?:phosph|ars|stib)(?:or|on|in)(?:ic|ous)|sulfur(?:ic|ous)|carbamic) acid$"
+    r"(?:(?:phosph|ars|stib)(?:or|on|in)(?:ic|ous)|sulfur(?:ic|ous)|bor(?:on|in)?ic|carbamic|carbonic|oxalic|cyanic) acid$|cyanamide$"
 )
+
+
+def _is_oxoacid_centre(atom):
+    """Whether a hydroxy or amino group on `atom` belongs to an oxoacid: a terminal =O on carbon, phosphorus, sulfur,
+    arsenic or antimony, a boron atom, or a carbon triply bonded to nitrogen."""
+    z = atom.GetAtomicNum()
+    if z == 5:
+        return True
+    if z not in (6, 15, 16, 33, 51):
+        return False
+    return any(
+        (b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 and b.GetOtherAtom(atom).GetDegree() == 1)
+        or (z == 6 and b.GetBondTypeAsDouble() == 3.0 and b.GetOtherAtom(atom).GetAtomicNum() == 7)
+        for b in atom.GetBonds()
+    )
 
 
 def _labelled_group_atom(mol):
@@ -25,15 +40,7 @@ def _labelled_group_atom(mol):
     atom = clean.GetAtomWithIdx(index)
     if entry["skeleton"] or sum(entry["H"].values()) != 1 or atom.GetAtomicNum() not in (7, 8):
         return None
-    centres = [
-        n
-        for n in atom.GetNeighbors()
-        if n.GetAtomicNum() in (6, 15, 16, 33, 51)
-        and any(
-            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() == 8 and b.GetOtherAtom(n).GetDegree() == 1
-            for b in n.GetBonds()
-        )
-    ]
+    centres = [n for n in atom.GetNeighbors() if _is_oxoacid_centre(n)]
     if len(centres) != 1 or (atom.GetAtomicNum() == 7 and centres[0].GetAtomicNum() != 6):
         return None
     return clean, atom, entry
