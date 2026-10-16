@@ -8,6 +8,7 @@ import re
 from rdkit import Chem
 
 from ._acid_lexicon import _INFIX, _MULTIPLIER, _peroxo_word
+from ._chalcogen_imide import ylidene_group_atoms
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
 from ._parent_choice import senior_parent_name
 from ._retained_acids import single_site_prefixes
@@ -274,8 +275,11 @@ def _cyano_carbon(mol, atom, nitrogen):
 
 
 def _ylidene_carbon(mol, atom, nitrogen):
-    """The carbon double-bonded to `nitrogen`, cited as an N-ylidene prefix (P-66.1.6.1.1.2)."""
-    return atom.GetAtomicNum() == 6 and not atom.GetFormalCharge() and _bond(mol, atom.GetIdx(), nitrogen) == 2.0
+    """The carbon, or the centre of a sulfoximide-type group, double-bonded to `nitrogen`, cited as an N-ylidene prefix
+    (P-66.1.6.1.1.2, P-68.4.3.4)."""
+    if atom.GetFormalCharge() or _bond(mol, atom.GetIdx(), nitrogen) != 2.0:
+        return False
+    return atom.GetAtomicNum() == 6 or bool(ylidene_group_atoms(mol, atom.GetIdx(), nitrogen))
 
 
 def _imine_slot(mol, center, n):

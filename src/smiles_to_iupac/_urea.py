@@ -44,6 +44,7 @@ urea core (hydantoin) and groups senior to urea (acids, esters, amides) are out 
 
 from rdkit import Chem
 
+from ._chalcogen_imide import ylidene_group_atoms
 from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first, unprimed_first_labelled
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
 from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
@@ -79,7 +80,13 @@ def _urea_cores(mol, atomic_num=8):
             continue
         if all(n.IsInRing() for n in nitrogens):
             continue
-        if any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() != 6 for n in nitrogens for b in n.GetBonds()):
+        if any(
+            b.GetBondTypeAsDouble() == 2.0
+            and b.GetOtherAtom(n).GetAtomicNum() != 6
+            and not ylidene_group_atoms(mol, b.GetOtherAtom(n).GetIdx(), n.GetIdx())
+            for n in nitrogens
+            for b in n.GetBonds()
+        ):
             continue
         if any(
             b.GetBondTypeAsDouble() != 1.0 and not (b.GetBeginAtomIdx() == atom.GetIdx() or b.GetEndAtomIdx() == atom.GetIdx())
