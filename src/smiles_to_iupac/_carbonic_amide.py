@@ -4,7 +4,7 @@ diamide."""
 
 from rdkit import Chem
 
-from ._chalcogenourea import _UREA_SUBSTITUENT_ELEMENTS, has_group_senior_to_urea, n_substituent_names
+from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_atom, n_substituent_names
 from ._cited_group import cited_group
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_nitro_nitrogen
 from ._numerals import numerical_term
@@ -57,7 +57,7 @@ _JUNIOR_ROOTS = {8, 16, 34, 52, 9, 17, 35, 53}
 
 
 def _junior_arm_atom(atom):
-    return atom.GetAtomicNum() in _UREA_SUBSTITUENT_ELEMENTS or atom.IsInRing()
+    return is_urea_substituent_atom(atom) or atom.IsInRing()
 
 
 def _hydrocarbon_arms(mol, graph, nitrogen, skip, junior=False):
