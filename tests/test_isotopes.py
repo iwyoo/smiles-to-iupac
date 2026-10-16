@@ -3,6 +3,21 @@ from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
+# P-82.2.1, P-82.6.1.2: the carbonyl oxygen, the only oxygen of the molecule, is cited in front of the acyl compound without a locant
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=[18O])NN", "(18O)acetohydrazide", id="hydrazide"),
+        pytest.param("CC(=[18O])N=[N+]=[N-]", "(18O)acetyl azide", id="acyl_azide"),
+        pytest.param("CC(=[18O])SC", "S-methyl (18O)ethanethioate", id="thioester"),
+        pytest.param("CC=[18O]", "(18O)acetaldehyde", id="retained_aldehyde_name"),
+        pytest.param("[18O]=Cc1ccc(Cl)cc1", "4-chloro(18O)benzaldehyde", id="substituted_retained_aldehyde_name"),
+    ],
+)
+def test_carbonyl_oxygen_of_an_acyl_compound(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -700,6 +715,9 @@ def test_nuclide_in_the_organyl_group_of_an_oxoacid_ester_or_acyl_prefix(smiles,
         pytest.param("C[C@@]12[C@@H]([C@H](C)CC[C@@H]([2H])C(C)C)CC[C@H]1[C@@H]1CC[C@H]3CCCC[C@]3(C)[C@H]1CC2", "(24R)-5α-(24-2H1)cholestane", id="side_chain_centre_made_stereogenic_by_deuterium"),
         pytest.param("C[C@@]12[C@@H]([C@H](C)CC[C@H]([2H])C(C)C)CC[C@H]1[C@@H]1CC[C@H]3CCCC[C@]3(C)[C@H]1CC2", "(24S)-5α-(24-2H1)cholestane", id="other_configuration_of_the_same_centre"),
         pytest.param("[2H][C@]1(CC)CC[C@H]2[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3CC[C@@]21C", "5α-(17-2H)pregnane", id="existing_centre_needs_no_descriptor"),
+        pytest.param("C[C@H](CC[C@@H]([2H])C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CC[C@@H](C4)O)C)C", "(24R)-5α-(24-2H1)cholestan-3β-ol", id="hydroxy_suffix_after_the_configuration"),
+        pytest.param("C[C@H](CC[C@@H]([2H])C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC=C4[C@@]3(CC[C@@H](C4)O)C)C", "(24R)-(24-2H1)cholest-5-en-3β-ol", id="unsaturated_parent_with_a_hydroxy_suffix"),
+        pytest.param("C[C@]12CC[C@H]3[C@@H](CCC4=CC(=O)[13CH2]C[C@@]43C)[C@@H]1CC[C@@H]2O", "17β-hydroxy(2-13C)androst-4-en-3-one", id="nuclide_after_a_prefix_of_the_parent"),
     ],
 )
 def test_isotopically_modified_steroid_parent_hydride(smiles, expected):
@@ -887,6 +905,20 @@ def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expecte
     ],
 )
 def test_stereocentre_made_by_nuclides_beside_a_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.2: a labelled organyl group of an acid is cited in front of its own name, whichever dedicated namer names the acid
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[13CH3]CNC(=O)O", "(2-13C)ethylcarbamic acid", id="carbamic_acid"),
+        pytest.param("[13CH3]CCB(O)O", "(3-13C)propylboronic acid", id="boronic_acid"),
+        pytest.param("[13CH3]C([N+](=O)[O-])CB(O)O", "[2-nitro(3-13C)propyl]boronic acid", id="boronic_acid_with_a_nitro_prefix"),
+        pytest.param("[13CH3]CP(=O)(O)Cl", "(2-13C)ethylphosphonochloridic acid", id="functional_replacement_phosphonic_acid"),
+    ],
+)
+def test_labelled_organyl_group_of_an_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

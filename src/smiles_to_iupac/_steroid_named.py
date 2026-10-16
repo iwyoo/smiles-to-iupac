@@ -13,7 +13,7 @@ from rdkit.Chem import AllChem
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
 from ._numerals import multiplying_prefix
-from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
+from ._substituents import ISOTOPE_LABELS, cited_branch_stereo, format_substituent_prefixes, name_branch, skeleton_nuclides
 
 _RING_BONDS = [
     (1, 2), (2, 3), (3, 4), (4, 5), (5, 10), (10, 1), (5, 6), (6, 7), (7, 8), (8, 9), (9, 10),
@@ -476,10 +476,13 @@ def _assemble(mol, stem, mappings, ring_atoms):
     core = _words(stem, [_ene_locant(b) for b in double], [_ene_locant(b) for b in triple], word, locants)
     descriptor = ",".join(parent_descriptors) + "-" if parent_descriptors else ""
     chain = f"({','.join(chain_descriptors)})-" if chain_descriptors else ""
+    nuclides = skeleton_nuclides(position_of)
+    if nuclides:
+        ISOTOPE_LABELS.get()["positions"] = position_of
     if prefix and descriptor:
-        body = f"{chain}{prefix}-{descriptor}{core}"
+        body = f"{chain}{prefix}-{descriptor}{nuclides}{core}"
     else:
-        body = f"{chain}{prefix}{descriptor}{core}"
+        body = f"{chain}{prefix}{descriptor}{nuclides}{core}"
     return " ".join(part for part in (alkyl_word, body, anion) if part)
 
 
