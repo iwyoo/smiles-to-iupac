@@ -14,7 +14,7 @@ from ._common import (
     alphanumerical_name_key,
     group_substituents,
     halogen_substituents,
-    specified_stereocenters,
+    specified_stereo_elements,
 )
 from ._multiplicative_text import enclose
 from ._numerals import numerical_term
@@ -552,13 +552,12 @@ def name_noncarbon_oxoacid(mol) -> str:
 
 
 def _centre_descriptor(mol, centre):
-    """P-93.2.4: '(R)-' or '(S)-' of a stereogenic acid centre that is the only stereo element, '' when it is not one."""
+    """P-93.2.4: '(R)-' or '(S)-' of a stereogenic acid centre, '' when it is not one; the groups on the centre cite their
+    own descriptors."""
     if not any(e.centeredOn == centre and e.specified == Chem.StereoSpecified.Specified for e in Chem.FindPotentialStereo(mol)):
         return ""
-    stereo = specified_stereocenters(mol)
-    if len(stereo) != 1:
-        raise UnsupportedStructure("a stereogenic acid centre beside other stereo elements is not cited by any supported name")
-    return f"({stereo[0][1]})-"
+    code = next((c for kind, idx, c in specified_stereo_elements(mol) or () if kind == "atom" and idx == centre), None)
+    return f"({code})-" if code else ""
 
 
 def _name_from_parts(mol, parts, descriptor="") -> str:

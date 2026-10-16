@@ -343,6 +343,8 @@ def test_halogenated_n_substituent_and_related(smiles, expected):
 def test_sulfinamide_specified_sulfur_stereocenter_cited():
     assert smiles_to_iupac("CCC[S@](=O)N") == "(S)-propane-1-sulfinamide"
     assert smiles_to_iupac("CCC[S@@](=O)N") == "(R)-propane-1-sulfinamide"
+    assert smiles_to_iupac("CC[C@H](C)[S@](=O)N") == "(2S,S)-butane-2-sulfinamide"
+    assert smiles_to_iupac("CC[C@H](C)[S@@](=O)c1ccccc1") == "[(R)-(2S)-butane-2-sulfinyl]benzene"
 
 
 @pytest.mark.parametrize(
@@ -1221,6 +1223,7 @@ def test_double_bond_of_a_sulfonyl_or_sulfinyl_prefix_cites_its_descriptor(smile
     [
         ("C[S@](=O)CC", "(S)-(methanesulfinyl)ethane"),
         ("[N+](=O)([O-])C1=CC=C(C=C1)[S@](=O)OCC", "ethyl (R)-4-nitrobenzene-1-sulfinate"),
+        ("CC[C@H](C)[S@](=O)OC", "methyl (2S,R)-butane-2-sulfinate"),
     ],
 )
 def test_stereogenic_sulfoxide_and_sulfinate(smiles, expected):

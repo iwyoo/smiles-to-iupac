@@ -1785,8 +1785,11 @@ def _stereo_cited(name, atom):
     if not context or atom not in context["atoms"]:
         return name
     context["used"].add(("atom", atom))
-    plain = re.sub(r"^\([RS]\)-", "", name)
+    plain = _OWN_DESCRIPTOR.sub(lambda found: f"({found.group(1)})-" if found.group(1) else "", name)
     return f"({context['atoms'][atom]})-{plain}"
+
+
+_OWN_DESCRIPTOR = re.compile(r"^\((?:([^()]*),)?[RS]\)-")
 
 
 def _imido_symbol(mol, nitrogen):

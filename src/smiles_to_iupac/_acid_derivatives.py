@@ -1656,18 +1656,18 @@ def name_acid_derivative(mol):
 def _stereogenic_phosphorus_ester(mol, name):
     """P-93.2.4, P-93.3.4.1: the descriptor of a stereogenic phosphorus or sulfur centre precedes the anion, bracketed for
     phosphorus: 'methyl (S)-[methyl(phenyl)phosphinate]', 'ethyl (R)-4-nitrobenzene-1-sulfinate'."""
-    from ._common import heteroatom_stereo_prefix
+    from ._common import specified_stereo_elements, with_unlocated_descriptor
 
     centres = [
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in (15, 16) and a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
     ]
     if len(centres) != 1:
         return name
-    descriptor = heteroatom_stereo_prefix(mol, centres[0])
-    if descriptor is None:
+    code = next((c for kind, idx, c in specified_stereo_elements(mol) or () if kind == "atom" and idx == centres[0]), None)
+    if code is None:
         return name
     cations, _, anion = name.rpartition(" ")
     centre = mol.GetAtomWithIdx(centres[0])
     if centre.GetAtomicNum() == 16 and centre.GetDegree() == 3:
-        return f"{cations} {descriptor}{anion}"
-    return f"{cations} {descriptor}{enclose(anion)}"
+        return f"{cations} {with_unlocated_descriptor(anion, code)}"
+    return f"{cations} ({code})-{enclose(anion)}"

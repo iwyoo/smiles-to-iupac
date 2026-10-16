@@ -5,7 +5,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, with_unlocated_descriptor
 from ._phosphanyl_group import PREFIX_PROP
 from ._prefix_groups import enclose
 from ._substituents import name_branch
@@ -67,17 +67,27 @@ def name_amine_oxide(mol) -> str:
         if nitrogen.IsInRing():
             raise UnsupportedStructure("the ring of an oxidized ring nitrogen is the parent of its N-oxide (P-62.5)")
         return f"{_name_with_oxidized_parent(reduced_mol, nitrogen.GetIdx(), oxide_oxygen.GetIdx())} N-{class_word}"
-    from ._common import heteroatom_stereo_prefix, specified_stereo_elements
+    from ._common import match_cip_labels, specified_stereo_elements
 
-    centres = [idx for kind, idx, _ in specified_stereo_elements(mol) or () if kind == "atom"]
-    stereo_prefix = heteroatom_stereo_prefix(mol, nitrogen.GetIdx()) or "" if nitrogen.GetIdx() in centres else ""
+    nitrogen_code = next(
+        (code for kind, idx, code in specified_stereo_elements(mol) or () if kind == "atom" and idx == nitrogen.GetIdx()),
+        None,
+    )
+    reduced_mol.GetAtomWithIdx(_reduced_position(nitrogen.GetIdx(), oxide_oxygen.GetIdx())).SetChiralTag(
+        Chem.ChiralType.CHI_UNSPECIFIED
+    )
+    match_cip_labels(
+        mol,
+        reduced_mol,
+        {i: i + (i >= oxide_oxygen.GetIdx()) for i in range(reduced_mol.GetNumAtoms())},
+    )
     try:
         base_name = name_amine(reduced_mol)
     except UnsupportedStructure:
         if nitrogen.IsInRing():
             raise
         base_name = _name_with_nitrile_prefix(reduced_mol)
-    return f"{stereo_prefix}{base_name} N-{class_word}"
+    return f"{with_unlocated_descriptor(base_name, nitrogen_code)} N-{class_word}"
 
 
 def _is_amine_nitrogen(atom):

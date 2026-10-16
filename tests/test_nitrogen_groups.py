@@ -2081,6 +2081,8 @@ def test_hydroxylamine_acid_forms_and_chalcogen_analogues(smiles, expected):
 
 def test_stereogenic_nitrogen_of_an_amine_oxide():
     assert smiles_to_iupac("C(C)[N@+](C1=CC=CC=C1)(C)[O-]") == "(S)-N-ethyl-N-methylaniline N-oxide"
+    assert smiles_to_iupac("CC[C@H](C)[N@+](C)([O-])CC") == "(2S,R)-N-ethyl-N-methylbutan-2-amine N-oxide"
+    assert smiles_to_iupac("CC[C@H](C)[N+](C)([O-])CC") == "(2S)-N-ethyl-N-methylbutan-2-amine N-oxide"
 
 
 def test_double_bond_descriptor_of_an_amine_oxide_group():
