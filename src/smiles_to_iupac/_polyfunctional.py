@@ -5125,6 +5125,8 @@ def _boranyl_amines(mol, graph, halogens, aromatic_atoms):
     with _renumbered_branch_stereo(kept):
         result = _select(parent, None, tagged)
     positions = result[2][4]
+    if isinstance(positions, dict) and any(carbon not in positions for _, _, (_, carbon, _) in tagged):
+        return None
     if isinstance(positions, dict) and positions:
         positions = {kept[new]: locant for new, locant in positions.items() if new < len(kept)}
         return result[0], result[1], (*result[2][:4], positions, *result[2][5:])
