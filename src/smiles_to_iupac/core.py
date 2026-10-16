@@ -793,12 +793,23 @@ def _name_labelled_substituents(mol):
     try:
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
-            context["consumed"].clear()
-            try:
-                name = _name_mol(clean)
-            except UnsupportedStructure:
+            name, partial = None, None
+            for namer in (name_chalcogen_imide, _name_mol, name_polynuclear_oxoacid, name_chalcogen_chain_heterone):
                 context["consumed"].clear()
-                name = name_chalcogen_chain_heterone(clean)
+                try:
+                    candidate = namer(clean)
+                except UnsupportedStructure:
+                    if namer is name_chalcogen_chain_heterone and partial is None:
+                        raise
+                    continue
+                if not set(labels) - context["consumed"]:
+                    name, partial = candidate, None
+                    break
+                partial = partial or (candidate, set(context["consumed"]))
+            if name is None:
+                name = partial[0]
+                context["consumed"].clear()
+                context["consumed"].update(partial[1])
     finally:
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
