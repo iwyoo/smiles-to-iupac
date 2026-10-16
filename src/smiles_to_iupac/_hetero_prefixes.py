@@ -1954,12 +1954,12 @@ LAMBDA_CENTRE_STEMS = {
 }
 
 
-_HETERO_PARENT_ORDER = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52)
+_HETERO_PARENT_ORDER = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52, 9, 17, 35, 53)
 
 
 def _ring_outranks_centre(mol, centre):
-    """A ring skeleton other than the centre's own holds a heteroatom at least as senior as the lambda `centre` (N > O > S > Se > Te): a ring is
-    senior to a chain of the same senior atom, so the lambda centre is then a prefix of the ring (P-41, P-44.1.2.2)."""
+    """A ring skeleton other than the centre's own holds a heteroatom at least as senior as the lambda `centre` (N > O > S > Se > Te > F > Cl >
+    Br > I): a ring is senior to a chain of the same senior atom, so the lambda centre is then a prefix of the ring (P-41, P-44.1.2.2)."""
     rank = _HETERO_PARENT_ORDER.index(mol.GetAtomWithIdx(centre).GetAtomicNum())
     own_rings = {a for ring in mol.GetRingInfo().AtomRings() if centre in ring for a in ring}
     return any(

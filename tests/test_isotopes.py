@@ -285,7 +285,7 @@ def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
     assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
-@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1[15N+](=O)[O-]"])
+@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1[15N+](=O)[O-]", "[2H]I(C)C"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
