@@ -1517,7 +1517,7 @@ def has_isotope_acyl_halide_shape(mol):
     if not any(a.GetIsotope() for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) != 1:
         return False
     links, acid = find_links(_without_nuclides(mol))
-    if not links or acid or not all(l.kind == "halide" for l in links):
+    if not links or acid or not all(l.kind in ("halide", "pseudohalide") for l in links):
         return False
     carbonyl_oxygens = {n.GetIdx() for l in links for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetAtomicNum() == 8}
     centres = {l.center for l in links}
@@ -1542,11 +1542,17 @@ def name_isotope_acyl_halide(mol):
 
     links, _ = find_links(_without_nuclides(mol))
     editable = Chem.RWMol(mol)
+    graph = adjacency(mol)
+    dropped = set()
     for l in links:
         atom = editable.GetAtomWithIdx(l.far)
         atom.SetAtomicNum(8)
         atom.SetNumExplicitHs(1)
         atom.SetNoImplicit(True)
+        atom.SetFormalCharge(0)
+        dropped |= _far_side(graph, l.far, l.center) - {l.far}
+    for idx in sorted(dropped, reverse=True):
+        editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
     name = f"{acyl_name(smiles_to_iupac(Chem.MolToSmiles(acid)))} {_class_words(mol, links)}"

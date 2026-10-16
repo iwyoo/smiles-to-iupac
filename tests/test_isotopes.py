@@ -3,6 +3,21 @@ from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
+# P-82.2.1, P-82.6.1.2: the carbonyl oxygen, the only oxygen of the molecule, is cited in front of the acyl compound without a locant
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=[18O])NN", "(18O)acetohydrazide", id="hydrazide"),
+        pytest.param("CC(=[18O])N=[N+]=[N-]", "(18O)acetyl azide", id="acyl_azide"),
+        pytest.param("CC(=[18O])SC", "S-methyl (18O)ethanethioate", id="thioester"),
+        pytest.param("CC=[18O]", "(18O)acetaldehyde", id="retained_aldehyde_name"),
+        pytest.param("[18O]=Cc1ccc(Cl)cc1", "4-chloro(18O)benzaldehyde", id="substituted_retained_aldehyde_name"),
+    ],
+)
+def test_carbonyl_oxygen_of_an_acyl_compound(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [
