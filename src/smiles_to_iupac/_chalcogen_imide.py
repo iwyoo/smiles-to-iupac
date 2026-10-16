@@ -15,7 +15,14 @@ from ._common import (
     multiplied_word,
 )
 from ._multiplicative_text import enclose
-from ._substituents import cited_centre_stereo, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import (
+    centre_nuclides,
+    cited_centre_stereo,
+    format_mononuclear_prefixes,
+    format_substituent_prefixes,
+    name_branch,
+    suffix_nuclides,
+)
 
 _PARENT = {16: "sulfane", 34: "selane", 52: "tellane"}
 _ONE = {8: "one", 16: "thione", 34: "selone", 52: "tellone"}
@@ -83,6 +90,8 @@ def _find(mol):
     if not imines or valence not in (4, 6) or len({a.GetAtomicNum() for a in chalcogens}) > 1:
         return None
     allowed = {center.GetIdx(), *(a.GetIdx() for a in imines), *(a.GetIdx() for a in chalcogens)}
+    if any(mol.GetAtomWithIdx(i).GetIsotope() for i in allowed):
+        return None
     hydroxy = {n.GetIdx() for a in imines for n in a.GetNeighbors() if _terminal_hydroxy_or_amino(n)}
     if any(
         a.GetIdx() not in allowed
@@ -181,15 +190,18 @@ def _name(mol, center, imines, chalcogens, carbons) -> str:
 
     if chalcogens:
         entries = list(sulfur_groups)
-        for group in nitrogen_groups:
-            entries.append(("imino", False) if group is None else ((enclose(group[0]) if group[1] else group[0]) + "imino", True))
-        suffix = multiplied_word(len(chalcogens), _ONE[chalcogens[0].GetAtomicNum()])
-        stem = parent[:-1] if suffix[0] in "aeiouy" else parent
+        for nitrogen, group in zip(imines, nitrogen_groups):
+            imino = centre_nuclides(nitrogen.GetIdx()) + "imino"
+            entries.append((imino, False) if group is None else ((enclose(group[0]) if group[1] else group[0]) + imino, True))
+        word = multiplied_word(len(chalcogens), _ONE[chalcogens[0].GetAtomicNum()])
+        suffix = suffix_nuclides([a.GetIdx() for a in chalcogens], _ONE[chalcogens[0].GetAtomicNum()])
+        stem = parent[:-1] if word[0] in "aeiouy" else parent
         return f"{format_mononuclear_prefixes(entries)}-λ{valence}-{stem}{suffix}"
 
-    suffix = multiplied_word(len(imines), "imine")
-    stem = parent[:-1] if suffix[0] in "aeiouy" else parent
     substituents = [g for g in nitrogen_groups if g is not None]
+    word = multiplied_word(len(imines), "imine")
+    suffix = word if substituents else suffix_nuclides([a.GetIdx() for a in imines], "imine")
+    stem = parent[:-1] if word[0] in "aeiouy" else parent
     keys = [g for g in (*sulfur_groups, *substituents)]
     sulfur_slots = valence - 2 * len(imines)
     cite_locants = bool(substituents) and _distinct_arrangements(sulfur_slots, len(imines), keys) > 1
