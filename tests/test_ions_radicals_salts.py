@@ -299,6 +299,8 @@ def test_nitrile_imide_still_and_related_raise(smiles):
         pytest.param("C/C=[N+](\\C)[O-]", "(1E)-N-methylethanimine N-oxide", id="nitrone_descriptor_ranks_the_oxide_ligand"),
         pytest.param("C/C=[N+](/[O-])C", "(1E)-N-methylethanimine N-oxide", id="nitrone_oxide_written_before_the_substituent"),
         pytest.param("C/C=[N+](/c1ccccc1)[O-]", "(1Z)-N-phenylethanimine N-oxide", id="nitrone_with_an_aryl_nitrogen_substituent"),
+        pytest.param("[O-]/[NH+]=C\\c1ccccc1", "(Z)-phenylmethanimine N-oxide", id="nitrone_hydrogen_on_nitrogen_ranks_the_oxide"),
+        pytest.param("[O-]/[NH+]=C/CC", "(1E)-propan-1-imine N-oxide", id="nitrone_hydrogen_on_nitrogen_with_a_locant"),
         pytest.param("CC(C)=[O+][N-]C", "N-[(propan-2-ylidene)oxidaniumyl]methanaminide", id="carbonyl_imide"),
         pytest.param("CC(C)=[O+][C-](C)C", "2-[(propan-2-ylidene)oxidaniumyl]propan-2-ide", id="carbonyl_ylide"),
         pytest.param("CC(C)=[N+](C)[C-](C)C", "2-(N-methylpropan-2-iminiumyl)propan-2-ide", id="azomethine_ylide"),
