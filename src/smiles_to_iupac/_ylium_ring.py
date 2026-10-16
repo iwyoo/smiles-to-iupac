@@ -116,7 +116,13 @@ def _hydride_parent(mol, system, centres, anions=None):
         outside = sum(1 for n in source.GetNeighbors() if n.GetIdx() not in system)
         if anions.get(a) == "uide":
             ring_valence = sum(int(b.GetBondTypeAsDouble()) for b in source.GetBonds() if b.GetOtherAtomIdx(a) in system)
-            atom.SetNumExplicitHs(_PARENTS[source.GetAtomicNum()][1] - ring_valence)
+            hydrogens = _PARENTS[source.GetAtomicNum()][1] - ring_valence
+            if hydrogens < 0:
+                raise UnsupportedStructure(
+                    "a 'uide' centre shared by two ring components needs the spiro name with a skeletal-replacement "
+                    "'uida' or 'uide' suffix, which is not supported yet (P-72.4)"
+                )
+            atom.SetNumExplicitHs(hydrogens)
         else:
             atom.SetNumExplicitHs(source.GetTotalNumHs() + outside + (a in centres) + (anions.get(a) == "ide"))
         atom.SetNoImplicit(True)
