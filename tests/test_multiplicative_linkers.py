@@ -31,6 +31,14 @@ def test_ring_and_assembly_components_inside_a_linker(smiles, expected):
 
 @pytest.mark.parametrize(
     "smiles, expected",
+    [("CCn1c2ccccc2c2cc(Cc3ccc4c(c3)c3ccccc3n4CC)ccc21", "3,3'-methylenebis(9-ethyl-9H-carbazole)")],
+)
+def test_identical_n_substituted_fused_units_joined_by_a_linker(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
     [
         ("CC(=O)c1ccc(C(C)=O)cc1", "1,1'-(1,4-phenylene)di(ethan-1-one)"),
         ("CNCc1ccc(CNC)cc1", "1,1'-(1,4-phenylene)bis(N-methylmethanamine)"),
