@@ -880,12 +880,25 @@ def _acid_rank(mol, atoms, links, entering):
     return bool(ringed), len(parent), substituents
 
 
+_ACID_CLASS_RANK = {"acyl": 0, "carbonic": 0, "cyanic": 0, "inorganic": 1}
+
+
+def _senior_acid_esters(mol, links):
+    """`links` without the esters of the noncarbon acids when an ester of a carbon or sulfur-group acid is present: an ester
+    takes the rank of its acid (P-41 classes 7a, 7b before 7c), and the esters of the junior acid are prefixes of the
+    organyl group."""
+    rank = {id(l): _ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) for l in links if l.kind == "ester"}
+    top = min(rank.values(), default=0)
+    return [l for l in links if l.kind != "ester" or rank[id(l)] == top]
+
+
 def name_ester(mol, links):
     _reject_unsupported(mol)
     if has_acyloxy_amine_group(mol):
         raise UnsupportedStructure("an acyclic nitrogen gives no traditional ester: the group is an acyloxy prefix (P-65.6.3.4.1)")
+    links = _senior_acid_esters(mol, links)
     kinds = {_center(mol, l.center)[0] == "inorganic" for l in links if l.kind == "ester"}
-    if len(kinds) > 1 or kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
+    if kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
         raise UnsupportedStructure("the seniority of this phosphorus or boron ester among the other groups is not decided here")
     esters = [l for l in links if l.kind == "ester"]
     graph = adjacency(mol)
