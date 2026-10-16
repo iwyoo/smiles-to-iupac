@@ -1113,7 +1113,7 @@ def _bridged_components(mol, links):
 def _locants_of(mol, atoms, centers, with_symmetry=False):
     """{centre: locant} of the acid groups `centers` in the substitutive name of the acid made of `atoms`;
     with `with_symmetry` also whether all the centres are equivalent in that acid (then no locants are needed)."""
-    from ._polyfunctional import _select
+    from ._polyfunctional import _check_scope, _select
 
     editable = Chem.RWMol(mol)
     for center in centers:
@@ -1133,7 +1133,7 @@ def _locants_of(mol, atoms, centers, with_symmetry=False):
         ranks = Chem.CanonicalRankAtoms(plain, breakTies=False)
         if len({ranks[mapped[c]] for c in centers if c in mapped}) == 1:
             return {}, True
-    _, _, parts = _select(acid)
+    _, _, parts = _select(acid, stereo=_check_scope(acid))
     position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1: loc for i, loc in parts[4].items()}
     found = {}
     for center in centers:

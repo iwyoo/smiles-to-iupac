@@ -429,6 +429,9 @@ def test_ester_alkyl_part_with_heteroatom_groups(smiles, expected):
     "smiles,expected",
     [
         ("CCOC(=O)CC(O)(CC(=O)OCC)C(=O)OCC", "triethyl 2-hydroxypropane-1,2,3-tricarboxylate"),
+        # P-14.4 (j), P-93.4.2.1.2: the ester locants follow the numbering that gives the Z bond the lower locant
+        ("CCCCCOC(=O)/C=C/C=C\\C(=O)OC", "1-methyl 6-pentyl (2Z,4E)-hexa-2,4-dienedioate"),
+        ("COC(=O)/C=C/C=C\\C(=O)OCCCCC", "6-methyl 1-pentyl (2Z,4E)-hexa-2,4-dienedioate"),
     ],
 )
 def test_esters_of_one_polyacid_cite_every_alkyl_group(smiles, expected):
