@@ -6,8 +6,8 @@ valence differs from the standard one. Carbon and amino groups are cited as pref
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, heteroatom_stereo_prefix, multiplied_word
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
+from ._substituents import cited_centre_stereo, format_mononuclear_prefixes, name_branch
 
 _CENTERS = {
     14: "silane", 32: "germane", 50: "stannane", 82: "plumbane",
@@ -87,13 +87,13 @@ def name_phosphanone(mol) -> str:
     roots = [n for n in graph[center.GetIdx()] if n not in {c.GetIdx() for c in chalcogens}]
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    entries = [name_branch(graph, r, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for r in roots]
+    with cited_centre_stereo(mol, center.GetIdx(), [c.GetIdx() for c in chalcogens]) as stereo:
+        entries = [name_branch(graph, r, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for r in roots]
     parent = _CENTERS[center.GetAtomicNum()]
     suffix = multiplied_word(len(chalcogens), _SUFFIX[chalcogens[0].GetAtomicNum()])
     stem = parent[:-1] if suffix[0] in "aeiouy" else parent
     valence = center.GetTotalValence()
     lambda_label = f"λ{valence}-" if valence != _STANDARD_VALENCE[center.GetAtomicNum()] else ""
-    stereo = heteroatom_stereo_prefix(mol, center.GetIdx()) or ""
     prefixes = format_mononuclear_prefixes(entries) if entries else ""
     joint = "-" if prefixes and lambda_label else ""
     return f"{stereo}{prefixes}{joint}{lambda_label}{stem}{suffix}"
@@ -158,16 +158,17 @@ def name_phosphanimine(mol) -> str:
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     grouped = {}
-    for locant, atom, root in (
-        *((center.GetSymbol(), center.GetIdx(), n) for n in graph[center.GetIdx()] if n != nitrogen.GetIdx()),
-        *(("N", nitrogen.GetIdx(), n) for n in graph[nitrogen.GetIdx()] if n != center.GetIdx()),
-    ):
-        name, compound = name_branch(graph, root, atom, halogens, aromatic, mol=mol, unsaturated=True)
-        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    with cited_centre_stereo(mol, center.GetIdx(), [nitrogen.GetIdx()]) as stereo:
+        for locant, atom, root in (
+            *((center.GetSymbol(), center.GetIdx(), n) for n in graph[center.GetIdx()] if n != nitrogen.GetIdx()),
+            *(("N", nitrogen.GetIdx(), n) for n in graph[nitrogen.GetIdx()] if n != center.GetIdx()),
+        ):
+            name, compound = name_branch(graph, root, atom, halogens, aromatic, mol=mol, unsaturated=True)
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     valence = center.GetTotalValence()
     parent = _IMINE_CENTERS[center.GetAtomicNum()]
     if valence == _STANDARD_VALENCE[center.GetAtomicNum()]:
         for info in grouped.values():
             info["locants"] = ["1" if locant == center.GetSymbol() else locant for locant in info["locants"]]
-        return f"{format_substituent_prefixes(grouped)}{parent}"
-    return f"{format_substituent_prefixes(grouped)}-λ{valence}-{parent}"
+        return f"{stereo}{format_substituent_prefixes(grouped)}{parent}"
+    return f"{stereo}{format_substituent_prefixes(grouped)}-λ{valence}-{parent}"
