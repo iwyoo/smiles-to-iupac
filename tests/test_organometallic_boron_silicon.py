@@ -1120,6 +1120,20 @@ def test_noncarbon_hydride_parents_and_prefixes(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Nc1cc(CN[SiH3])ccc1C", "2-methyl-5-[(silylamino)methyl]aniline", id="hydride_group_on_the_nitrogen_of_an_aminomethyl_prefix"),
+        pytest.param("Nc1cc(CN[SiH3])ccc1CN[SiH3]", "2,5-bis[(silylamino)methyl]aniline", id="two_such_prefixes"),
+        pytest.param("Nc1ccc(CNP)cc1CNP", "2,4-bis[(phosphanylamino)methyl]aniline", id="phosphanyl_group_on_prefix_nitrogens"),
+        pytest.param("NCCCN[SiH3]", "N1-silylpropane-1,3-diamine", id="hydride_group_on_a_nitrogen_of_the_parent_stays_an_n_prefix"),
+    ],
+)
+def test_hydride_group_on_an_amine_nitrogen_is_cited_wherever_the_nitrogen_is(smiles, expected):
+    # P-62.2.1.3, P-35.3: the group on the nitrogen of a prefix is part of that prefix, not an N-substituent of the parent amine
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("B(SC)(SC)SC", "trimethyl borotrithioate"),
