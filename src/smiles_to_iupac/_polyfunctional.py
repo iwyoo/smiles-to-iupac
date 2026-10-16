@@ -366,7 +366,9 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
     rest = [n for n in ends if n not in imino]
     if len(imino) != 1 or len(rest) > 1 or imino[0].GetAtomicNum() != 7 or imino[0].GetFormalCharge() or imino[0].IsInRing():
         return False
-    if atom.GetTotalNumHs() != (0 if rest else 1) or not _plain_nitrogen_substituents(mol, imino[0], atom.GetIdx()):
+    if atom.GetTotalNumHs() != (0 if rest else 1) or not (
+        _plain_nitrogen_substituents(mol, imino[0], atom.GetIdx()) or _amino_hydrazone_nitrogen(mol, imino[0], atom.GetIdx())
+    ):
         return False
     return not rest or (
         rest[0].GetAtomicNum() == 6 and not is_functional_carbon(mol, rest[0].GetIdx())
@@ -375,6 +377,19 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
         rest[0].GetAtomicNum() == 7 and not rest[0].GetFormalCharge() and not rest[0].GetIsAromatic()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
         and _carbamimidoyl_nitrogen_substituents(mol, rest[0], atom.GetIdx())
+    )
+
+
+def _amino_hydrazone_nitrogen(mol, nitrogen, origin):
+    """Whether the only other neighbour of `nitrogen` is a free amino group: the hydrazone nitrogen of a carbamohydrazonoyl
+    group."""
+    others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != origin]
+    return (
+        len(others) == 1
+        and others[0].GetAtomicNum() == 7
+        and others[0].GetDegree() == 1
+        and not others[0].GetFormalCharge()
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), others[0].GetIdx()).GetBondTypeAsDouble() == 1.0
     )
 
 
