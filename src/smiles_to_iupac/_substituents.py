@@ -577,11 +577,17 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         if stem_index < 0:
             raise UnsupportedStructure("the principal chain of this substituent name is not delimited")
         omit = len(chain) == 1 or _fully_modified(labelled, positions, capacity, set(chain))
-    from ._polyfunctional import _sole_heteroatoms
+    from ._polyfunctional import _HYDRO_PREFIX, _sole_heteroatoms, _split_hydro_labels
 
     context["consumed"].update(labelled)
+    hydro = _HYDRO_PREFIX.match(name, stem_index) if mol.GetAtomWithIdx(root).IsInRing() else None
+    hydro_text = ""
+    if hydro is not None:
+        labelled, capacity, hydro_text = _split_hydro_labels(mol, positions, labelled, capacity, hydro)
+        stem_index = hydro.end()
     text = descriptor(labelled, positions, omit, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
-    return name[:stem_index] + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
+    start = hydro.start() if hydro is not None else stem_index
+    return name[:start] + hydro_text + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
 
 
 _ALKOXY_STEM = re.compile(r"[a-z]+oxy")
