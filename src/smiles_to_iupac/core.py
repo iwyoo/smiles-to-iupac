@@ -1259,7 +1259,7 @@ def _protonated_name(mol):
 
 _HYDRO_FUSION_RUNNING = set()
 _STEREO_TOKENS = re.compile(
-    r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[RSEZ]|seqCis|seqTrans)(?=[,)\]])|(?<=[\d'a⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[rs](?=[,)\]])|(?<=['\d]\))[EZ](?=[,\]])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|TS|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
+    r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[RSEZ]|seqCis|seqTrans)(?=[,)\]])|(?<=[\d'′a⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[rs](?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|TS|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
 )
 
 
@@ -1275,11 +1275,11 @@ def _same_enclosing_marks(text):
 _STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
 
 
-_CENTER_CODE = re.compile(r"(?<=[\d'a-z\u00b2\u00b3\u00b9\u2070-\u209f\u1d43-\u1d4a])[RSrs](?=[,)\]])|\((?:R|S)\)")
+_CENTER_CODE = re.compile(r"(?<=[\d'′a-z\u00b2\u00b3\u00b9\u2070-\u209f\u1d43-\u1d4a])[RSrs](?=[,)\]])|\((?:R|S)\)")
 _CODE_WORDS = re.compile(r"bis[{\[(]|tris|tetrakis|\b[DL]-|[\u03b1\u03b2\u03be]|\brel-|\brac-|ose\b|inositol|ent-|\b(?:cis|trans)-|\((?:T|TS|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-")
 
 
-_OVERRIDE_TOKENS = re.compile(r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[RSrsMPmp](?=[,)\]])|\([RSMP]\)")
+_OVERRIDE_TOKENS = re.compile(r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[RSrsMPmp](?=[,)\]])|\([RSMP]\)")
 
 
 def _override_count(mol) -> int:
@@ -1316,7 +1316,7 @@ def _cites_every_double_bond(mol, name) -> bool:
         and s.specified == Chem.StereoSpecified.Specified
         and probe.GetBondWithIdx(s.centeredOn).HasProp("_CIPCode")
     )
-    return len(re.findall(r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[EZ]|seqCis|seqTrans)(?=[,)\]])|(?<=['\d]\))[EZ](?=[,\]])|\([EZ]\)", name)) >= bonds
+    return len(re.findall(r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[EZ]|seqCis|seqTrans)(?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\([EZ]\)", name)) >= bonds
 
 
 def _has_specified_stereo(mol) -> bool:

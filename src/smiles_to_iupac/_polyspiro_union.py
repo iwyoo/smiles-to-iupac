@@ -423,13 +423,8 @@ def _analyse(mol, atoms=None, outer=frozenset()):
     comps, spiro, _, ambiguous = structure
     scope = set().union(*(c["atoms"] for c in comps))
     inside = [a for a in mol.GetAtoms() if atoms is None or a.GetIdx() in scope]
-    if any(
-        a.GetIsotope()
-        or a.GetNumRadicalElectrons()
-        or (a.GetChiralTag() not in (Chem.ChiralType.CHI_UNSPECIFIED, *_POLYHEDRAL_TAGS) and atoms is not None)
-        for a in inside
-    ):
-        raise UnsupportedStructure("isotopes, radicals and stereodescriptors of a spiro union are not supported yet")
+    if any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in inside):
+        raise UnsupportedStructure("isotopes and radicals of a spiro union are not supported yet")
     if any(
         b.GetStereo() != Chem.BondStereo.STEREONONE
         for b in mol.GetBonds()
