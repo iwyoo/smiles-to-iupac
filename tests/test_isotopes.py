@@ -334,6 +334,8 @@ def test_unplaceable_isotope_label_is_never_dropped(smiles):
         ),
         pytest.param("[2H]N(C)CCO", "2-[methyl(2H)amino]ethan-1-ol", id="substituted_amino_prefix_beside_a_hydroxy_group"),
         pytest.param("[2H]Nc1ccc(N[2H])cc1", "(N1,N4-2H2)benzene-1,4-diamine", id="nitrogens_of_a_multiplied_amine_suffix_take_the_locant_of_their_carbon"),
+        pytest.param("[2H]NC(=O)CCC(=O)N[2H]", "(N1,N4-2H2)butanediamide", id="nitrogens_of_a_diamide_take_the_locant_of_their_acyl_carbon"),
+        pytest.param("CN([2H])C(=O)C1CCC(CC1)C(=O)N[2H]", "N1-methyl(N1,N4-2H2)cyclohexane-1,4-dicarboxamide", id="nitrogens_of_a_dicarboxamide_take_the_locant_of_the_ring_atom"),
         pytest.param("[2H]N(C)CCN", "2-amino-N-methyl(N-2H)ethan-1-amine", id="modified_substituted_amine_is_the_suffix_beside_an_unmodified_amine"),
         pytest.param("[2H]NCCN(C)C", "2-(dimethylamino)(N-2H1)ethan-1-amine", id="modified_amine_is_the_suffix_beside_an_unmodified_substituted_amine"),
         pytest.param("[2H]N(C)CCN(C)[2H]", "N1,N2-dimethyl(N1,N2-2H2)ethane-1,2-diamine", id="substituted_amines_modified_alike_are_multiplied"),
