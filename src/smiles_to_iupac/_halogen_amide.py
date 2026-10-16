@@ -1,13 +1,13 @@
 """Amides of the halogen oxoacids, R-NH-X, R-NH-XO and R2N-X (P-61.3.2.2, P-62.4, P-68.5.3): a halogen atom on nitrogen
 makes an amide of an inorganic acid, which outranks the amine and halo classes of the 'N-halogenoamine' name, so the
 PIN is '<substituents>hypochlorous amide' (bromous, chloric, perchloric amide with one to three oxygens on the halogen)
-with the carbon, alkoxy and chalcogenyl groups on nitrogen cited without locants."""
+with every group junior to the amide (nitrile, aldehyde, ketone, hydroxy, sulfanyl, amino, ...) cited without locants;
+a carboxylic or sulfonic acid, ester, acid halide or carboxamide elsewhere is senior and keeps the halogen a prefix."""
 
 from rdkit import Chem
 
-from ._carbonic_amide import plain_arm_atom
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency
+from ._substituents import format_mononuclear_prefixes
 
 _ACID_WORDS = {
     9: ("hypofluorous", "fluorous", "fluoric", "perfluoric"),
@@ -32,25 +32,12 @@ def _oxo_oxygens(halogen, nitrogen):
     return found if len(found) <= 3 and sum(o.GetFormalCharge() for o in found) + halogen.GetFormalCharge() == 0 else None
 
 
-def _chalcogen_arm(atom, nitrogen):
-    """An alkoxy, sulfanyl, selanyl or tellanyl group bonded to the nitrogen and to one carbon group."""
-    bond = atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx())
-    return (
-        atom.GetAtomicNum() in (8, 16, 34, 52)
-        and atom.GetDegree() == 2
-        and not atom.GetFormalCharge()
-        and not atom.GetIsotope()
-        and bond.GetBondTypeAsDouble() == 1.0
-        and all(n.GetIdx() == nitrogen.GetIdx() or n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
-    )
-
-
 def _halogen_amide_nitrogen(mol):
     found = [
         a
         for a in mol.GetAtoms()
         if a.GetAtomicNum() == 7
-        and sum(n.GetAtomicNum() in HALOGEN_PREFIXES for n in a.GetNeighbors()) in (1, 2)
+        and sum(n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum() for n in a.GetNeighbors()) in (1, 2)
     ]
     return found[0] if len(found) == 1 else None
 
@@ -60,12 +47,14 @@ def has_halogen_amide_shape(mol):
 
 
 def name_halogen_amide(mol) -> str:
+    from ._chalcogenourea import _HYDRIDE_GROUP_CENTRES, is_element_hydride_group, n_substituent_names
+
     nitrogen = _halogen_amide_nitrogen(mol)
     if nitrogen is None:
         raise UnsupportedStructure("no nitrogen bearing one or two halogen atoms")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    halogen, *second = (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES)
+    halogen, *second = (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum())
     oxygens = _oxo_oxygens(halogen, nitrogen)
     if oxygens is None:
         raise UnsupportedStructure("a halogen on nitrogen carries something other than terminal oxygens")
@@ -77,31 +66,20 @@ def name_halogen_amide(mol) -> str:
             raise UnsupportedStructure("two different halogens on nitrogen need a decided choice of the acid")
         owned.add(other.GetIdx())
         prefixes.append((HALOGEN_PREFIXES[other.GetAtomicNum()], False))
-    chalcogen_arms = {n.GetIdx() for n in nitrogen.GetNeighbors() if _chalcogen_arm(n, nitrogen)}
-    if any(
-        a.GetIdx() not in owned
-        and a.GetIdx() != nitrogen.GetIdx()
-        and a.GetIdx() not in chalcogen_arms
-        and (not (plain_arm_atom(a) or a.GetAtomicNum() == 7) or a.GetFormalCharge() or a.GetIsotope())
+    if nitrogen.IsInRing() or any(
+        a.GetAtomicNum() == 7 and not a.IsInRing() and a.GetIdx() in {n.GetIdx() for n in nitrogen.GetNeighbors()}
         for a in mol.GetAtoms()
     ):
-        raise UnsupportedStructure("only plain substituent groups may accompany an amide of a halogen acid")
-    if nitrogen.IsInRing() or any(
-        a.GetAtomicNum() == 7 and a.GetIdx() != nitrogen.GetIdx() and not a.IsInRing() for a in mol.GetAtoms()
-    ):
         raise UnsupportedStructure("a ring nitrogen or a second nitrogen is not an amide of a halogen acid")
-    carbons = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != halogen.GetIdx() and n.GetIdx() not in owned]
+    if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms() if a.GetIdx() not in owned):
+        raise UnsupportedStructure("a charged or labelled atom beside an amide of a halogen acid is not supported yet")
+    if any(a.GetAtomicNum() in _HYDRIDE_GROUP_CENTRES and not is_element_hydride_group(a) for a in mol.GetAtoms()):
+        raise UnsupportedStructure("an oxoacid or amide centre of another element outranks an amide of a halogen acid")
     if any(
-        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), c.GetIdx()).GetBondTypeAsDouble() != 1.0
-        or not (c.GetAtomicNum() == 6 or c.GetIdx() in chalcogen_arms or (c.GetAtomicNum() == 7 and c.IsInRing()))
-        for c in carbons
+        b.GetBondTypeAsDouble() != 1.0 for b in nitrogen.GetBonds() if b.GetOtherAtomIdx(nitrogen.GetIdx()) not in owned
     ):
-        raise UnsupportedStructure("an amide of a halogen acid needs single-bonded carbon or ring nitrogen groups on nitrogen")
+        raise UnsupportedStructure("an amide of a halogen acid needs single bonds from the nitrogen to its groups")
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
-    aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    entries = prefixes + [
-        name_branch(graph, c.GetIdx(), nitrogen.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
-        for c in carbons
-    ]
+    (groups,) = n_substituent_names(mol, graph, owned | {nitrogen.GetIdx()}, (nitrogen.GetIdx(),), halogen.GetIdx(), junior_groups=True)
+    entries = prefixes + groups
     return f"{format_mononuclear_prefixes(entries)}{_ACID_WORDS[halogen.GetAtomicNum()][len(oxygens)]} amide"

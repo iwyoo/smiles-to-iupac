@@ -241,7 +241,7 @@ from ._heteroaryne import has_heteroaryne_shape, name_heteroaryne
 from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
 from ._chalcogen_chain_heterone import name_chalcogen_chain_heterone
 from ._halogen_acid_ester import name_halogen_acid_ester
-from ._halogen_amide import name_halogen_amide
+from ._halogen_amide import has_halogen_amide_shape, name_halogen_amide
 from ._inorganic_acid_derivative import has_inorganic_acid_derivative_shape, name_inorganic_acid_derivative
 from ._halogen_oxo import name_halogen_oxo
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
@@ -1548,6 +1548,11 @@ def _name_mol(mol) -> str:
     fused = fused_ring_system_name(mol)
     if fused is not None:
         return fused
+    if has_halogen_amide_shape(mol):
+        try:
+            return name_halogen_amide(mol)
+        except UnsupportedStructure:
+            pass
 
     # The 7 retained nucleoside names (P-105.1) are recognized by exact
     # whole-molecule match, so they must be routed before every other
