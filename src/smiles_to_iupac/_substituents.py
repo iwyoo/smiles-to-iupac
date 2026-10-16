@@ -757,6 +757,25 @@ def centre_nuclides(centre, consume=True):
     return descriptor({centre: entry}, {centre: 1}, True)
 
 
+def skeleton_nuclides(positions, consume=True):
+    """'(3-2H1)': the descriptor of the nuclides on the atoms of a parent chain or ring, `positions` being {atom: locant},
+    cited in front of the parent hydride name (P-82.2.1, P-82.6.1); '' when none is modified. With `consume` false the
+    atoms stay open for the name that is finally chosen."""
+    context = ISOTOPE_LABELS.get()
+    labelled = {
+        a: e for a, e in (context["labels"] if context else {}).items() if a in positions and a not in context["consumed"]
+    }
+    if not labelled:
+        return ""
+    capacity = _hydrogen_capacity(context, labelled)
+    omit = len(positions) == 1 or _fully_modified(labelled, positions, capacity, set(positions))
+    from ._isotope_labels import descriptor
+
+    if consume:
+        context["consumed"].update(labelled)
+    return descriptor(labelled, positions, omit, capacity=capacity)
+
+
 def chain_nuclide_locants(positions):
     """The sorted locants of the nuclides on the atoms of `positions` ({atom: locant}) that are still to be cited."""
     context = ISOTOPE_LABELS.get()

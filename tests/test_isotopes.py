@@ -795,6 +795,21 @@ def test_nuclides_on_an_acylsulfonamide_or_diacylamine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-82.6.1, P-41: a group that outranks the others is the parent whatever else the chain carries, and the nuclides of a
+# chain that is the parent skeleton of a polyol ester stand in front of that skeleton
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]CC(NC(N)=O)CS(=O)(=O)C", "[1-(methanesulfonyl)(3-2H1)propan-2-yl]urea", id="urea_beside_a_sulfone"),
+        pytest.param("[2H]CC(NC(=N)N)CS(=O)C", "N-[1-(methanesulfinyl)(3-2H1)propan-2-yl]guanidine", id="guanidine_beside_a_sulfoxide"),
+        pytest.param("[2H]CC(OC(=O)C)COC(N)=O", "(3-2H1)propane-1,2-diyl 2-acetate 1-carbamate", id="polyol_skeleton_of_two_esters"),
+        pytest.param("[NH3+]C[13CH2]P(=O)([O-])O", "hydrogen [2-azaniumyl(1-13C)ethyl]phosphonate", id="phosphonate_monoanion"),
+    ],
+)
+def test_nuclide_on_a_chain_beside_a_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-68.4.1.1: a nuclide on an end group of a polychalcogen chain is cited in that organyl prefix
 @pytest.mark.parametrize(
     "smiles,expected",
