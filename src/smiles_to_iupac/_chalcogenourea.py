@@ -45,12 +45,38 @@ def is_core_substituent_root(mol, atom):
 
 
 _UREA_SUBSTITUENT_ELEMENTS = {5, 6, 7, 8, 14, 15, 16, 32, 34, 50, 52, *HALOGEN_PREFIXES}
+_HYDRIDE_GROUP_CENTRES = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
+
+
+def is_element_hydride_group(atom):
+    """The centre of a boranyl, silyl, germyl, stannyl, phosphanyl, ... group on a nitrogen: a Group 13-15 atom with single
+    bonds to hydrogen, carbon, halogen and that nitrogen only, so that no acid or oxo group makes it a senior class (P-68.2.1)."""
+    return (
+        atom.GetAtomicNum() in _HYDRIDE_GROUP_CENTRES
+        and not atom.GetFormalCharge()
+        and not atom.IsInRing()
+        and all(
+            b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() in (6, 7, *HALOGEN_PREFIXES)
+            for b in atom.GetBonds()
+        )
+    )
+
+
+def carries_only_element_hydride_groups(mol):
+    """Whether the molecule holds at least one Group 13-15 atom and every such atom is the centre of a plain hydride group,
+    none of them an oxoacid or amide centre that would outrank a urea or guanidine (P-41)."""
+    centres = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDE_GROUP_CENTRES]
+    return bool(centres) and all(is_element_hydride_group(a) for a in centres)
+
+
+def is_urea_substituent_atom(atom):
+    return atom.GetAtomicNum() in _UREA_SUBSTITUENT_ELEMENTS or is_element_hydride_group(atom)
 
 
 def is_urea_substituent_root(mol, atom):
     """An atom a urea nitrogen may carry: any element whose group is cited as a prefix, so that hydroxy, alkoxy,
-    amino and sulfanyl groups on the nitrogen are ordinary substituents (P-66.1.6.1.1.2)."""
-    return atom.GetAtomicNum() in _UREA_SUBSTITUENT_ELEMENTS
+    amino, sulfanyl and element hydride groups on the nitrogen are ordinary substituents (P-66.1.6.1.1.2)."""
+    return is_urea_substituent_atom(atom)
 
 
 _SENIOR_TO_UREA = [
@@ -140,7 +166,7 @@ def n_substituent_names(
         if has_group_senior_to_urea(mol, core_atoms, hydrazide_junior, junior_cores):
             raise UnsupportedStructure("a group senior to the urea is the parent, not an N-substituent")
         if any(
-            mol.GetAtomWithIdx(idx).GetAtomicNum() not in _UREA_SUBSTITUENT_ELEMENTS and not mol.GetAtomWithIdx(idx).IsInRing()
+            not is_urea_substituent_atom(mol.GetAtomWithIdx(idx)) and not mol.GetAtomWithIdx(idx).IsInRing()
             for idx in outside
         ):
             raise UnsupportedStructure("this element in an N-substituent of a urea is not supported yet")

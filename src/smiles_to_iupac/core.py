@@ -1,3 +1,4 @@
+import contextlib
 import contextvars
 import re
 
@@ -103,6 +104,7 @@ from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_keto
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
 from ._tellurourea import has_tellurourea_shape, name_tellurourea
+from ._chalcogenourea import carries_only_element_hydride_groups
 from ._urea import has_urea_shape, name_urea
 from ._amidine import has_amidine_shape, name_amidine
 from ._guanidine import has_guanidine_shape, name_guanidine
@@ -955,7 +957,12 @@ def _name_unabridged_body(smiles: str) -> str:
             return name
         if parsed is not None and has_anisole_shape(parsed):
             return name_anisole(parsed)
-        if parsed is not None and has_noncarbon_oxoacid_shape(parsed) and not _is_nucleoside_derivative(parsed):
+        if (
+            parsed is not None
+            and has_noncarbon_oxoacid_shape(parsed)
+            and not _is_nucleoside_derivative(parsed)
+            and not (carries_only_element_hydride_groups(parsed) and (has_urea_shape(parsed) or has_guanidine_shape(parsed)))
+        ):
             return name_noncarbon_oxoacid(parsed)
         if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
             return name_functional_replacement_oxoacid(parsed)
@@ -1864,6 +1871,14 @@ def _name_mol(mol) -> str:
     ):
         if has_shape(mol):
             return namer(mol)
+
+    # A urea or guanidine (carbonic acid amides, class 7b) outranks the amide of a phosphorus acid and any element hydride
+    # on its nitrogen (P-41); the namers below take every molecule that contains one of those elements.
+    if carries_only_element_hydride_groups(mol):
+        for has_shape, namer in ((has_urea_shape, name_urea), (has_guanidine_shape, name_guanidine)):
+            if has_shape(mol):
+                with contextlib.suppress(UnsupportedStructure):
+                    return namer(mol)
 
     # An all-phosphorus, multi-atom skeleton (diphosphane, triphosphane,
     # ...) has no carbon at all and must be routed before
