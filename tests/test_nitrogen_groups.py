@@ -2555,6 +2555,11 @@ def test_hydrazido_prefix_of_a_substituted_or_carbonic_acylhydrazide(smiles, exp
             "(E,Z)-2-chloro-N'1,N'4-dihydroxybenzene-1,4-dicarboximidamide",
             id="descriptors_without_locants_follow_the_numbering_of_the_ring",
         ),
+        pytest.param(
+            "C[C@@H]1CCCC[C@H]1/C(N)=N/O",
+            "(1R,2R,Z)-N'-hydroxy-2-methylcyclohexane-1-carboximidamide",
+            id="descriptor_without_locant_follows_the_ring_stereocentres",
+        ),
     ],
 )
 def test_configuration_of_the_c_n_bond_of_hydrazones_and_amidoximes(smiles, expected):
