@@ -246,6 +246,8 @@ def test_ring_chain_unsaturation_is_cited_after_the_bracket(smiles, expected):
         pytest.param("c1ccc(-c2ccc(-c3ccco3)s2)s1", "2-([2,2'-bithiophen]-5-yl)furan", id="mixed_thiophene_and_furan"),
         pytest.param("C1=CC=NC(=C1)C2=NC(=CC=C2)C3=CC=CC=N3", "1²,2²:2⁶,3²-terpyridine", id="terpyridine"),
         pytest.param("c1ccn(-c2cc(-n3cccc3)c[nH]2)c1", "21H-1¹,2²:2⁴,3¹-terpyrrole", id="terpyrrole_middle_ring_indicated_hydrogen"),
+        pytest.param("O=c1[nH]cccc1-c1c[nH]c(=O)cc1-c1ccc[nH]c1=O", "[1³,2³:2⁴,3³-terpyridine]-1²,2⁶,3²(1¹H,2¹H,3¹H)-trione", id="three_ring_ketones_cite_their_added_hydrogens"),
+        pytest.param("O=c1[nH]c2ccccc2c(-c2cc3ccccc3[nH]c2=O)c1-c1cc2ccccc2[nH]c1=O", "[1³,2³:2⁴,3³-terquinoline]-1²,2²,3²(1¹H,2¹H,3¹H)-trione", id="three_fused_ring_ketones_cite_their_added_hydrogens"),
     ],
 )
 def test_mixed_thiophene_and_and_related(smiles, expected):
