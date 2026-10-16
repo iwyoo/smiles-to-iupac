@@ -1957,6 +1957,8 @@ def test_diamidides_formamidine_disulfides_and_amidines_on_hydrides(smiles, expe
     [
         ("CN(N=NN(C)C)C=O", "1,4,4-trimethyltetraaz-2-ene-1-carbaldehyde"),
         ("O=CN=NN=NC", "4-methyltetraaza-1,3-diene-1-carbaldehyde"),
+        ("O=CN(C)/N=N\\C", "(2Z)-1,3-dimethyltriaz-2-ene-1-carbaldehyde"),
+        ("O=C/N=N/c1ccccc1", "(E)-phenyldiazenecarbaldehyde"),
     ],
 )
 def test_carbaldehyde_on_a_polyaza_chain(smiles, expected):
