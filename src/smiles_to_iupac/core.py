@@ -1335,7 +1335,9 @@ def _cites_every_double_bond(mol, name) -> bool:
         and probe.GetBondWithIdx(s.centeredOn).HasProp("_CIPCode")
     )
     cited = len(re.findall(r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[EZ]|seqCis|seqTrans)(?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\([EZ]\)", name))
-    return cited + sum(group.count(",") + 1 for group in re.findall(r"\(((?:[EZ],)+[EZ])\)", name)) >= bonds
+    listed = sum(group.count(",") + 1 for group in re.findall(r"\(((?:[EZ],)+[EZ])\)", name))
+    unlocated = sum(group.count(",") + 1 for group in re.findall(r"[(\[](?:[\d'\u2032]+[a-z]?[RSrs],)+((?:[EZ],)*[EZ])[)\]]", name))
+    return cited + listed + unlocated >= bonds
 
 
 def _has_specified_stereo(mol) -> bool:
