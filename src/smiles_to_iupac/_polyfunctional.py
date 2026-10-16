@@ -2116,6 +2116,10 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         front = []
     else:
         front, suffix_text = _group_atom_labels(mol, rest, parts[4]) if rest else ([], None)
+    if suffix_text and suffix_text[1] == "al" and suffix_text[2] == 1 and name.endswith("aldehyde"):
+        # a retained aldehyde name has no 'al' suffix to modify: the nuclide stands in front of the parent as for an amide
+        front = [(nuclide, None, 1, False) for nuclide in suffix_text[0].strip("()").split(",")]
+        suffix_text = None
     if suffix_text:
         name = _before_suffix(name, *suffix_text)
     if in_parent or front:
@@ -2363,7 +2367,8 @@ def _principal_owned(mol):
     for cls, _, owned in _ring_occurrences(mol):
         groups.setdefault(cls, []).append(owned)
     principal = _principal_class(set(groups))
-    return principal, groups.get(principal, [])
+    owned = groups.get(principal, [])
+    return principal, [group for group in owned if not any(group < other for other in owned)]
 
 
 _NITROGEN_LABEL_CLASSES = frozenset(
@@ -2426,7 +2431,7 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     nitrogen = principal in _NITROGEN_LABEL_CLASSES and element == 7
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
-    acid = (_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and element in (8, 16, 34, 52)
+    acid = (_is_acid_family(principal) or principal in ("amide", "hydrazide", *_CHALCOGEN_AMIDE_CLASSES)) and element in (8, 16, 34, 52)
     acid = acid or (principal in ("sulfonamide", *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER) and element in (8, 16, 34, 52))
     if not (nitrogen or acid):
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")

@@ -863,8 +863,10 @@ def _labelled_namer(namer):
         from ._isotope_labels import split_isotopes
 
         clean, labels, index = split_isotopes(mol)
+        only_oxygen = sum(1 for atom in clean.GetAtoms() if atom.GetAtomicNum() == 8) == 1
         if any(
             clean.GetAtomWithIdx(a).GetAtomicNum() not in (6, 5, 14, 15, 16, 33, 34, 51, 52)
+            and not (clean.GetAtomWithIdx(a).GetAtomicNum() == 8 and only_oxygen)
             and not (clean.GetAtomWithIdx(a).GetAtomicNum() in HALOGEN_PREFIXES and clean.GetAtomWithIdx(a).GetDegree() == 1)
             for a in labels
         ):
