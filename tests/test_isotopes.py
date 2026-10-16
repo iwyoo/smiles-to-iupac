@@ -671,6 +671,21 @@ def test_nuclide_on_the_carbonyl_carbon_of_an_acyl_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-65.6.3.2.1, P-41: a labelled halogen in the organyl group of a sulfonic, sulfinic or phosphinic ester is cited in that
+# group, and the ester stays the parent; the same group on a sulfonyl prefix cites it in the acid name it comes from
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[18F]CCCOS(=O)(=O)C", "3-(18F)fluoropropyl methanesulfonate", id="sulfonate_ester"),
+        pytest.param("[18F]CCCOS(C)=O", "3-(18F)fluoropropyl methanesulfinate", id="sulfinate_ester"),
+        pytest.param("[18F]CCCOS(=O)(=O)c1ccc(Cl)cc1", "3-(18F)fluoropropyl 4-chlorobenzene-1-sulfonate", id="substituted_arenesulfonate_ester"),
+        pytest.param("[18F]CCCS(=O)(=O)c1ccccc1", "[3-(18F)fluoropropane-1-sulfonyl]benzene", id="labelled_group_of_a_sulfonyl_prefix"),
+    ],
+)
+def test_nuclide_in_the_organyl_group_of_an_oxoacid_ester_or_acyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.4.1, P-82.4.2: steroid parent hydrides take the locants of the steroid numbering; a nuclide that makes a centre stereogenic adds its descriptor
 @pytest.mark.parametrize(
     "smiles,expected",

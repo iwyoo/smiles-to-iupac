@@ -177,7 +177,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import CITE_SKELETAL_LAMBDA, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -778,7 +778,11 @@ def _labelled_namer(namer):
         from ._isotope_labels import split_isotopes
 
         clean, labels, index = split_isotopes(mol)
-        if any(clean.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in labels):
+        if any(
+            clean.GetAtomWithIdx(a).GetAtomicNum() != 6
+            and not (clean.GetAtomWithIdx(a).GetAtomicNum() in HALOGEN_PREFIXES and clean.GetAtomWithIdx(a).GetDegree() == 1)
+            for a in labels
+        ):
             raise UnsupportedStructure("a nuclide on a heteroatom is cited with a letter locant, not by the parts of the name")
         if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) and not _same_descriptors(
             mol, clean, index
