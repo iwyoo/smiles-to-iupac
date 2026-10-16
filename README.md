@@ -147,7 +147,8 @@ joined to the side chain that carries the principal group, as in
 | Exception | Meaning |
 |---|---|
 | `ValueError` | The input is not a valid SMILES string. |
-| `NotImplementedError` | The SMILES is valid but uses a rule that is not implemented yet. |
+| `NotImplementedError` | The SMILES is valid but uses a rule that is not implemented yet. Raised as `UnsupportedStructure`. |
+| `RuleUndefinedStructure` | A subclass of `UnsupportedStructure`: the Blue Book itself gives no single name for the structure (the rules leave it undefined or contradict each other), so no further implementation can help. |
 
 ### Command line
 

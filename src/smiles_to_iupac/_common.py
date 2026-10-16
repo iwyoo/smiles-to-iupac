@@ -42,6 +42,11 @@ class UnsupportedStructure(NotImplementedError):
     pass
 
 
+# The recommendations give no single name for this structure (undefined or self-contradictory); any other UnsupportedStructure is an implementation gap.
+class RuleUndefinedStructure(UnsupportedStructure):
+    pass
+
+
 HALOGEN_PREFIXES = {9: "fluoro", 17: "chloro", 35: "bromo", 53: "iodo"}
 HALIDE_WORDS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 GROUP_13 = frozenset({5, 13, 31, 49, 81})

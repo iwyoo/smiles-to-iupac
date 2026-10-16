@@ -7,7 +7,7 @@ hydrogen-bearing elements are cited when the ligands differ ('phosphorothioic O,
 from rdkit import Chem
 
 from ._hetero_prefixes import pentavalent_nitrogen_oxo
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents, is_halide_ligand
+from ._common import HALOGEN_PREFIXES, RuleUndefinedStructure, UnsupportedStructure, adjacency, group_substituents, halogen_substituents, is_halide_ligand
 from ._numerals import numerical_term
 from ._substituents import cited_stereo_around, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -181,7 +181,7 @@ def name_functional_replacement_oxoacid(mol) -> str:
     pieces.sort(key=lambda piece: piece[1])
     z_center = center.GetAtomicNum()
     if z_center == 7 and amides:
-        raise UnsupportedStructure("the locants of the amide nitrogen of a nitrogen acid are not defined by the rule")
+        raise RuleUndefinedStructure("the locants of the amide nitrogen of a nitrogen acid are not defined by the rule")
     stem = _STEMS[z_center][len(hydroxy) + len(replacers) + len(amides) - 1]
     if z_center == 7 and pentavalent and len(hydroxy) + len(replacers) == 3:
         stem = "nitror"

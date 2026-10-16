@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `UnsupportedStructure` (a `NotImplementedError`) and its subclass
+  `RuleUndefinedStructure` are exported: the subclass marks a structure for which
+  the Blue Book defines no single name (undefined or self-contradictory), every other `UnsupportedStructure` is a rule that
+  is not implemented yet.
 - `smiles_to_alternative_names()` and `smiles-to-iupac --alternatives` return the
   general-nomenclature alternatives to the preferred name, starting with
   functional-modifier names (oximes, hydrazones, azines, semicarbazones,
