@@ -172,7 +172,7 @@ def chain_assembly(
                     if len(stems) != 1 or None in stems:
                         continue
                     lit = sorted(
-                        (i + 1, p) for i, info in enumerate(infos) for p in _lit_hydrogens(mol, info)
+                        (i + 1, p) for i, info in enumerate(infos) for p in _lit_hydrogens(mol, info, attach[i])
                     )
                     hydro = tuple(sorted((i + 1, p) for i, info in enumerate(infos) for p in _hydro(info)))
                     even = len({_hydro(info) for info in infos}) == 1
