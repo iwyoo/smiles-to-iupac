@@ -2300,19 +2300,28 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         if mol.GetAtomWithIdx(o).GetAtomicNum() in (8, 16, 34, 52) and mol.GetAtomWithIdx(o).GetDegree() == 1
         for n in mol.GetAtomWithIdx(o).GetNeighbors()
     }
+    roles = {}
+    if nitrogen and principal in (*_CHALCOGEN_IMIDAMIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values()):
+        if len(owned_groups) != 1:
+            raise UnsupportedStructure("several imidamide groups cannot be told apart by their N locants")
+        roles = _labelled_imidamide_roles(mol, owned_groups[0], set(rest))
     for atom, entry in rest.items():
         heavy_label = entry["skeleton"]
         locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
         letter = symbol
-        if principal == "amine" and isinstance(parent_atoms, dict) and sum(
+        if atom in roles:
+            locant = locant[: -len(symbol)] + roles[atom]
+            letter = roles[atom]
+        elif principal == "amine" and isinstance(parent_atoms, dict) and sum(
             any(n.GetIdx() in parent_atoms for a in g for n in mol.GetAtomWithIdx(a).GetNeighbors()) for g in owned_groups
         ) > 1:
             carbons = [n.GetIdx() for n in mol.GetAtomWithIdx(atom).GetNeighbors() if n.GetIdx() in parent_atoms]
             if len(carbons) == 1:
                 locant += str(parent_atoms[carbons[0]])
                 letter += str(parent_atoms[carbons[0]])
-        if (hydrazide and not any(n.GetIdx() in centres for n in mol.GetAtomWithIdx(atom).GetNeighbors())) or (
-            nitrogen and _imido_nitrogen(mol, atom, owned)
+        if atom not in roles and (
+            (hydrazide and not any(n.GetIdx() in centres for n in mol.GetAtomWithIdx(atom).GetNeighbors()))
+            or (nitrogen and _imido_nitrogen(mol, atom, owned))
         ):
             locant += "'"
             letter += "'"
@@ -2321,6 +2330,21 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
+
+
+def _labelled_imidamide_roles(mol, owned, modified):
+    """{nitrogen: N | N' | N''} of the one sulfonimidamide-type group `owned`; of equivalent imido nitrogens the
+    `modified` one takes the lower primes."""
+    from ._substituents import ISOTOPE_LABELS
+
+    graph = adjacency(mol)
+    aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    token = ISOTOPE_LABELS.set(None)
+    try:
+        cited = _imidamide_cited(mol, graph, halogen_substituents(mol), aromatic_atoms, owned)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    return dict(_imidamide_roles(mol, graph, owned, cited, modified))
 
 
 def _imido_nitrogen(mol, atom, owned):
@@ -6542,6 +6566,44 @@ def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, c
     return entries
 
 
+def _imidamide_cited(mol, graph, halogens, aromatic_atoms, owned):
+    """{nitrogen: [(name, compound)]} of the substituents on the nitrogens of a sulfonimidamide-type group."""
+    centre = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52))
+    nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
+    return {
+        a: [
+            name_branch(graph, n, a, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            for n in graph[a]
+            if n != centre and n not in nitrogens
+        ]
+        for a in nitrogens
+    }
+
+
+def _imidamide_roles(mol, graph, owned, cited, preferred=frozenset()):
+    """[(nitrogen, N | N' | N'' ...)] of a sulfonimidamide-type group: N on the nitrogen bonded to the centre by a single
+    bond, then primes on the terminal nitrogen of a hydrazide, the imido nitrogens (more substituents, then the
+    alphanumerically first, then the `preferred` modified one) and the terminal nitrogens of hydrazono groups
+    (P-66.4.1.1, P-14.3.5)."""
+    centre = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52))
+    nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
+    bonded = [a for a in nitrogens if mol.GetBondBetweenAtoms(centre, a) is not None]
+    amino = next(a for a in bonded if mol.GetBondBetweenAtoms(centre, a).GetBondTypeAsDouble() == 1.0)
+    hydrazone_nitrogens = [a for a in bonded if a != amino and any(n in nitrogens for n in graph[a])]
+    remote = [a for a in nitrogens if a not in bonded]
+
+    def ranked(atoms):
+        return sorted(
+            atoms, key=lambda a: (-len(cited[a]), sorted(alpha_sort_key(name) for name, _ in cited[a]), a not in preferred, a)
+        )
+
+    hydrazide_end = [a for a in remote if amino in graph[a]]
+    hydrazone_end = [a for a in remote if a not in hydrazide_end]
+    imido = [a for a in bonded if a != amino and a not in hydrazone_nitrogens]
+    sequence = [*hydrazide_end, *ranked(imido), *ranked(hydrazone_end)]
+    return [(amino, "N"), *((a, "N" + chr(39) * k) for k, a in enumerate(sequence, 1))]
+
+
 def _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
     """N, N', N'' ... prefix entries of a sulfonimidamide-, sulfonimidohydrazide- or sulfonohydrazonamide-type group:
     N on the nitrogen bonded to the centre by a single bond, then the primes on the terminal nitrogen of a hydrazide, on
@@ -6550,30 +6612,8 @@ def _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     members = _group_members(mol, groups, ring_groups, cls)
     entries = []
     for _, _, owned, _ in members:
-        centre = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52))
-        nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
-        bonded = [a for a in nitrogens if mol.GetBondBetweenAtoms(centre, a) is not None]
-        amino = next(a for a in bonded if mol.GetBondBetweenAtoms(centre, a).GetBondTypeAsDouble() == 1.0)
-        hydrazone_nitrogens = [a for a in bonded if a != amino and any(n in nitrogens for n in graph[a])]
-        remote = [a for a in nitrogens if a not in bonded]
-        cited = {
-            a: [
-                name_branch(graph, n, a, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-                for n in graph[a]
-                if n != centre and n not in nitrogens
-            ]
-            for a in nitrogens
-        }
-
-        def ranked(atoms):
-            return sorted(atoms, key=lambda a: (-len(cited[a]), sorted(alpha_sort_key(name) for name, _ in cited[a]), a))
-
-        hydrazide_end = [a for a in remote if amino in graph[a]]
-        hydrazone_end = [a for a in remote if a not in hydrazide_end]
-        imido = [a for a in bonded if a != amino and a not in hydrazone_nitrogens]
-        sequence = [*hydrazide_end, *ranked(imido), *ranked(hydrazone_end)]
-        roles = [(amino, "N"), *((a, "N" + chr(39) * k) for k, a in enumerate(sequence, 1))]
-        for nitrogen, locant in roles:
+        cited = _imidamide_cited(mol, graph, halogens, aromatic_atoms, owned)
+        for nitrogen, locant in _imidamide_roles(mol, graph, owned, cited):
             entries.extend((name, compound, locant) for name, compound in cited[nitrogen])
     if entries and len(members) != 1:
         raise UnsupportedStructure("several imidamide groups with N-substitution are not handled by the chain engine")
