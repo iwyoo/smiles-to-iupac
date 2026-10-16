@@ -2300,6 +2300,21 @@ def _nitro_or_nitroso_nitrogen(mol, idx, attached_to):
     )
 
 
+def _cited_chain_bond(mol, walk, locant):
+    """P-93.4.2.1.1: the descriptor of the double bond at `locant` of a chain substituent, cited with that locant."""
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    if not context:
+        return ""
+    ends = (walk[locant - 1], walk[locant])
+    for key in (ends, ends[::-1]):
+        if key in context["bonds"]:
+            context["used"].add(("bond", key))
+            return f"({locant}{context['bonds'][key]})-"
+    return ""
+
+
 def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """disilanyl, triazan-1-yl, 3-silyltetrasilan-1-yl, 1-methyltetrasilan-1-yl: a homogeneous heteroatom chain
     attached through one of its atoms; the longest chain through the free valence is the parent (P-29.4.1, P-44.3)."""
@@ -2342,8 +2357,8 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         lam = {i + 1: n for i, a in enumerate(walk) if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
         key = ((attach,), ene, tuple(sorted(lam)), tuple(-lam[p] for p in sorted(lam)), -sum(len(v) for v in subs.values()), locant_set, citation)
         if best is None or key < best[0]:
-            best = (key, grouped, attach, ene, lam)
-    _, grouped, attach, ene, lam = best
+            best = (key, grouped, attach, ene, lam, walk)
+    _, grouped, attach, ene, lam, walk = best
     if len(ene) > 1:
         raise UnsupportedStructure("a heteroatom chain with several double bonds is not supported yet")
     lam_text = ",".join(f"{p}λ{lam[p]}" for p in sorted(lam))
@@ -2355,7 +2370,7 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if ene:
         base = f"{multiplying_prefix(longest)}{stem[:-3]}-{ene[0]}-en-{attach}-yl"
         prefix = format_substituent_prefixes(grouped) if grouped else ""
-        return prefix + base, True
+        return _cited_chain_bond(mol, walk, ene[0]) + prefix + base, True
     word = multiplying_prefix(longest) + stem[:-1]
     base = word + "yl" if longest == 2 and attach == 1 else f"{word}-{attach}-yl"
     if z in _GROUP_13_CHAIN and not ene:
