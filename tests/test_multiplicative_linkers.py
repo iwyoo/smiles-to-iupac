@@ -189,6 +189,8 @@ def test_acyl_group_on_a_linking_nitrogen_is_a_prefix_only_under_a_senior_group(
         ("[SiH3]CC[SiH2]CC[SiH3]", "[silanediyldi(ethane-2,1-diyl)]bis(silane)"),
         ("C[Si](C)(C)C[Si](C)(C)C", "methylenebis(trimethylsilane)"),
         ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "(ethane-1,2-diyl)bis(diphenylphosphane)"),
+        ("CP(C)(=O)CCP(C)(C)=O", "(ethane-1,2-diyl)bis(dimethyl-\u03bb5-phosphanone)"),
+        ("CP(C)(=S)CP(C)(C)=S", "methylenebis(dimethyl-\u03bb5-phosphanethione)"),
         (
             "c1ccccc1P(c1ccccc1)CP(c1ccccc1)CP(c1ccccc1)c1ccccc1",
             "[(phenylphosphanediyl)bis(methylene)]bis(diphenylphosphane)",
