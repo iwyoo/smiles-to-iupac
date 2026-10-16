@@ -1899,6 +1899,10 @@ def _demote_junior_groups(mol, labels):
         return mol
     principal, owned_groups = _principal_owned(mol)
     found = {frozenset(g) for g in owned_groups}
+    substituted = {frozenset({a.GetIdx()}) for a in mol.GetAtoms() if _substituted_amine_nitrogen(mol, a)}
+    if principal in (None, "amine"):
+        found |= substituted
+        principal = "amine" if found else None
     groups = {g for g in found if not any(g < other for other in found)}
     if principal is None or len(groups) < 2:
         return mol
@@ -1912,6 +1916,9 @@ def _demote_junior_groups(mol, labels):
         return mol
     demoted = Chem.Mol(mol)
     for group in others:
+        if group in substituted:
+            demoted.GetAtomWithIdx(next(iter(group))).SetBoolProp(JUNIOR_GROUP, True)
+            continue
         anchors = [a for a in group if mol.GetAtomWithIdx(a).GetAtomicNum() == 6] or [
             n.GetIdx() for a in group for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetAtomicNum() == 6 and n.GetIdx() not in group
         ]
@@ -1975,6 +1982,7 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
     """`name` with the isotopic descriptor of the labelled atoms of `mol`: parent atoms cite their locants, atoms of
     the principal group take letter locants or go before the suffix (P-82.2, P-82.6)."""
     from ._isotope_labels import descriptor
+    from ._substituents import ISOTOPE_LABELS
 
     in_parent = {a: e for a, e in labels.items() if a in parts[4]}
     if in_parent and len(parts[4]) > 1 and not _locants_omitted(mol, in_parent, parts):
@@ -1989,7 +1997,8 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         if any(a in parts[4] or any(n.GetIdx() in parts[4] for n in mol.GetAtomWithIdx(a).GetNeighbors()) for a in group)
     ]
     suffix_atoms = set().union(*parent_groups) if parent_groups else set()
-    rest = {a: e for a, e in labels.items() if a not in in_parent and (a not in consumed or a in suffix_atoms)}
+    cited = (ISOTOPE_LABELS.get() or {}).get("cited", ())
+    rest = {a: e for a, e in labels.items() if a not in in_parent and a not in cited and (a not in consumed or a in suffix_atoms)}
     if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in rest):
         name, parts, suffix_text = _carbon_group_label(mol, rest, reselect)
         front = []
@@ -2160,6 +2169,7 @@ def _name_labelled(mol, labels, finish=None):
             return multiplicative if finish is None else finish(multiplicative, {})
         isotope_context["consumed"].clear()
         isotope_context.pop("cache", None)
+        isotope_context.pop("cited", None)
         _, name, parts = _select(mol, stereo=stereo)
         LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:
@@ -2232,6 +2242,10 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     from ._isotope_labels import _nuclide_sort_key
 
     principal, owned_groups = _principal_owned(mol)
+    if principal in (None, "amine"):
+        substituted = [{a.GetIdx()} for a in mol.GetAtoms() if _substituted_amine_nitrogen(mol, a)]
+        if substituted:
+            principal, owned_groups = "amine", [*owned_groups, *substituted]
     owned = set().union(*owned_groups) if owned_groups else set()
     if principal is None or any(a not in owned for a in rest):
         raise UnsupportedStructure("an isotopically modified atom outside the parent and the principal group is not supported yet")
@@ -2290,6 +2304,13 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         heavy_label = entry["skeleton"]
         locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
         letter = symbol
+        if principal == "amine" and isinstance(parent_atoms, dict) and sum(
+            any(n.GetIdx() in parent_atoms for a in g for n in mol.GetAtomWithIdx(a).GetNeighbors()) for g in owned_groups
+        ) > 1:
+            carbons = [n.GetIdx() for n in mol.GetAtomWithIdx(atom).GetNeighbors() if n.GetIdx() in parent_atoms]
+            if len(carbons) == 1:
+                locant += str(parent_atoms[carbons[0]])
+                letter += str(parent_atoms[carbons[0]])
         if (hydrazide and not any(n.GetIdx() in centres for n in mol.GetAtomWithIdx(atom).GetNeighbors())) or (
             nitrogen and _imido_nitrogen(mol, atom, owned)
         ):
@@ -4540,11 +4561,22 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         if named is not None:
             return named
         return _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens)
-    if len(amine_nitrogens) > 1 and not SUBSTITUTED_AMINE_PREFIX.get() and _labels_on_backbone_only(mol, graph, amine_nitrogens):
+    if len(amine_nitrogens) > 1 and not SUBSTITUTED_AMINE_PREFIX.get() and (
+        _labels_on_backbone_only(mol, graph, amine_nitrogens) or _labels_on_alike_nitrogens(mol, graph, amine_nitrogens)
+    ):
         named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
         if named is not None:
             return named
-    if len(amine_nitrogens) != 1 or (primaries and ISOTOPE_LABELS.get() and not _labels_on_backbone_only(mol, graph, amine_nitrogens)):
+    primary_nitrogens = [
+        mol.GetAtomWithIdx(n) for owned in (*groups.get("amine", {}).values(), *(o for c, _, o in ring_groups if c == "amine"))
+        for n in owned if mol.GetAtomWithIdx(n).GetAtomicNum() == 7
+    ]
+    if len(amine_nitrogens) != 1 or (
+        primaries
+        and ISOTOPE_LABELS.get()
+        and not _labels_on_backbone_only(mol, graph, amine_nitrogens)
+        and not _labels_on_alike_nitrogens(mol, graph, [*amine_nitrogens, *primary_nitrogens])
+    ):
         raise UnsupportedStructure("several amine groups with N-substitution are not handled by the chain engine")
     nitrogen = amine_nitrogens[0]
     n_idx = nitrogen.GetIdx()
@@ -4659,7 +4691,15 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             finally:
                 ISOTOPE_LABELS.reset(sub_token)
             context["consumed"].update(a for a in context["labels"] if a in new_index)
-            return selected[0], name, (*selected[2][:4], {}, *selected[2][5:])
+            context.setdefault("cited", set()).update(a for a in context["labels"] if a in new_index)
+            placed = {}
+            if stereo_context and (stereo_context["atoms"] or stereo_context["bonds"]):
+                placed = {
+                    keep[new]: locant
+                    for new, locant in selected[2][4].items()
+                    if new < len(keep) and keep[new] not in context["labels"]
+                }
+            return selected[0], name, (*selected[2][:4], placed, *selected[2][5:])
     kept = sorted(set(arms[best[4]]) | {n_idx})
     positions = best[3][2][4]
     if isinstance(positions, dict) and positions:
@@ -4682,6 +4722,24 @@ def _hydroxy_or_alkoxy_on_nitrogen(atom):
 def _is_assembly_result(result):
     """Whether the parent of `result` is a ring assembly, whose locants are primed (P-28.2.1)."""
     return any(isinstance(locant, PrimedLocant) for locant in result[2][4].values())
+
+
+def _labels_on_alike_nitrogens(mol, graph, nitrogens):
+    """Every amine nitrogen carries the same nuclides and no other atom off the backbone is modified, so the amine
+    groups are modified alike and are multiplied (P-82.2.2.2)."""
+    from ._substituents import ISOTOPE_LABELS
+
+    labels = ISOTOPE_LABELS.get()["labels"]
+    indexes = {n.GetIdx() for n in nitrogens}
+    on_nitrogen = {tuple(sorted(_modifications(labels[i]))) for i in indexes if i in labels}
+    if len(on_nitrogen) != 1 or not all(i in labels for i in indexes):
+        return False
+    stripped = {a: e for a, e in labels.items() if a not in indexes}
+    token = ISOTOPE_LABELS.set({**ISOTOPE_LABELS.get(), "labels": stripped})
+    try:
+        return _labels_on_backbone_only(mol, graph, nitrogens)
+    finally:
+        ISOTOPE_LABELS.reset(token)
 
 
 def _labels_on_backbone_only(mol, graph, nitrogens):
@@ -6016,6 +6074,8 @@ def _terminal_chalcogen_hydride(atom):
 
 
 def _substituted_amine_nitrogen(mol, atom):
+    if atom.HasProp(JUNIOR_GROUP):
+        return False
     if any(n.GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in atom.GetNeighbors()):
         return False
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
