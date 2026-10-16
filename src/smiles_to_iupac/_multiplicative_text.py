@@ -96,6 +96,15 @@ _NUMERIC_STEMS = (
 )
 
 
+_ASSEMBLY_LEAD = re.compile(r"\[[^\[\]]+\]-")
+
+
+def opens_with_assembly(text):
+    """A linker name that begins with its ring assembly in brackets, '[1,1'-binaphthalene]-3,3'-diyl', is not enclosed
+    again before the multiplying prefix when no locants precede it (P-16.5.2.1)."""
+    return bool(_ASSEMBLY_LEAD.match(text))
+
+
 def needs_enclosing(text):
     return any(ch.isdigit() or ch == "-" for ch in text) or text.startswith(_NUMERIC_STEMS)
 

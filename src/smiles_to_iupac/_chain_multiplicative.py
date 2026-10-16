@@ -14,7 +14,7 @@ from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
 from ._multiplicative_groups import terminal_ligand
 from ._multiplicative_linker import DecompositionRejected, name_component
-from ._multiplicative_text import enclose, join_parts, multiplier_word, unit_phrase
+from ._multiplicative_text import enclose, join_parts, multiplier_word, opens_with_assembly, unit_phrase
 from ._substituents import name_branch
 
 _LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
@@ -413,9 +413,10 @@ _MULTIPLIED_HETERO_HYDRIDE = re.compile(
 )
 
 
-def _linker_text(count, central, arm_parts, led=True):
+def _linker_text(count, central, arm_parts, led=True, bare=False):
     if not arm_parts:
-        return enclose(central.text) if (central.has_prefix or central.has_locants) and led else central.text
+        enclosed = (central.has_prefix or central.has_locants) and led and not (bare and opens_with_assembly(central.text))
+        return enclose(central.text) if enclosed else central.text
     central_text = enclose(central.text) if central.has_prefix else central.text
     pieces = [enclose(p.text) if p.has_prefix and len(arm_parts) > 1 else p.text for p in arm_parts]
     arm_text = join_parts(pieces)
@@ -618,7 +619,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             lead = ",".join("N" + "'" * (2 * i) for i in range(count)) + "-"
         elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
-        linker = _linker_text(branches, central, arm_parts)
+        linker = _linker_text(branches, central, arm_parts, bare=not lead)
         if unit_kind == "imine":
             if _imine_unit_needs_bis(text, units[0][0]):
                 return f"{lead}{linker}{multiplier_word(count, True)}({text})"
