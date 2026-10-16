@@ -6,7 +6,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import cited_whole_stereo, format_substituent_prefixes, name_branch
 
 _PARENT = {8: ("O", "hydroxylamine"), 16: ("S", "thiohydroxylamine"), 34: ("Se", "selenohydroxylamine"), 52: ("Te", "tellurohydroxylamine")}
 
@@ -75,7 +75,8 @@ def name_o_substituted_hydroxylamine(mol) -> str:
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     if len(found) == 1:
         nitrogen, chalcogen, root = found[0]
-        name, compound = name_branch(graph, root.GetIdx(), chalcogen.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
+        with cited_whole_stereo(mol):
+            name, compound = name_branch(graph, root.GetIdx(), chalcogen.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
         prefix = format_substituent_prefixes({name: {"locants": [symbol], "compound": compound}})
         return prefix + (parent if symbol == "O" else f"({parent})")
     return _multiplied_name(mol, graph, found, symbol, parent)
