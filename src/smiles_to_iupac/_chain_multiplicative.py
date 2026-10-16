@@ -451,11 +451,10 @@ def _skeletal_linker_name(mol, graph, arms, span):
 
 
 def _bare_groups_on_one_ring_atom(mol, kind, edges, arms):
-    """Principal groups with one carbon each on a single atom of a ring are a multiplied suffix of the ring parent, not
-    units of a multiplicative name (P-65.1.2.2.2, P-66.1.1.1.1.3)."""
+    """Principal groups with one carbon each on a ring are a multiplied suffix of the ring parent, not units of a
+    multiplicative name (P-65.1.2.2.2, P-66.1.1.1.1.3)."""
     return (
         kind == "ring"
-        and len({x for x, _, _ in edges}) == 1
         and all(sum(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in atoms) == 1 for _, _, atoms in arms)
     )
 
