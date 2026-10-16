@@ -136,6 +136,7 @@ from ._common import (
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
+    ISOTOPE_LABELS,
     substituents_for_chain,
     format_substituent_prefixes,
     name_branch,
@@ -328,7 +329,56 @@ def name_diacyl_hydrazide(mol) -> str:
             "differently) needs Table 3.3 acid-seniority handling not yet "
             "implemented here"
         )
+    context = ISOTOPE_LABELS.get()
+    if context and context["labels"]:
+        return _labelled_diacyl_hydrazide(mol, context, length1)
     return f"N'-{_diacyl_prefix_name(length1)}{_diacyl_parent_name(length2)}"
+
+
+def _acyl_chain(mol, carbon):
+    chain = [carbon]
+    while True:
+        onward = [n.GetIdx() for n in mol.GetAtomWithIdx(chain[-1]).GetNeighbors() if n.GetAtomicNum() == 6 and n.GetIdx() not in chain]
+        if not onward:
+            return chain
+        chain.append(onward[0])
+
+
+def _labelled_diacyl_hydrazide(mol, context, length):
+    """N'-acyl hydrazide whose parent is the acyl group with the more modified atoms, nitrogens included, then the lowest
+    locants for them (P-82.5); the nuclides of the parent chain and of its nitrogens (N, N') go in front of the parent,
+    those of the N'-acyl group in front of its stem (P-82.2.1, P-82.6.2)."""
+    from ._isotope_labels import descriptor, modification_key
+
+    labels = context["labels"]
+    n1, n2, c1, _, c2, _ = _diacyl_hydrazide_core(mol)
+    chains = {c1: _acyl_chain(mol, c1), c2: _acyl_chain(mol, c2)}
+    if set(labels) - {n1, n2, *chains[c1], *chains[c2]}:
+        raise UnsupportedStructure("an isotopically modified atom of a diacylhydrazide other than a chain carbon or a nitrogen is not supported yet")
+    if any(entry["skeleton"] for atom, entry in labels.items() if mol.GetAtomWithIdx(atom).GetAtomicNum() == 7):
+        raise UnsupportedStructure("a nuclide on the nitrogen skeleton of a diacylhydrazide is not supported yet")
+    options = []
+    for parent_carbon, parent_n, acyl_carbon, acyl_n in ((c1, n1, c2, n2), (c2, n2, c1, n1)):
+        positions = {atom: i for i, atom in enumerate(chains[parent_carbon], 1)}
+        located = {**positions, parent_n: 0, acyl_n: 0.5}
+        key = modification_key({a: e for a, e in labels.items() if a in located}, located)
+        options.append((key, parent_carbon, parent_n, acyl_carbon, acyl_n, positions))
+    _, parent_carbon, parent_n, acyl_carbon, acyl_n, positions = min(options, key=lambda option: option[0])
+    graph = adjacency(mol)
+    acyl_name, _ = name_branch(graph, acyl_carbon, acyl_n, {}, mol=mol)
+    in_parent = {a: e for a, e in labels.items() if a in positions}
+    extra = [
+        (nuclide, "N" if atom == parent_n else "N'", count, mol.GetAtomWithIdx(atom).GetTotalNumHs() > 1)
+        for atom, entry in labels.items()
+        if atom in (parent_n, acyl_n)
+        for nuclide, count in entry["H"].items()
+    ]
+    parent_labels = {a: e for a, e in labels.items() if a in positions}
+    capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in parent_labels}
+    context["consumed"].update(in_parent)
+    context["consumed"].update(a for a in (parent_n, acyl_n) if a in labels)
+    nuclides = descriptor(parent_labels, positions, length == 1, extra=extra, capacity=capacity) if parent_labels or extra else ""
+    return f"N'-{acyl_name}{nuclides}{_diacyl_parent_name(length)}"
 
 
 def _validate_and_collect_hydrazide(mol, aromatic_ring_atoms=frozenset()):

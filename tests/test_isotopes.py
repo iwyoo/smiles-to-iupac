@@ -718,3 +718,92 @@ def test_isotopically_modified_steroid_parent_hydride(smiles, expected):
 )
 def test_isotopic_descriptor_after_the_hydro_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1: the nuclide of an ether oxygen is cited in the alkoxy prefix, in front of the part that holds the oxygen: the stem of a
+# contracted alkoxy, the 'oxy' of a prefix written with enclosing marks
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ClCC[18O]CCC", "1-[2-chloro(18O)ethoxy]propane", id="substituted_alkoxy"),
+        pytest.param("ClCC[18O]CC", "1-chloro-2-(18O)ethoxyethane", id="alkoxy_that_is_not_the_prefix_of_the_larger_chain"),
+        pytest.param("CCC[18O]C(C)C", "1-[(propan-2-yl)(18O)oxy]propane", id="branched_alkoxy"),
+        pytest.param("CC(C)[18O]C(C)C", "2-[(propan-2-yl)(18O)oxy]propane", id="two_equal_branched_groups"),
+        pytest.param("COCC[18O]C=C", "[2-methoxy(18O)ethoxy]ethene", id="alkoxy_with_an_alkoxy_prefix_on_a_vinyl_ether"),
+        pytest.param("ClCC[18O]C=C", "[2-chloro(18O)ethoxy]ethene", id="substituted_alkoxy_on_a_vinyl_ether"),
+        pytest.param("CCC[18O]C(C)=C", "2-(18O)propoxyprop-1-ene", id="plain_alkoxy_on_a_branched_alkene"),
+        pytest.param("CCC[18O]COC", "1-[methoxy(18O)methoxy]propane", id="oxygen_of_the_outer_of_two_alkoxy_groups"),
+    ],
+)
+def test_nuclide_on_the_oxygen_of_a_substituted_or_branched_alkoxy_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.2: hydrogen nuclides on the nitrogens of a hydrazinecarboxamide take N (amide) and 1, 2 (hydrazine) and stand in
+# front of 'hydrazine'
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]NC(=O)NN", "(N-2H1)hydrazinecarboxamide", id="amide_nitrogen"),
+        pytest.param("[2H]NNC(N)=O", "(2-2H1)hydrazinecarboxamide", id="terminal_hydrazine_nitrogen"),
+        pytest.param("[2H]N(N)C(N)=O", "(1-2H)hydrazinecarboxamide", id="substituted_hydrazine_nitrogen"),
+        pytest.param("NC(=O)NN([2H])[2H]", "(2,2-2H2)hydrazinecarboxamide", id="two_deuteriums_on_one_nitrogen"),
+        pytest.param("[2H]NC(=O)NN[2H]", "(2,N-2H2)hydrazinecarboxamide", id="locants_cited_numbers_before_letters"),
+        pytest.param("[2H]NC(=O)NNC", "2-methyl(N-2H1)hydrazine-1-carboxamide", id="descriptor_follows_the_prefixes"),
+        pytest.param("[2H]N(C)C(=O)NN", "N-methyl(N-2H)hydrazinecarboxamide", id="amide_nitrogen_with_a_substituent"),
+        pytest.param("NC(=O)NNC([2H])([2H])[2H]", "2-(2H3)methylhydrazine-1-carboxamide", id="labelled_substituent_of_the_hydrazine"),
+    ],
+)
+def test_hydrogen_nuclides_on_the_nitrogens_of_a_semicarbazide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.5, P-82.6.2: the acyl group with the more modified atoms is the hydrazide parent, then the lowest locants (N before N');
+# the nuclides of the other acyl group stand in front of its stem
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]CC(=O)NNC(C)=O", "N'-acetyl(2-2H1)acetohydrazide", id="labelled_acyl_is_the_parent"),
+        pytest.param("[13CH3]C(=O)NNC(C)=O", "N'-acetyl(2-13C)acetohydrazide", id="carbon_nuclide"),
+        pytest.param("[2H]N(NC(C)=O)C(C)=O", "N'-acetyl(N-2H)acetohydrazide", id="nitrogen_nuclide_takes_the_lower_locant_N"),
+        pytest.param("CC(=O)N([2H])N([2H])C(C)=O", "N'-acetyl(N,N'-2H2)acetohydrazide", id="both_nitrogens"),
+        pytest.param("[2H]C([2H])([2H])C(=O)NNC(=O)C([2H])([2H])[2H]", "N'-(2H3)acetyl(2,2,2-2H3)acetohydrazide", id="both_acyl_groups"),
+        pytest.param("[2H]CCC(=O)NNC(=O)CC", "N'-propanoyl(3-2H1)propanehydrazide", id="longer_chain"),
+    ],
+)
+def test_nuclides_on_a_symmetric_diacylhydrazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-68.4.1.1: a nuclide on an end group of a polychalcogen chain is cited in that organyl prefix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]CSSSC", "methyl[(2H1)methyl]trisulfane", id="trisulfane"),
+        pytest.param("[13CH3]SSSC", "methyl[(13C)methyl]trisulfane", id="carbon_nuclide"),
+        pytest.param("[2H]CSSSSC", "methyl[(2H1)methyl]tetrasulfane", id="tetrasulfane"),
+        pytest.param("[2H]C([2H])([2H])SSSC([2H])([2H])[2H]", "di[(2H3)methyl]trisulfane", id="both_end_groups"),
+        pytest.param("C[Se][Se][Se]C[2H]", "methyl[(2H1)methyl]triselane", id="triselane"),
+        pytest.param("[2H]CCSSSC", "(2-2H1)ethyl(methyl)trisulfane", id="different_end_groups"),
+    ],
+)
+def test_nuclides_on_the_end_groups_of_a_polychalcogen_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-73.2.2.3: the diazonium suffix stands where the amine suffix does, so the nuclides of the skeleton are cited as for an amine
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]C[N+]#N", "(2H1)methanediazonium", id="methane"),
+        pytest.param("[13CH3][N+]#N", "(13C)methanediazonium", id="carbon_nuclide"),
+        pytest.param("[2H]CC[N+]#N", "(2-2H1)ethane-1-diazonium", id="locant_cited_with_a_nuclide"),
+        pytest.param("[2H]C(C)(C)[N+]#N", "(2-2H)propane-2-diazonium", id="branched_chain"),
+        pytest.param("[2H]C=CC[N+]#N", "(3-2H1)prop-2-ene-1-diazonium", id="unsaturated_chain"),
+        pytest.param("[2H]C1CCCCC1[N+]#N", "(2-2H1)cyclohexane-1-diazonium", id="ring"),
+        pytest.param("[2H]c1ccccc1[N+]#N", "(2-2H)benzenediazonium", id="benzene_ring"),
+        pytest.param("ClC([2H])[N+]#N", "1-chloro(2H1)methanediazonium", id="halogen_beside_the_nuclide"),
+    ],
+)
+def test_nuclides_on_the_skeleton_of_a_diazonium_cation(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

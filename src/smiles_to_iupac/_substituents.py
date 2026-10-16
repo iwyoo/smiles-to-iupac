@@ -498,7 +498,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if name == "methoxy" or (mol is not None and _labelled_ether_oxygen(mol, root, labelled, name)):
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
-        return text + name, compound
+        if _ALKOXY_STEM.fullmatch(name) and name.count("oxy") == 1:
+            return text + name, compound
+        cut = _ether_oxygen_cut(name, graph, root, coming_from, halogens, mol, aromatic_atoms, unsaturated, atoms)
+        return name[:cut] + text + name[cut:], compound
     if name == "cyano" and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
         context["consumed"].update(labelled)
         return descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity) + name, False
@@ -583,6 +586,23 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
 _ALKOXY_STEM = re.compile(r"[a-z]+oxy")
 
 
+def _ether_oxygen_cut(name, graph, root, coming_from, halogens, mol, aromatic_atoms, unsaturated, atoms):
+    """Index in the alkoxy prefix `name` of the part that holds the ether oxygen: the stem of the principal chain of a
+    contracted alkoxy ('2-chloro(18O)ethoxy'), else the 'oxy' itself ('(propan-2-yl)(18O)oxy') (P-82.2.1)."""
+    (carbon,) = (n for n in graph[root] if n != coming_from)
+    if mol.GetAtomWithIdx(carbon).IsInRing():
+        raise UnsupportedStructure("the nuclide of the oxygen of a substituted ring group oxy prefix is not supported yet")
+    named = {**{a: "x" for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}, **(halogens or {})}
+    multiple = any(
+        b.GetBondTypeAsDouble() > 1.0 and b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms for b in mol.GetBonds()
+    )
+    chain, _, _, _ = _select_winning_structure(graph, carbon, root, named, mol, aromatic_atoms, unsaturated or multiple)
+    stem_index = name.rfind(alkyl_name(len(chain))[:-2])
+    if stem_index < 0 or ")" in name[stem_index:]:
+        return name.rindex("oxy")
+    return stem_index
+
+
 def _labelled_ether_oxygen(mol, root, labelled, name):
     """Whether the only labelled atom of an alkoxy or aryloxy prefix is its oxygen, so the nuclide is cited in front of
     the whole prefix as for methoxy (P-82.2.1)."""
@@ -591,7 +611,7 @@ def _labelled_ether_oxygen(mol, root, labelled, name):
         set(labelled) == {root}
         and oxygen.GetAtomicNum() == 8
         and oxygen.GetDegree() == 2
-        and _ALKOXY_STEM.fullmatch(name) is not None
+        and name.endswith("oxy")
         and all(n.GetAtomicNum() == 6 and not _carbonyl_carbon(mol, n.GetIdx()) for n in oxygen.GetNeighbors())
     )
 
