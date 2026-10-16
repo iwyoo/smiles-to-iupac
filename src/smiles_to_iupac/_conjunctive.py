@@ -9,7 +9,7 @@ from collections import namedtuple
 from rdkit import Chem
 
 from ._common import (
-    KEEP_ASSEMBLY_ENDING, UnsupportedStructure, adjacency, alpha_sort_key, assembly_join, assign_cip_labels,
+    KEEP_ASSEMBLY_ENDING, RuleUndefinedStructure, UnsupportedStructure, adjacency, alpha_sort_key, assembly_join, assign_cip_labels,
     group_substituents, halogen_substituents,
 )
 from ._diester_ring_diyl import PARENT_START, _stereo_locant, _system_of, evaluate_skeleton
@@ -193,7 +193,7 @@ def _chain_substituents(mol, graph, klass, chain, anchors):
             if anchors & _reach(graph, n, set(path)):
                 return None
             if i - klass.offset >= len(_GREEK):
-                raise UnsupportedStructure("the side chain is longer than the Greek alphabet")
+                raise RuleUndefinedStructure("the side chain is longer than the Greek alphabet (P-15.6.1.2)")
             name, compound = name_branch(graph, n, index, halogens, aromatic, mol=mol)
             found.append((i - klass.offset, name, compound))
     return found
