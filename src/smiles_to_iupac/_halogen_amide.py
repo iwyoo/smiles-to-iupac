@@ -1,7 +1,7 @@
 """Amides of the halogen oxoacids, R-NH-X, R-NH-XO and R2N-X (P-61.3.2.2, P-62.4, P-68.5.3): a halogen atom on nitrogen
 makes an amide of an inorganic acid, which outranks the amine and halo classes of the 'N-halogenoamine' name, so the
 PIN is '<substituents>hypochlorous amide' (bromous, chloric, perchloric amide with one to three oxygens on the halogen)
-with the carbon groups on nitrogen cited without locants."""
+with the carbon, alkoxy and chalcogenyl groups on nitrogen cited without locants."""
 
 from rdkit import Chem
 
@@ -30,6 +30,19 @@ def _oxo_oxygens(halogen, nitrogen):
             return None
         found.append(other)
     return found if len(found) <= 3 and sum(o.GetFormalCharge() for o in found) + halogen.GetFormalCharge() == 0 else None
+
+
+def _chalcogen_arm(atom, nitrogen):
+    """An alkoxy, sulfanyl, selanyl or tellanyl group bonded to the nitrogen and to one carbon group."""
+    bond = atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx())
+    return (
+        atom.GetAtomicNum() in (8, 16, 34, 52)
+        and atom.GetDegree() == 2
+        and not atom.GetFormalCharge()
+        and not atom.GetIsotope()
+        and bond.GetBondTypeAsDouble() == 1.0
+        and all(n.GetIdx() == nitrogen.GetIdx() or n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
+    )
 
 
 def _halogen_amide_nitrogen(mol):
@@ -64,9 +77,11 @@ def name_halogen_amide(mol) -> str:
             raise UnsupportedStructure("two different halogens on nitrogen need a decided choice of the acid")
         owned.add(other.GetIdx())
         prefixes.append((HALOGEN_PREFIXES[other.GetAtomicNum()], False))
+    chalcogen_arms = {n.GetIdx() for n in nitrogen.GetNeighbors() if _chalcogen_arm(n, nitrogen)}
     if any(
         a.GetIdx() not in owned
         and a.GetIdx() != nitrogen.GetIdx()
+        and a.GetIdx() not in chalcogen_arms
         and (not (plain_arm_atom(a) or a.GetAtomicNum() == 7) or a.GetFormalCharge() or a.GetIsotope())
         for a in mol.GetAtoms()
     ):
@@ -78,7 +93,7 @@ def name_halogen_amide(mol) -> str:
     carbons = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != halogen.GetIdx() and n.GetIdx() not in owned]
     if any(
         mol.GetBondBetweenAtoms(nitrogen.GetIdx(), c.GetIdx()).GetBondTypeAsDouble() != 1.0
-        or not (c.GetAtomicNum() == 6 or (c.GetAtomicNum() == 7 and c.IsInRing()))
+        or not (c.GetAtomicNum() == 6 or c.GetIdx() in chalcogen_arms or (c.GetAtomicNum() == 7 and c.IsInRing()))
         for c in carbons
     ):
         raise UnsupportedStructure("an amide of a halogen acid needs single-bonded carbon or ring nitrogen groups on nitrogen")
