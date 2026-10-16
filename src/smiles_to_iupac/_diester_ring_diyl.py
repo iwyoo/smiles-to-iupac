@@ -677,9 +677,11 @@ def ring_substituent_numbering(mol, graph, root, parent):
     if suffix is None or any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
         return None
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
-    if found is None or found[3]:
+    if found is None:
         return None
-    return re.sub(r"(cyclo[a-z]+?)an-1-(yl|ylidene|ylidyne)$", r"\1\2", found[1]), found[2], PARENT_START.get(), atoms
+    lead = re.match(r"\([^()]*\)-", found[1]) if found[3] else None
+    start = PARENT_START.get() + (lead.end() if lead else 0)
+    return re.sub(r"(cyclo[a-z]+?)an-1-(yl|ylidene|ylidyne)$", r"\1\2", found[1]), found[2], start, atoms
 
 
 def _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order):
