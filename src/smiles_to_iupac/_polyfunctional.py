@@ -2990,6 +2990,11 @@ def _joined_imine_alternatives(mol, graph, groups, ring_groups):
 _AMINE_STEREO_ELEMENTS = {6, 7, 8, 9, 14, 16, 17, 32, 34, 35, 52, 53}
 
 
+def _skeletal_heteroatom(atom):
+    """An atom of another element that links two groups is a heteroatom of the chain, named by replacement (P-15.4.3)."""
+    return atom.GetAtomicNum() not in _AMINE_STEREO_ELEMENTS and sum(n.GetDegree() > 1 for n in atom.GetNeighbors()) > 1
+
+
 def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo):
     if (
         any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms())
@@ -3040,7 +3045,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     ):
         if attach is not None or n_names:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
-        if any(kind != "isotope" for kind, _, _ in stereo or ()) and any(a.GetAtomicNum() not in _AMINE_STEREO_ELEMENTS for a in mol.GetAtoms()):
+        if any(kind != "isotope" for kind, _, _ in stereo or ()) and any(_skeletal_heteroatom(a) for a in mol.GetAtoms()):
             raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported beside other heteroatoms yet")
         return _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
 
