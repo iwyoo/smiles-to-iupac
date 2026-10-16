@@ -811,21 +811,18 @@ def _sulfonyl_groups_on(mol, carbon):
 
 
 def _hydroxy_type_groups(mol, carbon):
-    """[(class, terminal atoms)] of the hydroxy, chalcogenol and amino groups on `carbon`, geminal ones together."""
+    """[(class, terminal atoms)] of the hydroxy, chalcogenol and amino groups on `carbon`, geminal ones together; in an
+    anion name only the deprotonated ones form the suffix, a neutral one beside them is a prefix (P-72.2.2.2.2)."""
     found = []
     for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (34, 1, "selenol"), (52, 1, "tellurol"), (7, 2, "amine")):
-        found.append(
-            (
-                name,
-                [
-                    n
-                    for n in _single_neighbors(mol, carbon, z)
-                    # in an aminium name only the cationic nitrogens are the suffix; a neutral amino group is a prefix
-                    if _terminal_heteroatom(mol, n, hydrogens)
-                    and not (AMINIUM.get() is True and z == 7 and not mol.GetAtomWithIdx(n).HasProp("_cationic_amine"))
-                ],
-            )
-        )
+        atoms = [
+            n
+            for n in _single_neighbors(mol, carbon, z)
+            # in an aminium name only the cationic nitrogens are the suffix; a neutral amino group is a prefix
+            if _terminal_heteroatom(mol, n, hydrogens)
+            and not (AMINIUM.get() is True and z == 7 and not mol.GetAtomWithIdx(n).HasProp("_cationic_amine"))
+        ]
+        found.append((name, [n for n in atoms if mol.GetAtomWithIdx(n).HasProp(ANION_PROP)] or atoms))
     return found
 
 
