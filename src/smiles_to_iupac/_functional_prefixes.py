@@ -149,11 +149,15 @@ def _acyl_prefix(mol, subtree, root, parent):
             raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
+    from ._polyfunctional import RING_CENTER
+
     token = SYSTEMATIC_ACID_PROBE.set(True)
     labels_token = ISOTOPE_LABELS.set(None)
+    centre_token = RING_CENTER.set(False)
     try:
         probe = smiles_to_iupac(Chem.MolToSmiles(sub)) if own_acid is None else _name_with_principal(sub, own_acid)
     finally:
+        RING_CENTER.reset(centre_token)
         ISOTOPE_LABELS.reset(labels_token)
         SYSTEMATIC_ACID_PROBE.reset(token)
     if zwitterion and probe.endswith("ate"):
