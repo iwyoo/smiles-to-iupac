@@ -71,6 +71,9 @@ def test_amine_parents_joined_through_nitrogen_are_multiplied_only_when_they_out
         ("[2H]OCC1CCC(CO)CC1", "[4-(hydroxymethyl)cyclohexyl]methan(2H)ol"),
         ("CC(=O)c1ccc(C([11CH3])=O)cc1", "1-(4-acetylphenyl)(2-11C)ethan-1-one"),
         ("OC[13CH]1CCC([13CH2]O)CC1", "[4-(hydroxymethyl)(4-13C)cyclohexyl](13C)methanol"),
+        ("[2H]N(CCO)CCO", "2,2'-[(2H)azanediyl]di(ethan-1-ol)"),
+        ("OCC[15N](CCO)CCO", "2,2',2''-[(15N)nitrilo]tri(ethan-1-ol)"),
+        ("OC([2H])([2H])COCC([2H])([2H])O", "2,2'-oxydi[(1,1-2H2)ethan-1-ol]"),
     ],
 )
 def test_isotopic_modification_of_the_linker_or_of_identical_arms_keeps_the_multiplicative_name(smiles, expected):

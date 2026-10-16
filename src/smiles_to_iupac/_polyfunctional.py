@@ -2281,18 +2281,45 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     only_heavy = not any(e["H"] for e in rest.values())
     hydrazide = principal == "hydrazide" or principal in _SULFONYL_HYDRAZIDE_ORDER
     centres = {
-        n.GetIdx() for o in owned if mol.GetAtomWithIdx(o).GetAtomicNum() == 8 for n in mol.GetAtomWithIdx(o).GetNeighbors()
-    } - owned
+        n.GetIdx()
+        for o in owned
+        if mol.GetAtomWithIdx(o).GetAtomicNum() in (8, 16, 34, 52) and mol.GetAtomWithIdx(o).GetDegree() == 1
+        for n in mol.GetAtomWithIdx(o).GetNeighbors()
+    }
     for atom, entry in rest.items():
         heavy_label = entry["skeleton"]
         locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
-        if hydrazide and not any(n.GetIdx() in centres for n in mol.GetAtomWithIdx(atom).GetNeighbors()):
+        letter = symbol
+        if (hydrazide and not any(n.GetIdx() in centres for n in mol.GetAtomWithIdx(atom).GetNeighbors())) or (
+            nitrogen and _imido_nitrogen(mol, atom, owned)
+        ):
             locant += "'"
+            letter += "'"
         if heavy_label:
-            items.append((heavy_label, symbol if several_atoms and only_heavy else None, 1, False))
+            items.append((heavy_label, letter if several_atoms and only_heavy else None, 1, False))
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
+
+
+def _imido_nitrogen(mol, atom, owned):
+    """The imino nitrogen of an amidine-type group takes N', the amino nitrogen N (P-66.4.1.1); a second imido
+    nitrogen on the same atom (N'') is not supported."""
+    nitrogen = mol.GetAtomWithIdx(atom)
+    for bond in nitrogen.GetBonds():
+        if bond.GetBondTypeAsDouble() != 2.0:
+            continue
+        centre = bond.GetOtherAtom(nitrogen)
+        amino = [
+            n for n in centre.GetNeighbors()
+            if n.GetIdx() in owned and n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(centre.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        ]
+        if not amino:
+            return False
+        if sum(1 for b in centre.GetBonds() if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(centre).GetAtomicNum() == 7) > 1:
+            raise UnsupportedStructure("the locant N'' of a second imido nitrogen is not supported yet")
+        return True
+    return False
 
 
 def _same_label_on_every_group_atom(mol, rest, owned, element):
@@ -5293,20 +5320,45 @@ def _multiplicative_name(mol, stereo=None):
             parts_atoms[i] & parts_atoms[j] for i in range(arms) for j in range(i)
         ) or len({len(p) for p in parts_atoms}) != 1:
             continue
-        units = [_unit_molecule(mol, atoms, n) for atoms, n in zip(parts_atoms, neighbors)]
-        keys = {Chem.MolToSmiles(unit[0], isomericSmiles=False) for unit in units}
+        from ._substituents import ISOTOPE_LABELS
+
+        isotope_context = ISOTOPE_LABELS.get()
+        labelled = bool(isotope_context)
+        units = [_unit_molecule(mol, atoms, n, refill=labelled) for atoms, n in zip(parts_atoms, neighbors)]
+        if labelled:
+            keys = {_modified_unit_smiles(unit[0], atoms) for unit, atoms in zip(units, parts_atoms)}
+        else:
+            keys = {Chem.MolToSmiles(unit[0], isomericSmiles=False) for unit in units}
         if len(keys) != 1:
             continue
         if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] == "amine":
             continue
         unit, attach = units[0]
         try:
-            _, _, parts = _select(unit, attach)
+            if labelled:
+                parts = _unit_parts(unit, attach, parts_atoms[0])
+            else:
+                _, _, parts = _select(unit, attach)
         except UnsupportedStructure:
             continue
         stereo_text = ""
-        if stereo:
-            parts, stereo_text = _stereo_arms(mol, stereo, parts_atoms, units)
+        plain_stereo = [element for element in stereo or () if element[0] != "isotope"]
+        if plain_stereo:
+            parts, stereo_text = _stereo_arms(mol, plain_stereo, parts_atoms, units)
+        if labelled:
+            from ._isotope_labels import descriptor
+
+            marked = [z.GetIdx()] if z.GetIdx() in isotope_context["labels"] and extra == 1 else []
+            isotope_context["consumed"].update(
+                marked + [a for atoms in parts_atoms for a in atoms if a in isotope_context["labels"]]
+            )
+            if marked:
+                linker = enclose(
+                    descriptor(
+                        {z.GetIdx(): isotope_context["labels"][z.GetIdx()]}, {z.GetIdx(): 1}, True, capacity={z.GetIdx(): hydrogens}
+                    )
+                    + linker
+                )
         prefix, body, tail, locant = parts[:4]
         lead = ",".join(str(locant) + "'" * i for i in range(arms)) + "-" if locant is not None else ""
         text = prefix + body
