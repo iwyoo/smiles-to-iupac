@@ -1643,6 +1643,8 @@ def name_acid_derivative(mol):
             _center(mol, l.center)[0] in ("carbonic", "inorganic") for l in esters
         ) and all(l.kind in ("ester", "halide") for l in links):
             return name_ester(mol, links)
+        if all(_center(mol, c)[0] == "carbonic" for c in acid) and all(l.kind == "anhydride" for l in links):
+            return name_anhydride(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
             if any("cyanic" in (_center(mol, l.center)[0], _center(mol, l.far)[0]) for l in links if l.kind == "anhydride"):
                 # P-67.1.2.4.1.3: an -OCN group on the acid is cited by functional replacement, the acid outranking the anhydride

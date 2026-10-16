@@ -229,6 +229,8 @@ def test_symmetric_anhydride(smiles, expected):
     [
         pytest.param("NCC(=O)OC(=O)CC", "aminoacetic propanoic anhydride", id="retained_amino_acid_name_is_not_cited"),
         pytest.param("CC(=O)OC(=O)[C@@H](N)C", "acetic (2S)-2-aminopropanoic anhydride", id="descriptor_of_the_amino_acid_part"),
+        pytest.param("CC(=O)OC(=O)C1CCCN1", "acetic pyrrolidine-2-carboxylic anhydride", id="proline_part_is_cited_by_its_systematic_acid_name"),
+        pytest.param("CCC(=O)OC(=O)O", "carbonic propanoic monoanhydride", id="carbonic_acid_part_keeps_its_hydroxy"),
     ],
 )
 def test_mixed_anhydride_with_an_amino_acid_component(smiles, expected):
