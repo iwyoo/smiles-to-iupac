@@ -2312,13 +2312,14 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         if atom in roles:
             locant = locant[: -len(symbol)] + roles[atom]
             letter = roles[atom]
-        elif principal == "amine" and isinstance(parent_atoms, dict) and sum(
-            any(n.GetIdx() in parent_atoms for a in g for n in mol.GetAtomWithIdx(a).GetNeighbors()) for g in owned_groups
+        elif principal in _GROUP_LOCANTED_N_CLASSES and isinstance(parent_atoms, dict) and sum(
+            any(_group_locant(mol, a, parent_atoms) is not None for a in g if mol.GetAtomWithIdx(a).GetAtomicNum() == 7)
+            for g in owned_groups
         ) > 1:
-            carbons = [n.GetIdx() for n in mol.GetAtomWithIdx(atom).GetNeighbors() if n.GetIdx() in parent_atoms]
-            if len(carbons) == 1:
-                locant += str(parent_atoms[carbons[0]])
-                letter += str(parent_atoms[carbons[0]])
+            number = _group_locant(mol, atom, parent_atoms)
+            if number is not None:
+                locant += str(number)
+                letter += str(number)
         if atom not in roles and (
             (hydrazide and not any(n.GetIdx() in centres for n in mol.GetAtomWithIdx(atom).GetNeighbors()))
             or (nitrogen and _imido_nitrogen(mol, atom, owned))
@@ -2330,6 +2331,21 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
+
+
+_GROUP_LOCANTED_N_CLASSES = frozenset(("amine", "amide", "sulfonamide", *_CHALCOGEN_AMIDE_CLASSES))
+
+
+def _group_locant(mol, nitrogen, parent_atoms):
+    """The locant of the parent atom that bears the group of `nitrogen`, which several groups of one parent tell apart:
+    N1, N4 of a diamide or diamine (P-66.1.1.4, P-62.2.4.1.2)."""
+    for neighbor in mol.GetAtomWithIdx(nitrogen).GetNeighbors():
+        if neighbor.GetIdx() in parent_atoms:
+            return parent_atoms[neighbor.GetIdx()]
+        found = [n.GetIdx() for n in neighbor.GetNeighbors() if n.GetIdx() in parent_atoms]
+        if neighbor.GetAtomicNum() in (6, 16, 34, 52) and len(found) == 1:
+            return parent_atoms[found[0]]
+    return None
 
 
 def _labelled_imidamide_roles(mol, owned, modified):
