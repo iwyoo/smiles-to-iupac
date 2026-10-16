@@ -25,6 +25,35 @@ def _name_halide_anion(frag) -> str:
     return prefix[:-1] + "ide"
 
 
+def _is_pseudohalide_ion(frag, elements):
+    """A single-charged ion of exactly the heavy atoms `elements` in a chain, with no hydrogen and no isotope: the CN and N3
+    anions (P-65.5.1, Table 6.3)."""
+    atoms = list(frag.GetAtoms())
+    return (
+        sorted(a.GetAtomicNum() for a in atoms) == sorted(elements)
+        and sum(a.GetFormalCharge() for a in atoms) == -1
+        and not any(a.GetTotalNumHs() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in atoms)
+        and frag.GetNumBonds() == len(atoms) - 1
+        and len(Chem.GetMolFrags(frag)) == 1
+    )
+
+
+def _has_cyanide_anion_shape(frag):
+    return _is_pseudohalide_ion(frag, (6, 7)) and frag.GetBondWithIdx(0).GetBondTypeAsDouble() == 3.0
+
+
+def _name_cyanide_anion(frag) -> str:
+    return "cyanide"
+
+
+def _has_azide_anion_shape(frag):
+    return _is_pseudohalide_ion(frag, (7, 7, 7)) and all(a.GetDegree() <= 2 for a in frag.GetAtoms())
+
+
+def _name_azide_anion(frag) -> str:
+    return "azide"
+
+
 def _has_hydroxide_anion_shape(frag):
     return frag.GetNumAtoms() == 1 and frag.GetAtomWithIdx(0).GetAtomicNum() == 8 and frag.GetAtomWithIdx(0).GetFormalCharge() == -1
 
@@ -50,6 +79,8 @@ _ANION_KINDS = [
     (has_selenoate_shape, name_selenoate),
     (_has_halide_anion_shape, _name_halide_anion),
     (_has_hydroxide_anion_shape, _name_hydroxide_anion),
+    (_has_cyanide_anion_shape, _name_cyanide_anion),
+    (_has_azide_anion_shape, _name_azide_anion),
     (_has_carbanide_anion_shape, name_carbanide),
     (has_general_anion_shape, name_anion),
 ]

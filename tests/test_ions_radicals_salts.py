@@ -1531,6 +1531,9 @@ def test_ring_cations_with_nitrogen_bearing_substituents(smiles, expected):
         pytest.param("[S-]C#N", "thiocyanate", id="thiocyanate"),
         pytest.param("[Se-]C#N", "selenocyanate", id="selenocyanate"),
         pytest.param("[K+].[S-]C#N", "potassium thiocyanate", id="cyanate_family_in_a_salt"),
+        pytest.param("CC[NH3+].[C-]#N", "ethanaminium cyanide", id="cyanide_with_an_organic_cation"),
+        pytest.param("[Ca+2].[C-]#N.[C-]#N", "calcium dicyanide", id="cyanide_with_a_multiplied_anion"),
+        pytest.param("C[N+](C)(C)C.[N-]=[N+]=[N-]", "N,N,N-trimethylmethanaminium azide", id="azide_with_an_organic_cation"),
     ],
 )
 def test_anions_of_halogen_oxoacids_and_cyanic_acids(smiles, expected):
