@@ -205,6 +205,25 @@ def test_azole_assembly_cites_the_indicated_hydrogen_of_both_rings(smiles, expec
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("O=c1[nH]c(-c2ccc(=O)[nH]c2)ccc1", "[2,3'-bipyridine]-6,6'(1H,1'H)-dione", id="added_hydrogen_after_the_suffix_locants"),
+        pytest.param("S=c1[nH]nc(-c2n[nH]c(=S)s2)s1", "[2,2'-bi(1,3,4-thiadiazole)]-5,5'(4H,4'H)-dithione", id="sulfanylidene_suffixes"),
+        pytest.param("O=c1ccn(-c2ccc(=O)[nH]c2)cc1", "[1,3'-bipyridine]-4,6'(1H,1'H)-dione", id="junction_on_the_ring_nitrogen_keeps_its_added_hydrogen"),
+        pytest.param("O=c1ccc(-c2ccc(=O)oc2)co1", "6H,6'H-[3,3'-bipyran]-6,6'-dione", id="indicated_hydrogen_accommodates_the_suffix"),
+        pytest.param(
+            "O=c1cc(-c2cc(=O)[nH][nH]2)[nH][nH]1",
+            "1,1',2,2'-tetrahydro-5H,5'H-[3,3'-bipyrazole]-5,5'-dione",
+            id="hydro_prefixes_beside_indicated_hydrogen",
+        ),
+    ],
+)
+def test_assembly_of_ring_ketones_cites_the_hydrogen_of_each_ring(smiles, expected):
+    # P-28.2.3, P-31.1.4.3.4, P-58.2.1
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("C1=CCCCC1C1=CCCCC1C1=CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-1¹,2²,3²-triene"),
         ("C1CC=CCC1C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexan]-1³-ene"),
         ("C1CCCCC1=C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexan]-1¹(2¹)-ene"),
