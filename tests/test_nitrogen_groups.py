@@ -1777,6 +1777,8 @@ def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
         ("CN=C(N)N=C(N)N", "N'1-methylimidodicarbonimidic diamide"),
         ("N=C(N)N=C(N)N(C)C", "N1,N1-dimethylimidodicarbonimidic diamide"),
         ("CN=C(N)NC(N)=NC", "N'1,N'3-dimethylimidodicarbonimidic diamide"),
+        ("N=C(N)N/C(N)=N/C", "(1E)-N'1-methylimidodicarbonimidic diamide"),
+        ("C/N=C(\\N)N/C(N)=N\\C", "(1Z,3E)-N'1,N'3-dimethylimidodicarbonimidic diamide"),
         ("N=C(N)NC(=NC)NC(N)=N", "N3-methyldiimidotricarbonimidic diamide"),
         ("CN=C(N)NC(=N)NC(N)=NC", "N'1,N'5-dimethyldiimidotricarbonimidic diamide"),
         ("N=C(N)NC(=N)NC(C)=O", "N-(N-carbamimidoylcarbamimidoyl)acetamide"),
