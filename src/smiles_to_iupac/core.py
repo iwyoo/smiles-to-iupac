@@ -706,6 +706,17 @@ def _has_isotope_label(mol) -> bool:
     return any(a.GetIsotope() for a in mol.GetAtoms())
 
 
+def _name_keeping_labels(mol, namer):
+    """The name of `mol`, or None when `mol` has nuclide labels that this name leaves uncited."""
+    name = namer(mol)
+    if _has_isotope_label(mol):
+        try:
+            _require_isotopes_cited(mol, name)
+        except UnsupportedStructure:
+            return None
+    return name
+
+
 def _name_isotope_label(mol) -> str:
     from ._isotope_labels import split_isotopes
 
@@ -716,7 +727,11 @@ def _name_isotope_label(mol) -> str:
         except UnsupportedStructure:
             pass
     if split is not None and (
-        has_amino_acid_shape(split[0]) or has_inorganic_acid_derivative_shape(split[0]) or has_sulfuric_amide_shape(split[0])
+        has_amino_acid_shape(split[0])
+        or has_inorganic_acid_derivative_shape(split[0])
+        or has_sulfuric_amide_shape(split[0])
+        or has_noncarbon_oxoacid_shape(split[0])
+        or has_functional_replacement_oxoacid_shape(split[0])
     ):
         try:
             return _name_labelled_substituents(mol)
@@ -796,7 +811,7 @@ def _name_labelled_substituents(mol):
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
             name, partial, failure = None, None, None
-            for namer in (name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS):
+            for namer in (_oxoacid_name, name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS):
                 context["consumed"].clear()
                 try:
                     candidate = namer(clean)
@@ -819,6 +834,20 @@ def _name_labelled_substituents(mol):
         name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"])
     _require_isotopes_cited(mol, name)
     return name
+
+
+def _oxoacid_name(clean):
+    """The name of a mononuclear oxoacid or its functional replacement analogue by the dedicated namers, which stand ahead of
+    the phosphinic and phosphonic acid prefixes in the order of the unmodified names."""
+    if _is_nucleoside_derivative(clean) or (carries_only_element_hydride_groups(clean) and has_carbonic_amide_parent(clean)):
+        raise UnsupportedStructure("this structure is not named as a mononuclear oxoacid")
+    for has_shape, namer in (
+        (has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid),
+        (has_functional_replacement_oxoacid_shape, name_functional_replacement_oxoacid),
+    ):
+        if has_shape(clean):
+            return namer(clean)
+    raise UnsupportedStructure("this structure is not named as a mononuclear oxoacid")
 
 
 _PARENT_ATOM_STEM = {
@@ -1057,9 +1086,13 @@ def _name_unabridged_body(smiles: str) -> str:
             and not _is_nucleoside_derivative(parsed)
             and not (carries_only_element_hydride_groups(parsed) and has_carbonic_amide_parent(parsed))
         ):
-            return name_noncarbon_oxoacid(parsed)
+            name = _name_keeping_labels(parsed, name_noncarbon_oxoacid)
+            if name is not None:
+                return name
         if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
-            return name_functional_replacement_oxoacid(parsed)
+            name = _name_keeping_labels(parsed, name_functional_replacement_oxoacid)
+            if name is not None:
+                return name
         if parsed is not None and parsed.GetNumAtoms() > 4:
             try:
                 return name_polynuclear_oxoacid(parsed, priority=True)
@@ -1185,6 +1218,7 @@ def _name_unabridged_body(smiles: str) -> str:
             ):
                 try:
                     candidate = namer(parsed)
+                    _require_isotopes_cited(parsed, candidate)
                 except UnsupportedStructure:
                     continue
                 # these namers do not cite stereodescriptors, so a flat name would silently drop the stereo

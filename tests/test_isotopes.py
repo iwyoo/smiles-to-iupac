@@ -894,6 +894,20 @@ def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expecte
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-82.6.2: a labelled organyl group of an acid is cited in front of its own name, whichever dedicated namer names the acid
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[13CH3]CNC(=O)O", "(2-13C)ethylcarbamic acid", id="carbamic_acid"),
+        pytest.param("[13CH3]CCB(O)O", "(3-13C)propylboronic acid", id="boronic_acid"),
+        pytest.param("[13CH3]C([N+](=O)[O-])CB(O)O", "[2-nitro(3-13C)propyl]boronic acid", id="boronic_acid_with_a_nitro_prefix"),
+        pytest.param("[13CH3]CP(=O)(O)Cl", "(2-13C)ethylphosphonochloridic acid", id="functional_replacement_phosphonic_acid"),
+    ],
+)
+def test_labelled_organyl_group_of_an_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-82.5.1: a nuclide on an acid centre of a chain takes the chain locant; on a sulfur imide it stands in front of the imino prefix or suffix
 @pytest.mark.parametrize(
     "smiles,expected",
