@@ -141,6 +141,8 @@ def test_locants_are_all_cited_once_a_nuclide_needs_one(smiles, expected):
         ("[2H]CC(N)CNC", "N1-methyl(3-2H1)propane-1,2-diamine"),
         ("[2H]CC(CN)NC", "N2-methyl(3-2H1)propane-1,2-diamine"),
         ("[2H]CC(N)CN(C)C", "N1,N1-dimethyl(3-2H1)propane-1,2-diamine"),
+        ("[2H]c1ccc(NC)c(N)c1", "N1-methyl(4-2H)benzene-1,2-diamine"),
+        ("[2H]COc1cccc(NCC)c1N", "N1-ethyl-3-(2H1)methoxybenzene-1,2-diamine"),
         ("CC[NH+](C)[2H]", "N-methyl(N-2H)ethanaminium"),
         ("C[NH2+][2H]", "(N-2H1)methanaminium"),
         ("C[15NH3+]", "(15N)methanaminium"),
@@ -764,6 +766,8 @@ def test_hydrogen_nuclides_on_the_nitrogens_of_a_semicarbazide(smiles, expected)
     "smiles,expected",
     [
         pytest.param("[2H]CC(=O)NNC(C)=O", "N'-acetyl(2-2H1)acetohydrazide", id="labelled_acyl_is_the_parent"),
+        pytest.param("CC(=O)NNC(=O)C[2H]", "N'-acetyl(2-2H1)acetohydrazide", id="labelled_acyl_is_the_parent_in_either_order"),
+        pytest.param("[2H]c1ccc(C(=O)NNC=O)cc1", "N'-formyl(4-2H)benzohydrazide", id="different_acyl_groups"),
         pytest.param("[13CH3]C(=O)NNC(C)=O", "N'-acetyl(2-13C)acetohydrazide", id="carbon_nuclide"),
         pytest.param("[2H]N(NC(C)=O)C(C)=O", "N'-acetyl(N-2H)acetohydrazide", id="nitrogen_nuclide_takes_the_lower_locant_N"),
         pytest.param("CC(=O)N([2H])N([2H])C(C)=O", "N'-acetyl(N,N'-2H2)acetohydrazide", id="both_nitrogens"),
@@ -771,7 +775,7 @@ def test_hydrogen_nuclides_on_the_nitrogens_of_a_semicarbazide(smiles, expected)
         pytest.param("[2H]CCC(=O)NNC(=O)CC", "N'-propanoyl(3-2H1)propanehydrazide", id="longer_chain"),
     ],
 )
-def test_nuclides_on_a_symmetric_diacylhydrazine(smiles, expected):
+def test_nuclides_on_a_diacylhydrazine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

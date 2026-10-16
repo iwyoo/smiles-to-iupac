@@ -4949,15 +4949,16 @@ def _labels_on_alike_nitrogens(mol, graph, nitrogens):
 
 
 def _labels_on_backbone_only(mol, graph, nitrogens):
-    """No nuclide, or only nuclides on the carbon chain that joins the nitrogens, not on a nitrogen or a group of it."""
+    """No nuclide, or only nuclides on the carbon chain or ring that joins the nitrogens, not on a nitrogen or a group of it."""
     from ._substituents import ISOTOPE_LABELS
 
     context = ISOTOPE_LABELS.get()
     if not context:
         return True
     indexes = {n.GetIdx() for n in nitrogens}
-    chain = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
-    reached, stack = set(), [n for i in indexes for n in graph[i] if n in chain]
+    carbons = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6}
+    chain = carbons | {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in (8, 16, 34, 52) and a.GetDegree() == 2}
+    reached, stack = set(), [n for i in indexes for n in graph[i] if n in carbons]
     while stack:
         atom = stack.pop()
         if atom not in reached:

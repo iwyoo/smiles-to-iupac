@@ -7,8 +7,9 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._diester_ring_diyl import _system_of
 from ._dipolar import _smiles_with_order
+from ._isotope_labels import restore_labels, split_isotopes
 from ._ring_system_seniority import ring_seniority_key
-from ._substituents import FORCED_BRANCH_NAMES, name_branch
+from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS, name_branch
 
 
 def _acyl_roots(mol, nitrogen):
@@ -54,9 +55,9 @@ def _rank(mol, graph, root, nitrogen):
     return (int(sulfur), 1, (), -length)
 
 
-def donor_names(mol, graph, donors, halogens, aromatic):
-    """{root: name} of the acyl donor groups, each cited with the descriptors of its own stereo elements; raises
-    UnsupportedStructure when one of them is left uncited."""
+def donor_names(mol, graph, donors, halogens, aromatic, labels=None):
+    """{root: name} of the acyl donor groups, each cited with the descriptors of its own stereo elements and the nuclides
+    of `labels` on its atoms; raises UnsupportedStructure when one of them is left uncited."""
     from ._common import assign_cip_labels
 
     from ._substituents import BRANCH_STEREO
@@ -64,34 +65,77 @@ def donor_names(mol, graph, donors, halogens, aromatic):
     probe = Chem.Mol(mol)
     assign_cip_labels(probe)
     names = {}
-    for root, nitrogen in donors:
-        side = _side(graph, root, nitrogen)
-        context = {
-            "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in side and a.HasProp("_CIPCode")},
-            "bonds": {
-                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
-                for b in probe.GetBonds()
-                if b.GetBeginAtomIdx() in side and b.GetEndAtomIdx() in side and b.HasProp("_CIPCode")
-            },
-            "used": set(),
-        }
-        token = BRANCH_STEREO.set(context)
-        try:
-            names[root] = name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol)
-        finally:
-            BRANCH_STEREO.reset(token)
-        if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
-            ("bond", b) not in context["used"] for b in context["bonds"]
-        ):
-            raise UnsupportedStructure("a stereo element of an acyl group is not cited by its name")
+    inside = set().union(*(_side(graph, root, nitrogen) for root, nitrogen in donors))
+    isotope_context = {"labels": {a: e for a, e in (labels or {}).items() if a in inside}, "consumed": set(), "mol": mol}
+    isotope_token = ISOTOPE_LABELS.set(isotope_context if isotope_context["labels"] else None)
+    try:
+        for root, nitrogen in donors:
+            side = _side(graph, root, nitrogen)
+            context = {
+                "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in side and a.HasProp("_CIPCode")},
+                "bonds": {
+                    (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+                    for b in probe.GetBonds()
+                    if b.GetBeginAtomIdx() in side and b.GetEndAtomIdx() in side and b.HasProp("_CIPCode")
+                },
+                "used": set(),
+            }
+            token = BRANCH_STEREO.set(context)
+            try:
+                names[root] = name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol)
+            finally:
+                BRANCH_STEREO.reset(token)
+            if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+                ("bond", b) not in context["used"] for b in context["bonds"]
+            ):
+                raise UnsupportedStructure("a stereo element of an acyl group is not cited by its name")
+    finally:
+        ISOTOPE_LABELS.reset(isotope_token)
+    if set(isotope_context["labels"]) - isotope_context["consumed"]:
+        raise UnsupportedStructure("a nuclide of an acyl group is not cited by its name")
     return names
+
+
+def forced_for_unlabelled(stand_in, position, names):
+    """(atom count, {atom index: name}) of the stand-in without its isotopic hydrogen atoms, in the SMILES order."""
+    heavy = sorted(position[a.GetIdx()] for a in stand_in.GetAtoms() if a.GetAtomicNum() != 1)
+    return len(heavy), {heavy.index(position[atom]): name for atom, name in names.items()}
+
+
+def modified_atoms_beyond(graph, labels, root, nitrogen):
+    """Negative count of the nuclides in the acyl group at `root`: of equally senior parents the more modified is senior
+    (P-44.4.1.11.1)."""
+    return -sum(
+        (1 if entry["skeleton"] else 0) + sum(entry["H"].values())
+        for atom, entry in labels.items()
+        if atom in _side(graph, root, nitrogen)
+    )
+
+
+def unlabelled_with_labels(mol):
+    """(mol without its nuclide labels, labels), or (None, {}) when a nuclide sits on a heteroatom or the structure has
+    stereo elements."""
+    try:
+        split = split_isotopes(mol)
+    except UnsupportedStructure:
+        return None, {}
+    if split is None:
+        return mol, {}
+    clean, labels, _ = split
+    stereo = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) or any(
+        b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY) for b in clean.GetBonds()
+    )
+    if stereo or any(clean.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in labels):
+        return None, {}
+    return clean, labels
 
 
 def diacylamine_name(mol):
     """The name of a molecule with an acyclic nitrogen bearing two or three acyl groups, else None."""
-    if len(Chem.GetMolFrags(mol)) != 1 or any(
-        a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()
-    ):
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
+    mol, labels = unlabelled_with_labels(mol)
+    if mol is None:
         return None
     nitrogens = [
         a
@@ -103,12 +147,15 @@ def diacylamine_name(mol):
     nitrogen = nitrogens[0]
     graph = adjacency(mol)
     roots = _acyl_roots(mol, nitrogen)
-    parent = min(roots, key=lambda r: (_rank(mol, graph, r, nitrogen.GetIdx()), r))
+    parent = min(
+        roots,
+        key=lambda r: (_rank(mol, graph, r, nitrogen.GetIdx()), modified_atoms_beyond(graph, labels, r, nitrogen.GetIdx()), r),
+    )
     donors = [r for r in roots if r != parent]
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     try:
-        names = donor_names(mol, graph, [(r, nitrogen.GetIdx()) for r in donors], halogens, aromatic)
+        names = donor_names(mol, graph, [(r, nitrogen.GetIdx()) for r in donors], halogens, aromatic, labels)
     except UnsupportedStructure:
         return None
     editable = Chem.RWMol(mol)
@@ -127,6 +174,7 @@ def diacylamine_name(mol):
                 editable.RemoveBond(donor, bond.GetOtherAtomIdx(donor))
         editable.AddBond(nitrogen.GetIdx(), donor, Chem.BondType.SINGLE)
         placeholders[donor] = None
+    restore_labels(editable, mol, labels, skip=removed | set(donors))
     for idx in keep:
         editable.RemoveAtom(idx)
     shift = 0
@@ -142,10 +190,10 @@ def diacylamine_name(mol):
     except Chem.rdchem.MolSanitizeException:
         return None
     smiles, position = _smiles_with_order(stand_in)
-    forced = {position[old_to_new[r]]: names[r] for r in donors}
+    forced = forced_for_unlabelled(stand_in, position, {old_to_new[r]: names[r] for r in donors})
     from .core import smiles_to_iupac
 
-    token = FORCED_BRANCH_NAMES.set((stand_in.GetNumAtoms(), forced))
+    token = FORCED_BRANCH_NAMES.set(forced)
     try:
         name = smiles_to_iupac(smiles)
     except UnsupportedStructure:
