@@ -116,6 +116,25 @@ def test_substituted_triphenylene_is_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param(
+            "C1[C@H]2CC[C@@H]1[C@H]1C[C@H]3O[C@H]3[C@@H]12",
+            "(1aS,1bR,2R,5S,5aR,6aR)-octahydro-1aH-2,5-methanoindeno[1,2-b]oxirene",
+            id="stereocentres_of_a_bridged_system_with_a_fused_oxirane",
+        ),
+        pytest.param(
+            "C1CC2CC3CC4CC4C3C2C1",
+            "dodecahydrocyclopenta[a]cyclopropa[f]pentalene",
+            id="three_membered_ring_component_in_a_four_ring_fusion_system",
+        ),
+    ],
+)
+def test_fused_systems_with_a_three_membered_ring_component_are_named_by_fusion(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles",
     [
         "c12ccccc1C1c3ccccc3C2C1",
