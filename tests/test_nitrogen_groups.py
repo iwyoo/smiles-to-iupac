@@ -1987,6 +1987,8 @@ def test_hydroxylamine_functional_parent_and_chalcogen_analogues(smiles, expecte
         ("CCOC(=O)CCNNC(=O)N=N", "ethyl 3-(diazenecarbohydrazido)propanoate"),
         ("c1ccc(cc1)N=Nc1ccc2ccc(N=Nc3ccc4cc5ccccc5cc4c3)cc2c1", "{7-[(anthracen-2-yl)diazenyl]naphthalen-2-yl}(phenyl)diazene"),
         ("Oc1c(N=Nc2ccccc2)ccc2ccc(N=Nc3ccccc3)c(O)c12", "2,7-bis(phenyldiazenyl)naphthalene-1,8-diol"),
+        ("CCN=NC(CC)=NC", "1-(ethyldiazenyl)-N-methylpropan-1-imine"),
+        ("CC(=N)N=NC(C)=N", "1,1'-diazenediyldi(ethan-1-imine)"),
     ],
 )
 def test_diazene_carbo_suffixes_and_substituted_hydrazinyl(smiles, expected):

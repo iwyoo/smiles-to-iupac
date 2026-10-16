@@ -2262,7 +2262,12 @@ def _diazenyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol, ord
         order != 1.0
         or len(others) != 1
         or mol.GetAtomWithIdx(root).GetFormalCharge()
-        or not (DIAZENYL_PREFIX.get() or _has_senior_principal_group(mol) or mol.HasSubstructMatch(_RING_NITROGEN))
+        or not (
+            DIAZENYL_PREFIX.get()
+            or IMINE_PARENT.get()
+            or _has_senior_principal_group(mol)
+            or mol.HasSubstructMatch(_RING_NITROGEN)
+        )
     ):
         return None
     far = others[0]

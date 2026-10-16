@@ -6387,7 +6387,10 @@ def _acyclic_imine_nitrogen(mol, atom):
     if nitrogen.GetDegree() > (3 if cationic else 2):
         return None
     if any(
-        n.GetAtomicNum() != 6 and not _nitro_or_nitroso(mol, n) and not _ring_nitrogen_acyl(mol, n, carbon)
+        n.GetAtomicNum() != 6
+        and not _nitro_or_nitroso(mol, n)
+        and not _ring_nitrogen_acyl(mol, n, carbon)
+        and not _acyl_diazene_nitrogen(mol, n, carbon)
         for n in atom.GetNeighbors()
         if n.GetIdx() != nitrogen.GetIdx()
     ):
