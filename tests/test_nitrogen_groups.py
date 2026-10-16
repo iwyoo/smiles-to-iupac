@@ -1428,6 +1428,8 @@ def test_amidrazones(smiles, expected):
         pytest.param("ClN(Cl)C1CCC1", "chloro(cyclobutyl)hypochlorous amide", id="second_halogen_on_nitrogen_is_a_prefix"),
         pytest.param("FNN1CCCC1", "(pyrrolidin-1-yl)hypofluorous amide", id="halogen_amide_of_a_ring_nitrogen_group"),
         pytest.param("ClNC1CCCCO1", "(oxan-2-yl)hypochlorous amide", id="halogen_amide_of_a_ring_ether_group"),
+        pytest.param("CCON(C)Cl", "ethoxy(methyl)hypochlorous amide", id="alkoxy_group_on_the_nitrogen_of_a_halogen_amide"),
+        pytest.param("CN(Br)SC", "methyl(methylsulfanyl)hypobromous amide", id="sulfanyl_group_on_the_nitrogen_of_a_halogen_amide"),
         pytest.param("O=C(N(F)F)N(F)F", "tetrafluorourea", id="urea_all_positions_halogenated"),
         pytest.param("CC(=O)N(Cl)C", "N-chloro-N-methylacetamide", id="n_halogen_amide"),
         pytest.param("CCCN(N=O)C(=N)N[N+](=O)[O-]", "N'-nitro-N-nitroso-N-propylguanidine", id="guanidine_nitro_nitroso"),
