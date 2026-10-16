@@ -634,6 +634,8 @@ def _require_ring_triple_bonds_cited(mol, name):
 
 
 _RADICAL_ENDINGS = ("yl", "ylidene", "ylidyne", "yne", "ylium", "yloxy", "yliumyl")
+# the parent hydride of an assembly of benzene rings ends in "yl" without being a radical
+_PHENYL_ASSEMBLY_PARENT = re.compile(r"(?:bi|ter|quater|quinque|sexi|septi|octi|novi|deci)phenyl$")
 
 
 _HYDRIDE_RADICAL_ELEMENTS = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
@@ -655,7 +657,7 @@ def _require_radicals_cited(mol, name):
         or has_nonstandard_hydride_shape(mol)
     ):
         return
-    if not name.rstrip(")]} ").endswith(_RADICAL_ENDINGS):
+    if not name.rstrip(")]} ").endswith(_RADICAL_ENDINGS) or _PHENYL_ASSEMBLY_PARENT.search(name):
         raise UnsupportedStructure("the name does not cite the radical centre")
 
 

@@ -335,6 +335,8 @@ def find_ring_assembly_chain_core(mol):
     atom-idx pairs, one per consecutive pair along `path`; `ring_kind` is
     `_ring_kind`'s own ("aromatic", 6) or ("saturated", n), or
     `_pyrrole_ring_kind`'s own ("1H-pyrrole", 5)."""
+    if any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
     ring_info = mol.GetRingInfo()
     atom_rings = ring_info.AtomRings()
     n = len(atom_rings)
