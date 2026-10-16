@@ -31,10 +31,10 @@ def _chain(mol):
         return None
     bridges = {}
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 7 or atom.GetDegree() != 2 or atom.GetFormalCharge():
+        if atom.GetAtomicNum() != 7 or atom.GetDegree() not in (2, 3) or atom.GetFormalCharge():
             continue
-        ends = [n.GetIdx() for n in atom.GetNeighbors()]
-        if all(e in carbons for e in ends):
+        ends = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() in carbons]
+        if len(ends) == 2 and not any(n.GetAtomicNum() == 7 and n.GetIdx() not in ends for n in atom.GetNeighbors()):
             bridges[atom.GetIdx()] = ends
     if len(bridges) != len(carbons) - 1:
         return None
@@ -89,6 +89,13 @@ def _unit_entries(mol, graph, carbon, terminals, halogens, aromatic_atoms):
     return [("'" if n == primed else "", name, compound) for n in terminals for name, compound in named[n]]
 
 
+def _link_entries(mol, graph, bridges, pair, halogens, aromatic_atoms):
+    """[(name, compound)] of the substituents on the bridging nitrogen between two guanidine carbons, which takes the
+    even locant between them (P-65.2.3.1.2.1)."""
+    bridge = next(b for b, ends in bridges.items() if set(ends) == set(pair))
+    return [name_branch(graph, n, bridge, halogens, aromatic_atoms, mol=mol) for n in graph[bridge] if n not in pair]
+
+
 def name_condensed_guanidine(mol) -> str:
     found = _chain(mol)
     if found is None or len(Chem.GetMolFrags(mol)) > 1:
@@ -128,12 +135,12 @@ def _substituted_name(mol, order, bridges):
         if len(terminals) != (2 if index in (0, len(order) - 1) else 1):
             raise UnsupportedStructure("an unusual condensed guanidine tautomer is not supported yet")
         units.append(_unit_entries(mol, graph, carbon, terminals, halogens, aromatic_atoms))
+    links = [_link_entries(mol, graph, bridges, pair, halogens, aromatic_atoms) for pair in zip(order, order[1:])]
     best = None
-    for carbons, direction in ((order, units), (order[::-1], units[::-1])):
+    for carbons, direction, linked in ((order, units, links), (order[::-1], units[::-1], links[::-1])):
         located = sorted(
-            ((2 * index + 1, prime), name, compound)
-            for index, entries in enumerate(direction)
-            for prime, name, compound in entries
+            [((2 * index + 1, prime), name, compound) for index, entries in enumerate(direction) for prime, name, compound in entries]
+            + [((2 * index + 2, ""), name, compound) for index, entries in enumerate(linked) for name, compound in entries]
         )
         double_bonds = _configuration(mol, carbons)
         key = (
