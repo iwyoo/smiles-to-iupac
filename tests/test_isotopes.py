@@ -887,3 +887,16 @@ def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected
 )
 def test_nuclide_on_the_nitrogen_of_an_n_oxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-74.1.3: the descriptor of a zwitterion whose anion is the parent stands in front of the parent hydride, a nuclide of the cationic nitrogen in front of its prefix stem
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]C([NH3+])C[O-]", "2-azaniumyl(2-2H1)ethan-1-olate", id="chain_of_an_ammonium_olate"),
+        pytest.param("[2H]C([N+](C)(C)C)C[O-]", "2-(trimethylazaniumyl)(2-2H1)ethan-1-olate", id="chain_of_a_quaternary_ammonium_olate"),
+        pytest.param("C[15N+](C)(C)CC[O-]", "2-[trimethyl(15N)azaniumyl]ethan-1-olate", id="cationic_nitrogen_of_the_prefix"),
+    ],
+)
+def test_nuclide_in_a_zwitterion_with_an_olate_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

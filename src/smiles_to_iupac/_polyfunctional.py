@@ -1073,15 +1073,15 @@ def name_polyfunctional(mol) -> str:
     if has_radical_group_shape(mol):
         return name_radical_group(mol)
     split = split_isotopes(mol)
+    anionic_parent = any(a.HasProp(ANION_PROP) for a in mol.GetAtoms())
     if split is not None:
-        ammonium = _aminium_base(split[0])
+        ammonium = None if anionic_parent else _aminium_base(split[0])
         if ammonium is not None:
             return _name_isotopic(mol, *split, build=lambda clean, labels: _name_aminium(ammonium, labels))
         center = _ring_center_base(split[0])
         if center is not None:
             return _name_isotopic(mol, *split, build=lambda clean, labels: _name_labelled_ring_center(clean, labels, center))
         return _name_isotopic(mol, *split)
-    anionic_parent = any(a.HasProp(ANION_PROP) for a in mol.GetAtoms())
     cation = None if anionic_parent else _aminium_base(mol)
     if cation is not None:
         with ion_stereo_carried(mol, cation):
