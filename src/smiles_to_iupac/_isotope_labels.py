@@ -10,6 +10,25 @@ _HYDROGEN_MASS = {1: "1H", 2: "2H", 3: "3H"}
 HYDROGEN_ISOTOPES = {nuclide: mass for mass, nuclide in _HYDROGEN_MASS.items()}
 
 
+def restore_labels(editable, clean, labels, skip=()):
+    """Put the nuclide labels of the atoms of `clean` not in `skip` back on `editable`."""
+    for idx, entry in labels.items():
+        if idx in skip:
+            continue
+        atom = editable.GetAtomWithIdx(idx)
+        if entry["skeleton"]:
+            atom.SetIsotope(int("".join(ch for ch in entry["skeleton"] if ch.isdigit())))
+        total = sum(entry["H"].values())
+        if total:
+            atom.SetNumExplicitHs(clean.GetAtomWithIdx(idx).GetTotalNumHs() - total)
+            atom.SetNoImplicit(True)
+        for nuclide, count in entry["H"].items():
+            for _ in range(count):
+                hydrogen = Chem.Atom(1)
+                hydrogen.SetIsotope(HYDROGEN_ISOTOPES[nuclide])
+                editable.AddBond(idx, editable.AddAtom(hydrogen), Chem.BondType.SINGLE)
+
+
 def split_isotopes(mol):
     """(unlabelled mol, labels, index map) where labels maps an atom index of the new mol to {"skeleton": nuclide or None,
     "H": {nuclide: count}}; None when `mol` has no isotope label."""

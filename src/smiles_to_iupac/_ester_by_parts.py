@@ -9,6 +9,7 @@ from rdkit import Chem
 
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._isotope_labels import restore_labels
 from ._numerals import multiplying_prefix
 from ._substituents import BRANCH_STEREO, name_branch
 
@@ -74,27 +75,6 @@ def name_ester_by_parts(mol) -> str:
     if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
         raise UnsupportedStructure("stereodescriptors of an isotopically modified ester are not supported yet (P-82.4)")
     return _name_ester_parts(clean, labels)
-
-
-def _restore_labels(editable, clean, labels, removed):
-    """Put the nuclide labels of the atoms kept in the acid part back on `editable`."""
-    from ._isotope_labels import HYDROGEN_ISOTOPES
-
-    for idx, entry in labels.items():
-        if idx in removed:
-            continue
-        atom = editable.GetAtomWithIdx(idx)
-        if entry["skeleton"]:
-            atom.SetIsotope(int("".join(ch for ch in entry["skeleton"] if ch.isdigit())))
-        total = sum(entry["H"].values())
-        if total:
-            atom.SetNumExplicitHs(clean.GetAtomWithIdx(idx).GetTotalNumHs() - total)
-            atom.SetNoImplicit(True)
-        for nuclide, count in entry["H"].items():
-            for _ in range(count):
-                hydrogen = Chem.Atom(1)
-                hydrogen.SetIsotope(HYDROGEN_ISOTOPES[nuclide])
-                editable.AddBond(idx, editable.AddAtom(hydrogen), Chem.BondType.SINGLE)
 
 
 def _ester_locants(mol, acid, removed, matches, named_by_arm):
@@ -250,7 +230,7 @@ def _name_ester_parts(mol, labels) -> str:
         oxygen = editable.GetAtomWithIdx(ester_oxygen)
         oxygen.SetNumExplicitHs(1)
         oxygen.SetNoImplicit(True)
-    _restore_labels(editable, mol, labels, removed)
+    restore_labels(editable, mol, labels, removed)
     for idx in sorted(removed, reverse=True):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()

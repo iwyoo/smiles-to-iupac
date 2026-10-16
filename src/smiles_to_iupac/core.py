@@ -759,6 +759,31 @@ def _name_labelled_substituents(mol):
     return name
 
 
+def _labelled_namer(namer):
+    """`namer` applied to the unlabelled structure, its organyl groups citing their nuclides and its acid parts named
+    with theirs (P-82.2.4); raises unless every nuclide appears in the name."""
+
+    def name(mol):
+        from ._isotope_labels import split_isotopes
+
+        clean, labels, index = split_isotopes(mol)
+        if any(clean.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in labels):
+            raise UnsupportedStructure("a nuclide on a heteroatom is cited with a letter locant, not by the parts of the name")
+        if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) and not _same_descriptors(
+            mol, clean, index
+        ):
+            raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
+        token = ISOTOPE_LABELS.set({"labels": labels, "consumed": set(), "mol": clean})
+        try:
+            result = namer(clean)
+        finally:
+            ISOTOPE_LABELS.reset(token)
+        _require_isotopes_cited(mol, result)
+        return result
+
+    return name
+
+
 _MULTIPLIER_VALUE = {"di": 2, "bis": 2, "tri": 3, "tris": 3, "tetra": 4, "tetrakis": 4, "penta": 5, "hexa": 6}
 _MULTIPLIED_GROUP = re.compile(r"(di|bis|tri|tris|tetra|tetrakis|penta|hexa)[\[{(]$")
 _NUCLIDE_ITEM = re.compile(r"^(\d+)([A-Z][a-z]?)(\d*)$")
@@ -780,12 +805,16 @@ def _multiplied_factor(name, position):
     return factor
 
 
+_SYMMETRIC_ANHYDRIDE = re.compile(r"[^ ]+ anhydride")
+
+
 def _cited_nuclides(name):
     table = Chem.GetPeriodicTable()
     cited = {}
+    repeats = 2 if _SYMMETRIC_ANHYDRIDE.fullmatch(name) else 1
     for found in re.finditer(r"\(([^()]*)\)", name):
         group = found.group(1)
-        factor = _multiplied_factor(name, found.start())
+        factor = _multiplied_factor(name, found.start()) * repeats
         items = group.split(",")
         pending = []
         for item in items:
@@ -1036,6 +1065,11 @@ def _name_unabridged_body(smiles: str) -> str:
                 name_boron_peroxy_ester,
                 name_hetero_parent_acid,
                 name_phosphorous_acid,
+                *(
+                    (_labelled_namer(name_polycarbonic), _labelled_namer(name_carbonic_family), _labelled_namer(name_acid_derivative))
+                    if _has_isotope_label(parsed)
+                    else ()
+                ),
             ):
                 try:
                     candidate = namer(parsed)
