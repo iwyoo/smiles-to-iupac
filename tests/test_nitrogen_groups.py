@@ -1543,6 +1543,7 @@ def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
         pytest.param("CC(C)=NC(=S)N(C)C", "N,N-dimethyl-N'-(propan-2-ylidene)thiourea", id="ylidene_on_a_thiourea_nitrogen"),
         pytest.param("CNC(=S)NCCS(C)=O", "N-[2-(methanesulfinyl)ethyl]-N'-methylthiourea", id="sulfinyl_in_a_thiourea_substituent"),
         pytest.param("CNC(=S)NCCS(C)(=O)=O", "N-[2-(methanesulfonyl)ethyl]-N'-methylthiourea", id="sulfonyl_in_a_thiourea_substituent"),
+        pytest.param("CCS(=O)(=O)N1CCC(NC(N)=S)CC1", "[1-(ethanesulfonyl)piperidin-4-yl]thiourea", id="sulfonyl_on_a_ring_nitrogen_of_a_thiourea_substituent"),
         pytest.param("NC(=S)NCCS(C)=O", "[2-(methanesulfinyl)ethyl]thiourea", id="sulfinyl_on_an_otherwise_free_thiourea"),
         pytest.param("CNC(=S)N(C)CCS(C)=O", "N-[2-(methanesulfinyl)ethyl]-N,N'-dimethylthiourea", id="sulfinyl_beside_two_methyl_groups"),
         pytest.param("CNC(=S)NCCS(=O)c1ccccc1", "N-[2-(benzenesulfinyl)ethyl]-N'-methylthiourea", id="aryl_sulfinyl_in_a_thiourea_substituent"),
