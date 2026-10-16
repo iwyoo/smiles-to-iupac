@@ -1732,6 +1732,18 @@ def test_carbonyl_and_thiocarbonyl_between_ring_nitrogens_are_not_ureas(smiles, 
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("N=Cc1ccc[nH]c1=O", "3-(methanimidoyl)pyridin-2(1H)-one", id="imidoyl_beside_a_mancude_ring_oxo"),
+        pytest.param("N=c1cc[nH]c(=O)[nH]1", "4-imino-3,4-dihydropyrimidin-2(1H)-one", id="ring_imino_beside_a_mancude_ring_oxo"),
+        pytest.param("N=c1nc[nH]c2[nH]c(=O)[nH]c12", "6-imino-3,6,7,9-tetrahydro-8H-purin-8-one", id="imino_beside_the_oxo_of_a_fused_azole"),
+    ],
+)
+def test_imine_is_a_prefix_beside_the_ring_oxo_suffix_of_a_pseudoketone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("N#CCc1ccccc1", "phenylacetonitrile"),
         ("OCC=O", "hydroxyacetaldehyde"),
         ("C1OC1c1ccccc1", "phenyloxirane"),
