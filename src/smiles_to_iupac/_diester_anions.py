@@ -212,9 +212,14 @@ def _general_anion(mol, graph, match, component):
     Chem.SanitizeMol(sub)
     match_cip_labels(mol, sub, dict(enumerate(sorted(component))))
     acid_name = smiles_to_iupac(Chem.MolToSmiles(sub))
-    if not acid_name.endswith("ic acid"):
-        raise UnsupportedStructure("the acyl group's parent acid has no 'ic acid' name to convert to an anion")
-    name = acid_name[: -len("ic acid")] + "ate"
+    if acid_name.endswith("ic acid"):
+        name = acid_name[: -len("ic acid")] + "ate"
+    else:
+        from ._amino_acid_derivative import _anion_stem
+
+        name = _anion_stem(acid_name)
+        if name is None:
+            raise UnsupportedStructure("the acyl group's parent acid has no 'ic acid' name to convert to an anion")
     carbonyl_idx = match[1].GetIdx()
     ring_atoms_in = {a for a in component if mol.GetRingInfo().NumAtomRings(a) > 0}
     if ring_atoms_in:
