@@ -192,6 +192,10 @@ def test_acyl_group_on_a_linking_nitrogen_is_a_prefix_only_under_a_senior_group(
         ("CP(C)(=O)CCP(C)(C)=O", "(ethane-1,2-diyl)bis(dimethyl-\u03bb5-phosphanone)"),
         ("CP(C)(=S)CP(C)(C)=S", "methylenebis(dimethyl-\u03bb5-phosphanethione)"),
         (
+            "O=P(c1ccccc1)(c1ccccc1)c1cc2ccccc2c(c1)-c1cc(P(=O)(c2ccccc2)c2ccccc2)cc2ccccc12",
+            "[1,1'-binaphthalene]-3,3'-diylbis(diphenyl-\u03bb5-phosphanone)",
+        ),
+        (
             "c1ccccc1P(c1ccccc1)CP(c1ccccc1)CP(c1ccccc1)c1ccccc1",
             "[(phenylphosphanediyl)bis(methylene)]bis(diphenylphosphane)",
         ),
