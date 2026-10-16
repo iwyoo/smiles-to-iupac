@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from rdkit import Chem
 
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
-from ._common import UnsupportedStructure, specified_stereo_elements
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, specified_stereo_elements
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS, classify
@@ -377,6 +377,24 @@ def _amino_on_ring_nitrogen(mol, unit):
     return junction.GetAtomicNum() == 7 and junction.IsInRing() and linker.GetAtomicNum() == 7 and not linker.IsInRing()
 
 
+def _amino_nitrogens_on_carbon_skeleton(mol, selected):
+    """Whether the amino nitrogens of the units all hang on one carbon skeleton: that skeleton with its amine suffix holds
+    as many principal groups as the multiplied units, and the maximum number decides the parent (P-44.1.1)."""
+    nitrogens = {u.linker_atom for u in selected}
+    skeleton = set(range(mol.GetNumAtoms())).difference(*(u.atoms for u in selected)) - nitrogens
+    if not skeleton or any(mol.GetAtomWithIdx(a).GetAtomicNum() not in (6, *HALOGEN_PREFIXES) for a in skeleton):
+        return False
+    reached, stack = set(), [next(iter(skeleton))]
+    while stack:
+        atom = stack.pop()
+        if atom not in reached:
+            reached.add(atom)
+            stack.extend(n.GetIdx() for n in mol.GetAtomWithIdx(atom).GetNeighbors() if n.GetIdx() in skeleton)
+    return reached == skeleton and all(
+        any(n.GetIdx() in skeleton for n in mol.GetAtomWithIdx(nitrogen).GetNeighbors()) for nitrogen in nitrogens
+    )
+
+
 def _attempt(mol, groups, selected, tree, core, name_function):
     systems, node_of, adj = tree
     selected_nodes = {u.node for u in selected}
@@ -416,7 +434,9 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     if principal_group == "amine" and any(mol.GetAtomWithIdx(u.linker_atom).GetAtomicNum() == 7 for u in selected):
         return None
     amino_on_ring_nitrogen = any(_amino_on_ring_nitrogen(mol, u) for u in selected)
-    if amino_on_ring_nitrogen and len({u.linker_atom for u in selected}) == 1:
+    if amino_on_ring_nitrogen and (
+        len({u.linker_atom for u in selected}) == 1 or _amino_nitrogens_on_carbon_skeleton(mol, selected)
+    ):
         return None
     soft = any(mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1 for u in selected)
     ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft)

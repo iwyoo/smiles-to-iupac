@@ -4965,6 +4965,7 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
         n.IsInRing() or n.GetFormalCharge() or n.GetTotalNumHs() > 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
         or any(
             not _hydroxy_or_alkoxy_on_nitrogen(x)
+            and not _ring_nitrogen_parent(x)
             and (x.GetAtomicNum() != 6 or is_functional_carbon(mol, x.GetIdx()) or _double_oxygens(mol, x.GetIdx()))
             for x in n.GetNeighbors()
         )
