@@ -44,6 +44,7 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     non_single_bonds,
+    refuse_specified_stereo,
     ring_chain_attachment,
 )
 from ._acyclic import name_from_carbon_graph
@@ -179,6 +180,7 @@ def name_nitro(mol) -> str:
     nitro_nitrogens = _nitro_nitrogen_atoms(mol)
     if not nitro_nitrogens:
         raise UnsupportedStructure("no nitro (-NO2) group found; this module only handles nitro compounds")
+    refuse_specified_stereo(mol)
 
     nitro_atom_idxs = set()
     for n in nitro_nitrogens:

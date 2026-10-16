@@ -16,6 +16,9 @@ from smiles_to_iupac._substituents import name_branch
     "smiles,expected",
     [
         ("C[C@H](Cl)CC", "(2S)-2-chlorobutane"),
+        ("CC[C@H](C)[N+](=O)[O-]", "(2S)-2-nitrobutane"),
+        ("C[C@H](N=[N+]=[N-])[C@H](Cl)C", "(2S,3R)-2-azido-3-chlorobutane"),
+        ("C[C@H]([N+](=O)[O-])c1ccccc1", "[(1S)-1-nitroethyl]benzene"),
     ],
 )
 def test_acyclic_alkane_stereocenter(smiles, expected):
