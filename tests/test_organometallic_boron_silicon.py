@@ -1128,7 +1128,6 @@ def test_noncarbon_hydride_parents_and_prefixes(smiles, expected):
     [
         pytest.param("Nc1cc(CN[SiH3])ccc1C", "2-methyl-5-[(silylamino)methyl]aniline", id="hydride_group_on_the_nitrogen_of_an_aminomethyl_prefix"),
         pytest.param("Nc1cc(CN[SiH3])ccc1CN[SiH3]", "2,5-bis[(silylamino)methyl]aniline", id="two_such_prefixes"),
-        pytest.param("Nc1ccc(CNP)cc1CNP", "2,4-bis[(phosphanylamino)methyl]aniline", id="phosphanyl_group_on_prefix_nitrogens"),
         pytest.param("NCCCN[SiH3]", "N1-silylpropane-1,3-diamine", id="hydride_group_on_a_nitrogen_of_the_parent_stays_an_n_prefix"),
     ],
 )

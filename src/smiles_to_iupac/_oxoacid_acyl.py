@@ -53,6 +53,18 @@ def is_senior_centre(mol, atom):
     )
 
 
+def senior_centres(mol, atoms):
+    """The members of `atoms` whose ligand ranking equals the best of all P, As and Sb centres of `mol`."""
+    if not atoms:
+        return []
+    keys = {a.GetIdx(): centre_seniority_key(mol, a) for a in atoms}
+    best = min(keys.values())
+    others = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _CENTRES and a.GetIdx() not in keys]
+    if any(centre_seniority_key(mol, other) <= best for other in others):
+        return []
+    return [a for a in atoms if keys[a.GetIdx()] == best]
+
+
 def _bond(mol, a, b):
     return mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
 

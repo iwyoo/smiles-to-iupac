@@ -11,13 +11,14 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     alpha_sort_key,
+    alphanumerical_name_key,
     group_substituents,
     halogen_substituents,
     specified_stereocenters,
 )
 from ._multiplicative_text import enclose
 from ._numerals import numerical_term
-from ._oxoacid_acyl import is_senior_centre
+from ._oxoacid_acyl import senior_centres
 from ._phosphate import format_ester_words
 from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import (
@@ -340,10 +341,11 @@ def _counter_cation(mol):
     return name, anion
 
 
-def _acid_parts(mol):
+def _acid_candidates(mol):
+    """The equally senior acid centres of `mol`, each described; several only when their ligands rank alike."""
     cation, anion_atoms = _counter_cation(mol)
     if cation is False:
-        return None
+        return []
     parts = []
     for atom in mol.GetAtoms():
         z = atom.GetAtomicNum()
@@ -357,31 +359,50 @@ def _acid_parts(mol):
             continue
         if found is not None:
             parts.append(found)
-    senior = [part for part in parts if is_senior_centre(mol, part["centre"])]
-    if len(senior) != 1:
-        return None
-    part = senior[0]
-    junior_to_acyl_halide = not any(s["H"] or s.get("anion") or s["kind"] == "ester" for s in part["singles"])
-    if junior_to_acyl_halide and mol.HasSubstructMatch(_CARBOXYLIC_ACYL_HALIDE):
-        return None
-    anions = [p["atom"] for p in part["singles"] if p.get("anion")]
-    charged = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() in anion_atoms]
-    free_anion = cation is None and len(anions) == 1 and charged == anions
-    if (bool(cation) != bool(anions) and not free_anion) or (anions and charged != anions):
-        return None
-    part["cation"] = cation
-    part["free_anion"] = free_anion
-    return part
+    kept = []
+    for centre in senior_centres(mol, [part["centre"] for part in parts]):
+        part = next(p for p in parts if p["centre"].GetIdx() == centre.GetIdx())
+        junior_to_acyl_halide = not any(s["H"] or s.get("anion") or s["kind"] == "ester" for s in part["singles"])
+        if junior_to_acyl_halide and mol.HasSubstructMatch(_CARBOXYLIC_ACYL_HALIDE):
+            return []
+        anions = [p["atom"] for p in part["singles"] if p.get("anion")]
+        charged = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() in anion_atoms]
+        free_anion = cation is None and len(anions) == 1 and charged == anions
+        if (bool(cation) != bool(anions) and not free_anion) or (anions and charged != anions):
+            return []
+        part["cation"] = cation
+        part["free_anion"] = free_anion
+        kept.append(part)
+    if len(kept) > 1 and _joined_through_organyl(kept):
+        return []
+    return kept
+
+
+def _joined_through_organyl(parts):
+    """Equal centres bonded through a carbon group on one of them are the parents of a multiplicative name (P-15.3)."""
+    centres = {part["centre"].GetIdx() for part in parts}
+    for part in parts:
+        graph = part["graph"]
+        for root in part["organyl"]:
+            seen, stack = {part["centre"].GetIdx(), root.GetIdx()}, [root.GetIdx()]
+            while stack:
+                for n in graph[stack.pop()]:
+                    if n in centres:
+                        return True
+                    if n not in seen:
+                        seen.add(n)
+                        stack.append(n)
+    return False
 
 
 def has_noncarbon_oxoacid_shape(mol) -> bool:
     try:
-        parts = _acid_parts(mol)
+        candidates = _acid_candidates(mol)
     except UnsupportedStructure:
         return False
-    if parts is None:
+    if not candidates:
         return False
-    singles = parts["singles"]
+    singles = candidates[0]["singles"]
     anhydride_only = (
         not any(x["H"] for x in singles)
         and not any(x["kind"] == "ester" for x in singles)
@@ -519,12 +540,15 @@ def _acid_locants(parts):
 
 
 def name_noncarbon_oxoacid(mol) -> str:
-    parts = _acid_parts(mol)
-    if parts is None:
+    centres = [part["centre"].GetIdx() for part in _acid_candidates(mol)]
+    if not centres:
         raise UnsupportedStructure("this is not a mononuclear noncarbon oxoacid modified by functional replacement")
-    with cited_stereo_around(mol, parts["centre"].GetIdx()):
-        parts = _acid_parts(mol)
-        return _name_from_parts(mol, parts, _centre_descriptor(mol, parts["centre"].GetIdx()))
+    names = []
+    for centre in centres:
+        with cited_stereo_around(mol, centre):
+            parts = next(part for part in _acid_candidates(mol) if part["centre"].GetIdx() == centre)
+            names.append(_name_from_parts(mol, parts, _centre_descriptor(mol, centre)))
+    return min(names, key=alphanumerical_name_key)
 
 
 def _centre_descriptor(mol, centre):
