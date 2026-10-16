@@ -671,6 +671,20 @@ def test_carbo_suffix_when_the_groups_do_not_fit_one_chain(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("OC(=O)C1NC1(C(=O)O)C(=O)O", "aziridine-2,2,3-tricarboxylic acid"),
+        ("OC(=O)C1(C(=O)O)OC1C(=O)O", "oxirane-2,2,3-tricarboxylic acid"),
+        ("OC(=O)C1(C(=O)O)SC1C(=O)O", "thiirane-2,2,3-tricarboxylic acid"),
+        ("OC(=O)C1(C(=O)O)N(C)C1C(=O)O", "1-methylaziridine-2,2,3-tricarboxylic acid"),
+        ("OC(=O)C1NCC1(C(=O)O)C(=O)O", "azetidine-2,3,3-tricarboxylic acid"),
+    ],
+)
+def test_carboxy_groups_on_different_atoms_of_a_heteroring_are_a_multiplied_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("OCC(Cl)c1ccc(C(Cl)CO)cc1", "2,2'-(1,4-phenylene)bis(2-chloroethan-1-ol)"),
     ],
 )
