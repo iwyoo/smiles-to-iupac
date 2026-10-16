@@ -619,9 +619,36 @@ def _name_checked(smiles: str) -> str:
         _require_isotopes_cited(mol, name)
         _require_radicals_cited(mol, name)
         _require_ring_triple_bonds_cited(mol, name)
+        _require_cumulated_ring_atoms_cited(mol, name)
     if mol is not None and _has_free_anion(mol):
         name = acetyl_names(name)
     return name
+
+
+_MULTIPLE_ENE = re.compile(r"(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)en(?:e|-|$)")
+
+
+def _require_cumulated_ring_atoms_cited(mol, name):
+    """A ring atom with two ring double bonds in a ring system named as a mancude parent is described only by the
+    delta convention (P-25.7.2); a mancude name without it is the name of another compound."""
+    ring_info = mol.GetRingInfo()
+    rings = [set(r) for r in ring_info.AtomRings()]
+    for atom in mol.GetAtoms():
+        if sum(1 for b in atom.GetBonds() if b.IsInRing() and b.GetBondTypeAsDouble() == 2.0) < 2:
+            continue
+        system = {atom.GetIdx()}
+        grown = True
+        while grown:
+            grown = False
+            for ring in rings:
+                if ring & system and not ring <= system:
+                    system |= ring
+                    grown = True
+        members = [r for r in rings if r <= system]
+        ortho_fused = any(len(a & b) == 2 for i, a in enumerate(members) for b in members[i + 1 :])
+        mancude_named = ortho_fused or any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).GetIsAromatic() for i in system)
+        if mancude_named and "δ" not in name and not _MULTIPLE_ENE.search(name):
+            raise UnsupportedStructure("a ring atom with two ring double bonds needs the delta convention (P-25.7.2)")
 
 
 def _require_ring_triple_bonds_cited(mol, name):
