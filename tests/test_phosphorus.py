@@ -578,6 +578,21 @@ def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, e
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("CP(=O)(O)OP(=O)(O)C", "1,3-dimethyldiphosphonic acid", id="organyl_in_place_of_the_hydrogens"),
+        pytest.param("CP(=O)(O)OP(=O)(OC)C", "methyl hydrogen 1,3-dimethyldiphosphonate", id="partial_ester"),
+        pytest.param("CP(=O)(OC)OP(=O)(O)c1ccccc1", "O1-methyl hydrogen 1-methyl-3-phenyldiphosphonate", id="ester_locant_when_two_arrangements_exist"),
+        pytest.param("ClCCP(=O)(O)OP(=O)(O)C", "1-(2-chloroethyl)-3-methyldiphosphonic acid", id="compound_organyl_enclosed"),
+        pytest.param("CP(=O)(O)P(=O)(O)C", "1,2-dimethylhypodiphosphonic acid", id="directly_joined_centres"),
+    ],
+)
+def test_organyl_derivatives_of_diphosphonic_acid(smiles, expected):
+    # P-67.2.1, P-67.2.5.2, P-31.1.4
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("CP(=O)(O)OCC(O)=O", "{[hydroxy(methylphosphonoyl)]oxy}acetic acid", id="organyl_with_hydroxy_through_oxygen"),
         pytest.param("CC[PH](=O)OCC(O)=O", "[(ethylphosphinoyl)oxy]acetic acid", id="phosphinoyl_with_added_hydrogen"),
         pytest.param("SP(=O)(S)OCC(O)=O", "{[bis(sulfanyl)phosphoryl]oxy}acetic acid", id="chalcogen_ligands_through_oxygen"),
