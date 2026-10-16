@@ -170,13 +170,19 @@ def name_nitrone(mol) -> str:
     except UnsupportedStructure:
         if configuration is not None:
             raise
-        from ._chain_multiplicative import _principal_atoms
-        from ._polyfunctional import name_polyfunctional
+        from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
 
-        principal = _principal_atoms(stripped)
-        if principal is None or principal[0] != "imine":
+        shifted = nitrogen.GetIdx() - (oxygen.GetIdx() < nitrogen.GetIdx())
+        if any(n.GetAtomicNum() == 8 for n in stripped.GetAtomWithIdx(shifted).GetNeighbors()):
             raise
-        return f"{name_polyfunctional(stripped)} N-oxide"
+        token = FORCED_PRINCIPAL.set("imine")
+        try:
+            name = name_polyfunctional(stripped)
+        finally:
+            FORCED_PRINCIPAL.reset(token)
+        if not name.endswith("imine"):
+            raise
+        return f"{name} N-oxide"
 
 
 def _is_bare_hydrogen_nitrile(mol) -> bool:

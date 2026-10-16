@@ -781,6 +781,20 @@ def test_nuclides_on_a_diacylhydrazine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-82.6.3.3: the nitrogen of the amide parent takes its nuclide in front of the amide name, the sulfur of the
+# sulfonyl group in front of the hydride name inside its prefix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)[15NH]S(C)(=O)=O", "N-(methanesulfonyl)(15N)acetamide", id="amide_nitrogen_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)N[34S](C)(=O)=O", "N-[(34S)methanesulfonyl]acetamide", id="sulfonyl_sulfur_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)[15NH]C(C)=O", "N-acetyl(15N)acetamide", id="nitrogen_of_a_diacylamine"),
+    ],
+)
+def test_nuclides_on_an_acylsulfonamide_or_diacylamine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-68.4.1.1: a nuclide on an end group of a polychalcogen chain is cited in that organyl prefix
 @pytest.mark.parametrize(
     "smiles,expected",
@@ -858,4 +872,18 @@ def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expecte
     ],
 )
 def test_labelled_organyl_group_of_an_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.5.1: a nuclide on an acid centre of a chain takes the chain locant; on a sulfur imide it stands in front of the imino prefix or suffix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=P(O)(O)O[31P](=O)(O)O", "(1-31P)diphosphoric acid", id="polynuclear_acid_centre"),
+        pytest.param("CS(C)(=[15NH])=O", "(15N)iminodi(methyl)-λ6-sulfanone", id="imino_prefix_of_a_sulfoximide"),
+        pytest.param("CCS(CC)(=N)=[18O]", "diethyl(imino)-λ6-sulfan(18O)one", id="one_suffix_of_a_sulfoximide"),
+        pytest.param("CS(C)=[15NH]", "dimethyl-λ4-sulfan(15N)imine", id="imine_suffix_of_a_sulfimide"),
+    ],
+)
+def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

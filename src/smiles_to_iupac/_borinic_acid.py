@@ -1,43 +1,17 @@
-"""Naming of borinic acids (R2-B-OH), per the IUPAC 2013 Recommendations
-("the Blue Book"):
+"""Naming of borinic acids R2B-OH (P-68.1.4.1): both organyl groups are cited as prefixes on the retained
+name, alphanumerically and with multiplying prefixes (P-16.5.1.3.1).
 
-- P-68.1.4.1 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
-  'borinic acid' is the preselected retained name for H2B(OH). Like
-  phosphinic acid (see `_phosphinic_acid.py`, the phosphorus analogue --
-  same "two substitutable hydrogens on one locant-free central atom"
-  shape), both substituents are cited directly as prefixes on the
-  retained name, using `format_mononuclear_prefixes` for the
-  alphabetization/parenthesization/multiplying-prefix logic
-  (P-16.5.1.3.1).
-  Confirmed against real PubChem structures: 'dimethylborinic acid'
-  (CID 5326208, `B(C)(C)O`), 'diethylborinic acid' (CID 545119),
-  'diphenylborinic acid' (CID 17498), and the mixed-substituent case
-  'ethyl(methyl)borinic acid' (CID 22096092, `B(C)(CC)O`) -- no
-  B-locants are used or needed (one B atom, nothing to number).
-
-Scope: a single borinic acid group (one boron bonded to exactly two
-non-oxygen substituents R1/R2 -- possibly identical -- and one hydroxyl
-oxygen; boron has no double-bonded oxygen here, unlike phosphinic acid's
-P=O), with no other heteroatom anywhere in the molecule except the
-group's own oxygen and, in R1/R2, nitrogen, sulfur or any halogen. Each R is named via
-`name_branch`, so it may be any substituent shape that helper already
-supports (mirrors `_boronic_acid.py`/`_phosphinic_acid.py`'s own scope
-exactly). Explicitly out of scope (raise `UnsupportedStructure`): a
-second borinic acid group, boronic acid (one substituent -- see
-`_boronic_acid.py`), coexistence with a more senior characteristic
-group, and any chalcogen-replacement analogue.
+As for boronic acids, junior groups on R are prefixes and a senior acid turns the borinic acid into a prefix.
 """
 
 from rdkit import Chem
 
-from ._acid_groups import acid_group_at
-from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON, boron_acid_parent
+from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
 from ._parent_choice import senior_parent_name
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 _BORON = 5
-BORON_ACID_ELEMENTS = (1, 6, 7, 8, 16, _BORON, *HALOGEN_PREFIXES)
 
 
 def _borinic_acid_boron_atoms(mol):
@@ -77,21 +51,14 @@ def name_borinic_acid(mol) -> str:
     borons = {a.GetIdx() for a in boron_atoms}
 
     for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
+            raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _BORON and atom.GetIdx() not in borons:
             raise UnsupportedStructure("more than one boron atom is not supported yet")
-        if atomic_num not in BORON_ACID_ELEMENTS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the borinic acid's own boron/"
-                "oxygen, nitrogen, sulfur and a halogen substituent are not supported yet"
-            )
 
-    if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON) or any(
-        acid_group_at(mol, a.GetIdx()) is not None for a in mol.GetAtoms()
-    ):
-        raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the borinic acid")
+    if acid_outranks_boron(mol):
+        raise UnsupportedStructure("a carboxylic, sulfur-group or phosphorus acid outranks the borinic acid")
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")

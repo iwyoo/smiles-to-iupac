@@ -757,6 +757,31 @@ def centre_nuclides(centre, consume=True):
     return descriptor({centre: entry}, {centre: 1}, True)
 
 
+def chain_nuclide_locants(positions):
+    """The sorted locants of the nuclides on the atoms of `positions` ({atom: locant}) that are still to be cited."""
+    context = ISOTOPE_LABELS.get()
+    if not context:
+        return ()
+    return tuple(sorted(loc for a, loc in positions.items() if a in context["labels"] and a not in context["consumed"]))
+
+
+def chain_nuclides(positions):
+    """'(1-31P)': the nuclides of the atoms of a parent chain, cited with the locants of that chain in front of the parent
+    name (P-82.2.1, P-82.5.1); '' when none of the atoms is modified."""
+    context = ISOTOPE_LABELS.get()
+    labelled = {
+        a: context["labels"][a] for a in positions if context and a in context["labels"] and a not in context["consumed"]
+    }
+    if not labelled:
+        return ""
+    if any(entry["H"] or not entry["skeleton"] for entry in labelled.values()):
+        raise UnsupportedStructure("a hydrogen nuclide on an atom of a polynuclear parent is not supported yet")
+    context["consumed"].update(labelled)
+    from ._isotope_labels import descriptor
+
+    return descriptor(labelled, positions, False)
+
+
 def suffix_nuclides(atoms, word):
     """The suffix `word` (such as 'one') multiplied for the doubly bonded chalcogens `atoms`, with their nuclide in front of
     it: '(18O)one', 'di[(18O)one]' for identical groups (P-82.2.1, P-82.2.2.2)."""

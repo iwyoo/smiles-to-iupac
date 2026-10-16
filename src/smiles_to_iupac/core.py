@@ -141,7 +141,7 @@ from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._isotope_acid_hydrogen import has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen
 from ._appendix3_skeletons import name_appendix3_skeleton
 from ._borane import has_simple_borane_shape, name_simple_borane
-from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
+from ._boronic_acid import boron_acid_is_parent, has_boronic_acid_shape, name_boron_acid, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
 from ._metal_pair import has_metal_pair_shape, name_metal_pair
 from ._coordination import has_coordination_shape, name_coordination
@@ -809,15 +809,23 @@ def _name_labelled_substituents(mol):
     try:
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
-            context["consumed"].clear()
-            name = _oxoacid_name(clean, context)
-        if name is None or set(labels) - context["consumed"]:
-            context["consumed"].clear()
-            try:
-                name = _name_mol(clean)
-            except UnsupportedStructure:
+            name, partial = None, None
+            for namer in (_oxoacid_name, name_chalcogen_imide, _name_mol, name_polynuclear_oxoacid, name_chalcogen_chain_heterone):
                 context["consumed"].clear()
-                name = name_chalcogen_chain_heterone(clean)
+                try:
+                    candidate = namer(clean)
+                except UnsupportedStructure:
+                    if namer is name_chalcogen_chain_heterone and partial is None:
+                        raise
+                    continue
+                if not set(labels) - context["consumed"]:
+                    name, partial = candidate, None
+                    break
+                partial = partial or (candidate, set(context["consumed"]))
+            if name is None:
+                name = partial[0]
+                context["consumed"].clear()
+                context["consumed"].update(partial[1])
     finally:
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
@@ -826,21 +834,18 @@ def _name_labelled_substituents(mol):
     return name
 
 
-def _oxoacid_name(clean, context):
+def _oxoacid_name(clean):
     """The name of a mononuclear oxoacid or its functional replacement analogue by the dedicated namers, which stand ahead of
-    the phosphinic and phosphonic acid prefixes in the order of the unmodified names; None when they do not apply."""
+    the phosphinic and phosphonic acid prefixes in the order of the unmodified names."""
     if _is_nucleoside_derivative(clean) or (carries_only_element_hydride_groups(clean) and has_carbonic_amide_parent(clean)):
-        return None
+        raise UnsupportedStructure("this structure is not named as a mononuclear oxoacid")
     for has_shape, namer in (
         (has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid),
         (has_functional_replacement_oxoacid_shape, name_functional_replacement_oxoacid),
     ):
         if has_shape(clean):
-            try:
-                return namer(clean)
-            except UnsupportedStructure:
-                context["consumed"].clear()
-    return None
+            return namer(clean)
+    raise UnsupportedStructure("this structure is not named as a mononuclear oxoacid")
 
 
 _PARENT_ATOM_STEM = {
@@ -1121,6 +1126,9 @@ def _name_unabridged_body(smiles: str) -> str:
             parts = lewis_adduct_mol(parsed)
             if parts is not None and has_adduct_shape(parts):
                 return mark(name_adduct(parts, smiles_to_iupac), _NO_PIN_ADDUCT)
+        if parsed is not None and boron_acid_is_parent(parsed):
+            with contextlib.suppress(UnsupportedStructure):
+                return name_boron_acid(parsed)
         if parsed is not None:
             diacylamine = diacylamine_name(parsed)
             if diacylamine is not None:
