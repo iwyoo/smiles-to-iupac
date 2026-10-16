@@ -13,6 +13,8 @@ carrying -COOH, -CONH2, -CN or -CHO directly on a skeletal atom, per the IUPAC
   symmetrical parent, and P-14.3.4.2(a) on a mononuclear one.
 """
 
+import contextlib
+
 from rdkit import Chem
 
 from ._common import (
@@ -27,7 +29,7 @@ from ._common import (
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._hydride_chain import _STEMS, _chain_atoms
 from ._numerals import multiplying_prefix
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _NITROGEN = 7
 _CLASSES = ("acid", "amide", "amidine", "nitrile", "aldehyde")
@@ -232,20 +234,22 @@ def has_hydride_carbo_suffix_shape(mol) -> bool:
 
 def name_hydride_carbo_suffix(mol) -> str:
     (kind, skeleton, parent_name), principal_carbons, principal = _match(mol)
-    if specified_stereo_elements(mol):
-        raise UnsupportedStructure("stereodescriptors on a heteroacyclic parent hydride are not supported yet")
+    stereo = specified_stereo_elements(mol)
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     skeleton_set = set(skeleton)
     word = _SUFFIX[principal]
     count = len(principal_carbons)
+    bond_codes = _skeleton_bond_descriptors(mol, stereo, skeleton_set, set(principal_carbons))
 
     entries = []
-    for atom in skeleton:
-        for n in graph[atom]:
-            if n in skeleton_set or n in principal_carbons:
-                continue
-            entries.append((atom, *name_branch(graph, n, atom, halogens, mol=mol, unsaturated=True)))
+    roots = [n for atom in skeleton for n in graph[atom] if n not in skeleton_set and n not in principal_carbons]
+    with cited_branch_stereo(mol, graph, skeleton_set | set(principal_carbons), roots) if stereo else contextlib.nullcontext():
+        for atom in skeleton:
+            for n in graph[atom]:
+                if n in skeleton_set or n in principal_carbons:
+                    continue
+                entries.append((atom, *name_branch(graph, n, atom, halogens, mol=mol, unsaturated=True)))
 
     if kind == "mononuclear":
         prefix = format_mononuclear_prefixes([(name, compound) for _, name, compound in entries]) if entries else ""
@@ -260,11 +264,16 @@ def name_hydride_carbo_suffix(mol) -> str:
         ]
         grouped = group_substituents(_merge(entries, position_of))
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-        key = (suffix_locants, ene_locants, locant_set, citation)
+        descriptors = [
+            (i + 1, bond_codes[frozenset((a, b))])
+            for i, (a, b) in enumerate(zip(candidate, candidate[1:]))
+            if frozenset((a, b)) in bond_codes
+        ]
+        key = (suffix_locants, ene_locants, locant_set, citation, [locant for locant, code in descriptors if code == "Z"])
         if best is None or key < best[0]:
-            best = (key, suffix_locants, ene_locants, grouped)
+            best = (key, suffix_locants, ene_locants, grouped, descriptors)
 
-    _, suffix_locants, ene_locants, grouped = best
+    _, suffix_locants, ene_locants, grouped, descriptors = best
     total = count + sum(len(info["locants"]) for info in grouped.values())
     siloxane = parent_name.endswith("siloxane")
     symmetric_sole = (total == 1 and len(skeleton) == (3 if siloxane else 2) and not ene_locants) or (
@@ -279,9 +288,29 @@ def name_hydride_carbo_suffix(mol) -> str:
             parent_name = f"{stem}ene"
         else:
             parent_name = f"{stem}{'a' if len(ene_locants) > 1 else ''}-{','.join(map(str, ene_locants))}-{multiplied_word(len(ene_locants), 'ene')}"
+    cited = ",".join(code if len(skeleton) == 2 else f"{locant}{code}" for locant, code in descriptors)
+    lead = f"({cited})-" if cited else ""
     if symmetric_sole:
-        return f"{prefix}{parent_name}{body}"
-    return f"{prefix}{parent_name}-{','.join(map(str, suffix_locants))}-{body}"
+        return f"{lead}{prefix}{parent_name}{body}"
+    return f"{lead}{prefix}{parent_name}-{','.join(map(str, suffix_locants))}-{body}"
+
+
+def _skeleton_bond_descriptors(mol, stereo, skeleton_set, group_carbons):
+    """{bond atom pair: descriptor} of the stereogenic skeleton double bonds, cited with the parent (P-93.4.2.1.1); a
+    stereo element of the parent atoms or the group carbons that is not such a bond is not supported."""
+    codes = {}
+    parent_atoms = skeleton_set | group_carbons
+    for kind, index, code in stereo or []:
+        if kind == "bond":
+            bond = mol.GetBondWithIdx(index)
+            ends = (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+            if all(end in skeleton_set for end in ends):
+                codes[frozenset(ends)] = code
+            elif any(end in parent_atoms for end in ends):
+                raise UnsupportedStructure("this stereo element of a heteroacyclic parent hydride is not supported yet")
+        elif index in parent_atoms:
+            raise UnsupportedStructure("this stereo element of a heteroacyclic parent hydride is not supported yet")
+    return codes
 
 
 def _merge(entries, position_of):
