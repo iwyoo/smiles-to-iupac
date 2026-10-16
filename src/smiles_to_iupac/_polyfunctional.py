@@ -235,6 +235,10 @@ def _terminal_heteroatom(mol, idx, hydrogens):
 
 _CHALCOGEN_KETONE_CLASS = {16: "thione", 34: "selone", 52: "tellone"}
 _CARBOXYLIC_OR_SULFONIC = Chem.MolFromSmarts("[#6,#16](=[O,S,Se,Te])[O,S,Se,Te;!$(*C#N)]")
+_SENIOR_TO_NITRILE = [
+    Chem.MolFromSmarts("[CX3;!R](=[O,S,Se,Te])[O,S,Se,Te,N,F,Cl,Br,I;!$(*C#N)]"),
+    Chem.MolFromSmarts("[#16X4,#16X3;!R](=O)[O,N,F,Cl,Br,I;!$(*C#N)]"),
+]
 _CHALCOGEN_KETONE_OK = {
     "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values(), "nitrile", "aldehyde", "ketone",
     *_CHALCOGEN_KETONE_CLASS.values(),
@@ -894,6 +898,13 @@ def _group_of(mol, carbon):
         ):
             return None
         if len(others) == 1 and others[0].GetAtomicNum() == 7 and not others[0].GetFormalCharge() and not others[0].IsInRing():
+            return None
+        if (
+            len(others) == 1
+            and others[0].GetAtomicNum() == 7
+            and not others[0].GetFormalCharge()
+            and any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_NITRILE)
+        ):
             return None
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
             raise UnsupportedStructure("a cyanide not bonded to carbon is not a nitrile")
