@@ -2114,3 +2114,8 @@ def test_salt_cites_the_radical_centre_of_an_ionic_fragment(smiles, expected):
     # P-75.4: the radical parent carries the ionic centres as prefixes; the Blue Book names no salt of such an ion
     with pytest.warns(NonPreferredNameWarning, match="P-75.4"):
         assert smiles_to_iupac(smiles) == expected
+
+
+def test_uide_centre_shared_by_two_ring_components_is_refused_not_overflowed():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1cc[n+]2c(c1)CO[B-]21OCCO1")
