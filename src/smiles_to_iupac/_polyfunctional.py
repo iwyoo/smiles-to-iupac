@@ -1250,7 +1250,7 @@ def _without_marker(name, locant, word):
         return text.lstrip("-")
     if text[at - 1:at] == "-" and text[at:at + 1] == "-":
         return text[:at] + text[at + 1:]
-    if text[at - 1:at] == "-" and text[at:at + 1].isalpha() and text[at - 2:at - 1].isalpha():
+    if text[at - 1:at] == "-" and text[at:at + 1].isalpha() and (text[at - 2:at - 1].isalpha() or text[at - 2:at - 1] in (")", "]", "}")):
         return text[:at - 1] + text[at:]
     return text
 
@@ -2973,7 +2973,12 @@ _AMINE_STEREO_ELEMENTS = {6, 7, 8, 9, 14, 16, 17, 32, 34, 35, 52, 53}
 
 
 def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo):
-    if any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms()) and principal not in _CHALCOGEN_KETONE_OK and not (principal and _is_variant(principal)):
+    if (
+        any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms())
+        and principal not in _CHALCOGEN_KETONE_OK
+        and not (principal and _is_variant(principal))
+        and not (AMINIUM.get() or RING_CENTER.get())
+    ):
         raise UnsupportedStructure("a thioketone-type group outranks the parents this engine can build here")
     for atom in mol.GetAtoms():
         if atom.GetIsotope() or atom.GetNumRadicalElectrons():

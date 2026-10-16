@@ -116,6 +116,16 @@ def nitroso_atoms(mol):
 _CARBOXYLIC_CLASS = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N)]")
 
 
+def _is_chalcogen_acyl(mol, root):
+    atom = mol.GetAtomWithIdx(root)
+    return atom.GetAtomicNum() == 6 and any(
+        n.GetAtomicNum() in (8, 16, 34, 52)
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(root, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
+    )
+
+
 def _acyl_prefix(mol, subtree, root, parent):
     """'-yl' name of the acyl group rooted at `root`, from its parent acid's name."""
     from .core import smiles_to_iupac
@@ -149,16 +159,32 @@ def _acyl_prefix(mol, subtree, root, parent):
             raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
-    token = SYSTEMATIC_ACID_PROBE.set(True)
-    labels_token = ISOTOPE_LABELS.set(None)
+    def acyl_of_probe(free_of_cation):
+        from ._hetero_prefixes import CATION_PARENT
+        from ._polyfunctional import AMINIUM, RING_CENTER
+
+        token = SYSTEMATIC_ACID_PROBE.set(True)
+        labels_token = ISOTOPE_LABELS.set(None)
+        parent_tokens = [(var, var.set(False)) for var in (AMINIUM, RING_CENTER, CATION_PARENT)] if free_of_cation else []
+        try:
+            probe = smiles_to_iupac(Chem.MolToSmiles(sub)) if own_acid is None else _name_with_principal(sub, own_acid)
+        finally:
+            for var, parent_token in parent_tokens:
+                var.reset(parent_token)
+            ISOTOPE_LABELS.reset(labels_token)
+            SYSTEMATIC_ACID_PROBE.reset(token)
+        if zwitterion and probe.endswith("ate"):
+            probe = probe[: -len("ate")] + "ic acid"
+        return acyl_name(probe)
+
     try:
-        probe = smiles_to_iupac(Chem.MolToSmiles(sub)) if own_acid is None else _name_with_principal(sub, own_acid)
-    finally:
-        ISOTOPE_LABELS.reset(labels_token)
-        SYSTEMATIC_ACID_PROBE.reset(token)
-    if zwitterion and probe.endswith("ate"):
-        probe = probe[: -len("ate")] + "ic acid"
-    name = _attached_bond_descriptor(mol, sub, sorted(subtree), acyl_name(probe))
+        acyl = acyl_of_probe(False)
+    except UnsupportedStructure:
+        # a cationic parent outside the group must not turn the acid of the group into a prefix of its own parent
+        if zwitterion or not _is_chalcogen_acyl(mol, root):
+            raise
+        acyl = acyl_of_probe(True)
+    name = _attached_bond_descriptor(mol, sub, sorted(subtree), acyl)
     _cite_stereo_of_acyl(mol, sub, sorted(subtree))
     if labelled:
         context["consumed"].update(labelled)
