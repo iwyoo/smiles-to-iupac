@@ -985,12 +985,34 @@ def _cite_lambda(stem, bonding):
     cited = leading.group(1).split(",") if leading else []
     loose = []
     for locant, n in sorted(bonding.items(), key=lambda it: _locant_key(it[0])):
+        mark = n if isinstance(n, str) else f"\u03bb{n}"
         if locant in cited:
-            cited[cited.index(locant)] += f"\u03bb{n}"
+            cited[cited.index(locant)] += mark
         else:
-            loose.append(f"{locant}\u03bb{n}")
+            loose.append(f"{locant}{mark}")
     body = (",".join(cited) + "-" + leading.group(2)) if cited else stem
     return body, (",".join(loose) + "-") if loose else ""
+
+
+def _cumulated_ring_atoms(mol, skeleton_atoms):
+    """({ring atom: number of double bonds to ring atoms}, the atoms those bonds reach) for the atoms with two or more of them:
+    contiguous formal double bonds at a skeletal atom, cited with the delta symbol (P-25.7.2)."""
+    kekule = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+    except Chem.KekulizeException:
+        kekule = mol
+    found, reached = {}, set()
+    for a in skeleton_atoms:
+        doubles = [
+            b.GetOtherAtomIdx(a)
+            for b in kekule.GetAtomWithIdx(a).GetBonds()
+            if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtomIdx(a) in skeleton_atoms
+        ]
+        if len(doubles) >= 2:
+            found[a] = len(doubles)
+            reached.update(doubles)
+    return found, reached
 
 
 def _chalcogen_heterones(mol, skeleton_atoms):
@@ -1060,7 +1082,8 @@ def _fused_mancude(mol, skeleton_atoms):
     fusion_hetero = {a for a in skeleton_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and ring_info.NumAtomRings(a) > 1}
     suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
     oxo_suffix = (oxo_all & suffix_atoms) | {a for a in suffix_atoms & sp3 if ring_info.NumAtomRings(a) > 1}
-    bare, old_of, parent = _named_mancude(mol, skeleton_atoms, sp3)
+    cumulated, reached = _cumulated_ring_atoms(mol, skeleton_atoms)
+    bare, old_of, parent = _named_mancude(mol, skeleton_atoms, sp3 | set(cumulated))
     match = re.match(r"^(\d+[a-z]?H(?:,\d+[a-z]?H)*)-(.*)$", parent)
     ih_count = len(match.group(1).split(",")) if match else 0
     stem = match.group(2) if match else parent
@@ -1074,6 +1097,12 @@ def _fused_mancude(mol, skeleton_atoms):
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)
     can_hold -= fusion_hetero
+    if cumulated:
+        can_hold -= reached | set(cumulated)
+        remaining = nx.Graph()
+        remaining.add_nodes_from(can_hold)
+        remaining.add_edges_from((a, b) for a in can_hold for b in adj[a] if b in can_hold)
+        ih_count = len(can_hold) - 2 * len(nx.max_weight_matching(remaining, maxcardinality=True))
     if heterones or halogens:
         can_hold |= heterones
         lambda_parent = nx.Graph()
@@ -1139,13 +1168,17 @@ def _fused_mancude(mol, skeleton_atoms):
         lam = {a: n for a in position_of if (n := nonstandard_bonding(mol.GetAtomWithIdx(a), with_oxo=True))}
         lam.update({a: int(mol.GetAtomWithIdx(a).GetTotalValence()) for a in heterones if a in position_of})
         marked_stem = stem
-        if lam:
-            marked_stem, loose = _cite_lambda(stem, {str(position_of[a]): n for a, n in lam.items()})
+        marks = {}
+        for a in set(lam) | set(cumulated):
+            if a in position_of:
+                marks[str(position_of[a])] = (f"\u03bb{lam[a]}" if a in lam else "") + (f"\u03b4{cumulated[a]}" if a in cumulated else "")
+        if marks:
+            marked_stem, loose = _cite_lambda(stem, marks)
             ih_text += loose
         delta = _delta_citation(mol, skeleton_atoms, position_of)
         delta_stem = ("Δ" + ",".join(t for _, t in delta) + "-" + marked_stem) if delta else marked_stem
 
-        fully_saturated = bool(hydro) and can_hold <= saturated | set(accommodated)
+        fully_saturated = bool(hydro) and not cumulated and can_hold <= saturated | set(accommodated)
 
         def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, full=fully_saturated, stem=delta_stem):
             rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
@@ -1153,7 +1186,10 @@ def _fused_mancude(mol, skeleton_atoms):
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
 
         lam_key = tuple(sorted((-n, position_of[a]) for a, n in lam.items()))
-        numbering = Numbering(position_of, text, pre_key=(ih, lam_key), unsat_key=(tuple(p for p, _ in delta), added, hydro), ih=ih)
+        cumulated_key = tuple(sorted(position_of[a] for a in cumulated if a in position_of))
+        numbering = Numbering(
+            position_of, text, pre_key=(ih, lam_key, cumulated_key), unsat_key=(tuple(p for p, _ in delta), added, hydro), ih=ih
+        )
         numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
         numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
         out.append(numbering)

@@ -699,6 +699,30 @@ def test_fusion_engine_decompositions_and_bridges(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("CCC1=C=C=c2ccccc2=C1C=O", "3-ethyl-1δ2,2δ2-naphthalene-4-carbaldehyde", id="principal_group_beside_two_cumulated_atoms"),
+        pytest.param(
+            "CCC1=NC=C=NC2=C1CCCCC2",
+            "5-ethyl-7,8,9,10-tetrahydro-6H-2δ2-cyclohepta[e][1,4]diazepine",
+            id="hydro_and_indicated_hydrogen_beside_a_cumulated_heteroring",
+        ),
+        pytest.param("Cc1ccc2c(c1)C=CC=C=CC=C2", "2-methyl-8δ2-benzo[9]annulene", id="cumulated_atom_replaces_the_indicated_hydrogen"),
+        pytest.param("O=C1C=C=CC2=CC=CC=C12", "1H-3δ2-naphthalen-1-one", id="oxo_group"),
+        pytest.param("C1=C=CC2CCCCC2C1", "4a,5,6,7,8,8a-hexahydro-1H-3δ2-naphthalene", id="hydro_locants_beside_a_cumulated_atom"),
+    ],
+)
+def test_cumulated_ring_atom_is_cited_with_the_delta_convention(smiles, expected):
+    # P-25.7.2
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_cumulated_ring_atoms_without_a_delta_name_are_refused():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1=C=C=c2ccccc2=C1C1=C=C=c2ccccc2=C1C")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         # P-26.4.1.2, P-26.4.1.3: skeleton and amplificant numbering, senior amplificant lowest
         ("c1cncc(CCc2ccc(CCc3ccc(Cc4ccncn4)cn3)cn2)c1", "1(4)-pyrimidina-3,6(5,2),9(3)-tripyridinanonaphane"),
         pytest.param("c1ccc2c3cc(cc2c1)CCc1ccc(cn1)CC1CCCN(CCC3)C1",
