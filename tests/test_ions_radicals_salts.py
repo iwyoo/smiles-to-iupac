@@ -1323,6 +1323,7 @@ def test_several_identical_cationic_centres(smiles, expected):
         pytest.param("C1C[NH2+]CC2CCCCC21", "decahydroisoquinolin-2-ium", id="saturated_isoquinoline_other_atom_order"),
         pytest.param("C1C[NH+]2CCCCC2C1", "octahydroindolizin-4-ium", id="bridgehead_nitrogen_of_indolizine"),
         pytest.param("C1C[NH+]2CCCC2C1", "hexahydro-1H-pyrrolizin-4-ium", id="bridgehead_nitrogen_of_pyrrolizine"),
+        pytest.param("C1C[NH+]2CCC1CC2.[Cl-]", "1-azabicyclo[2.2.2]octan-1-ium chloride", id="bridgehead_nitrogen_of_a_von_baeyer_system_with_its_salt"),
         pytest.param("[NH3+]CC[NH+]1CCc2ccccc2C1", "2-(1,2,3,4-tetrahydroisoquinolin-2-ium-2-yl)ethan-1-aminium", id="aminium_beside_a_hydro_fused_ring_cation"),
         pytest.param("[NH3+]CC[NH+]1CCC2CCCCC2C1", "2-(decahydroisoquinolin-2-ium-2-yl)ethan-1-aminium", id="aminium_beside_a_saturated_fused_ring_cation"),
         pytest.param("[NH3+]CC[NH+]1CCCCC1", "2-(piperidin-1-ium-1-yl)ethan-1-aminium", id="aminium_beside_a_monocyclic_ring_cation"),
