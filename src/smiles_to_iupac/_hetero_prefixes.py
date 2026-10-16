@@ -352,7 +352,7 @@ def phosphoryl_name(parts, group=("phosphono", "phosphoryl")):
         body = multiplied_prefix(2, name, compound)
     else:
         ordered = sorted(parts, key=lambda p: alpha_sort_key(p[0]))
-        body = "".join(enclose(n) if c or (i and not ordered[i - 1][1]) else n for i, (n, c) in enumerate(ordered))
+        body = "".join(enclose(n) if c or i else n for i, (n, c) in enumerate(ordered))
     return body + group[1]
 
 

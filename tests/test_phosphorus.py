@@ -583,6 +583,9 @@ def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, e
         pytest.param("OP(=O)(N)OCC(=O)O", "[(hydroxyphosphoramidoyl)oxy]acetic acid", id="functional_replacement_acyl_enclosed"),
         pytest.param("OP(O)(=O)SCC(O)=O", "(phosphonosulfanyl)acetic acid", id="simple_prefix_on_sulfanyl_not_enclosed"),
         pytest.param("C=CCCCP(=O)(O)CC(=O)O", "{hydroxy[(pent-4-en-1-yl)phosphonoyl]}acetic acid", id="enclosing_marks_nest_around_a_substituted_alkyl"),
+        # P-16.5.1.3.1: every prefix after the first is enclosed, also after a compound one
+        pytest.param("OC(=O)CP(=O)(OC)OCCCl", "[(2-chloroethoxy)(methoxy)phosphoryl]acetic acid", id="simple_prefix_after_a_compound_one_on_phosphoryl"),
+        pytest.param("OC(=O)CP(=O)(C)CCCl", "[(2-chloroethyl)(methyl)phosphinoyl]acetic acid", id="simple_prefix_after_a_compound_one_on_phosphinoyl"),
     ],
 )
 def test_phosphorus_acyl_prefixes_beside_a_carboxylic_acid(smiles, expected):
