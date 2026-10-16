@@ -1476,13 +1476,13 @@ def _branch_stereo_entries(positions, ring=False, record=False, parent=None):
 
 
 def _ylidene_to_heteroatom(a, b, positions, parent=None):
-    """A double bond from the chain to a nitrogen, or to a ring carbon of the substituent itself (not to the parent
+    """A double bond from the chain to a nitrogen or to a carbon group of the substituent itself (not to the parent
     the substituent hangs from, whose own locant cites that bond)."""
     mol = BRANCH_STEREO_MOL.get()
     if mol is None:
         return False
     outside = mol.GetAtomWithIdx(b if a in positions else a)
-    ylidene = outside.GetAtomicNum() == 7 or (outside.GetAtomicNum() == 6 and outside.IsInRing() and outside.GetIdx() != parent)
+    ylidene = outside.GetAtomicNum() == 7 or (outside.GetAtomicNum() == 6 and outside.GetIdx() != parent)
     return ylidene and not mol.GetBondBetweenAtoms(a, b).IsInRing()
 
 
