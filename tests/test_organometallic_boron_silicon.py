@@ -1197,6 +1197,19 @@ def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expe
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-68.1.4.1, P-28.2.1: the ring assembly bonded to boron is an organyl group of the acid, cited before its retained name
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OB(O)c1ccc(-c2ccccn2)nc1", "([2,2'-bipyridin]-5-yl)boronic acid", id="boronic_acid_on_two_identical_heterorings"),
+        pytest.param("CB(O)c1ccc(-c2ccccn2)nc1", "([2,2'-bipyridin]-5-yl)(methyl)borinic acid", id="borinic_acid_on_two_identical_heterorings"),
+        pytest.param("OB(O)c1ccc(-c2ccc(-c3ccccn3)nc2)nc1", "([1\u00b2,2\u00b2:2\u2075,3\u00b2-terpyridin]-3\u2075-yl)boronic acid", id="boronic_acid_on_three_identical_heterorings"),
+    ],
+)
+def test_boron_acids_on_a_ring_assembly_of_heterorings(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
