@@ -342,6 +342,11 @@ def test_fused_system_to_be_bridged_has_the_most_skeletal_atoms_and_a_saturated_
     [
         pytest.param("OC1C2CC3CC1C1C3C21", "octahydro-2,3-methanocyclopropa[cd]pentalen-1-ol", id="suffix_on_a_saturated_cage"),
         pytest.param("CC1C2CC3CC1C1C3C21", "1-methyloctahydro-2,3-methanocyclopropa[cd]pentalene", id="substituent_locant_of_the_cage"),
+        pytest.param(
+            "CC1C2C=CC3CC1C1C3C21",
+            "1-methyl-2,2a,2a1,2b,3,5a-hexahydro-1H-2,3-methanocyclopropa[cd]indene",
+            id="divalent_bridge_kept_beside_a_substituent",
+        ),
     ],
 )
 def test_saturated_bridged_cage_is_numbered_by_the_bridged_fusion_rules(smiles, expected):

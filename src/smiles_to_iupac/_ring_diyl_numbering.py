@@ -1330,6 +1330,18 @@ def _bridged_parent_name(mol, skeleton_atoms, numberings):
         return False
 
 
+def _selected_bridges(mol, skeleton_atoms, numberings):
+    """P-25.4.3.4.2 (e)-(h): a mancude parent that carries bridges yields to the bridges chosen by the bridged fusion
+    rules (divalent before polyvalent) when it is not one of them; None when those rules give no numbering."""
+    stem = numberings[0].parent_stem if numberings else ""
+    if not (stem[:1].isdigit() and is_bridged_fusion_system(mol, skeleton_atoms)):
+        return None
+    try:
+        return _bridged_numberings(mol, skeleton_atoms)
+    except UnsupportedStructure:
+        return None
+
+
 def system_numberings(mol, graph, rings, skeleton_atoms):
     from ._polyspiro_union import has_spiro_union_shape, spiro_union_numberings
 
@@ -1348,7 +1360,7 @@ def system_numberings(mol, graph, rings, skeleton_atoms):
         try:
             found = _fused_mancude(mol, skeleton_atoms)
             if not _bridged_parent_name(mol, skeleton_atoms, found):
-                return found
+                return _selected_bridges(mol, skeleton_atoms, found) or found
         except UnsupportedStructure:
             pass
     if is_bridged_fusion_system(mol, skeleton_atoms):
