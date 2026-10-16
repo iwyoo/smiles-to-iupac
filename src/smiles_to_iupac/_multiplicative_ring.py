@@ -427,7 +427,7 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
     rings, atoms = _system_of(mol, next(iter(ring_atoms)))
     free_atoms = [a for a, _ in attachments]
     blocked = {external for _, external in attachments}
-    if len(free_atoms) not in _VALENCE_COUNTS or len(set(free_atoms)) != len(free_atoms):
+    if len(free_atoms) not in _VALENCE_COUNTS:
         return None
     found = evaluate_skeleton(mol, adjacency(mol), "ring", rings, atoms, free_atoms, blocked, "yl")
     if found is None:

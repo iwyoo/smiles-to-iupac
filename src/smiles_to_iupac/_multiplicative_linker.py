@@ -293,17 +293,25 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
 
 
 def _carbon_closure(mol, atoms):
+    """The acyclic carbons joined to `atoms`, except the carbon of a nitrile group, which is the prefix 'cyano' and not
+    part of the chain (P-65.1.3.1.2)."""
     seen = set(atoms)
     stack = list(atoms)
     while stack:
         a = stack.pop()
         for n in mol.GetAtomWithIdx(a).GetNeighbors():
             idx = n.GetIdx()
-            if idx in seen or n.GetAtomicNum() != 6 or n.IsInRing():
+            if idx in seen or n.GetAtomicNum() != 6 or n.IsInRing() or _nitrile_carbon(n):
                 continue
             seen.add(idx)
             stack.append(idx)
     return seen
+
+
+def _nitrile_carbon(atom):
+    return atom.GetDegree() == 2 and any(
+        b.GetBondTypeAsDouble() == 3.0 and b.GetOtherAtom(atom).GetAtomicNum() == 7 for b in atom.GetBonds()
+    )
 
 
 def _tree_path(adj, s, t):

@@ -179,6 +179,8 @@ def test_phosphate_ester_unaffected_and_related(smiles, expected):
         pytest.param(
             "P(CP(O)(O)=O)(CP(O)(O)=O)CP(O)(O)=O", "[phosphanetriyltris(methylene)]tris(phosphonic acid)", id="three_units"
         ),
+        pytest.param("N#CCCCC(P(=O)(O)O)P(=O)(O)O", "(4-cyanobutane-1,1-diyl)bis(phosphonic acid)", id="nitrile_carbon_is_a_prefix_not_a_chain_atom"),
+        pytest.param("OP(=O)(O)C1(P(=O)(O)O)CCNCC1", "(piperidine-4,4-diyl)bis(phosphonic acid)", id="both_groups_on_one_atom_of_a_heteroring"),
     ],
 )
 def test_phosphonic_acids_joined_by_a_linker_are_multiplied(smiles, expected):
