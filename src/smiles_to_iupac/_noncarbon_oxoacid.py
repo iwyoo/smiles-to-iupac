@@ -586,12 +586,12 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
     if parts["cation"] or parts["free_anion"]:
         anion = prefix + _compose(stem, infixes, "ate" if pentavalent else "ite")
         return _salt_text(parts, [], _hydrogen_words(parts), anion, descriptor)
-    if descriptor:
-        raise UnsupportedStructure("the descriptor of a stereogenic acid centre is cited only in an ester or a salt")
     ending = "ic" if pentavalent else "ous"
     body = _compose(stem, infixes, ending)
     if class_terms:
-        return prefix + body + " " + _class_phrase(class_terms)
+        return descriptor + prefix + body + " " + _class_phrase(class_terms)
+    if descriptor:
+        raise UnsupportedStructure("the descriptor of a stereogenic acid centre is cited only in an ester, a salt or an acid halide")
     locants = _acid_locants(parts)
     return prefix + (body + " " + locants + "-acid" if locants else body + " acid")
 
