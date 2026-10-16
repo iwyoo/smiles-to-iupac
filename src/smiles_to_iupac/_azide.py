@@ -53,6 +53,7 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     non_single_bonds,
+    refuse_specified_stereo,
     ring_chain_attachment,
 )
 from ._acyclic import name_from_carbon_graph
@@ -195,6 +196,7 @@ def name_azide(mol) -> str:
     root_nitrogens = _azide_root_nitrogens(mol)
     if not root_nitrogens:
         raise UnsupportedStructure("no azide (-N3) group found; this module only handles azides")
+    refuse_specified_stereo(mol)
     azide_atom_idxs = _azide_atom_idxs(root_nitrogens)
 
     ring_info = mol.GetRingInfo()

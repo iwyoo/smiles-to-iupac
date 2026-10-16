@@ -13,7 +13,13 @@ from ._alkoxy import alkoxy_prefix
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._multiplicative_text import enclose
 from ._numerals import numerical_term
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import (
+    chain_nuclide_locants,
+    chain_nuclides,
+    format_mononuclear_prefixes,
+    format_substituent_prefixes,
+    name_branch,
+)
 
 _CENTER_ELEMENTS = {5, 14, 15, 16, 33, 34, 51, 52}
 _CHALCOGENS = {8: "O", 16: "S", 34: "Se", 52: "Te"}
@@ -414,11 +420,14 @@ def _format_n_substituents(found):
     return format_substituent_prefixes(grouped)
 
 
+_DESCRIPTOR_START = {f"({digit}" for digit in "0123456789"}
+
+
 def _join_prefixes(prefixes, rest):
     """Substituent prefixes in front of the rest of the name: a hyphen only before a locant or an enclosing mark."""
     if not prefixes:
         return rest
-    return prefixes + ("" if rest[:1].isalpha() else "-") + rest
+    return prefixes + ("" if rest[:1].isalpha() or rest[:2] in _DESCRIPTOR_START else "-") + rest
 
 
 def _organyl_substituents(mol, graph, halogens, centers):
@@ -545,6 +554,7 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
             tuple(sorted(center_pos[ci] for _, _, ci in organyls)),
             tuple(center_pos[ci] for _, _, ci in sorted(organyls, key=lambda o: (alpha_sort_key(o[0]), center_pos[o[2]]))),
             tuple(tuple(sorted(by_word[w])) for w in sorted(by_word, key=lambda w: w.strip("()"))),
+            chain_nuclide_locants({centers[ci].atom: pos for ci, pos in center_pos.items()}),
         )
         candidates.append((key, center_pos, items))
     _, center_pos, items = min(candidates, key=lambda c: c[0])
@@ -552,9 +562,10 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
     if priority and not items and senior is None and not n_found and not organyls and centers[0].z != 5 and not anionic:
         raise UnsupportedStructure("a plain homogeneous polyacid or ester is named by the part-wise modules")
     n_prefix = _format_n_substituents(n_found + [(name, compound, center_pos[ci]) for name, compound, ci in organyls])
+    if senior is not None and anionic:
+        return None
+    base = chain_nuclides({center.atom: center_pos[ci] for ci, center in enumerate(centers)}) + base
     if senior is not None:
-        if anionic:
-            return None
         return _join_prefixes(n_prefix, _class_name(centers, links, center_pos, items, base, senior))
     esters, hydrogens = [], 0
     for ci, center in enumerate(centers):

@@ -141,7 +141,7 @@ from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._isotope_acid_hydrogen import has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen
 from ._appendix3_skeletons import name_appendix3_skeleton
 from ._borane import has_simple_borane_shape, name_simple_borane
-from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
+from ._boronic_acid import boron_acid_is_parent, has_boronic_acid_shape, name_boron_acid, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
 from ._metal_pair import has_metal_pair_shape, name_metal_pair
 from ._coordination import has_coordination_shape, name_coordination
@@ -804,12 +804,23 @@ def _name_labelled_substituents(mol):
     try:
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
-            context["consumed"].clear()
-            try:
-                name = _name_mol(clean)
-            except UnsupportedStructure:
+            name, partial = None, None
+            for namer in (name_chalcogen_imide, _name_mol, name_polynuclear_oxoacid, name_chalcogen_chain_heterone):
                 context["consumed"].clear()
-                name = name_chalcogen_chain_heterone(clean)
+                try:
+                    candidate = namer(clean)
+                except UnsupportedStructure:
+                    if namer is name_chalcogen_chain_heterone and partial is None:
+                        raise
+                    continue
+                if not set(labels) - context["consumed"]:
+                    name, partial = candidate, None
+                    break
+                partial = partial or (candidate, set(context["consumed"]))
+            if name is None:
+                name = partial[0]
+                context["consumed"].clear()
+                context["consumed"].update(partial[1])
     finally:
         ISOTOPIC_CIP.reset(cip_token)
         ISOTOPE_LABELS.reset(token)
@@ -1100,6 +1111,9 @@ def _name_unabridged_body(smiles: str) -> str:
             parts = lewis_adduct_mol(parsed)
             if parts is not None and has_adduct_shape(parts):
                 return mark(name_adduct(parts, smiles_to_iupac), _NO_PIN_ADDUCT)
+        if parsed is not None and boron_acid_is_parent(parsed):
+            with contextlib.suppress(UnsupportedStructure):
+                return name_boron_acid(parsed)
         if parsed is not None:
             diacylamine = diacylamine_name(parsed)
             if diacylamine is not None:

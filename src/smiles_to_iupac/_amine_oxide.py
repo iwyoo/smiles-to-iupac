@@ -61,6 +61,10 @@ def name_amine_oxide(mol) -> str:
 
     amine_nitrogens = [a for a in reduced_mol.GetAtoms() if _is_amine_nitrogen(a)]
     other_nitrogens = sum(a.GetAtomicNum() == 7 for a in reduced_mol.GetAtoms()) - len(amine_nitrogens)
+    if len(amine_nitrogens) == 1:
+        labelled = _labelled_oxide_name(mol, nitrogen, oxide_oxygen, class_word)
+        if labelled is not None:
+            return labelled
     if len(amine_nitrogens) == 1 and other_nitrogens:
         return f"{_name_with_nitrile_prefix(reduced_mol)} N-{class_word}"
     if len(amine_nitrogens) > 1:
@@ -88,6 +92,34 @@ def name_amine_oxide(mol) -> str:
             raise
         base_name = _name_with_nitrile_prefix(reduced_mol)
     return f"{with_unlocated_descriptor(base_name, nitrogen_code)} N-{class_word}"
+
+
+def _labelled_oxide_name(mol, nitrogen, oxide_oxygen, class_word):
+    """The name of the amine with the nuclides of `mol` followed by the class word, or None without nuclides; the nuclides
+    go in front of the amine name as for the neutral amine (P-82.2.1, P-62.5)."""
+    from ._isotope_labels import restore_labels
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if not context or not context["labels"] or context["mol"] is not mol:
+        return None
+    labels = context["labels"]
+    if oxide_oxygen.GetIdx() in labels or any(entry["H"] for entry in labels.values()):
+        raise UnsupportedStructure("a nuclide on the oxide group or on a hydrogen of an amine oxide is not supported yet")
+    editable = Chem.RWMol(mol)
+    restore_labels(editable, mol, labels)
+    editable.GetAtomWithIdx(nitrogen.GetIdx()).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+    editable.GetAtomWithIdx(nitrogen.GetIdx()).SetFormalCharge(0)
+    editable.RemoveAtom(oxide_oxygen.GetIdx())
+    reduced = editable.GetMol()
+    Chem.SanitizeMol(reduced)
+    token = ISOTOPE_LABELS.set(None)
+    try:
+        name = _name_with_nitrile_prefix(reduced)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    context["consumed"].update(labels)
+    return f"{name} N-{class_word}"
 
 
 def _is_amine_nitrogen(atom):

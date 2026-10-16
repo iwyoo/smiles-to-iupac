@@ -1692,6 +1692,13 @@ def match_cip_labels(original, copy, origin=None):
             Chem.SetDoubleBondNeighborDirections(copy)
 
 
+def refuse_specified_stereo(mol):
+    """For a namer that cites no descriptor: a flat name would silently drop the specified stereo of `mol`, so the chain
+    engine, which cites it, names the structure instead."""
+    if any(e.specified == Chem.StereoSpecified.Specified for e in Chem.FindPotentialStereo(mol)):
+        raise UnsupportedStructure("the descriptors of a specified stereo element are cited by the chain engine")
+
+
 def specified_stereocenters(mol):
     """Scan `mol` for stereo elements (RDKit's `Chem.FindPotentialStereo`).
     If there are none at all, or every one present is left unspecified

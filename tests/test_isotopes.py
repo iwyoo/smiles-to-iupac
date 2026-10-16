@@ -292,7 +292,7 @@ def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
     assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
-@pytest.mark.parametrize("smiles", ["C[15N+](C)(C)[O-]", "[2H]I(C)C"])
+@pytest.mark.parametrize("smiles", ["C[N+](C)(C)[18O-]", "[2H]I(C)C"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -781,6 +781,20 @@ def test_nuclides_on_a_diacylhydrazine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-82.6.3.3: the nitrogen of the amide parent takes its nuclide in front of the amide name, the sulfur of the
+# sulfonyl group in front of the hydride name inside its prefix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)[15NH]S(C)(=O)=O", "N-(methanesulfonyl)(15N)acetamide", id="amide_nitrogen_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)N[34S](C)(=O)=O", "N-[(34S)methanesulfonyl]acetamide", id="sulfonyl_sulfur_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)[15NH]C(C)=O", "N-acetyl(15N)acetamide", id="nitrogen_of_a_diacylamine"),
+    ],
+)
+def test_nuclides_on_an_acylsulfonamide_or_diacylamine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-68.4.1.1: a nuclide on an end group of a polychalcogen chain is cited in that organyl prefix
 @pytest.mark.parametrize(
     "smiles,expected",
@@ -858,4 +872,32 @@ def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expecte
     ],
 )
 def test_stereocentre_made_by_nuclides_beside_a_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.5.1: a nuclide on an acid centre of a chain takes the chain locant; on a sulfur imide it stands in front of the imino prefix or suffix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=P(O)(O)O[31P](=O)(O)O", "(1-31P)diphosphoric acid", id="polynuclear_acid_centre"),
+        pytest.param("CS(C)(=[15NH])=O", "(15N)iminodi(methyl)-λ6-sulfanone", id="imino_prefix_of_a_sulfoximide"),
+        pytest.param("CCS(CC)(=N)=[18O]", "diethyl(imino)-λ6-sulfan(18O)one", id="one_suffix_of_a_sulfoximide"),
+        pytest.param("CS(C)=[15NH]", "dimethyl-λ4-sulfan(15N)imine", id="imine_suffix_of_a_sulfimide"),
+    ],
+)
+def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.5.1, P-62.5: the nuclide of the oxidized nitrogen stands in front of the amine name as for the neutral amine, the class word follows
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[15N+](C)(C)[O-]", "N,N-dimethyl(15N)methanamine N-oxide", id="acyclic_amine_oxide"),
+        pytest.param("C[15N+]1([O-])CCCCC1", "1-methyl(15N)piperidine 1-oxide", id="ring_amine_oxide"),
+        pytest.param("[O-][15n+]1ccncc1", "(1-15N)pyrazine 1-oxide", id="oxidized_nitrogen_of_a_diazine"),
+        pytest.param("[O-][n+]1cc[15n]cc1", "(4-15N)pyrazine 1-oxide", id="other_nitrogen_of_a_diazine_oxide"),
+    ],
+)
+def test_nuclide_on_the_nitrogen_of_an_n_oxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
