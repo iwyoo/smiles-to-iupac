@@ -715,7 +715,7 @@ def _name_isotope_label(mol) -> str:
             return name_guanidine(mol)
         except UnsupportedStructure:
             pass
-    if split is not None and has_amino_acid_shape(split[0]):
+    if split is not None and (has_amino_acid_shape(split[0]) or has_inorganic_acid_derivative_shape(split[0])):
         try:
             return _name_labelled_substituents(mol)
         except UnsupportedStructure:
@@ -794,13 +794,51 @@ def _name_labelled_substituents(mol):
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
             context["consumed"].clear()
-            name = _name_mol(clean)
+            try:
+                name = _name_mol(clean)
+            except UnsupportedStructure:
+                context["consumed"].clear()
+                name = name_chalcogen_chain_heterone(clean)
     finally:
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
-        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+        name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"])
     _require_isotopes_cited(mol, name)
     return name
+
+
+_PARENT_ATOM_STEM = {
+    5: "bor", 14: "sil", 15: "phosph", 16: "sulf|thi", 33: "ars", 34: "selen", 51: "stib", 52: "tellur",
+}
+
+
+def _cite_parent_atom_nuclide(name, clean, labels, open_atoms):
+    """`name` with the nuclide of the one atom of its element, the atom the parent name is built on, in front of the stem
+    that names that element (P-82.2.1, P-82.6.1.1); a name that does not delimit that stem exactly once is refused."""
+    from ._isotope_labels import descriptor
+
+    if len(open_atoms) != 1:
+        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+    (atom,) = open_atoms
+    z = clean.GetAtomWithIdx(atom).GetAtomicNum()
+    entry = labels[atom]
+    if (
+        z not in _PARENT_ATOM_STEM
+        or entry["H"]
+        or not entry["skeleton"]
+        or sum(1 for a in clean.GetAtoms() if a.GetAtomicNum() == z) != 1
+    ):
+        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+    depth, outside = 0, []
+    for char in name:
+        depth += char in "([{"
+        depth -= char in ")]}"
+        outside.append(depth == 0)
+    stems = [m for m in re.finditer(_PARENT_ATOM_STEM[z], name) if outside[m.start()]]
+    if len(stems) != 1 or re.search(r"λ\d+-$", name[: stems[0].start()]):
+        raise UnsupportedStructure("the parent stem of the labelled atom is not delimited in this name")
+    at = stems[0].start()
+    return name[:at] + descriptor({atom: entry}, {atom: 1}, True) + name[at:]
 
 
 def _labelled_namer(namer):
@@ -812,7 +850,7 @@ def _labelled_namer(namer):
 
         clean, labels, index = split_isotopes(mol)
         if any(
-            clean.GetAtomWithIdx(a).GetAtomicNum() != 6
+            clean.GetAtomWithIdx(a).GetAtomicNum() not in (6, 5, 14, 15, 16, 33, 34, 51, 52)
             and not (clean.GetAtomWithIdx(a).GetAtomicNum() in HALOGEN_PREFIXES and clean.GetAtomWithIdx(a).GetDegree() == 1)
             for a in labels
         ):

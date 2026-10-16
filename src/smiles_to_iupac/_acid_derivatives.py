@@ -1509,14 +1509,20 @@ _LEADING_HYDROGEN_NUCLIDES = re.compile(r"^\((?:[\d,]+-)?(\d+H)(\d*)\)")
 
 
 def has_isotope_acyl_halide_shape(mol):
-    """A single acyl or sulfonyl halide group whose isotopic labels all sit on carbon or hydrogen atoms."""
+    """A single acyl or sulfonyl halide group whose isotopic labels all sit on carbon or hydrogen atoms, the centre of the
+    group or its doubly bonded oxygens."""
     if not any(a.GetIsotope() for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) != 1:
         return False
     links, acid = find_links(_without_nuclides(mol))
     if not links or acid or not all(l.kind == "halide" for l in links):
         return False
     carbonyl_oxygens = {n.GetIdx() for l in links for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetAtomicNum() == 8}
-    return all(a.GetAtomicNum() in (1, 6) or a.GetIdx() in carbonyl_oxygens for a in mol.GetAtoms() if a.GetIsotope())
+    centres = {l.center for l in links}
+    return all(
+        a.GetAtomicNum() in (1, 6) or a.GetIdx() in carbonyl_oxygens or a.GetIdx() in centres
+        for a in mol.GetAtoms()
+        if a.GetIsotope()
+    )
 
 
 def _without_nuclides(mol):

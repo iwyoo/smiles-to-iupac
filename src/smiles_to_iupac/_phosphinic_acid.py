@@ -38,7 +38,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._parent_choice import senior_parent_name
 from ._phosphonic_acid import CENTER_STEMS, acid_prefixes, require_phosphorus_acid_scope, senior_acid_centres
-from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
+from ._substituents import centre_nuclides, cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 
 
@@ -106,4 +106,5 @@ def _name_at(mol, phosphorus):
 
     with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
         entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
-    return len(entries), f"{format_mononuclear_prefixes(entries)}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"
+    centre = centre_nuclides(phosphorus.GetIdx())
+    return len(entries), f"{format_mononuclear_prefixes(entries)}{centre}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"

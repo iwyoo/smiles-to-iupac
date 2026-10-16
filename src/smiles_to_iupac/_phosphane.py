@@ -163,7 +163,7 @@ from ._common import (
     plain_phenyl_substituent_atoms,
 )
 from ._hydride_ring_groups import hydride_ring_groups
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import centre_nuclides, format_mononuclear_prefixes, name_branch
 
 
 def has_simple_phosphane_shape(mol) -> bool:
@@ -286,8 +286,9 @@ def name_simple_phosphane(mol) -> str:
     # -- see #1018), so it's not handled here.
     if valence not in (3, 5):
         raise UnsupportedStructure(f"a phosphorus bonding number of {valence} is not supported yet")
+    nuclide = centre_nuclides(phosphorus.GetIdx())
     parent = f"λ{valence}-phosphane" if valence == 5 else "phosphane"
     if not substituent_names:
-        return parent
-    prefix = format_mononuclear_prefixes(substituent_names)
+        return nuclide + parent
+    prefix = format_mononuclear_prefixes(substituent_names) + nuclide
     return f"{prefix}-{parent}" if valence == 5 else prefix + parent

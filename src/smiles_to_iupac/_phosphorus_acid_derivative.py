@@ -12,6 +12,7 @@ from ._oxoacid_acyl import is_senior_centre
 from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
 from ._substituents import (
     alpha_sort_key,
+    centre_nuclides,
     cited_stereo_around,
     format_mononuclear_prefixes,
     format_substituent_prefixes,
@@ -117,18 +118,19 @@ def _name_derivative(mol, found) -> str:
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     count = len(rest)
+    nuclide = centre_nuclides(center.GetIdx())
     if kind == "halide":
         word = _halide_word(mol, rest[0], center)
-        head = "" if carbons else f"{stem}oryl"
+        head = "" if carbons else f"{nuclide}{stem}oryl"
         prefixes = [name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for c in carbons]
         organyl = format_mononuclear_prefixes(prefixes) if prefixes else ""
         if not carbons:
             if sulfur:
                 raise UnsupportedStructure("thio acid halides of the acid with no organyl group are not supported yet")
             return f"{head} {_MULTIPLIER[count]}{word}"
-        return f"{organyl}{acid} {_MULTIPLIER[count]}{word}"
+        return f"{organyl}{nuclide}{acid} {_MULTIPLIER[count]}{word}"
     if kind == "amidic halide":
-        return _amidic_halide(mol, graph, halogens, aromatic, center, carbons, rest, stem, sulfur)
+        return _amidic_halide(mol, graph, halogens, aromatic, center, carbons, rest, stem, sulfur, nuclide)
     amino = []
     for nitrogen in rest:
         subs = [
@@ -152,7 +154,7 @@ def _name_derivative(mol, found) -> str:
     prefix = format_substituent_prefixes(grouped, omit_locants=False)
     if complete:
         prefix = _strip_locants(prefix)
-    return f"{prefix}{acid} {_MULTIPLIER[count]}amide"
+    return f"{prefix}{nuclide}{acid} {_MULTIPLIER[count]}amide"
 
 
 def _strip_locants(prefix):
@@ -161,7 +163,7 @@ def _strip_locants(prefix):
     return re.sub(r"^(?:N'*,)*N'*-", "", prefix)
 
 
-def _amidic_halide(mol, graph, halogens, aromatic, center, carbons, rest, stem, sulfur):
+def _amidic_halide(mol, graph, halogens, aromatic, center, carbons, rest, stem, sulfur, nuclide):
     """One amino group beside identical halogens: 'N,N-dimethylphosphoramidic dichloride' (P-67.1.2.5.1)."""
     if sulfur:
         raise UnsupportedStructure("thio amidic halides are not supported yet")
@@ -182,4 +184,4 @@ def _amidic_halide(mol, graph, halogens, aromatic, center, carbons, rest, stem, 
         positions[_SYMBOL[center.GetAtomicNum()]] = organyl
     prefix = format_substituent_prefixes(group_substituents(positions)) if positions else ""
     acid = f"{stem}{'or' if not carbons else 'on' if len(carbons) == 1 else 'in'}amidic"
-    return f"{prefix}{acid} {_MULTIPLIER[len(halides)]}{_HALIDE[halides[0].GetAtomicNum()]}"
+    return f"{prefix}{nuclide}{acid} {_MULTIPLIER[len(halides)]}{_HALIDE[halides[0].GetAtomicNum()]}"

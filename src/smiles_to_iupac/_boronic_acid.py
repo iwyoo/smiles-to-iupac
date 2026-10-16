@@ -35,7 +35,7 @@ from ._borinic_acid import BORON_ACID_ELEMENTS, _borinic_acid_boron_atoms
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON, boron_acid_parent
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._substituents import cited_stereo_around, name_branch
+from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 _BORON = 5
 
@@ -103,4 +103,4 @@ def name_boronic_acid(mol) -> str:
     with boron_acid_parent(), cited_stereo_around(mol, boron.GetIdx()):
         name, is_compound = name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol)
     prefix = enclose(name) if is_compound else name
-    return f"{prefix}boronic acid"
+    return f"{prefix}{centre_nuclides(boron.GetIdx())}boronic acid"

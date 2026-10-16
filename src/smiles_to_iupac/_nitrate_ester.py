@@ -34,6 +34,7 @@ groups on one organyl group are named like the acetates of the same polyol (P-65
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._substituents import centre_nuclides
 from ._phosphate import check_ester_organyl, cited_ester_groups, format_ester_words, name_polyester_through_acetates
 
 _NITROGEN = 7
@@ -124,6 +125,7 @@ def name_nitrate_ester(mol) -> str:
     (root,) = [n for n in graph[ester_oxygen_idx] if n != nitrogen.GetIdx()]
     ((name, _),) = cited_ester_groups(mol, graph, [(root, ester_oxygen_idx)], halogens, aromatic_atoms)
     word, symbol = _ESTER_ATOMS[mol.GetAtomWithIdx(ester_oxygen_idx).GetAtomicNum()]
+    nuclide = centre_nuclides(nitrogen.GetIdx())
     if word:
-        return f"{symbol}-{format_ester_words([name])} {word}nitrate"
-    return format_ester_words([name]) + " nitrate"
+        return f"{symbol}-{format_ester_words([name])} {word}{nuclide}nitrate"
+    return f"{format_ester_words([name])} {nuclide}nitrate"

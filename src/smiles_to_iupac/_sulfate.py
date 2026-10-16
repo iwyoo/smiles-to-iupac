@@ -37,6 +37,7 @@ chalcogen-replacement analogue, and any other heteroatom.
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from ._substituents import centre_nuclides
 from ._phosphate import allowed_outside_oxygen, cited_ester_groups, format_ester_entries
 from ._salt import _MONOATOMIC_CATION_NAMES
 
@@ -165,5 +166,6 @@ def name_sulfate(mol) -> str:
     # -- mirrors `_phosphate.py`'s own partial-ester citation, confirmed
     # worked example "CH3-O-SO2-OH -> methyl hydrogen sulfate (PIN)"
     # (the Blue Book).
-    anion_name = f"{ester_words} hydrogen sulfate" if has_hydroxyl else ester_words + " sulfate"
+    nuclide = centre_nuclides(sulfur.GetIdx())
+    anion_name = f"{ester_words} hydrogen {nuclide}sulfate" if has_hydroxyl else f"{ester_words} {nuclide}sulfate"
     return f"{cation_name} {anion_name}" if cation_name else anion_name

@@ -2335,9 +2335,10 @@ def _ionic_linker_centre(mol):
 
 _SUFFIX_WORD = {
     "alcohol": "ol", "ketone": "one", "aldehyde": "al", "peroxol": "peroxol", "thiol": "thiol", "selenol": "selenol", "tellurol": "tellurol",
+    "thione": "thione", "selone": "selone", "tellone": "tellone",
     **{name: name for name in _PEROXOL_ANALOGUES},
 }
-_SUFFIX_ELEMENT = {"thiol": 16, "selenol": 34, "tellurol": 52}
+_SUFFIX_ELEMENT = {"thiol": 16, "selenol": 34, "tellurol": 52, "thione": 16, "selone": 34, "tellone": 52}
 
 
 def _principal_owned(mol):
@@ -2414,6 +2415,7 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
     acid = (_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and element in (8, 16, 34, 52)
+    acid = acid or (principal in ("sulfonamide", *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER) and element in (16, 34, 52))
     if not (nitrogen or acid):
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []
@@ -3358,11 +3360,12 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     """A single Si, Ge, P, B, ... atom is the senior parent hydride when there is no principal group (P-44.1.2):
     'trimethyl(phenyl)silane', 'methoxy(trimethyl)silane'. On a Group 14 atom a hydroxy or amino group is the
     suffix (P-68.2): 'trimethylsilanol', 'trimethylsilanamine' ('1,1,1-trimethyl-N-(trimethylsilyl)silanamine' once N-locants occur)."""
-    from ._substituents import format_mononuclear_prefixes
+    from ._substituents import centre_nuclides, format_mononuclear_prefixes
 
     z = center.GetAtomicNum()
     stem, _, valence = MONONUCLEAR_HYDRIDES[z]
     index = center.GetIdx()
+    nuclide = centre_nuclides(index, consume=False)
     neighbors = [n for n in graph[index]]
     if (
         center.GetFormalCharge()
@@ -3417,7 +3420,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         suffix = (
             stem[:-1] + "ol" if principal_word == "ol" and len(suffix_atoms) == 1 else stem + multiplied_word(len(suffix_atoms), principal_word)
         )
-        return format_mononuclear_prefixes(entries) + suffix
+        return format_mononuclear_prefixes(entries) + nuclide + suffix
     if amines:
         grouped = group_substituents({1: entries} if entries else {})
         n_entries = [
@@ -3428,8 +3431,8 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         ]
         merged = _with_n_names(grouped, n_entries)
         suffix = stem[:-1] + "amine" if len(amines) == 1 else stem + multiplied_word(len(amines), "amine")
-        return format_substituent_prefixes(merged, omit_locants=len(amines) > 1 and not n_entries) + suffix
-    return format_mononuclear_prefixes(entries) + stem
+        return format_substituent_prefixes(merged, omit_locants=len(amines) > 1 and not n_entries) + nuclide + suffix
+    return format_mononuclear_prefixes(entries) + nuclide + stem
 
 
 def _hydroxy_suffix_count(name):
@@ -3621,7 +3624,10 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         ]
         if named:
             *_, name, center = min(named)
-            return ((0,), name, (None, None, None, 0, {center: 1}, False))
+            from ._substituents import centre_nuclides
+
+            cited = bool(centre_nuclides(center))
+            return ((0,), name, (None, None, None, 0, {} if cited else {center: 1}, False))
     if centers or (
         not ring_cation
         and not (any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms()) and _only_plain_hydrazines(mol))

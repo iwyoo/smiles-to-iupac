@@ -19,7 +19,8 @@ from ._common import (
 )
 from ._numerals import numerical_term
 from ._phosphanone import _SENIOR
-from ._substituents import format_substituent_prefixes, name_branch
+from ._isotope_labels import descriptor
+from ._substituents import ISOTOPE_LABELS, format_substituent_prefixes, name_branch, suffix_nuclides
 
 _STEMS = {16: "sulfane", 34: "selane", 52: "tellane", 15: "phosphane"}
 _STANDARD_VALENCE = {16: 2, 34: 2, 52: 2, 15: 3}
@@ -110,6 +111,8 @@ def name_chalcogen_chain_heterone(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+    context = ISOTOPE_LABELS.get()
+    labelled = {a: context["labels"][a] for a in order if context and a in context["labels"] and a not in context["consumed"]}
     nitriles = _nitrile_carbons(mol, order)
     if any(
         mol.HasSubstructMatch(query) for query in _SENIOR if Chem.MolToSmarts(query) != "[C&X2]#[N&X1]"
@@ -161,6 +164,7 @@ def name_chalcogen_chain_heterone(mol) -> str:
             sorted(min(position[a], position[b]) for a, b in double_bonds),
             sorted(position[i] for i, _ in attached),
             [loc for _, loc in prefixes],
+            sorted(position[a] for a in labelled),
         ), position
 
     best_key, position = min(
@@ -180,7 +184,10 @@ def name_chalcogen_chain_heterone(mol) -> str:
         parent = f"{numerical_term(len(order))}{stem[:-3]}{locant_text}{multiplied_word(len(ene_locants), 'ene')}"
     else:
         parent = f"{numerical_term(len(order))}{stem}"
-    head = f"{prefix_text}-" if prefix_text else ""
+    text = descriptor(labelled, position, False, capacity={a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in order}) if labelled else ""
+    if labelled:
+        context["consumed"].update(labelled)
+    head = f"{prefix_text}{text}-" if prefix_text or text else ""
     lambda_head = f"{lambda_text}-" if lambda_text else ""
     if nitriles:
         if oxo and any(oxo.values()):
@@ -191,4 +198,5 @@ def name_chalcogen_chain_heterone(mol) -> str:
     suffix = multiplied_word(len(best_key[1]), "one")
     if suffix[0] in "aeiou":
         parent = parent[:-1]
+    suffix = suffix_nuclides([o for i in order for o in oxo[i]], "one")
     return f"{head}{lambda_head}{parent}-{suffix_locants}-{suffix}"
