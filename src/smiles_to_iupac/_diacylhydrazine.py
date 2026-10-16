@@ -5,8 +5,9 @@ stood in for by methyl groups whose names are replaced by the acyl prefixes, as 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._diacylamine import _acyl_roots, _rank, _side, donor_names
+from ._diacylamine import _acyl_roots, _rank, _side, donor_names, forced_for_unlabelled, modified_atoms_beyond, unlabelled_with_labels
 from ._dipolar import _smiles_with_order
+from ._isotope_labels import restore_labels
 from ._substituents import FORCED_BRANCH_NAMES
 
 
@@ -48,9 +49,10 @@ def _parent_rank(mol, graph, root, nitrogen):
 
 def diacylhydrazine_name(mol):
     """The name of a molecule with an acyclic N-N bond whose nitrogens carry two or more acyl groups, else None."""
-    if len(Chem.GetMolFrags(mol)) != 1 or any(
-        a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()
-    ):
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
+    mol, labels = unlabelled_with_labels(mol)
+    if mol is None:
         return None
     pairs = []
     for a, b in _hydrazine_pair(mol):
@@ -64,7 +66,10 @@ def diacylhydrazine_name(mol):
     parents, donors = set(), []
     for _, _, roots in pairs:
         candidates = [(r, n) for n, rs in roots.items() for r in rs]
-        parent = min(candidates, key=lambda item: (_parent_rank(mol, graph, item[0], item[1]), item[0]))[0]
+        parent = min(
+            candidates,
+            key=lambda item: (_parent_rank(mol, graph, item[0], item[1]), modified_atoms_beyond(graph, labels, *item), item[0]),
+        )[0]
         parents.add(parent)
         donors += [(r, n) for r, n in candidates if r != parent]
     taken = [_side(graph, r, n) for r, n in donors]
@@ -75,7 +80,7 @@ def diacylhydrazine_name(mol):
     halogens = halogen_substituents(mol)
     aromatic = frozenset(x.GetIdx() for x in mol.GetAtoms() if x.GetIsAromatic())
     try:
-        names = donor_names(mol, graph, donors, halogens, aromatic)
+        names = donor_names(mol, graph, donors, halogens, aromatic, labels)
     except UnsupportedStructure:
         return None
     editable = Chem.RWMol(mol)
@@ -90,6 +95,7 @@ def diacylhydrazine_name(mol):
             if bond.GetOtherAtomIdx(r) in removed:
                 editable.RemoveBond(r, bond.GetOtherAtomIdx(r))
         editable.AddBond(n, r, Chem.BondType.SINGLE)
+    restore_labels(editable, mol, labels, skip=removed | {r for r, _ in donors})
     for idx in sorted(removed, reverse=True):
         editable.RemoveAtom(idx)
     old_to_new, shift = {}, 0
@@ -104,10 +110,10 @@ def diacylhydrazine_name(mol):
     except Chem.rdchem.MolSanitizeException:
         return None
     smiles, position = _smiles_with_order(stand_in)
-    forced = {position[old_to_new[r]]: names[r] for r, _ in donors}
+    forced = forced_for_unlabelled(stand_in, position, {old_to_new[r]: names[r] for r, _ in donors})
     from .core import smiles_to_iupac
 
-    token = FORCED_BRANCH_NAMES.set((stand_in.GetNumAtoms(), forced))
+    token = FORCED_BRANCH_NAMES.set(forced)
     try:
         name = smiles_to_iupac(smiles)
     except UnsupportedStructure:
