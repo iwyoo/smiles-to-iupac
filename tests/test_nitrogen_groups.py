@@ -1141,6 +1141,11 @@ def test_phenyl_nitroso_unsaturation_and_related(smiles, expected):
         pytest.param("CCN(C)C(=O)NC", "N-ethyl-N,N'-dimethylurea", id="more_substituents_take_the_unprimed_locant"),
         pytest.param("O=C(Nc1ccccc1)Nc1ccccn1", "N-phenyl-N'-(pyridin-2-yl)urea", id="heteroaromatic_ring_n_substituent"),
         pytest.param("C=CNC(=O)Nc1ccc(Cl)cc1", "N-(4-chlorophenyl)-N'-ethenylurea", id="halogenated_ring_and_unsaturated_n_substituents"),
+        pytest.param("CCNC(=O)N[Si](C)(C)C", "N-ethyl-N'-(trimethylsilyl)urea", id="silyl_group_on_a_urea_nitrogen"),
+        pytest.param("O=C(N[SiH3])N[SiH3]", "N,N'-disilylurea", id="same_element_group_on_both_urea_nitrogens"),
+        pytest.param("NC(=O)N[GeH3]", "germylurea", id="element_hydride_atom_is_a_substituent_of_the_urea"),
+        pytest.param("NC(=N)N[Ge](C)(C)C", "N-(trimethylgermyl)guanidine", id="germyl_group_on_a_guanidine_nitrogen"),
+        pytest.param("NC(=N)N(C)[SiH3]", "N-methyl-N-silylguanidine", id="silyl_and_carbon_group_on_one_guanidine_nitrogen"),
     ],
 )
 def test_n_methyl_n_and_related(smiles, expected):

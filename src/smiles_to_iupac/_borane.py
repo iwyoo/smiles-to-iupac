@@ -108,7 +108,9 @@ from ._substituents import format_mononuclear_prefixes, name_branch
 
 
 def has_simple_borane_shape(mol) -> bool:
-    return any(atom.GetAtomicNum() == 5 for atom in mol.GetAtoms())
+    from ._guanidine import has_carbonic_amide_parent
+
+    return any(atom.GetAtomicNum() == 5 for atom in mol.GetAtoms()) and not has_carbonic_amide_parent(mol)
 
 
 def _validate_and_collect_substituents(mol):

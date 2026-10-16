@@ -140,6 +140,14 @@ def has_guanidine_shape(mol) -> bool:
     return _guanidine_core(mol) is not None or _guanidine_core(mol, hydrazine=True) is not None
 
 
+def has_carbonic_amide_parent(mol) -> bool:
+    """A urea, thiourea or guanidine group: a class that outranks the element hydride whose atom is only a substituent
+    on its nitrogen (P-41, P-44.1.1)."""
+    from ._urea import has_urea_shape
+
+    return has_urea_shape(mol) or has_guanidine_shape(mol)
+
+
 _AMIDINE_CARBON = Chem.MolFromSmarts("[CX3](=[NX2])[NX3]")
 
 

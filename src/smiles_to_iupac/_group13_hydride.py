@@ -90,16 +90,22 @@ GROUP_15_STEMS = {
 }
 
 
+def _hydride_is_parent(mol) -> bool:
+    from ._guanidine import has_carbonic_amide_parent
+
+    return not has_carbonic_amide_parent(mol)
+
+
 def has_group13_hydride_shape(mol) -> bool:
-    return any(atom.GetAtomicNum() in GROUP_13_STEMS for atom in mol.GetAtoms())
+    return _hydride_is_parent(mol) and any(atom.GetAtomicNum() in GROUP_13_STEMS for atom in mol.GetAtoms())
 
 
 def has_group14_hydride_shape(mol) -> bool:
-    return any(atom.GetAtomicNum() in GROUP_14_STEMS for atom in mol.GetAtoms())
+    return _hydride_is_parent(mol) and any(atom.GetAtomicNum() in GROUP_14_STEMS for atom in mol.GetAtoms())
 
 
 def has_group15_hydride_shape(mol) -> bool:
-    return any(atom.GetAtomicNum() in GROUP_15_STEMS for atom in mol.GetAtoms())
+    return _hydride_is_parent(mol) and any(atom.GetAtomicNum() in GROUP_15_STEMS for atom in mol.GetAtoms())
 
 
 def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
