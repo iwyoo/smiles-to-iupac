@@ -200,6 +200,13 @@ def _center(mol, idx):
     return kind, oxo, positions
 
 
+def _inorganic_anhydride(near, far):
+    """Whether a link between two noncarbon acid centres is an anhydride (P-67.1.3.3): one is an acid of one position
+    with an oxo group, as in phosphinic acid. Between two -ous centres the compound is an alternating heteroatom chain
+    and between two polybasic acids a polynuclear acid (P-68.1.1.2.2, P-67.1.2)."""
+    return (len(near[2]) == 1 or len(far[2]) == 1) and bool(near[1] or far[1])
+
+
 def find_links(mol):
     """Every junction at an acyl, carbonic or cyanic centre: (links, free acid present)."""
     links, acid = [], []
@@ -243,7 +250,8 @@ def find_links(mol):
                 if found[0] == "carbonic" and _center(mol, far.GetIdx())[0] == "carbonic" and len(chain) == 1:
                     continue
                 if found[0] == "inorganic" and _center(mol, far.GetIdx())[0] == "inorganic" and len(chain) == 1:
-                    continue
+                    if not _inorganic_anhydride(found, _center(mol, far.GetIdx())):
+                        continue
                 links.append(Link("anhydride", idx, tuple(chain), far.GetIdx()))
             elif far.GetAtomicNum() == 6 or (
                 far.GetAtomicNum() in _PSEUDOESTER_ELEMENTS
