@@ -3673,23 +3673,34 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     eligible = {
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not is_functional_carbon(mol, a.GetIdx())
     }
+    from ._substituents import ISOTOPE_LABELS
+
     best = None
     stereo_context = BRANCH_STEREO.get()
     used_before = set(stereo_context["used"]) if stereo_context else set()
     best_used = set()
+    isotope_context = ISOTOPE_LABELS.get()
+    consumed_before = set(isotope_context["consumed"]) if isotope_context else set()
+    best_consumed = set()
     paths = _paths(graph, eligible)
     longest = max((len(p) for p in paths), default=0)
     for path in (p for p in paths if len(p) == longest):
         for chain in (path, path[::-1]):
             if stereo_context:
                 stereo_context["used"] &= used_before
+            if isotope_context:
+                isotope_context["consumed"] &= consumed_before
             candidate = _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo)
             if best is None or candidate[0] < best[0]:
                 best = candidate
                 best_used = set(stereo_context["used"]) - used_before if stereo_context else set()
+                best_consumed = set(isotope_context["consumed"]) - consumed_before if isotope_context else set()
     if stereo_context:
         stereo_context["used"] &= used_before
         stereo_context["used"] |= best_used
+    if isotope_context:
+        isotope_context["consumed"] &= consumed_before
+        isotope_context["consumed"] |= best_consumed
     if best is None:
         raise UnsupportedStructure("no chain carbons")
     return best
