@@ -1753,6 +1753,8 @@ def test_carbamic_acid_esters_of_amino_groups(smiles, expected):
         pytest.param("NOCc1ccccc1", "O-benzylhydroxylamine", id="o_benzyl_hydroxylamine"),
         pytest.param("NOc1ccccc1C", "O-(2-methylphenyl)hydroxylamine", id="o_substituted_phenyl_hydroxylamine"),
         pytest.param("NOC(C)C", "O-(propan-2-yl)hydroxylamine", id="o_branched_alkyl_hydroxylamine"),
+        pytest.param("c1ccccc1/C=C/CON", "O-[(2E)-3-phenylprop-2-en-1-yl]hydroxylamine", id="o_alkenyl_with_a_ring_cites_its_configuration"),
+        pytest.param("NOC[C@H](C)CC", "O-[(2R)-2-methylbutyl]hydroxylamine", id="o_alkyl_cites_its_stereocentre"),
     ],
 )
 def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
