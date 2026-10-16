@@ -995,3 +995,16 @@ def test_stereodescriptors_in_a_multiplicative_name(smiles, expected):
 )
 def test_divalent_central_groups_with_replaced_chalcogen_positions_and_hetero_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("c1ncn(NCCNn2cncn2)n1", "1,1'-[ethane-1,2-diylbis(azanediyl)]bis(1H-1,2,4-triazole)", id="two_azol_1_amines_joined_through_a_chain"),
+        pytest.param("N(n1cnnc1)n1cnnc1", "N-(4H-1,2,4-triazol-4-yl)-4H-1,2,4-triazol-4-amine", id="single_nh_between_two_ring_nitrogens_is_an_amine"),
+        pytest.param("c1ncn(N(C)n2cncn2)n1", "N-methyl-N-(1H-1,2,4-triazol-1-yl)-1H-1,2,4-triazol-1-amine", id="substituted_nitrogen_between_two_ring_nitrogens"),
+    ],
+)
+def test_azolyl_units_joined_through_a_nitrogen_of_the_linker(smiles, expected):
+    # P-15.3.2, P-62.2.1.3: a nitrogen bonded to two ring nitrogens is the amine of the ring, not a linker of two ring hydrides
+    assert smiles_to_iupac(smiles) == expected

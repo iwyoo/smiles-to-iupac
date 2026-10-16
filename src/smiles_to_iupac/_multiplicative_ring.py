@@ -500,7 +500,7 @@ def bare_polycyclic_unit(mol, atoms, junction, name_function=None):
     rw = Chem.RWMol(mol)
     for a in atoms:
         atom = rw.GetAtomWithIdx(a)
-        if atom.GetIsAromatic() and atom.GetAtomicNum() != 6:
+        if atom.GetIsAromatic() and atom.GetAtomicNum() != 6 and a != junction:
             lost = sum(
                 1
                 for n in atom.GetNeighbors()

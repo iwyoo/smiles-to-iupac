@@ -28,6 +28,7 @@ from ._multiplicative_ring import (
     substituted_polycyclic_unit,
 )
 from ._multiplicative_text import enclose, join_parts, multiplier_word, primed_locants
+from ._pin import mark
 
 _MAX_GROUP = 8
 _SENIOR_HYDRIDE_ATOMS = {5, 14, 15, 32, 33, 50, 51, 82, 83}
@@ -370,6 +371,12 @@ def _formazan_central(mol, linker_nodes, selected):
     return None if found is None else Part(found[0], found[1], True)
 
 
+def _amino_on_ring_nitrogen(mol, unit):
+    """An acyclic nitrogen bonded to a ring nitrogen of the unit (an azol-1-amine nitrogen, P-62.2.1.3)."""
+    junction, linker = mol.GetAtomWithIdx(unit.junction), mol.GetAtomWithIdx(unit.linker_atom)
+    return junction.GetAtomicNum() == 7 and junction.IsInRing() and linker.GetAtomicNum() == 7 and not linker.IsInRing()
+
+
 def _attempt(mol, groups, selected, tree, core, name_function):
     systems, node_of, adj = tree
     selected_nodes = {u.node for u in selected}
@@ -407,6 +414,9 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         if principal_group not in SUFFIX_CARRIERS and principal_group not in KETONE_LIKE:
             return None
     if principal_group == "amine" and any(mol.GetAtomWithIdx(u.linker_atom).GetAtomicNum() == 7 for u in selected):
+        return None
+    amino_on_ring_nitrogen = any(_amino_on_ring_nitrogen(mol, u) for u in selected)
+    if amino_on_ring_nitrogen and len({u.linker_atom for u in selected}) == 1:
         return None
     soft = any(mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1 for u in selected)
     ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft)
@@ -502,6 +512,8 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     descriptors = _unit_descriptors(mol, selected, unit)
     if descriptors is False:
         return None
+    if amino_on_ring_nitrogen:
+        mark(name, "the amine groups on the ring nitrogens are principal groups, which outrank the ring hydrides multiplied here (P-44.1.1)")
     return name if descriptors is None else f"{descriptors}{name}"
 
 
