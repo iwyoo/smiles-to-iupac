@@ -21,6 +21,7 @@ from rdkit import Chem
 
 from ._common import assign_cip_labels
 from ._common import find_carboxylic_acid_carbon
+from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._common import adjacency, specified_stereocenters
 
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
@@ -102,7 +103,7 @@ def _match(mol):
 
 
 def has_proline_shape(mol) -> bool:
-    return _match(mol) is not None
+    return not SYSTEMATIC_ACID_PROBE.get() and _match(mol) is not None
 
 
 def _alpha_descriptor(mol, alpha_carbon, substituents):
