@@ -3053,9 +3053,12 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     if isotope_context:
         isotope_context["consumed"] |= chain_consumed
     if _is_terminal(principal) and chain_count < len(principal_atoms):
+        used_with_chain = set(stereo_context["used"]) if stereo_context else set()
         carbo = _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo, n_names)
         if carbo is not None and -carbo[0][0] > chain_count:
             return _finish(carbo)
+        if stereo_context:
+            stereo_context["used"] &= used_with_chain
     if (
         _is_terminal(principal)
         and not (principal in ("amidine", *_AMIDRAZONE) and attach is None)

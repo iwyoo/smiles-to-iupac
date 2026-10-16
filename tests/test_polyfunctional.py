@@ -883,6 +883,11 @@ def test_saturated_fused_systems_use_hydro_prefixes(smiles, expected):
         ("C/C=C1\\CCCC[C@H]1O", "(1R,2E)-2-ethylidenecyclohexan-1-ol"),
         pytest.param("F/C=C1\\CC[C@H](C(=O)O)C1", "(1S,3E)-3-(fluoromethylidene)cyclopentane-1-carboxylic acid", id="ring_parent_of_an_acid"),
         pytest.param("F/C=C1\\CC[C@H](C(C)=O)C1", "1-[(1S,3E)-3-(fluoromethylidene)cyclopentyl]ethan-1-one", id="ring_substituent_of_a_ketone_chain"),
+        pytest.param(
+            "N#C/C=C1/CCCC/C1=C\\C#N",
+            "(2Z)-[(2E)-2-(cyanomethylidene)cyclohexylidene]acetonitrile",
+            id="parent_bond_beside_a_second_ylidene_on_the_ring",
+        ),
     ],
 )
 def test_ring_stereodescriptors_are_cited_once(smiles, expected):
