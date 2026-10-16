@@ -177,7 +177,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -761,18 +761,27 @@ def _name_isotope_label(mol) -> str:
 
 def _same_descriptors(mol, clean, index):
     """Whether every stereo element has the same CIP descriptor with and without the nuclides (P-92.1.4)."""
+    return _isotopic_centres(mol, clean, index) is not None
+
+
+def _isotopic_centres(mol, clean, index):
+    """{atom of `clean`: descriptor} of the centres that only their nuclides make stereogenic (P-82.4.1) when every other
+    stereo element has the same descriptor with and without the nuclides; None when a descriptor changes."""
     labelled, plain = Chem.Mol(mol), Chem.Mol(clean)
     assign_cip_labels(labelled)
     assign_cip_labels(plain)
-    atoms = {index[a.GetIdx()]: a.GetProp("_CIPCode") for a in labelled.GetAtoms() if a.HasProp("_CIPCode")}
+    atoms = {index[a.GetIdx()]: a.GetProp("_CIPCode") for a in labelled.GetAtoms() if a.HasProp("_CIPCode") and a.GetIdx() in index}
     bonds = {
         frozenset((index[b.GetBeginAtomIdx()], index[b.GetEndAtomIdx()])): b.GetProp("_CIPCode")
         for b in labelled.GetBonds()
         if b.HasProp("_CIPCode")
     }
-    return atoms == {a.GetIdx(): a.GetProp("_CIPCode") for a in plain.GetAtoms() if a.HasProp("_CIPCode")} and bonds == {
+    known = {a.GetIdx(): a.GetProp("_CIPCode") for a in plain.GetAtoms() if a.HasProp("_CIPCode")}
+    if bonds != {
         frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())): b.GetProp("_CIPCode") for b in plain.GetBonds() if b.HasProp("_CIPCode")
-    }
+    } or any(atoms.get(i) != code for i, code in known.items()):
+        return None
+    return {i: code for i, code in atoms.items() if i not in known}
 
 
 def _name_labelled_substituents(mol):
@@ -784,12 +793,14 @@ def _name_labelled_substituents(mol):
     if split is None:
         raise UnsupportedStructure("this isotopically modified structure is not supported yet")
     clean, labels, index = split
-    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) and not _same_descriptors(
-        mol, clean, index
-    ):
-        raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
+    isotopic = {}
+    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
+        isotopic = _isotopic_centres(mol, clean, index)
+        if isotopic is None:
+            raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
     context = {"labels": labels, "consumed": set(), "mol": clean}
     token = ISOTOPE_LABELS.set(context)
+    cip_token = ISOTOPIC_CIP.set((clean.GetNumAtoms(), isotopic) if isotopic else None)
     try:
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
@@ -800,9 +811,12 @@ def _name_labelled_substituents(mol):
                 context["consumed"].clear()
                 name = name_chalcogen_chain_heterone(clean)
     finally:
+        ISOTOPIC_CIP.reset(cip_token)
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
         name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"])
+    if isotopic and not _cites_every_stereo_element(mol, name):
+        raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
     _require_isotopes_cited(mol, name)
     return name
 
@@ -855,15 +869,20 @@ def _labelled_namer(namer):
             for a in labels
         ):
             raise UnsupportedStructure("a nuclide on a heteroatom is cited with a letter locant, not by the parts of the name")
-        if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) and not _same_descriptors(
-            mol, clean, index
-        ):
-            raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
+        isotopic = {}
+        if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
+            isotopic = _isotopic_centres(mol, clean, index)
+            if isotopic is None:
+                raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
         token = ISOTOPE_LABELS.set({"labels": labels, "consumed": set(), "mol": clean})
+        cip_token = ISOTOPIC_CIP.set((clean.GetNumAtoms(), isotopic) if isotopic else None)
         try:
             result = namer(clean)
         finally:
+            ISOTOPIC_CIP.reset(cip_token)
             ISOTOPE_LABELS.reset(token)
+        if isotopic and not _cites_every_stereo_element(mol, result):
+            raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
         _require_isotopes_cited(mol, result)
         return result
 

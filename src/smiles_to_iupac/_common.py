@@ -1638,10 +1638,19 @@ def genuine_stereo_centres(mol):
     ]
 
 
+ISOTOPIC_CIP = ContextVar("isotopic_cip", default=None)
+
+
 def assign_cip_labels(mol):
     """`rdCIPLabeler.AssignCIPLabels` with the lowercase double-bond labels written as the descriptors of
-    enantiomorphic double bonds, seqCis and seqTrans (P-92.1.1, P-93.5.1.4.2.2)."""
+    enantiomorphic double bonds, seqCis and seqTrans (P-92.1.1, P-93.5.1.4.2.2). The centres made stereogenic only by
+    their nuclides, whose descriptors the unmodified structure cannot give, are read from `ISOTOPIC_CIP` (P-82.4.1)."""
     rdCIPLabeler.AssignCIPLabels(mol)
+    isotopic = ISOTOPIC_CIP.get()
+    if isotopic is not None and mol.GetNumAtoms() == isotopic[0]:
+        for index, code in isotopic[1].items():
+            if not mol.GetAtomWithIdx(index).HasProp("_CIPCode"):
+                mol.GetAtomWithIdx(index).SetProp("_CIPCode", code)
     for bond in mol.GetBonds():
         if bond.HasProp("_CIPCode") and bond.GetProp("_CIPCode") in _ENANTIOMORPHIC_BOND_CODE:
             bond.SetProp("_CIPCode", _ENANTIOMORPHIC_BOND_CODE[bond.GetProp("_CIPCode")])

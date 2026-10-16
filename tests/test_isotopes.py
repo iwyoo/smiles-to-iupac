@@ -845,3 +845,17 @@ def test_nuclides_on_the_skeleton_of_a_diazonium_cation(smiles, expected):
 )
 def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.4.1, P-92.1.4: a carbon made stereogenic only by its nuclides cites its descriptor in front of the group that holds it
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H][C@@H](C)NC(N)=O", "[(1S)-(1-2H1)ethyl]urea", id="urea"),
+        pytest.param("[2H][C@@H](C)NC(=O)OC", "methyl [(1S)-(1-2H1)ethyl]carbamate", id="carbamate_ester"),
+        pytest.param("[2H][C@H](C)OC(=O)OC", "(1R)-(1-2H1)ethyl methyl carbonate", id="carbonate_ester_cited_in_alphanumerical_order"),
+        pytest.param("[2H][C@H](C)B(O)O", "[(1S)-(1-2H1)ethyl]boronic acid", id="boron_ranks_below_carbon"),
+    ],
+)
+def test_stereocentre_made_by_nuclides_beside_a_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
