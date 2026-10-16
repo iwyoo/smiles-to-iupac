@@ -1982,6 +1982,7 @@ def test_hydroxylamine_functional_parent_and_chalcogen_analogues(smiles, expecte
         ("CCON=Cc1ccc(cc1)S(=O)(=O)O", "4-[(ethoxyimino)methyl]benzene-1-sulfonic acid"),
         ("CC(=O)C(N=Nc1ccccc1)=NNc1ccccc1", "1-(phenyldiazenyl)-1-(phenylhydrazinylidene)propan-2-one"),
         ("CC(=O)NN=CN=Nc1ccccc1", "N'-[(phenyldiazenyl)methylidene]acetohydrazide"),
+        ("CC(=O)N(C)/N=N\\C", "N-methyl-N-[(Z)-methyldiazenyl]acetamide"),
         ("NC(=O)N=N", "diazenecarboxamide"),
         ("N=NC(=O)NN", "diazenecarbohydrazide"),
         ("S=C(NNc1ccccc1)N=Nc1ccccc1", "N',2-diphenyldiazenecarbothiohydrazide"),

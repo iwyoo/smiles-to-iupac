@@ -9,7 +9,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._diacylamine import _acyl_roots, _side
 from ._dipolar import _smiles_with_order
-from ._substituents import FORCED_BRANCH_NAMES, name_branch
+from ._substituents import FORCED_BRANCH_NAMES, cited_branch_stereo, name_branch
 
 _LINKER = {1: ("methylene", "azanediyl"), 2: ("ethane-1,2-diyl", "hydrazine-1,2-diyl")}
 
@@ -113,7 +113,8 @@ def chain_amide_name(mol):
         return None
     nitrogen, root, partner = ends[0]
     try:
-        donor = name_branch(graph, partner, nitrogen, halogens, aromatic, mol=mol)
+        with cited_branch_stereo(mol, graph, {nitrogen}, [partner]):
+            donor = name_branch(graph, partner, nitrogen, halogens, aromatic, mol=mol)
     except UnsupportedStructure:
         return None
     stand_in, carbons = _stand_in(mol, [(nitrogen, partner)])
