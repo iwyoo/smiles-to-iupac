@@ -255,7 +255,14 @@ from ._dipole_oxide import (
     name_nitrile_oxide,
     name_nitrone,
 )
-from ._isotope import has_isotope_hydride_shape, has_isotope_shape, name_isotope, name_isotope_hydride
+from ._isotope import (
+    has_isotope_hydride_shape,
+    has_isotope_shape,
+    has_isotope_substituted_hydride_shape,
+    name_isotope,
+    name_isotope_hydride,
+    name_isotope_substituted_hydride,
+)
 from ._isotope_steroid import has_isotope_steroid_shape, name_isotope_steroid
 from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
 from ._radical_group import has_group_cation_shape, has_radical_group_shape, name_group_cation, name_radical_group
@@ -700,6 +707,7 @@ def _name_isotope_label(mol) -> str:
         (has_labelled_hydrazone, name_labelled_hydrazone),
         (has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen),
         (has_isotope_hydride_shape, name_isotope_hydride),
+        (has_isotope_substituted_hydride_shape, name_isotope_substituted_hydride),
         (has_isotope_one_carbon_shape, name_isotope_one_carbon),
         (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
         (has_isotope_alcohol_shape, name_isotope_alcohol),
