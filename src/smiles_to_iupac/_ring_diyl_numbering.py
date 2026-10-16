@@ -1061,7 +1061,7 @@ def _fused_mancude(mol, skeleton_atoms):
     suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
     oxo_suffix = (oxo_all & suffix_atoms) | {a for a in suffix_atoms & sp3 if ring_info.NumAtomRings(a) > 1}
     bare, old_of, parent = _named_mancude(mol, skeleton_atoms, sp3)
-    match = re.match(r"^(\d+H(?:,\d+H)*)-(.*)$", parent)
+    match = re.match(r"^(\d+[a-z]?H(?:,\d+[a-z]?H)*)-(.*)$", parent)
     ih_count = len(match.group(1).split(",")) if match else 0
     stem = match.group(2) if match else parent
     if halogens:
