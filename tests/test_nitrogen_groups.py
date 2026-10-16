@@ -352,6 +352,17 @@ def test_azide_prefix_on_substituted_ring_and_unsaturated_parent(smiles, expecte
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[N-]=[N+]=NCCP(=O)(O)O", "(2-azidoethyl)phosphonic acid", id="phosphonic_acid"),
+        pytest.param("[N-]=[N+]=NCCNC(N)=O", "(2-azidoethyl)urea", id="urea"),
+    ],
+)
+def test_azido_prefix_beside_a_noncarbon_oxoacid_and_a_urea(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("CC(C)=NN=C(C)C", "di(propan-2-ylidene)hydrazine", id="symmetric_azine"),
