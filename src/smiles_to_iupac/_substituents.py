@@ -858,20 +858,25 @@ def _name_branch_isotopes(graph, root, coming_from, halogens=None, aromatic_atom
     if not context:
         return _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
     cache = context.setdefault("cache", {})
+    stereo = BRANCH_STEREO.get()
     key = (root, coming_from)
     if key not in cache and mol is not None:
         carboxy = _labelled_carboxy(graph, root, coming_from, mol, context)
         if carboxy is not None:
-            cache[key] = (carboxy[0], frozenset(carboxy[1]))
+            cache[key] = (carboxy[0], frozenset(carboxy[1]), frozenset())
     if key not in cache:
         before = set(context["consumed"])
+        cited_before = set(stereo["used"]) if stereo else set()
         result = _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
         labelled = _label_branch(
             result, graph, root, coming_from, halogens, mol, aromatic_atoms or frozenset(), unsaturated
         )
-        cache[key] = (labelled, frozenset(context["consumed"] - before))
-    result, used = cache[key]
+        cited = frozenset(stereo["used"] - cited_before) if stereo else frozenset()
+        cache[key] = (labelled, frozenset(context["consumed"] - before), cited)
+    result, used, cited = cache[key]
     context["consumed"].update(used)
+    if stereo:
+        stereo["used"].update(cited)
     return result
 
 

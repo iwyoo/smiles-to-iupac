@@ -433,6 +433,8 @@ def test_isotope_on_substituents_and_prefixed_parents(smiles, expected):
         pytest.param("OC(=O)C1(CCCCC1)[13C](=O)O[2H]", "1-carboxycyclohexane-1-(13C,2H)carboxylic acid", id="acid_with_more_modifications_is_suffix"),
         pytest.param("[2H]OC(=O)C1(CCCCC1)[13C](=O)O", "1-(2H)carboxycyclohexane-1-(13C)carboxylic acid", id="labelled_carboxy_prefix"),
         pytest.param("C(OC([2H])([2H])SCOO)[2H]", "{[(2H1)methoxy(2H2)methyl]sulfanyl}methaneperoxol", id="labelled_ether_in_a_sulfanyl_peroxol"),
+        pytest.param("OC[C@]1([2H])CC=C[C@@H]1CC(=O)O", "[(1S,5R)-5-(hydroxymethyl)(5-2H)cyclopent-2-en-1-yl]acetic acid", id="labelled_stereocentre_of_a_cycloalkenyl_group"),
+        pytest.param("OC[C@]1([2H])CCCC[C@@H]1CC(=O)O", "[(1R,2R)-2-(hydroxymethyl)(2-2H)cyclohexyl]acetic acid", id="labelled_stereocentre_of_a_group_named_in_the_second_candidate_parent"),
     ],
 )
 def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
