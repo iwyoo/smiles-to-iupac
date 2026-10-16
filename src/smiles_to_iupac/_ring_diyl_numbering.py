@@ -976,21 +976,41 @@ def _replacement_numberings(bare):
     return list(root.numberings) if isinstance(root, _ReplacementRoot) else None
 
 
-def _cite_lambda(stem, bonding):
-    """(stem, text) with the λ marks joined to the heteroatom locants a fusion name cites in front ('1λ6,2-benzothiazole') and
-    the others cited loose before the name (P-25.6)."""
+def _cite_lambda(stem, marks):
+    """(stem, text) with the λ and δ marks joined to the heteroatom locants a fusion name cites in front ('1λ6,2-benzothiazole')
+    and the others cited loose before the name (P-25.6, P-25.7.2)."""
     from ._fused_numbering import _locant_key
 
     leading = re.match(r"(\d+[a-z]?(?:,\d+[a-z]?)*)-(.+)", stem)
     cited = leading.group(1).split(",") if leading else []
     loose = []
-    for locant, n in sorted(bonding.items(), key=lambda it: _locant_key(it[0])):
+    for locant, mark in sorted(marks.items(), key=lambda it: _locant_key(it[0])):
         if locant in cited:
-            cited[cited.index(locant)] += f"\u03bb{n}"
+            cited[cited.index(locant)] += mark
         else:
-            loose.append(f"{locant}\u03bb{n}")
+            loose.append(f"{locant}{mark}")
     body = (",".join(cited) + "-" + leading.group(2)) if cited else stem
     return body, (",".join(loose) + "-") if loose else ""
+
+
+def _cumulated_atoms(mol, skeleton_atoms):
+    """{atom: c} of the ring atoms with c >= 2 double bonds to other atoms of the ring system, the atoms the delta convention
+    marks (P-25.7.2)."""
+    kekule = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+    except Chem.rdchem.KekulizeException:
+        return {}
+    found = {}
+    for a in skeleton_atoms:
+        count = sum(
+            1
+            for b in kekule.GetAtomWithIdx(a).GetBonds()
+            if b.GetBondType() == Chem.BondType.DOUBLE and b.GetOtherAtomIdx(a) in skeleton_atoms
+        )
+        if count >= 2:
+            found[a] = count
+    return found
 
 
 def _chalcogen_heterones(mol, skeleton_atoms):
@@ -1081,6 +1101,7 @@ def _fused_mancude(mol, skeleton_atoms):
         lambda_parent.add_edges_from((a, b) for a in can_hold for b in adj[a] if b in can_hold)
         ih_count = len(can_hold) - 2 * len(nx.max_weight_matching(lambda_parent, maxcardinality=True))
     out = []
+    cumulated = _cumulated_atoms(mol, skeleton_atoms)
     for numbering in numberings:
         position_of = {old_of[new]: _locant(loc) for new, loc in numbering.items() if _locant(loc) is not None}
         if any(a not in position_of for a in sp3):
@@ -1139,8 +1160,13 @@ def _fused_mancude(mol, skeleton_atoms):
         lam = {a: n for a in position_of if (n := nonstandard_bonding(mol.GetAtomWithIdx(a), with_oxo=True))}
         lam.update({a: int(mol.GetAtomWithIdx(a).GetTotalValence()) for a in heterones if a in position_of})
         marked_stem = stem
-        if lam:
-            marked_stem, loose = _cite_lambda(stem, {str(position_of[a]): n for a, n in lam.items()})
+        if cumulated and (ih or hydro or added):
+            raise UnsupportedStructure("the delta convention beside hydro prefixes or indicated hydrogen is not supported yet (P-25.7.2)")
+        marks = {str(position_of[a]): f"\u03bb{n}" for a, n in lam.items()}
+        for a, count in cumulated.items():
+            marks[str(position_of[a])] = marks.get(str(position_of[a]), "") + f"\u03b4{count}"
+        if marks:
+            marked_stem, loose = _cite_lambda(stem, marks)
             ih_text += loose
         delta = _delta_citation(mol, skeleton_atoms, position_of)
         delta_stem = ("Δ" + ",".join(t for _, t in delta) + "-" + marked_stem) if delta else marked_stem
@@ -1153,9 +1179,11 @@ def _fused_mancude(mol, skeleton_atoms):
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
 
         lam_key = tuple(sorted((-n, position_of[a]) for a, n in lam.items()))
+        delta_key = tuple(sorted(position_of[a] for a in cumulated))
         numbering = Numbering(position_of, text, pre_key=(ih, lam_key), unsat_key=(tuple(p for p, _ in delta), added, hydro), ih=ih)
         numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
         numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
+        numbering.lam_key = delta_key
         out.append(numbering)
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated fused system fits its hydro/indicated hydrogen")
