@@ -766,3 +766,16 @@ def test_ring_phosphorus_is_not_the_centre_of_a_phosphite(smiles, expected):
 )
 def test_multiplier_of_identical_ester_groups_of_a_phosphorus_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-41, P-65.6.3, P-67.1.3.2: the ester of the senior acid is the parent, the phosphate a (phosphonooxy) prefix, and an amide or an acid halide on the organyl group (classes 11 and 10, below the ester) a prefix too
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=O)OCC(NC(C)=O)COP(=O)(O)O", "2-acetamido-3-(phosphonooxy)propyl acetate", id="carboxylic_ester_and_amide"),
+        pytest.param("COC(=O)OCC(NC(C)=O)COP(=O)(O)O", "2-acetamido-3-(phosphonooxy)propyl methyl carbonate", id="carbonic_ester_and_amide"),
+        pytest.param("ClC(=O)C(OC(C)=O)COP(=O)(O)O", "1-chloro-1-oxo-3-(phosphonooxy)propan-2-yl acetate", id="carboxylic_ester_and_acid_chloride"),
+    ],
+)
+def test_phosphate_beside_an_ester_and_a_junior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
