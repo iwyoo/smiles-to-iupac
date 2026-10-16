@@ -281,6 +281,7 @@ def test_functional_substituents_on_diyl(smiles, expected):
             "CC(=O)OC1CCCC1OC(=O)[C@H](C)Cl",
             "cyclopentane-1,2-diyl acetate (2S)-2-chloropropanoate",
         ),
+        ("CC(=O)OCCOC(=O)[C@H](C)N", "ethane-1,2-diyl acetate L-alaninate"),
     ],
 )
 def test_generalized_acyl_groups(smiles, expected):
