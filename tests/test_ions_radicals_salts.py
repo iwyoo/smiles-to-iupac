@@ -2000,6 +2000,9 @@ def test_diazonium_prefix_on_an_anionic_parent(smiles, expected):
     [
         pytest.param("C1C[NH2+]CCN1CC", "4-ethylpiperazin-1-ium", id="protonated_ring_with_a_substituent_ahead_of_the_marker"),
         pytest.param("[CH2-][NH+]1CCN(CC)CC1", "(4-ethylpiperazin-1-iumyl)methanide", id="ylide_on_a_ring_nitrogen_of_a_diazine"),
+        pytest.param("CC(=O)N1CC[NH2+]CC1", "4-acetylpiperazin-1-ium", id="prefix_cited_before_the_centre_marker_alphabetically"),
+        pytest.param("CC(=O)N1CC[NH+](C)CC1", "4-acetyl-1-methylpiperazin-1-ium", id="substituted_cationic_nitrogen_beside_an_acyl_group"),
+        pytest.param("CC(=O)N1CCC[NH2+]CC1C", "4-acetyl-3-methyl-1,4-diazepan-1-ium", id="diazepane_with_an_acyl_group_and_a_methyl_group"),
     ],
 )
 def test_cationic_ring_nitrogen_of_a_substituted_diazine(smiles, expected):
