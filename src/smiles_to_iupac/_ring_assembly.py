@@ -230,6 +230,8 @@ def find_ring_assembly_core(mol):
     name, `_pyrrole_ring_kind`'s own ("1H-pyrrole", 5), or
     `_tautomer_fixed_ring_kind`'s own ("1H-imidazole", 5)/
     ("1H-pyrazole", 5)) joined by one single bond, else None."""
+    if any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
     ring_info = mol.GetRingInfo()
     atom_rings = ring_info.AtomRings()
     if len(atom_rings) != 2:

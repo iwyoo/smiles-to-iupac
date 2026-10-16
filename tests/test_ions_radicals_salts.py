@@ -469,6 +469,19 @@ def test_branch_point_radical_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccccc1-c1[c]cccc1", "[1,1'-biphenyl]-2-yl", id="radical_centre_of_a_bare_ring_assembly"),
+        pytest.param("Brc1ccccc1-c1[c]cccc1", "2'-bromo[1,1'-biphenyl]-2-yl", id="halogen_beside_the_radical_centre_of_a_ring_assembly"),
+        pytest.param("c1ccccc1-c1ccccc1-c1[c]cccc1", "[1\u00b9,2\u00b9:2\u00b2,3\u00b9-terphenyl]-1\u00b2-yl", id="radical_centre_of_a_ring_assembly_chain"),
+    ],
+)
+def test_radical_centre_of_a_ring_assembly_is_cited(smiles, expected):
+    # P-71.2.1.2, P-28.2
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_two_radical_centers_diyl_name():
     assert smiles_to_iupac("[CH2][CH2]") == "ethane-1,2-diyl"
 

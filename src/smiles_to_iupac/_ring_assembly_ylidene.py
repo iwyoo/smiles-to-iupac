@@ -128,6 +128,8 @@ def find_ring_assembly_ylidene_core(mol):
     (both rings, for the bicyclic case). Ring-carbon-only/non-aromatic is
     checked per ring below (not globally here), since a halogen substituent
     hanging off a ring atom is in scope for the monocyclic case."""
+    if any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
     double_bonds = [bond for bond in mol.GetBonds() if not bond.GetIsAromatic() and bond.GetBondTypeAsDouble() == 2.0]
     if len(double_bonds) != 1:
         return None
