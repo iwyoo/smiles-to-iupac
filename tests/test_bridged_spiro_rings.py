@@ -357,6 +357,11 @@ def test_fused_system_to_be_bridged_has_the_most_skeletal_atoms_and_a_saturated_
             "6-methylideneoctahydro-1H-2,5-methanoindene",
             id="ylidene_prefix_on_a_saturated_bridged_system",
         ),
+        pytest.param(
+            "CCC1CC2C3CC4CC5C(C1)C2C5C43",
+            "3-ethyldodecahydro-1,6-methanodicyclobuta[a,cd]indene",
+            id="peri_fused_rings_that_cannot_be_drawn_consistently",
+        ),
     ],
 )
 def test_saturated_bridged_cage_is_numbered_by_the_bridged_fusion_rules(smiles, expected):
