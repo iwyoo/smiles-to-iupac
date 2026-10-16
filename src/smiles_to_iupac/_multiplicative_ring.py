@@ -498,6 +498,16 @@ def bare_polycyclic_unit(mol, atoms, junction, name_function=None):
     the junction's locant read off the name of its iodo derivative (the
     lowest locant of the junction's orbit, P-15.3.1.3)."""
     rw = Chem.RWMol(mol)
+    for a in atoms:
+        atom = rw.GetAtomWithIdx(a)
+        if atom.GetIsAromatic() and atom.GetAtomicNum() != 6:
+            lost = sum(
+                1
+                for n in atom.GetNeighbors()
+                if n.GetIdx() not in atoms and rw.GetBondBetweenAtoms(a, n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            )
+            if lost:
+                atom.SetNumExplicitHs(atom.GetNumExplicitHs() + lost)
     iodine = rw.AddAtom(Chem.Atom(53))
     rw.AddBond(junction, iodine, Chem.BondType.SINGLE)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
