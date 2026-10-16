@@ -1023,6 +1023,10 @@ def test_ylidene_substituent_on_heteroatom_attaching_a_prefix(smiles, expected):
         ("C[Si](C)(C)N(C)C", "N,N,1,1,1-pentamethylsilanamine"),
         ("C[Si](C)(C)N[Si](C)(C)C", "1,1,1-trimethyl-N-(trimethylsilyl)silanamine"),
         ("C[Sn](C)(C)O", "trimethylstannanol"),
+        ("CC[Si](C)(NC)NC", "1-ethyl-N,N',1-trimethylsilanediamine"),
+        ("CC[Si](NC)(NC)NC", "1-ethyl-N,N',N''-trimethylsilanetriamine"),
+        ("CN(C)[Si](N(C)C)(N(C)C)N(C)C", "N,N,N',N',N'',N'',N''',N'''-octamethylsilanetetramine"),
+        ("C[Ge](C)(NCC)NCC", "N,N'-diethyl-1,1-dimethylgermanediamine"),
     ],
 )
 def test_group_14_hydride_with_hydroxy_amino_alkoxy_and_halogen_groups(smiles, expected):

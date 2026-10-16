@@ -2227,6 +2227,30 @@ def _isotope_entries(labels):
     ]
 
 
+def _hydride_centre_with_amino_groups(mol):
+    """A Group 13/14 atom with two or more amino groups: the hydride holding the most principal groups is the parent,
+    named with the suffix 'diamine', not multiplicatively through the atom (P-44.1.1, P-68.2.5)."""
+    return any(
+        a.GetAtomicNum() in (*_GROUP_14, *_GROUP_13_METALS)
+        and not a.IsInRing()
+        and sum(
+            n.GetAtomicNum() == 7
+            and not n.IsInRing()
+            and not n.GetFormalCharge()
+            and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and not any(
+                b.GetBondTypeAsDouble() > 1.0 and b.GetOtherAtom(m).GetAtomicNum() != 6
+                for m in n.GetNeighbors()
+                if m.GetIdx() != a.GetIdx()
+                for b in m.GetBonds()
+            )
+            for n in a.GetNeighbors()
+        )
+        >= 2
+        for a in mol.GetAtoms()
+    )
+
+
 def _name_labelled(mol, labels, finish=None):
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
@@ -2246,7 +2270,7 @@ def _name_labelled(mol, labels, finish=None):
         try:
             multiplicative = (
                 None
-                if _ionic_linker_centre(mol) or _cationic_amine_parent(mol) or RING_CENTER.get()
+                if _ionic_linker_centre(mol) or _cationic_amine_parent(mol) or RING_CENTER.get() or _hydride_centre_with_amino_groups(mol)
                 else _multiplicative_name(mol, stereo)
             )
         except UnsupportedStructure:
