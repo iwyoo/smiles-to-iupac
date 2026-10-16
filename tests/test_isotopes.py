@@ -859,3 +859,17 @@ def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expecte
 )
 def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.3.2, P-66.1.2: the junior acyl group of a diacylamine is an N-prefix that cites the nuclides of its own carbonyl carbon
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[13C](=O)NC(=O)c1ccccc1", "N-[(1-13C)acetyl]benzamide", id="carbonyl_carbon_of_acetyl"),
+        pytest.param("ClC[13C](=O)NC(=O)c1ccccc1", "N-[chloro(1-13C)acetyl]benzamide", id="substituted_acetyl"),
+        pytest.param("NC[13C](=O)NC(=O)c1ccccc1", "N-[amino(1-13C)acetyl]benzamide", id="amino_acid_acyl_without_its_retained_name"),
+        pytest.param("C[13C](=O)N(C(C)=O)C(=O)c1ccccc1", "N-[(1-13C)acetyl]-N-acetylbenzamide", id="labelled_acyl_beside_an_identical_unlabelled_one"),
+    ],
+)
+def test_nuclide_on_the_carbonyl_carbon_of_an_n_acyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

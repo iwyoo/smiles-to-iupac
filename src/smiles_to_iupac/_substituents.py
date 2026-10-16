@@ -551,12 +551,14 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if centre is not None:
         context["consumed"].update(labelled)
         return centre, compound
-    if name == "acetyl" and mol is not None:
+    if name.endswith("acetyl") and mol is not None:
         methyl = [n for n in graph[root] if n != coming_from and mol.GetAtomWithIdx(n).GetAtomicNum() == 6]
-        if len(methyl) == 1 and set(labelled) == {methyl[0]}:
+        if len(methyl) == 1 and set(labelled) <= {root, methyl[0]}:
             context["consumed"].update(labelled)
-            omit = _fully_modified(labelled, {methyl[0]: 2}, capacity, {methyl[0]})
-            return descriptor(labelled, {methyl[0]: 2}, omit, capacity=capacity) + name, True
+            positions = {root: 1, methyl[0]: 2}
+            skeleton = any(entry["skeleton"] for entry in labelled.values())
+            omit = name == "acetyl" and _fully_modified(labelled, positions, capacity, set(positions) if skeleton else {methyl[0]})
+            return name[: -len("acetyl")] + descriptor(labelled, positions, omit, capacity=capacity) + "acetyl", True
     positions = _plain_chain_positions(graph, root, coming_from, atoms, mol)
     if positions is not None and name.isalpha():
         context["consumed"].update(labelled)
