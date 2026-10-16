@@ -333,6 +333,7 @@ from ._phosphorus_acid_derivative import has_phosphorus_acid_derivative_shape, n
 from ._azonic_acid import has_azonic_acid_shape, name_azonic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._ring_diyl_numbering import bridged_ring_system_name, is_hydro_fusion_system
+from ._ring_system_seniority import system_type
 from ._hydroperoxide import has_chalcogen_peroxol_shape, has_hydroperoxide_shape, name_hydroperoxide
 from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import (
@@ -1354,7 +1355,9 @@ def _has_hydro_fusion_system(mol) -> bool:
     for ring in ring_info.AtomRings():
         if any(ring_info.NumAtomRings(a) > 1 for a in ring):
             _, atoms = _system_of(mol, ring[0])
-            if is_hydro_fusion_system(mol, atoms):
+            if is_hydro_fusion_system(mol, atoms) or (
+                len(atoms) > len(ring) and system_type(mol, atoms) == "bridged_fused"
+            ):
                 return True
     return False
 

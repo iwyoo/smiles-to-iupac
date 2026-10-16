@@ -347,6 +347,16 @@ def test_fused_system_to_be_bridged_has_the_most_skeletal_atoms_and_a_saturated_
             "1-methyl-2,2a,2a1,2b,3,5a-hexahydro-1H-2,3-methanocyclopropa[cd]indene",
             id="divalent_bridge_kept_beside_a_substituent",
         ),
+        pytest.param(
+            "CC1CC2CCC1c1ccccc12",
+            "2-methyl-1,2,3,4-tetrahydro-1,4-ethanonaphthalene",
+            id="prefix_on_a_benzo_bridged_system",
+        ),
+        pytest.param(
+            "C=C1CC2CC3CC1CC2C3",
+            "6-methylideneoctahydro-1H-2,5-methanoindene",
+            id="ylidene_prefix_on_a_saturated_bridged_system",
+        ),
     ],
 )
 def test_saturated_bridged_cage_is_numbered_by_the_bridged_fusion_rules(smiles, expected):
@@ -925,7 +935,6 @@ def test_tert_butyl_substituent_on_spiro_and_hetero_bridged_parents(smiles, expe
     [
         ("C=C1CC2CCC1C2", "2-methylidenebicyclo[2.2.1]heptane"),
         ("CC=C1CC2CC1C=C2", "5-ethylidenebicyclo[2.2.1]hept-2-ene"),
-        ("C=C1CC2CC3CC1CC2C3", "5-methylidenetricyclo[4.3.1.0^3,8]decane"),
         ("CC=C1CC2CC1C1=C2C(C)C1", "7-ethylidene-3-methyltricyclo[4.2.1.0^2,5]non-2(5)-ene"),
     ],
 )
