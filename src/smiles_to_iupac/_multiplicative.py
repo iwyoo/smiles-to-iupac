@@ -28,7 +28,6 @@ from ._multiplicative_ring import (
     substituted_polycyclic_unit,
 )
 from ._multiplicative_text import enclose, join_parts, multiplier_word, primed_locants
-from ._pin import mark
 
 _MAX_GROUP = 8
 _SENIOR_HYDRIDE_ATOMS = {5, 14, 15, 32, 33, 50, 51, 82, 83}
@@ -415,8 +414,7 @@ def _attempt(mol, groups, selected, tree, core, name_function):
             return None
     if principal_group == "amine" and any(mol.GetAtomWithIdx(u.linker_atom).GetAtomicNum() == 7 for u in selected):
         return None
-    amino_on_ring_nitrogen = any(_amino_on_ring_nitrogen(mol, u) for u in selected)
-    if amino_on_ring_nitrogen and len({u.linker_atom for u in selected}) == 1:
+    if any(_amino_on_ring_nitrogen(mol, u) for u in selected):
         return None
     soft = any(mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1 for u in selected)
     ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft)
@@ -512,8 +510,6 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     descriptors = _unit_descriptors(mol, selected, unit)
     if descriptors is False:
         return None
-    if amino_on_ring_nitrogen:
-        mark(name, "the amine groups on the ring nitrogens are principal groups, which outrank the ring hydrides multiplied here (P-44.1.1)")
     return name if descriptors is None else f"{descriptors}{name}"
 
 

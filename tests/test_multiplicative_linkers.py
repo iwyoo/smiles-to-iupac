@@ -1000,7 +1000,9 @@ def test_divalent_central_groups_with_replaced_chalcogen_positions_and_hetero_su
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("c1ncn(NCCNn2cncn2)n1", "1,1'-[ethane-1,2-diylbis(azanediyl)]bis(1H-1,2,4-triazole)", id="two_azol_1_amines_joined_through_a_chain"),
+        pytest.param("c1ncn(NCCNn2cncn2)n1", "N1,N2-bis(1H-1,2,4-triazol-1-yl)ethane-1,2-diamine", id="two_azol_1_amines_joined_through_a_chain"),
+        pytest.param("c1ccn(NCNn2cccc2)c1", "N,N'-di(1H-pyrrol-1-yl)methanediamine", id="ring_nitrogens_on_the_amines_of_methanediamine"),
+        pytest.param("CNCCNn1cncn1", "N1-methyl-N2-(1H-1,2,4-triazol-1-yl)ethane-1,2-diamine", id="ring_nitrogen_beside_a_second_substituted_amine"),
         pytest.param("N(n1cnnc1)n1cnnc1", "N-(4H-1,2,4-triazol-4-yl)-4H-1,2,4-triazol-4-amine", id="single_nh_between_two_ring_nitrogens_is_an_amine"),
         pytest.param("c1ncn(N(C)n2cncn2)n1", "N-methyl-N-(1H-1,2,4-triazol-1-yl)-1H-1,2,4-triazol-1-amine", id="substituted_nitrogen_between_two_ring_nitrogens"),
     ],
