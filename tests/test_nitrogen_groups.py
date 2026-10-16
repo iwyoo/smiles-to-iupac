@@ -1452,6 +1452,8 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         ),
         pytest.param("NN=C(N)C(=N)NN", "2-hydrazinyl-2-iminoethanehydrazonamide", id="imidohydrazide_at_a_chain_end_is_prefixes"),
         pytest.param("NC(=N)CC(=N)NN", "3-hydrazinyl-3-iminopropanimidamide", id="imidohydrazide_beside_an_amidine"),
+        pytest.param("C(C(=N)N)CCC(=O)NN", "5-hydrazinyl-5-oxopentanimidamide", id="hydrazide_beside_an_amidine"),
+        pytest.param("C(NC=N)CCC(=O)NN", "N-(4-hydrazinyl-4-oxobutyl)methanimidamide", id="hydrazide_beside_an_n_substituted_amidine"),
         pytest.param("NN=S(N)c1ccccc1", "benzenesulfinohydrazonamide", id="sulfinic_amidrazone"),
         pytest.param("CS(=S)(=NN)N", "methanesulfonohydrazonothioamide", id="replaced_oxygen_in_a_sulfonohydrazonamide"),
         pytest.param("CS(=O)(=NNC)N", "N'-methylmethanesulfonohydrazonamide", id="sulfur_centred_hydrazone_terminal_is_primed"),

@@ -71,7 +71,7 @@ def name_boronic_acid(mol) -> str:
     with boron_acid_parent(), cited_stereo_around(mol, boron.GetIdx()):
         name, is_compound = name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol)
     prefix = enclose(name) if is_compound else name
-    return f"{prefix}{centre_nuclides(boron.GetIdx())}boronic acid"
+    return f"{prefix}{centre_nuclides(boron.GetIdx(), oxygens=True)}boronic acid"
 
 
 def boron_acid_is_parent(mol) -> bool:

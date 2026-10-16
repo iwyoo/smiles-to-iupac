@@ -906,7 +906,11 @@ def _group_of(mol, carbon):
             and any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_NITRILE)
         ):
             return None
-        if len(others) == 1 and others[0].GetAtomicNum() in (8, 16, 34, 52) and any(a.HasProp(ANION_PROP) for a in mol.GetAtoms()):
+        if (
+            len(others) == 1
+            and others[0].GetAtomicNum() in (8, 16, 34, 52)
+            and (AMINIUM.get() or RING_CENTER.get() or any(a.HasProp(ANION_PROP) for a in mol.GetAtoms()))
+        ):
             return None
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
             raise UnsupportedStructure("a cyanide not bonded to carbon is not a nitrile")
@@ -1908,7 +1912,9 @@ def _name_aminium(base, labels=None, parent="amine", cationic=None):
     finally:
         CATION_PARENT.reset(cation_token)
         AMINIUM.reset(token)
-    return _cationic_group_suffix(name, parent, cationic or sum(a.HasProp("_cationic_amine") for a in base.GetAtoms()))
+    return _cationic_group_suffix(
+        name, parent, cationic or sum(a.HasProp("_cationic_amine") or (a.GetFormalCharge() == 1 and a.GetAtomicNum() == 7) for a in base.GetAtoms())
+    )
 
 
 _MULTIPLIED = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
@@ -2421,7 +2427,7 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
     acid = (_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and element in (8, 16, 34, 52)
-    acid = acid or (principal in ("sulfonamide", *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER) and element in (16, 34, 52))
+    acid = acid or (principal in ("sulfonamide", *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER) and element in (8, 16, 34, 52))
     if not (nitrogen or acid):
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []
@@ -3026,7 +3032,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values())
                 and atom.GetIdx() in groups.get(principal, {})
             )
-            and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and atom.GetIdx() in groups.get("hydrazide", {}))
+            and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE) and atom.GetIdx() in groups.get("hydrazide", {}))
             and _is_ester_like(mol, atom.GetIdx())
             and not (principal in _AMIDE_FAMILY and _nitrogen_acyl(mol, atom.GetIdx()))
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))

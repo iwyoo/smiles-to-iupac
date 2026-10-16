@@ -43,6 +43,19 @@ def test_phosphane_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-67.1.1.2, P-28.2.1: a phosphonic or phosphinic acid on a ring assembly cites the assembly substituent group in enclosing marks
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=P(O)(O)c1ccc(-c2ccccc2)cc1", "([1,1'-biphenyl]-4-yl)phosphonic acid", id="biphenylyl_phosphonic_acid"),
+        pytest.param("O=[PH](O)c1ccc(-c2ccccc2)cc1", "([1,1'-biphenyl]-4-yl)phosphinic acid", id="biphenylyl_phosphinic_acid"),
+        pytest.param("O=P(O)(O)c1ccc(-c2ccc(-c3ccccc3)cc2)cc1", "([1¹,2¹:2⁴,3¹-terphenyl]-1⁴-yl)phosphonic acid", id="terphenylyl_phosphonic_acid"),
+    ],
+)
+def test_phosphorus_acid_on_a_ring_assembly(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_branched_phosphane_chain():
     assert smiles_to_iupac("P(P)(P)P") == "2-phosphanyltriphosphane"
 
@@ -783,4 +796,17 @@ def test_multiplier_of_identical_ester_groups_of_a_phosphorus_acid(smiles, expec
     ],
 )
 def test_phosphinate_beside_a_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-41, P-65.6.3, P-67.1.3.2: the ester of the senior acid is the parent, the phosphate a (phosphonooxy) prefix, and an amide or an acid halide on the organyl group (classes 11 and 10, below the ester) a prefix too
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=O)OCC(NC(C)=O)COP(=O)(O)O", "2-acetamido-3-(phosphonooxy)propyl acetate", id="carboxylic_ester_and_amide"),
+        pytest.param("COC(=O)OCC(NC(C)=O)COP(=O)(O)O", "2-acetamido-3-(phosphonooxy)propyl methyl carbonate", id="carbonic_ester_and_amide"),
+        pytest.param("ClC(=O)C(OC(C)=O)COP(=O)(O)O", "1-chloro-1-oxo-3-(phosphonooxy)propan-2-yl acetate", id="carboxylic_ester_and_acid_chloride"),
+    ],
+)
+def test_phosphate_beside_an_ester_and_a_junior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
