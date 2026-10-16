@@ -38,7 +38,7 @@ def _hydrazine_acid(mol, found):
     when the acid groups are not on an N chain."""
     from ._common import group_substituents
     from ._numerals import multiplying_prefix
-    from ._substituents import format_substituent_prefixes, name_branch
+    from ._substituents import cited_whole_stereo, format_substituent_prefixes, name_branch
 
     first = found[0][2]
     ends = [
@@ -73,22 +73,23 @@ def _hydrazine_acid(mol, found):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     options = []
-    for numbering in (pair, pair[::-1]):
-        entries = {}
-        for position, nitrogen in enumerate(numbering, start=1):
-            for n in graph[nitrogen]:
-                if n in pair or n in centers or n in owned:
-                    continue
-                entries.setdefault(position, []).append(name_branch(graph, n, nitrogen, halogens, mol=mol))
-        suffix_locants = sorted(numbering.index(h) + 1 for _, _, h in found)
-        prefix_locants = sorted(p for p, names in entries.items() for _ in names)
-        ium_locants = [numbering.index(c) + 1 for c in cations]
-        # P-16.9.2: with several imidic groups the N locant carries the position of its attachment
-        for _, group, host in found:
-            locant = f"N{numbering.index(host) + 1}" if len(found) > 1 else "N"
-            for n in group.n_substituents:
-                entries.setdefault(locant, []).append(name_branch(graph, n, group.n_atom, halogens, mol=mol, unsaturated=True))
-        options.append((ium_locants, suffix_locants, prefix_locants, format_substituent_prefixes(group_substituents(entries))))
+    with cited_whole_stereo(mol):
+        for numbering in (pair, pair[::-1]):
+            entries = {}
+            for position, nitrogen in enumerate(numbering, start=1):
+                for n in graph[nitrogen]:
+                    if n in pair or n in centers or n in owned:
+                        continue
+                    entries.setdefault(position, []).append(name_branch(graph, n, nitrogen, halogens, mol=mol))
+            suffix_locants = sorted(numbering.index(h) + 1 for _, _, h in found)
+            prefix_locants = sorted(p for p, names in entries.items() for _ in names)
+            ium_locants = [numbering.index(c) + 1 for c in cations]
+            # P-16.9.2: with several imidic groups the N locant carries the position of its attachment
+            for _, group, host in found:
+                locant = f"N{numbering.index(host) + 1}" if len(found) > 1 else "N"
+                for n in group.n_substituents:
+                    entries.setdefault(locant, []).append(name_branch(graph, n, group.n_atom, halogens, mol=mol, unsaturated=True))
+            options.append((ium_locants, suffix_locants, prefix_locants, format_substituent_prefixes(group_substituents(entries))))
     ium_locants, suffix_locants, prefix_locants, prefix = min(options)
     spec = found[0][1].spec
     suffix = carbo_suffix(spec, len(found))
