@@ -1820,7 +1820,8 @@ def _name_mol(mol) -> str:
     # before this shape's own num_rings==3..6 check would run if it stayed
     # down with the other ring modules further below.
     boron_acid = has_boronic_acid_shape(mol) or has_borinic_acid_shape(mol)
-    if 3 <= mol.GetRingInfo().NumRings() <= 6 and not boron_acid:
+    acid_centre = boron_acid or has_phosphonic_acid_shape(mol) or has_phosphinic_acid_shape(mol)
+    if 3 <= mol.GetRingInfo().NumRings() <= 6 and not acid_centre:
         ring_assembly_chain_core = find_ring_assembly_chain_core(mol)
         if ring_assembly_chain_core is not None:
             return name_ring_assembly_chain(mol, ring_assembly_chain_core)
@@ -1833,7 +1834,7 @@ def _name_mol(mol) -> str:
     # 6-membered aromatic carbocycle and doesn't require the rings to be
     # fused, so it would otherwise claim the benzo case too and then fail in
     # name_aromatic_fused's ring-fusion-graph validation).
-    if mol.GetRingInfo().NumRings() == 2 and not boron_acid:
+    if mol.GetRingInfo().NumRings() == 2 and not acid_centre:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
