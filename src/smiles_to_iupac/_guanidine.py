@@ -314,6 +314,7 @@ def _is_guanidine_carbon(mol, idx):
     nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
     return (
         atom.GetAtomicNum() == 6
+        and not atom.IsInRing()
         and atom.GetDegree() == 3
         and len(nitrogens) == 3
         and sorted(mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() for n in nitrogens) == [1.0, 1.0, 2.0]
