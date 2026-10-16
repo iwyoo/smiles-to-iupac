@@ -204,6 +204,8 @@ def test_anionic_ligand_names(smiles, expected):
         pytest.param("[CH2+]C", "ethylium", id="ethylium_name"),
         pytest.param("C1C[CH+]C1", "cyclobutylium", id="cyclobutylium_name"),
         pytest.param("C[CH+]CC", "butan-2-ylium", id="branch_point_carbenium_butan_2_ylium_name"),
+        pytest.param("C[CH+]/C=C/C", "(3E)-pent-3-en-2-ylium", id="double_bond_descriptor_of_a_carbenium_parent"),
+        pytest.param("C[C@@H](CC)[CH+]C", "(3R)-3-methylpentan-2-ylium", id="stereocentre_descriptor_of_a_carbenium_parent"),
     ],
 )
 def test_benzenide_name_and_related(smiles, expected):

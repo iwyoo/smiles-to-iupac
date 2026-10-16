@@ -67,10 +67,10 @@ def name_amine_oxide(mol) -> str:
         if nitrogen.IsInRing():
             raise UnsupportedStructure("the ring of an oxidized ring nitrogen is the parent of its N-oxide (P-62.5)")
         return f"{_name_with_oxidized_parent(reduced_mol, nitrogen.GetIdx(), oxide_oxygen.GetIdx())} N-{class_word}"
-    from ._common import heteroatom_stereo_prefix, specified_stereocenters
+    from ._common import heteroatom_stereo_prefix, specified_stereo_elements
 
-    centres = specified_stereocenters(mol) or []
-    stereo_prefix = heteroatom_stereo_prefix(mol, nitrogen.GetIdx()) or "" if any(i == nitrogen.GetIdx() for i, _ in centres) else ""
+    centres = [idx for kind, idx, _ in specified_stereo_elements(mol) or () if kind == "atom"]
+    stereo_prefix = heteroatom_stereo_prefix(mol, nitrogen.GetIdx()) or "" if nitrogen.GetIdx() in centres else ""
     try:
         base_name = name_amine(reduced_mol)
     except UnsupportedStructure:

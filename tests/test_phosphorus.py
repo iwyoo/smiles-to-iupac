@@ -490,6 +490,8 @@ def test_phosphane_imides_are_lambda5_phosphanimines(smiles, expected):
         ("CC[P@@](C)Cl", "(R)-ethyl(methyl)phosphinous chloride"),
         ("CCC[P@](=O)(Cl)CC", "(R)-ethyl(propyl)phosphinic chloride"),
         ("CC[C@H](C)[P@](C)(=O)c1ccccc1", "(S)-[(2S)-butan-2-yl](methyl)(phenyl)-λ5-phosphanone"),
+        ("C/C=C/P(=S)(C)C", "dimethyl[(1E)-prop-1-en-1-yl]-λ5-phosphanethione"),
+        ("C/C=C/P(=O)(/C=C/C)C", "methylbis[(1E)-prop-1-en-1-yl]-λ5-phosphanone"),
     ],
 )
 def test_stereogenic_phosphorus_oxide_and_phosphinate(smiles, expected):

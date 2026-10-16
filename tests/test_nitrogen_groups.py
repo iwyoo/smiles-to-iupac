@@ -2082,6 +2082,10 @@ def test_stereogenic_nitrogen_of_an_amine_oxide():
     assert smiles_to_iupac("C(C)[N@+](C1=CC=CC=C1)(C)[O-]") == "(S)-N-ethyl-N-methylaniline N-oxide"
 
 
+def test_double_bond_descriptor_of_an_amine_oxide_group():
+    assert smiles_to_iupac("C/C=C/[N+](C)(C)[O-]") == "(1E)-N,N-dimethylprop-1-en-1-amine N-oxide"
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

@@ -239,6 +239,8 @@ def test_mixed_anhydride_with_an_amino_acid_component(smiles, expected):
     "smiles, expected",
     [
         pytest.param("CC(C)C(=O)OC(=O)C(C)C", "2-methylpropanoic anhydride", id="branched_symmetric_anhydride"),
+        pytest.param("C/C=C/C(=O)OC(=O)/C=C/C", "(2E)-but-2-enoic anhydride", id="double_bond_descriptor_of_a_symmetric_anhydride"),
+        pytest.param("CC[C@H](C)C(=O)OC(=O)[C@@H](C)CC", "(2S)-2-methylbutanoic anhydride", id="stereocentre_descriptor_of_a_symmetric_anhydride"),
         pytest.param("ClCC(=O)OC(=O)CCl", "chloroacetic anhydride", id="halogen_substituent"),
         pytest.param("O=C1CCC(=O)O1", "oxolane-2,5-dione", id="cyclic_anhydride_names_as_ring_dione"),
         pytest.param("OC(=O)O", "carbonic acid", id="carbonic_acid"),
