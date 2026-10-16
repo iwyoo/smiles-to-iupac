@@ -336,7 +336,7 @@ def _name_acyclic_imine(mol, imine_carbon, exclude):
     return name
 
 
-def _name_phenyl_chain_imine(mol, ring_atoms):
+def _name_phenyl_chain_imine(mol, ring_atoms, configuration=None):
     """Name an imine (plain =N-H, N-alkyl-substituted, or a plain -OH
     oxime) whose C=N lies entirely on a single unbranched chain hanging
     off one atom of an otherwise-plain, unsubstituted benzene ring -- e.g.
@@ -363,7 +363,7 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
             "an oxime O-alkyl ether alongside a benzene-ring substituent "
             "chain is not supported yet"
         )
-    stereo = specified_double_bond_stereo(mol)
+    stereo = _stereo_or_configuration(mol, configuration)
 
     exclude = {imine_nitrogen}
     non_ring_unsaturation = [
@@ -405,24 +405,37 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
 
     if stereo is not None:
         ((_, code),) = stereo
-        best_name = f"({best_key[0]}{code})-{best_name}"
+        best_name = _with_descriptor(best_name, best_key[0], code, configuration)
     return best_name
 
 
-def name_imine(mol) -> str:
+def _stereo_or_configuration(mol, configuration):
+    return specified_double_bond_stereo(mol) or ([(None, configuration)] if configuration else None)
+
+
+def _with_descriptor(name, imine_locant, code, configuration):
+    # P-93.5.1: no locant precedes the descriptor when the name has none.
+    if configuration and not any(ch.isdigit() for ch in name):
+        return f"({code})-{name}"
+    return f"({imine_locant}{code})-{name}"
+
+
+def name_imine(mol, configuration=None) -> str:
+    """`configuration` is the E/Z code of a C=N bond that `mol` cannot hold itself (an N-oxide nitrogen with
+    hydrogen in place of a second substituent)."""
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
     if aromatic_rings is not None:
-        return _name_phenyl_chain_imine(mol, set().union(*aromatic_rings))
+        return _name_phenyl_chain_imine(mol, set().union(*aromatic_rings), configuration)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
-            return _name_phenyl_chain_imine(mol, ring_atoms)
+            return _name_phenyl_chain_imine(mol, ring_atoms, configuration)
 
     imine_carbon, imine_nitrogen, n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root = _validate_and_find_imine(
         mol
     )
-    stereo = specified_double_bond_stereo(mol)
+    stereo = _stereo_or_configuration(mol, configuration)
     graph = adjacency(mol)
     exclude = {imine_nitrogen}
     n_names = _n_substituent_names(graph, imine_nitrogen, n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
@@ -435,5 +448,5 @@ def name_imine(mol) -> str:
         # own imine bond is the only stereo element `stereo` can ever
         # contain -- no locant-sorting/grouping needed (P-91.3).
         ((_, code),) = stereo
-        name = f"({imine_locant}{code})-{name}"
+        name = _with_descriptor(name, imine_locant, code, configuration)
     return name

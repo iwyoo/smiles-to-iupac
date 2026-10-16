@@ -45,7 +45,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import _OPPOSITE_BOND_STEREO, UnsupportedStructure, match_cip_labels
+from ._common import _OPPOSITE_BOND_STEREO, UnsupportedStructure, match_cip_labels, specified_double_bond_stereo
 from ._imine import name_imine
 from ._nitrile import name_nitrile
 
@@ -85,7 +85,13 @@ def _strip_dipole_oxygen(mol, nitrogen_idx, oxygen_idx):
         stereo_atoms = list(bond.GetStereoAtoms())
         if oxygen_idx in stereo_atoms and nitrogen_idx in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()):
             partner = bond.GetOtherAtomIdx(nitrogen_idx)
-            substituent = next(n.GetIdx() for n in rw.GetAtomWithIdx(nitrogen_idx).GetNeighbors() if n.GetIdx() not in (oxygen_idx, partner))
+            substituent = next(
+                (n.GetIdx() for n in rw.GetAtomWithIdx(nitrogen_idx).GetNeighbors() if n.GetIdx() not in (oxygen_idx, partner)),
+                None,
+            )
+            if substituent is None:
+                bond.SetStereo(Chem.BondStereo.STEREONONE)
+                continue
             bond.SetStereoAtoms(*(substituent if a == oxygen_idx else a for a in stereo_atoms))
             bond.SetStereo(_OPPOSITE_BOND_STEREO[bond.GetStereo()])
     rw.RemoveAtom(oxygen_idx)
@@ -146,12 +152,24 @@ def has_nitrile_oxide_shape(mol) -> bool:
     return not any(a.GetFormalCharge() and a.GetIdx() not in own for a in mol.GetAtoms())
 
 
+def _hydrogen_imine_configuration(mol, nitrogen, oxygen):
+    """The E/Z code of the C=N bond of an N-oxide whose nitrogen carries hydrogen in place of a second substituent:
+    the stripped imine cannot hold that geometry, so the code is ranked here with the oxide as a ligand (P-93.4.2.1.3)."""
+    if nitrogen.GetDegree() != 2 or oxygen.GetIdx() not in (n.GetIdx() for n in nitrogen.GetNeighbors()):
+        return None
+    stereo = specified_double_bond_stereo(mol)
+    return stereo[0][1] if stereo else None
+
+
 def name_nitrone(mol) -> str:
     nitrogen, oxygen = _dipole_nitrogen_oxygen(mol)
     stripped = _strip_dipole_oxygen(mol, nitrogen.GetIdx(), oxygen.GetIdx())
+    configuration = _hydrogen_imine_configuration(mol, nitrogen, oxygen)
     try:
-        return f"{name_imine(stripped)} N-oxide"
+        return f"{name_imine(stripped, configuration)} N-oxide"
     except UnsupportedStructure:
+        if configuration is not None:
+            raise
         from ._chain_multiplicative import _principal_atoms
         from ._polyfunctional import name_polyfunctional
 
