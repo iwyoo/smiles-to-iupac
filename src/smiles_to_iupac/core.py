@@ -1267,7 +1267,7 @@ def _protonated_name(mol):
 
 _HYDRO_FUSION_RUNNING = set()
 _STEREO_TOKENS = re.compile(
-    r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[RSEZ]|seqCis|seqTrans)(?=[,)\]])|(?<=[\d'′a⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[rs](?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|TS|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
+    r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[RSEZ]|seqCis|seqTrans)(?=[,)\]])|(?<=[\d'′a⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[rs](?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\((?:R|S|E|Z)\)|\((?:[RSEZ],)+[RSEZ]\)|\b(?:[DL]|alpha|beta)-|\((?:T|TS|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
 )
 
 
@@ -1324,7 +1324,8 @@ def _cites_every_double_bond(mol, name) -> bool:
         and s.specified == Chem.StereoSpecified.Specified
         and probe.GetBondWithIdx(s.centeredOn).HasProp("_CIPCode")
     )
-    return len(re.findall(r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[EZ]|seqCis|seqTrans)(?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\([EZ]\)", name)) >= bonds
+    cited = len(re.findall(r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[EZ]|seqCis|seqTrans)(?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\([EZ]\)", name))
+    return cited + sum(group.count(",") + 1 for group in re.findall(r"\(((?:[EZ],)+[EZ])\)", name)) >= bonds
 
 
 def _has_specified_stereo(mol) -> bool:
