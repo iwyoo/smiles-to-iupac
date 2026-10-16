@@ -1,8 +1,10 @@
 """Di- and polynuclear noncarbon oxoacids with their derivatives (P-67.2, P-67.3): a chain of acid centres (P, As, Sb, B,
 Si, S, Se, Te) joined directly ('hypo') or through one bridging atom takes the retained polyacid name, functional replacement
-is cited by prefixes with chain locants, esters and organic groups by words, and chains that match no retained acid are
-named on the senior mononuclear acid (P-67.3.1) or as dithioxane-diones (P-67.3.2)."""
+is cited by prefixes with chain locants, esters by words, organyl groups in place of the hydrogens of P, As and Sb by
+prefixes, and chains that match no retained acid are named on the senior mononuclear acid (P-67.3.1) or as
+dithioxane-diones (P-67.3.2)."""
 
+import itertools
 from dataclasses import dataclass, field
 
 from rdkit import Chem
@@ -19,6 +21,7 @@ _HALOGENS = {9: "F", 17: "Cl", 35: "Br", 53: "I"}
 _ELEMENT_ORDER = {"O": 0, "S": 1, "Se": 2, "Te": 3}
 _REPLACEMENT_WORD = {"S": "thio", "Se": "seleno", "Te": "telluro", "NH": "imido"}
 _PHOSPHORUS_STEMS = {15: ("phosphor", "phosphon"), 33: ("arsor", "arson"), 51: ("stibor", "stibon")}
+_ORGANYL_CENTERS = {15, 33, 51}
 _SLOTS = {15: 3, 33: 3, 51: 3, 5: 3, 14: 4, 16: 2, 34: 2, 52: 2}
 _CHALCOGEN_ACID = {16: "sulfuric", 34: "selenic", 52: "telluric"}
 _IRREGULAR_ANIONS = (("phosphoric", "phosphate"), ("phosphorous", "phosphite"), ("sulfuric", "sulfate"), ("sulfurous", "sulfite"))
@@ -50,6 +53,7 @@ class Center:
     hydrogens: int
     oxo: list = field(default_factory=list)
     singles: list = field(default_factory=list)
+    organyls: list = field(default_factory=list)
 
 
 @dataclass
@@ -64,7 +68,11 @@ def _is_center(atom):
     mol = atom.GetOwningMol()
     neighbors = atom.GetNeighbors()
     if any(n.GetAtomicNum() == 6 and not _is_cyanide_carbon(mol, n, atom) for n in neighbors):
-        return False
+        return (
+            z in _ORGANYL_CENTERS
+            and atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED
+            and any(n.GetAtomicNum() in _CHALCOGENS for n in neighbors)
+        )
     if z in (16, 34, 52):
         return any(
             (n.GetDegree() == 1 or (n.GetAtomicNum() == 7 and n.GetDegree() == 2))
@@ -188,6 +196,9 @@ def _classify(mol, graph, center_set, center, n, adjacent, seen_links):
         center.singles.append(Ligand(n, "CN", kind="pseudo", extra=tuple(m for m in graph[n] if m != c)))
     elif order != 1.0:
         return False
+    elif z == 6 and center.z in _ORGANYL_CENTERS:
+        center.organyls.append(Ligand(n, "C", kind="organyl", group=n))
+        center.hydrogens += 1
     elif z in _CHALCOGENS or z == 7:
         parsed = _single_or_bridge(mol, graph, center_set, c, n)
         if parsed is None:
@@ -398,13 +409,25 @@ def _n_substituents(mol, graph, halogens, centers, center_pos):
 def _format_n_substituents(found):
     grouped = {}
     for name, compound, locant in found:
-        grouped.setdefault((name, compound), []).append(locant)
-    parts = []
-    for (name, compound), locants in sorted(grouped.items(), key=lambda kv: kv[0][0]):
-        count = len(locants)
-        multiplied = ((_bis(count) if compound else numerical_term(count)) if count > 1 else "") + (f"({name})" if compound and count > 1 else name)
-        parts.append(f"{','.join(sorted(locants))}-{multiplied}")
-    return "-".join(parts) + "-" if parts else ""
+        info = grouped.setdefault(name, {"locants": [], "compound": compound})
+        info["locants"].append(locant)
+    return format_substituent_prefixes(grouped)
+
+
+def _join_prefixes(prefixes, rest):
+    """Substituent prefixes in front of the rest of the name: a hyphen only before a locant or an enclosing mark."""
+    if not prefixes:
+        return rest
+    return prefixes + ("" if rest[:1].isalpha() else "-") + rest
+
+
+def _organyl_substituents(mol, graph, halogens, centers):
+    """[(name, compound, centre index)] of the organyl groups that stand in place of the hydrogens of the acid centres."""
+    return [
+        (*name_branch(graph, lig.group, center.atom, halogens, mol=mol), ci)
+        for ci, center in enumerate(centers)
+        for lig in center.organyls
+    ]
 
 
 def _single_position_kind(centers, links):
@@ -508,6 +531,7 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     senior = _senior_class(centers)
+    organyls = _organyl_substituents(mol, graph, halogens, centers)
     candidates = []
     for reverse in (False, True):
         center_pos, link_pos = _positions(centers, links, reverse)
@@ -518,18 +542,20 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
         key = (
             _function_locants(centers, center_pos, senior),
             tuple(sorted(loc for _, loc in items)),
+            tuple(sorted(center_pos[ci] for _, _, ci in organyls)),
+            tuple(center_pos[ci] for _, _, ci in sorted(organyls, key=lambda o: (alpha_sort_key(o[0]), center_pos[o[2]]))),
             tuple(tuple(sorted(by_word[w])) for w in sorted(by_word, key=lambda w: w.strip("()"))),
         )
         candidates.append((key, center_pos, items))
     _, center_pos, items = min(candidates, key=lambda c: c[0])
     n_found = _n_substituents(mol, graph, halogens, centers, center_pos)
-    if priority and not items and senior is None and not n_found and centers[0].z != 5 and not anionic:
+    if priority and not items and senior is None and not n_found and not organyls and centers[0].z != 5 and not anionic:
         raise UnsupportedStructure("a plain homogeneous polyacid or ester is named by the part-wise modules")
-    n_prefix = _format_n_substituents(n_found)
+    n_prefix = _format_n_substituents(n_found + [(name, compound, center_pos[ci]) for name, compound, ci in organyls])
     if senior is not None:
         if anionic:
             return None
-        return n_prefix + _class_name(centers, links, center_pos, items, base, senior)
+        return _join_prefixes(n_prefix, _class_name(centers, links, center_pos, items, base, senior))
     esters, hydrogens = [], 0
     for ci, center in enumerate(centers):
         for lig in center.singles:
@@ -541,9 +567,51 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
     if anionic:
         return _ester_name(esters, hydrogens, items, base, n_prefix, located=True)
     if not esters:
-        prefix = n_prefix + _format_replacements(items, bare=_single_position_kind(centers, links))
-        return f"{prefix}{base} {_descriptors(centers, center_pos)}acid"
-    return _ester_name(esters, hydrogens, items, base, n_prefix)
+        prefix = _join_prefixes(n_prefix, _format_replacements(items, bare=_single_position_kind(centers, links)) + base)
+        return f"{prefix} {_descriptors(centers, center_pos)}acid"
+    ambiguous = bool(organyls) and not _unique_arrangement(centers, links, organyls, graph, halogens, mol)
+    return _ester_name(esters, hydrogens, items, base, n_prefix, ambiguous=ambiguous)
+
+
+def _unique_arrangement(centers, links, organyls, graph, halogens, mol):
+    """True when the esters and acid hydrogens of the chain can be arranged in one way only (up to reversing the chain),
+    so that the ester words need no locants."""
+    held = []
+    for center in centers:
+        slots = []
+        for lig in center.singles:
+            if lig.kind == "hydroxy":
+                slots.append((lig.element, "hydrogen"))
+            elif lig.kind == "ester":
+                slots.append((lig.element, name_branch(graph, lig.group, lig.atom, halogens, mol=mol)[0]))
+        held.append(slots)
+    fixed = [
+        (
+            center.z,
+            tuple(sorted(lig.element for lig in center.oxo)),
+            tuple(sorted((lig.kind, lig.element) for lig in center.singles if lig.kind not in ("hydroxy", "ester"))),
+            tuple(sorted(name for name, _, owner in organyls if owner == ci)),
+            tuple(sorted(element for element, _ in held[ci])),
+        )
+        for ci, center in enumerate(centers)
+    ]
+    mirrored = fixed == fixed[::-1] and [link.elements for link in links] == [tuple(reversed(link.elements)) for link in links[::-1]]
+    sizes = [len(slots) for slots in held]
+    flat = [slot for slots in held for slot in slots]
+    elements = sorted({element for element, _ in flat})
+    layouts = [[]]
+    for element in elements:
+        places = [(ci, k) for ci, slots in enumerate(held) for k, slot in enumerate(slots) if slot[0] == element]
+        labels = [slot[1] for slots in held for slot in slots if slot[0] == element]
+        layouts = [layout + [dict(zip(places, order))] for layout in layouts for order in set(itertools.permutations(labels))]
+    seen = set()
+    for layout in layouts:
+        placed = {key: label for part in layout for key, label in part.items()}
+        arrangement = tuple(
+            tuple(sorted((held[ci][k][0], placed[(ci, k)]) for k in range(sizes[ci]))) for ci in range(len(centers))
+        )
+        seen.add(min(arrangement, arrangement[::-1]) if mirrored else arrangement)
+    return len(seen) == 1
 
 
 def _class_name(centers, links, center_pos, items, base, senior):
@@ -568,10 +636,10 @@ def _class_name(centers, links, center_pos, items, base, senior):
     return f"{_format_replacements(items, bare=_single_position_kind(centers, links))}{base} {words}"
 
 
-def _ester_name(esters, hydrogens, items, base, n_prefix="", located=False):
+def _ester_name(esters, hydrogens, items, base, n_prefix="", located=False, ambiguous=False):
     replaced_chalcogen = any(word in ("thio", "seleno", "telluro") for word, _ in items)
     elements = [e for _, _, e, _ in esters]
-    cite_locants = replaced_chalcogen and len(set(elements)) < len(elements)
+    cite_locants = ambiguous or (replaced_chalcogen and len(set(elements)) < len(elements))
     cite_letters = replaced_chalcogen and len(set(elements)) == len(elements) and len(esters) > 1
     grouped = {}
     for name, compound, element, pos in esters:
@@ -590,7 +658,7 @@ def _ester_name(esters, hydrogens, items, base, n_prefix="", located=False):
     if hydrogens:
         words.append((numerical_term(hydrogens) if hydrogens > 1 else "") + "hydrogen")
     prefixes = _format_replacements(items) if located else _plain_prefixes(items)
-    return " ".join(words + [n_prefix + prefixes + _anion(base)])
+    return " ".join(words + [_join_prefixes(n_prefix, prefixes + _anion(base))])
 
 
 def _prefix_entry(mol, graph, halogens, lig):
@@ -610,6 +678,8 @@ def _prefix_entry(mol, graph, halogens, lig):
 
 def _dithioxane_name(mol, centers, links):
     """P-67.3.2: sulfur(IV) centres joined through oxygen are an oxane-type chain, not 'disulfurous acid'."""
+    if any(center.organyls for center in centers):
+        return None
     if any(c.z != 16 or len(c.oxo) != 1 for c in centers) or any(link.elements != ("O",) for link in links):
         return None
     if len({c.oxo[0].element for c in centers}) != 1:
@@ -773,6 +843,8 @@ def _chain_group(mol, graph, halogens, centers, links, order, link_order):
 
 def _substitutive_name(mol, centers, links):
     """P-67.3.1: the senior mononuclear acid is the parent and the other centres a substituent group."""
+    if any(center.organyls for center in centers):
+        return None
     if len(centers) < 2 or any(
         link.elements not in ((), ("O",), ("S",), ("Se",), ("Te",), ("NH",)) for link in links
     ) or (len(centers) > 2 and any(link.elements in ((), ("NH",)) for link in links)):
@@ -860,6 +932,8 @@ _ANHYDRIDE_CLASS = {"O": "", "S": "thio", "Se": "seleno", "Te": "telluro"}
 def _anhydride_name(mol, centers, links):
     """P-67.3.1, P-65.7.2: two acid centres linked through one chalcogen are an anhydride of their two acids when
     neither centre can be the parent of a substitutive name."""
+    if any(center.organyls for center in centers):
+        return None
     if len(centers) != 2 or len(links[0].elements) != 1 or links[0].elements[0] not in _ANHYDRIDE_CLASS:
         return None
     if any(lig.kind == "ester" for center in centers for lig in center.singles):
