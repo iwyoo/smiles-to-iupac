@@ -71,10 +71,29 @@ def name_ester_by_parts(mol) -> str:
     split = split_isotopes(mol)
     if split is None:
         return _name_ester_parts(mol, {})
-    clean, labels, _ = split
-    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
-        raise UnsupportedStructure("stereodescriptors of an isotopically modified ester are not supported yet (P-82.4)")
-    return _name_ester_parts(clean, labels)
+    clean, labels, index_map = split
+    chiral = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms())
+    return _name_ester_parts(clean, labels, (mol, index_map) if chiral else None)
+
+
+def _acid_with_labels(original, index_map, removed, matches):
+    """The free acid cut from the labelled molecule itself, which keeps the configuration of a centre that the nuclide
+    makes stereogenic (P-82.4); `removed` are the atoms of the alkyl parts in the numbering of the unlabelled molecule."""
+    inverse = {new: old for old, new in index_map.items()}
+    dropped = set()
+    for atom in removed:
+        dropped.add(inverse[atom])
+        dropped |= {n.GetIdx() for n in original.GetAtomWithIdx(inverse[atom]).GetNeighbors() if n.GetAtomicNum() == 1}
+    editable = Chem.RWMol(original)
+    for _, _, ester_oxygen, _ in matches:
+        oxygen = editable.GetAtomWithIdx(inverse[ester_oxygen])
+        oxygen.SetNumExplicitHs(1)
+        oxygen.SetNoImplicit(True)
+    for idx in sorted(dropped, reverse=True):
+        editable.RemoveAtom(idx)
+    acid = editable.GetMol()
+    Chem.SanitizeMol(acid)
+    return acid
 
 
 def _ester_locants(mol, acid, removed, matches, named_by_arm):
@@ -173,7 +192,7 @@ def _ester_matches(mol):
     return (*mol.GetSubstructMatches(_ESTER), *peroxy)
 
 
-def _name_ester_parts(mol, labels) -> str:
+def _name_ester_parts(mol, labels, original=None) -> str:
     from ._substituents import ISOTOPE_LABELS
     from .core import smiles_to_iupac
 
@@ -225,18 +244,23 @@ def _name_ester_parts(mol, labels) -> str:
         if len({a for _, _, _, a in matches}) != len(matches):
             raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
 
-    editable = Chem.RWMol(mol)
-    for _, _, ester_oxygen, _ in matches:
-        oxygen = editable.GetAtomWithIdx(ester_oxygen)
-        oxygen.SetNumExplicitHs(1)
-        oxygen.SetNoImplicit(True)
-    restore_labels(editable, mol, labels, removed)
-    for idx in sorted(removed, reverse=True):
-        editable.RemoveAtom(idx)
-    acid = editable.GetMol()
+    if original is not None:
+        if ester_labels or free_hydrogens:
+            raise UnsupportedStructure("an isotopic modification of the ester group beside a stereogenic centre is not supported yet")
+        acid = _acid_with_labels(*original, removed, matches)
+    else:
+        editable = Chem.RWMol(mol)
+        for _, _, ester_oxygen, _ in matches:
+            oxygen = editable.GetAtomWithIdx(ester_oxygen)
+            oxygen.SetNumExplicitHs(1)
+            oxygen.SetNoImplicit(True)
+        restore_labels(editable, mol, labels, removed)
+        for idx in sorted(removed, reverse=True):
+            editable.RemoveAtom(idx)
+        acid = editable.GetMol()
+        Chem.SanitizeMol(acid)
     if len(Chem.GetMolFrags(acid)) != 1:
         raise UnsupportedStructure("the acid parts of these esters are separate groups")
-    Chem.SanitizeMol(acid)
     anion = _anion_name(smiles_to_iupac(Chem.MolToSmiles(acid)))
 
     probe = Chem.Mol(mol)
