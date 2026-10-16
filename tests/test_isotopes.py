@@ -900,3 +900,20 @@ def test_nuclide_on_the_nitrogen_of_an_n_oxide(smiles, expected):
 )
 def test_nuclide_in_a_zwitterion_with_an_olate_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.2: a nuclide on an oxygen of an acid group takes the letter locant O and, with the nuclide of the centre, shares its descriptor
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CP(=O)(O)[18OH]", "methyl(O-18O)phosphonic acid", id="phosphonic_acid"),
+        pytest.param("O=[31P](O)(O)[18OH]", "(O-18O,31P)phosphoric acid", id="oxygen_and_centre_in_one_descriptor"),
+        pytest.param("OB([18OH])c1ccccc1", "phenyl(O-18O)boronic acid", id="boronic_acid"),
+        pytest.param("CP(=[18O])(Cl)Cl", "methyl(O-18O)phosphonic dichloride", id="acid_halide"),
+        pytest.param("O=C(O)CP(O)(O)=[18O]", "(O-18O)phosphonoacetic acid", id="phosphono_prefix"),
+        pytest.param("CS(N)(=O)=[18O]", "(O-18O)methanesulfonamide", id="sulfonamide"),
+        pytest.param("NS(=O)(=O)[18OH]", "(O-18O)sulfamic acid", id="sulfamic_acid"),
+    ],
+)
+def test_nuclide_on_an_oxygen_of_an_acid_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

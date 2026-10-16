@@ -118,7 +118,7 @@ def _name_derivative(mol, found) -> str:
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     count = len(rest)
-    nuclide = centre_nuclides(center.GetIdx())
+    nuclide = centre_nuclides(center.GetIdx(), oxygens=True)
     if kind == "halide":
         word = _halide_word(mol, rest[0], center)
         head = "" if carbons else f"{nuclide}{stem}oryl"
