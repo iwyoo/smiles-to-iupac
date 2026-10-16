@@ -1906,7 +1906,9 @@ def _name_aminium(base, labels=None, parent="amine", cationic=None):
     finally:
         CATION_PARENT.reset(cation_token)
         AMINIUM.reset(token)
-    return _cationic_group_suffix(name, parent, cationic or sum(a.HasProp("_cationic_amine") for a in base.GetAtoms()))
+    return _cationic_group_suffix(
+        name, parent, cationic or sum(a.HasProp("_cationic_amine") or (a.GetFormalCharge() == 1 and a.GetAtomicNum() == 7) for a in base.GetAtoms())
+    )
 
 
 _MULTIPLIED = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
