@@ -143,6 +143,11 @@ def test_aromatic_aminide_is_and_related(smiles, expected):
         pytest.param("C[N+](C)(C)C1CCCCC1=NO", "2-(hydroxyimino)-N,N,N-trimethylcyclohexan-1-aminium", id="oxime_on_a_ring_ammonium"),
         pytest.param("C[N+](C)(C)C/C=N/O", "(2E)-2-(hydroxyimino)-N,N,N-trimethylethan-1-aminium", id="e_oxime_on_a_chain_ammonium"),
         pytest.param("C[N+](C)(C)C/C=N\\O", "(2Z)-2-(hydroxyimino)-N,N,N-trimethylethan-1-aminium", id="z_oxime_on_a_chain_ammonium"),
+        # P-41, P-73.1.1.2: the cation is the parent, so thiocarbonyl groups are prefixes as their oxygen analogues are
+        pytest.param("C[N+](C)(C)CCC(N)=S", "3-amino-N,N,N-trimethyl-3-sulfanylidenepropan-1-aminium", id="thioamide_carbon_on_a_chain_ammonium"),
+        pytest.param("S=C(C)NCC[NH3+]", "2-(ethanethioamido)ethan-1-aminium", id="thioamide_nitrogen_on_a_chain_ammonium"),
+        pytest.param("S=C(C)N1CC[NH2+]CC1", "4-(ethanethioyl)piperazin-1-ium", id="thioacyl_on_a_ring_cation_nitrogen"),
+        pytest.param("O=C(c1ccoc1)N1CC[NH2+]CC1", "4-(furan-3-carbonyl)piperazin-1-ium", id="heteroaroyl_on_a_ring_cation_nitrogen"),
     ],
 )
 def test_ammonium_parent_with_other_groups(smiles, expected):
