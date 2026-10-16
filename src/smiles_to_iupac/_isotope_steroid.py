@@ -1,6 +1,7 @@
-"""Isotopically modified steroid parent hydrides (P-82.4.1, P-82.4.2, P-82.5.2): the unmodified parent is named, the
-descriptor of the labelled positions is cited with their steroid locants in front of the parent hydride name, and a
-centre that the nuclide makes stereogenic is cited first: (24R)-5α-(24-2H1)cholestane, 5α-(17-2H)pregnane."""
+"""Isotopically modified steroids (P-82.4.1, P-82.4.2, P-82.5.2): the unmodified steroid is named, the descriptor of the
+labelled positions is cited with their steroid locants in front of the parent hydride name, after the prefixes and the
+configuration of the parent, and a centre that the nuclide makes stereogenic is cited first: (24R)-5α-(24-2H1)cholestane,
+5α-(17-2H)pregnane, (24R)-5α-(24-2H1)cholestan-3β-ol."""
 
 import re
 
@@ -9,7 +10,8 @@ from rdkit import Chem
 from ._axial_stereo import _merge
 from ._common import UnsupportedStructure, assign_cip_labels
 from ._isotope_labels import descriptor, modification_key, split_isotopes
-from ._steroid_named import _core_atoms, _embeddings
+from ._steroid_named import _core_atoms, _embeddings, name_steroid
+from ._substituents import ISOTOPE_LABELS
 
 _PARENT = re.compile(r"(gon|estr|androst|pregn|cholest|chol|ergost|campest|poriferast|stigmast)ane$")
 _TEMPLATE = {"campest": "ergost", "poriferast": "stigmast"}
@@ -19,7 +21,7 @@ def has_isotope_steroid_shape(mol) -> bool:
     return (
         mol.GetRingInfo().NumRings() == 4
         and any(a.GetIsotope() for a in mol.GetAtoms())
-        and all(a.GetAtomicNum() in (1, 6) for a in mol.GetAtoms())
+        and all(a.GetAtomicNum() in (1, 6, 7, 8, 9, 16, 17, 35, 53) for a in mol.GetAtoms())
     )
 
 
@@ -66,14 +68,30 @@ def name_isotope_steroid(mol) -> str:
     if split is None:
         raise UnsupportedStructure("no isotopic label")
     clean, labels, index = split
-    name = smiles_to_iupac(Chem.MolToSmiles(clean))
-    parent = _PARENT.search(name)
-    if parent is None:
-        raise UnsupportedStructure("the unmodified steroid is not named as a bare parent hydride")
-    position_of = _positions(clean, parent.group(1), labels)
-    capacity = {atom: clean.GetAtomWithIdx(atom).GetTotalNumHs() for atom in labels}
-    text = descriptor(labels, position_of, False, capacity=capacity)
-    name = name[: parent.start()] + text + name[parent.start() :]
+    plain = smiles_to_iupac(Chem.MolToSmiles(clean))
+    context = {"labels": labels, "consumed": set(), "mol": clean}
+    name = name_steroid(clean)
+    if name is not None and name != plain:
+        raise UnsupportedStructure("the steroid namer and the unmodified name disagree on this structure")
+    if name is not None:
+        token = ISOTOPE_LABELS.set(context)
+        try:
+            name = name_steroid(clean)
+        finally:
+            ISOTOPE_LABELS.reset(token)
+    if name is not None:
+        if set(labels) - context["consumed"]:
+            raise UnsupportedStructure("an isotopically modified atom of this steroid is not cited by its name")
+        position_of = context["positions"]
+    else:
+        name = plain
+        parent = _PARENT.search(name)
+        if parent is None:
+            raise UnsupportedStructure("the unmodified steroid is not named as a bare parent hydride")
+        position_of = _positions(clean, parent.group(1), labels)
+        capacity = {atom: clean.GetAtomWithIdx(atom).GetTotalNumHs() for atom in labels}
+        text = descriptor(labels, position_of, False, capacity=capacity)
+        name = name[: parent.start()] + text + name[parent.start() :]
     for locant, code in sorted(_new_centres(mol, clean, index, position_of)):
         name = _merge(name, f"{locant}{code}")
     return name
