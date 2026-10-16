@@ -2183,6 +2183,7 @@ def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_group
         ("N#CN(C)N1CCCC1", "methyl(pyrrolidin-1-yl)cyanamide"),
         ("N#CN(CCO)CCN", "(2-aminoethyl)(2-hydroxyethyl)cyanamide"),
         ("NC(=O)NNC(N)=O", "hydrazine-1,2-dicarboxamide"),
+        ("C/C=C\\N(C(N)=O)N(CC)C(N)=O", "1-ethyl-2-[(1Z)-prop-1-en-1-yl]hydrazine-1,2-dicarboxamide"),
         ("CNC(=O)NNC(=O)NC", "N1,N2-dimethylhydrazine-1,2-dicarboxamide"),
         ("NC(=S)NNC(N)=S", "hydrazine-1,2-dicarbothioamide"),
         ("CNC(=S)NNC(=S)NC", "N1,N2-dimethylhydrazine-1,2-dicarbothioamide"),

@@ -968,6 +968,11 @@ def test_acid_retained_names_and_parents(smiles, expected):
         pytest.param(
             "CN=C(O)NNC(=NCC)O", "N1-ethyl-N2-methylhydrazine-1,2-dicarboximidic acid", id="imidic_acids_located_by_attachment"
         ),
+        pytest.param(
+            "C/C=C\\N(C(=O)O)N(C)C(=O)O",
+            "1-methyl-2-[(1Z)-prop-1-en-1-yl]hydrazine-1,2-dicarboxylic acid",
+            id="alkenyl_configuration_on_a_hydrazine_nitrogen",
+        ),
         pytest.param("CSC(=NC#N)NN", "methyl N-cyanohydrazinecarboximidothioate", id="imidic_ester_n_substituent"),
         pytest.param("CN=C(Cl)NN", "N-methylhydrazinecarboximidoyl chloride", id="imidoyl_halide_n_substituent"),
     ],

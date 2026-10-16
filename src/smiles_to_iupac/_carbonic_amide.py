@@ -6,9 +6,9 @@ from rdkit import Chem
 
 from ._chalcogenourea import _UREA_SUBSTITUENT_ELEMENTS, has_group_senior_to_urea, n_substituent_names
 from ._cited_group import cited_group
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_nitro_nitrogen
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_nitro_nitrogen
 from ._numerals import numerical_term
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import cited_whole_stereo, format_substituent_prefixes, name_branch
 
 _CHALCOGEN = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
 _CARBON_AND_HALOGEN = {6, 9, 17, 35, 53}
@@ -454,7 +454,11 @@ def hydrazine_dicarboxamide_name(mol):
                 break
             found.append((nitrogen, carbamoyl))
         else:
-            name = _hydrazine_dicarboxamide(mol, graph, found, nitro)
+            try:
+                with cited_whole_stereo(mol):
+                    name = _hydrazine_dicarboxamide(mol, graph, found, nitro)
+            except UnsupportedStructure:
+                name = None
             if name is not None:
                 return name
     return None
@@ -506,7 +510,7 @@ def _hydrazine_dicarboxamide(mol, graph, found, nitro):
         key = (
             tuple(sorted(loc for loc, _, _ in entries if isinstance(loc, int))),
             tuple(sorted(int(loc[1:] or 0) for loc, _, _ in entries if isinstance(loc, str))),
-            tuple(sorted((name, str(loc)) for loc, name, _ in entries)),
+            tuple(sorted((alpha_sort_key(name), str(loc)) for loc, name, _ in entries)),
         )
         if best is None or key < best[0]:
             best = (key, entries)
