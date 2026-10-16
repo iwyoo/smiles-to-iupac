@@ -6697,14 +6697,17 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
         for members in by_position.values():
             for prime, (_, _, group) in enumerate(sorted(members)):
                 primes[group] = prime
+    stereo_context = BRANCH_STEREO.get()
     for name, compound, *locant in n_names:
         located = locant[0] if locant else "N"
         if isinstance(located, tuple):
             position = _n_position(located, position_of)
             if position is None:
                 continue
+            if stereo_context:
+                stereo_context["used"] |= stereo_context.get("parked", {}).get(located, set())
             if group_count == 1:
-                located = "N"
+                located = located[0]
             else:
                 mark = "'" * primes.get(located[2], 0) if len(located) > 2 else ""
                 if len(located) > 5:
@@ -6750,9 +6753,22 @@ def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, c
             continue
         located = ("N", anchor, centre, tuple(a for a in graph[centre] if a not in owned)) if len(members) > 1 else "N"
         for n in group.n_substituents:
-            name, compound = name_branch(graph, n, group.n_atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            name, compound = _n_branch(located, graph, n, group.n_atom, halogens, aromatic_atoms, mol)
             entries.append((name, compound, located))
     return entries
+
+
+def _n_branch(located, graph, root, nitrogen, halogens, aromatic_atoms, mol):
+    """`name_branch` of an N-substituent of one of several groups; the stereo elements it cites count as cited only once
+    that group proves to be the parent (`_with_n_names`), not while another group may still be."""
+    context = BRANCH_STEREO.get()
+    before = set(context["used"]) if context else set()
+    named = name_branch(graph, root, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+    if context and isinstance(located, tuple):
+        added = context["used"] - before
+        context["used"] -= added
+        context.setdefault("parked", {}).setdefault(located, set()).update(added)
+    return named
 
 
 def _imidamide_cited(mol, graph, halogens, aromatic_atoms, owned):
@@ -6824,7 +6840,7 @@ def _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             for n in graph[nitrogen]:
                 if n in (partner, acyl):
                     continue
-                name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                name, compound = _n_branch(located, graph, n, nitrogen, halogens, aromatic_atoms, mol)
                 entries.append((name, compound, located))
     return entries
 
@@ -6864,7 +6880,7 @@ def _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_group
             for n in graph[nitrogen]:
                 if n in nitrogens or n == centre:
                     continue
-                name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                name, compound = _n_branch(located, graph, n, nitrogen, halogens, aromatic_atoms, mol)
                 entries.append((name, compound, located))
     return entries
 
@@ -6891,7 +6907,7 @@ def _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
             for n in graph[nitrogen]:
                 if n in members:
                     continue
-                name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                name, compound = _n_branch(located, graph, n, nitrogen, halogens, aromatic_atoms, mol)
                 if compound and re.fullmatch(r"[a-z]+imidoyl", name) and _imidoyl_carbon(mol, mol.GetAtomWithIdx(n), atom):
                     compound = False
                 entries.append((name, compound, located))
@@ -6963,7 +6979,7 @@ def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cl
         located = ("N", anchor, identity, tuple(a for a in graph[carbon] if a not in owned)) if len(members) > 1 else "N"
         for n in graph[nitrogen]:
             if n != center:
-                name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                name, compound = _n_branch(located, graph, n, nitrogen, halogens, aromatic_atoms, mol)
                 entries.append((name, compound, located))
     return entries
 

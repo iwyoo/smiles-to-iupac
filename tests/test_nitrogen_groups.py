@@ -1266,6 +1266,7 @@ def test_ring_imine_with_a_ring_nitrogen_group_or_an_amino_ring_nitrogen(smiles,
         pytest.param("CC(=N[Si](C)(C)C)N[Si](C)(C)C", "N,N'-bis(trimethylsilyl)ethanimidamide", id="hydride_groups_on_both_amidine_nitrogens"),
         pytest.param("CC(=N[Si](C)(C)C)NC", "N-methyl-N'-(trimethylsilyl)ethanimidamide", id="hydride_group_beside_a_carbon_group"),
         pytest.param("NC(=N)CC(=N)N", "propanediimidamide", id="chain_diamidine"),
+        pytest.param("NC(=NO)CCOCC(=N)NC", "N'-hydroxy-3-[2-imino-2-(methylamino)ethoxy]propanimidamide", id="second_amidine_in_a_prefix_keeps_the_primes"),
         pytest.param("CC(=N)CN=CC", "1-(ethylideneamino)propan-2-imine", id="second_imine_as_ylideneamino_prefix"),
         pytest.param(
             "CC(=N)CN=Cc1c(Cl)cccc1Cl",
@@ -2560,6 +2561,11 @@ def test_hydrazido_prefix_of_a_substituted_or_carbonic_acylhydrazide(smiles, exp
             "C[C@@H]1CCCC[C@H]1/C(N)=N/O",
             "(1R,2R,Z)-N'-hydroxy-2-methylcyclohexane-1-carboximidamide",
             id="descriptor_without_locant_follows_the_ring_stereocentres",
+        ),
+        pytest.param(
+            "C[C@@H](CCCN=CN)/C(N)=N/O",
+            "(1Z,2S)-5-[(aminomethylidene)amino]-N'-hydroxy-2-methylpentanimidamide",
+            id="descriptor_of_the_parent_amidoxime_beside_an_amidine_prefix",
         ),
     ],
 )
