@@ -560,6 +560,7 @@ def _substituted_sugar_name(mol, bridges=()):
         cited.append(("anhydro", anhydro_segment([(skeleton.position(first), skeleton.position(second)) for first, second in bridges])))
     segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
     prefix = "-".join(segments) + "-" if segments else ""
+    prefix = _imine_configuration(mol, skeleton, decorations) + prefix
     if anomeric_kind in ("ether", "Sether"):
         return f"{aglycone} {prefix}{core[:-1]}ide" + (f" {ester_words([(a, sorted(l)) for a, l in esters.items()])}" if esters else "")
     if anomeric_kind == "pseudohalide":
@@ -572,6 +573,19 @@ def _substituted_sugar_name(mol, bridges=()):
     name = prefix + core
     return f"{name} {ester_words([(a, sorted(l)) for a, l in esters.items()])}" if esters else name
 
+
+
+def _imine_configuration(mol, skeleton, decorations):
+    """'(2E)-' or '(2E,3Z)-': the configuration of each C=N bond from a skeleton carbon to an imino or hydroxyimino group,
+    cited with the locant of that carbon in front of the substituent prefixes (P-93.4.2.1.3)."""
+    labelled = Chem.Mol(mol)
+    assign_cip_labels(labelled)
+    cited = []
+    for carbon, (kind, x, _) in decorations.items():
+        bond = labelled.GetBondBetweenAtoms(carbon, x) if kind == "N" else None
+        if bond is not None and bond.GetBondTypeAsDouble() == 2.0 and bond.HasProp("_CIPCode"):
+            cited.append((skeleton.position(carbon), bond.GetProp("_CIPCode")))
+    return f"({','.join(f'{position}{code}' for position, code in sorted(cited))})-" if cited else ""
 
 
 def _opened_ether(mol, oxygen, carbon):

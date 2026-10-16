@@ -417,6 +417,11 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
         pytest.param("CCCCCCCC[C@H](O)C(=O)CO", "(3S)-1,3-dihydroxyundecan-2-one", id="ketose_skeleton_beyond_the_stem_range"),
         pytest.param("O=C[C@H](O)[C@@H](N(C)C)C[C@@H](C)O", "3,4,6-trideoxy-3-(dimethylamino)-D-xylo-hexose", id="amino_group_replacing_a_hydroxy_group"),
         pytest.param("OC[C@H]1O[C@H](O)[C@H](C)[C@@H](O)[C@@H]1O", "2-deoxy-2-methyl-α-D-glucopyranose", id="carbon_group_replacing_a_hydroxy_group"),
+        pytest.param(
+            "OC[C@@H]1OC(O)/C(=N/O)[C@@H](O)[C@@H]1O",
+            "(2E)-2-deoxy-2-(hydroxyimino)-L-xylo-hexopyranose",
+            id="oxime_replacing_a_hydroxy_group_cites_its_configuration",
+        ),
         pytest.param("OC[C@H]1O[C@H](O)[C@H](c2ccccc2)[C@@H](O)[C@@H]1O", "2-deoxy-2-phenyl-α-D-glucopyranose", id="aryl_replacing_a_hydroxy_group"),
         pytest.param(
             "CCOC(=O)OC[C@H]1O[C@@H](Oc2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O",
