@@ -133,7 +133,7 @@ from ._carbanide import has_carbanide_shape, name_carbanide
 from ._benzenide import has_benzenide_shape, name_benzenide
 from ._cyclopentadienide import has_cyclopentadienide_shape, name_cyclopentadienide
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
-from ._diazonium import has_diazonium_shape, name_diazonium
+from ._diazonium import has_diazonium_shape, has_isotope_diazonium_shape, name_diazonium, name_isotope_diazonium
 from ._radical import has_radical_shape, name_radical
 from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
@@ -710,6 +710,7 @@ def _name_isotope_label(mol) -> str:
         (has_labelled_azoxy, name_labelled_azoxy),
         (has_labelled_diazene, name_labelled_diazene),
         (has_labelled_hydrazone, name_labelled_hydrazone),
+        (has_isotope_diazonium_shape, name_isotope_diazonium),
         (has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen),
         (has_isotope_hydride_shape, name_isotope_hydride),
         (has_isotope_substituted_hydride_shape, name_isotope_substituted_hydride),
@@ -763,7 +764,10 @@ def _name_labelled_substituents(mol):
     context = {"labels": labels, "consumed": set(), "mol": clean}
     token = ISOTOPE_LABELS.set(context)
     try:
-        name = _name_mol(clean)
+        name = name_polychalcogen_hydride(clean)
+        if name is None or set(labels) - context["consumed"]:
+            context["consumed"].clear()
+            name = _name_mol(clean)
     finally:
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:

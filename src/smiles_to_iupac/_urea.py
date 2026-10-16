@@ -47,7 +47,7 @@ from rdkit import Chem
 from ._chalcogen_imide import ylidene_group_atoms
 from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first, unprimed_first_labelled
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
-from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
+from ._isotope_labels import descriptor, nitrogen_hydrogen_descriptor, split_isotopes
 from ._parent_choice import senior_parent_name
 from ._substituents import format_substituent_prefixes
 
@@ -167,9 +167,12 @@ def _labelled_urea_name(mol, labels):
     if core is None or len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("only a plain urea core can carry nuclide labels on its nitrogens here")
     carbon_idx, (n1_idx, n2_idx) = core
-    if set(labels) - {n1_idx, n2_idx} or _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx) is not None:
-        raise UnsupportedStructure("only the two nitrogens of a plain urea can carry nuclide labels here")
     (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 8)
+    amino_idx = _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx)
+    if amino_idx is not None:
+        return _labelled_semicarbazide_name(mol, labels, (carbon_idx, oxygen_idx, n1_idx, n2_idx, amino_idx))
+    if set(labels) - {n1_idx, n2_idx}:
+        raise UnsupportedStructure("only the two nitrogens of a plain urea can carry nuclide labels here")
     n1_names, n2_names = n_substituent_names(
         mol, adjacency(mol), {carbon_idx, oxygen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx, junior_groups=True
     )
@@ -182,6 +185,31 @@ def _labelled_urea_name(mol, labels):
     positions = {"N": unprimed_names, "N'": primed_names}
     prefixes = format_substituent_prefixes(group_substituents({k: v for k, v in positions.items() if v}))
     return f"{prefixes}{nuclides}urea"
+
+
+def _labelled_semicarbazide_name(mol, labels, atoms):
+    """Hydrazine-1-carboxamide with hydrogen nuclides on its nitrogens: N for the amide nitrogen, 1 and 2 for the
+    hydrazine nitrogens, cited in front of 'hydrazine' (P-82.2.1, P-82.6.2)."""
+    carbon_idx, oxygen_idx, n1_idx, n2_idx, amino_idx = atoms
+    if set(labels) - {n1_idx, n2_idx, amino_idx}:
+        raise UnsupportedStructure("only the nitrogens of a semicarbazide can carry nuclide labels here")
+    graph = adjacency(mol)
+    if all(any(_is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n) for t in graph[n] if t != carbon_idx) for n in (n1_idx, n2_idx)):
+        raise UnsupportedStructure("nuclide labels on a carbonohydrazide are not supported yet")
+    alpha, amide = (n1_idx, n2_idx) if amino_idx in graph[n1_idx] else (n2_idx, n1_idx)
+    names = n_substituent_names(
+        mol, graph, set(atoms), (amide, alpha, amino_idx), carbon_idx, junior_groups=True
+    )
+    if any(entry["skeleton"] or not entry["H"] for entry in labels.values()):
+        raise UnsupportedStructure("only hydrogen nuclides on the nitrogens of a semicarbazide are supported")
+    hydrazine = {n: entry for n, entry in labels.items() if n != amide}
+    extra = [
+        (nuclide, "N", count, mol.GetAtomWithIdx(amide).GetTotalNumHs() > 1)
+        for nuclide, count in labels.get(amide, {"H": {}})["H"].items()
+    ]
+    capacity = {n: mol.GetAtomWithIdx(n).GetTotalNumHs() for n in hydrazine}
+    nuclides = descriptor(hydrazine, {alpha: 1, amino_idx: 2}, False, extra=extra, capacity=capacity)
+    return _hydrazinecarboxamide_name(*names, nuclides=nuclides)
 
 
 def name_urea(mol, atomic_num=8) -> str:
@@ -276,15 +304,15 @@ def nitrogen_locants(mol):
     return {unprimed: "N", primed: "N'"}, f"{prefixes}urea"
 
 
-def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide"):
+def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide", nuclides=""):
     """Substituted hydrazinecarboxamide (P-66.1.1.1.1.3, P-66.3.5): N on the amide nitrogen, 1 and 2 on the
     hydrazine nitrogens."""
     positions = {"N": amide_names, 1: alpha_names, 2: beta_names}
     grouped = group_substituents({k: v for k, v in positions.items() if v})
     if not grouped:
-        return f"hydrazine{ending}"
+        return f"{nuclides}hydrazine{ending}"
     numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
-    return f"{format_substituent_prefixes(grouped)}hydrazine{'-1-' if numbered else ''}{ending}"
+    return f"{format_substituent_prefixes(grouped)}{nuclides}hydrazine{'-1-' if numbered else ''}{ending}"
 
 
 _HYDRAZIDE_ENDING = {8: "carbohydrazide", 16: "carbothiohydrazide", 34: "carboselenohydrazide", 52: "carbotellurohydrazide"}

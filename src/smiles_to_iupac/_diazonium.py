@@ -372,7 +372,24 @@ def name_diazonium(mol) -> str:
         return _name_via_amine_surrogate(mol)
 
 
-def _name_via_amine_surrogate(mol) -> str:
+def has_isotope_diazonium_shape(mol) -> bool:
+    return has_diazonium_shape(mol) and any(a.GetIsotope() for a in mol.GetAtoms())
+
+
+def name_isotope_diazonium(mol) -> str:
+    from ._isotope_labels import split_isotopes
+    from .core import _require_isotopes_cited
+
+    split = split_isotopes(mol)
+    if split is None:
+        raise UnsupportedStructure("no isotopically modified atom")
+    clean, labels, _ = split
+    name = _name_via_amine_surrogate(clean, labels)
+    _require_isotopes_cited(mol, name)
+    return name
+
+
+def _name_via_amine_surrogate(mol, labels=None) -> str:
     """P-73.2.2.3: the diazonium groups are suffixes in the position of the amine suffix (cations rank above acids and
     ketones), so the skeleton is named with each -N2+ read as -NH2 and 'amine' becomes 'diazonium'."""
     import re
@@ -395,16 +412,21 @@ def _name_via_amine_surrogate(mol) -> str:
         target.SetNoImplicit(False)
         target.SetBoolProp("_cationic_amine", True)
         editable.GetBondBetweenAtoms(atom.GetIdx(), terminal).SetBondType(Chem.BondType.SINGLE)
+    if labels and any(a.GetIdx() in labels or n.GetIdx() in labels for a in nitrogens for n in a.GetNeighbors() if n.GetAtomicNum() == 7):
+        raise UnsupportedStructure("a nuclide on the nitrogen of a diazonium group is not supported yet")
     for index in sorted(remove, reverse=True):
         editable.RemoveAtom(index)
     surrogate = editable.GetMol()
     Chem.SanitizeMol(surrogate)
+    shifted = {atom - sum(1 for r in remove if r < atom): entry for atom, entry in (labels or {}).items()}
     token = AMINIUM.set(True)
     parent_token = CATION_PARENT.set(True)
     try:
         try:
-            name = _name_labelled(surrogate, {})
+            name = _name_labelled(surrogate, shifted)
         except UnsupportedStructure:
+            if shifted:
+                raise
             name = smiles_to_iupac(Chem.MolToSmiles(surrogate))
     finally:
         CATION_PARENT.reset(parent_token)
