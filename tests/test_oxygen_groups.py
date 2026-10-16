@@ -1503,3 +1503,18 @@ def test_locants_are_omitted_when_no_isomer_can_be_generated(smiles, expected):
 def test_functional_modifier_names_of_acetals(smiles, expected):
     # P-66.6.5.1 to P-66.6.5.4
     assert [a.name for a in smiles_to_alternative_names(smiles) if a.kind == "functional-modifier"] == [expected]
+
+
+# P-41 (acids and esters outrank acid halides), P-65.5.4, P-65.6.3: a sulfonyl halide or sulfonate ester beside an ester-type group is a prefix of its organyl group
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C(OC(=O)C)CCS(=O)(=O)Cl", "3-(chlorosulfonyl)propyl acetate", id="carboxylic_ester"),
+        pytest.param("C(OC(=O)OC)CCS(=O)(=O)Cl", "3-(chlorosulfonyl)propyl methyl carbonate", id="carbonic_ester"),
+        pytest.param("C(S(=O)(=O)Cl)CCSC#N", "3-(chlorosulfonyl)propyl thiocyanate", id="thiocyanate"),
+        pytest.param("C(OP(=O)(O)O)CCS(=O)(=O)Cl", "3-(chlorosulfonyl)propyl dihydrogen phosphate", id="phosphate_beside_the_halide"),
+        pytest.param("C(OC(=O)C)CCS(=O)(=O)OC", "3-(methoxysulfonyl)propyl acetate", id="carboxylic_ester_outranks_a_sulfonate_ester"),
+    ],
+)
+def test_sulfonyl_group_beside_an_ester_type_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
