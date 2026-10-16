@@ -354,6 +354,21 @@ def test_azide_prefix_on_substituted_ring_and_unsaturated_parent(smiles, expecte
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("[N-]=[N+]=NCCB(O)O", "(2-azidoethyl)boronic acid", id="boronic_acid"),
+        pytest.param("[N-]=[N+]=Nc1cccc(P(=O)(O)O)c1", "(3-azidophenyl)phosphonic acid", id="phosphonic_acid_on_a_ring"),
+        pytest.param("[N-]=[N+]=NCCP(C)(=O)O", "(2-azidoethyl)(methyl)phosphinic acid", id="phosphinic_acid"),
+        pytest.param("[N-]=[N+]=NCCNC(N)=O", "(2-azidoethyl)urea", id="urea"),
+        pytest.param("[N-]=[N+]=NCCNC(=O)NCCN=[N+]=[N-]", "N,N'-bis(2-azidoethyl)urea", id="two_azides_on_a_urea"),
+    ],
+)
+def test_azido_prefix_beside_a_noncarbon_oxoacid_or_a_urea(smiles, expected):
+    # P-61.7, P-67.1.1.1, P-66.1.6.1: the azido group is a prefix like nitro or chloro, whatever senior class holds it
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC(C)=NN=C(C)C", "di(propan-2-ylidene)hydrazine", id="symmetric_azine"),
         pytest.param("CCC(C)=NN=C1CCCCC1", "(butan-2-ylidene)(cyclohexylidene)hydrazine", id="unsymmetrical_azine_with_a_ring"),
         pytest.param("OC(=O)C1CCC(CC1)=NN=C(C)C", "4-[(propan-2-ylidene)hydrazinylidene]cyclohexane-1-carboxylic acid", id="azine_as_a_prefix_on_an_acid"),
