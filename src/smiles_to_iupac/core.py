@@ -1306,18 +1306,26 @@ def _override_count(mol) -> int:
     return sum(1 for a in mol.GetAtoms() if a.HasProp(STEREO_OVERRIDE))
 
 
+_MULTIPLIED_GROUP_WORD = re.compile(r"\b(?:bis|tris|tetrakis)\b|(?:bis|tris|tetrakis)(?=[(\[{])|\b(?:di|tri|tetra)[(\[{]")
+
+
+def _acid_repeats(name):
+    """The acid of a symmetric anhydride is cited once for its two acyl groups."""
+    return 2 if _SYMMETRIC_ANHYDRIDE.fullmatch(name) else 1
+
+
 def _cites_every_tetrahedral_center(mol, name) -> bool:
     """A name without a D/L, alpha/beta or multiplying word needs one R or S for each specified tetrahedral centre."""
     if _CODE_WORDS.search(name):
         return True
-    return len(_CENTER_CODE.findall(name)) >= len(genuine_stereo_centres(mol))
+    return len(_CENTER_CODE.findall(name)) * _acid_repeats(name) >= len(genuine_stereo_centres(mol))
 
 
 def _cites_every_stereo_element(mol, name) -> bool:
     cited = len(_STEREO_TOKENS.findall(name))
-    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)[(\[{]", name):
+    if _MULTIPLIED_GROUP_WORD.search(name):
         return cited > 0
-    return cited >= len(genuine_stereo_centres(mol)) + sum(
+    return cited * _acid_repeats(name) >= len(genuine_stereo_centres(mol)) + sum(
         1
         for s in Chem.FindPotentialStereo(mol)
         if s.specified == Chem.StereoSpecified.Specified and s.type != Chem.StereoType.Atom_Tetrahedral
@@ -1325,7 +1333,7 @@ def _cites_every_stereo_element(mol, name) -> bool:
 
 
 def _cites_every_double_bond(mol, name) -> bool:
-    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)[(\[{]", name):
+    if _MULTIPLIED_GROUP_WORD.search(name):
         return True
     probe = Chem.Mol(mol)
     assign_cip_labels(probe)
@@ -1339,7 +1347,7 @@ def _cites_every_double_bond(mol, name) -> bool:
     cited = len(re.findall(r"(?<=[\d'′a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])(?:[EZ]|seqCis|seqTrans)(?=[,)\]])|(?<=['′\d]\))[EZ](?=[,\]])|\([EZ]\)", name))
     listed = sum(group.count(",") + 1 for group in re.findall(r"\(((?:[EZ],)+[EZ])\)", name))
     unlocated = sum(group.count(",") + 1 for group in re.findall(r"[(\[](?:[\d'\u2032]+[a-z]?[RSrs],)+((?:[EZ],)*[EZ])[)\]]", name))
-    return cited + listed + unlocated >= bonds
+    return (cited + listed + unlocated) * _acid_repeats(name) >= bonds
 
 
 def _has_specified_stereo(mol) -> bool:

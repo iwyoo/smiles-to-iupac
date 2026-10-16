@@ -6,7 +6,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
+from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, match_cip_labels, specified_stereo_elements
 from ._hetero_prefixes import (
     DIPOLAR_GROUPS,
     EXTENDED_PREFIXES,
@@ -419,7 +419,7 @@ def name_group_cation(mol) -> str:
     from ._anion import HYDRO_PREFIXED_CENTRE, name_anion
 
     centre = _group_cation_centre(mol)
-    if centre is None or specified_stereo_elements(mol):
+    if centre is None:
         raise UnsupportedStructure("this cation is not a single carbenium centre on a plain skeleton")
     mol = _pi_cation_kekule(mol)
     centre = mol.GetAtomWithIdx(centre.GetIdx())
@@ -430,6 +430,7 @@ def name_group_cation(mol) -> str:
     anionic.GetAtomWithIdx(centre.GetIdx()).SetFormalCharge(-1)
     anionic = anionic.GetMol()
     Chem.SanitizeMol(anionic)
+    match_cip_labels(mol, anionic)
     token = HYDRO_PREFIXED_CENTRE.set(True)
     try:
         name = name_anion(anionic)

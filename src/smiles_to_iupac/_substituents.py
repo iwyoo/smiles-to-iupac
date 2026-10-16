@@ -17,7 +17,7 @@ from ._common import (
     adjacency,
     alpha_sort_key,
     citation_order_key,
-    specified_stereocenters,
+    specified_stereo_elements,
     substituent_locant_set_and_citation,
     unsaturation_suffix,
 )
@@ -1463,7 +1463,7 @@ def cited_branch_stereo(mol, graph, blocked, roots):
 def cited_centre_stereo(mol, centre, ligands=()):
     """Yields the '(R)-' prefix of a stereogenic heteroatom `centre` (P-93.3.4.1), empty when it has none, while the
     groups beyond the centre and its `ligands` cite their own descriptors (P-93.5.1.1)."""
-    labels = dict(specified_stereocenters(mol) or ())
+    labels = {idx: code for kind, idx, code in specified_stereo_elements(mol) or () if kind == "atom"}
     blocked = {centre, *ligands}
     roots = [n.GetIdx() for idx in blocked for n in mol.GetAtomWithIdx(idx).GetNeighbors() if n.GetIdx() not in blocked]
     with cited_branch_stereo(mol, adjacency(mol), blocked, roots):
