@@ -30,7 +30,7 @@ from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, multiplying_prefix, numerical_term
 
-_NUCLIDE = r"(?:[\d,]+-)?\d+[A-Z][a-z]?\d*"
+_NUCLIDE = r"(?:(?:[\d,]+|[A-Z][a-z]?\d*'*)-)?\d+[A-Z][a-z]?\d*"
 _LEADING_LOCANTS_RE = re.compile(rf"^\x01?(?:[\d,\-]+(?:\((?!{_NUCLIDE}(?:,{_NUCLIDE})*\)[A-Za-z]))?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 _LEADING_ISOTOPE_RE = re.compile(rf"^\x01?\({_NUCLIDE}(?:,{_NUCLIDE})*\)(?=[A-Za-z])")
@@ -2015,4 +2015,4 @@ def assembly_join(prefix, core):
 def alphanumerical_name_key(name):
     """P-14.5: whole names compare by their letters alone; locants, enclosing marks, italic capitals (N, H) and isotope
     descriptors such as (81Br) are ignored."""
-    return re.sub(r"[^a-z]", "", re.sub(r"\((?:\d+-)?\d+[A-Z][a-z]?\d*(?:,(?:\d+-)?\d+[A-Z][a-z]?\d*)*\)", "", name))
+    return re.sub(r"[^a-z]", "", re.sub(rf"\({_NUCLIDE}(?:,{_NUCLIDE})*\)", "", name))

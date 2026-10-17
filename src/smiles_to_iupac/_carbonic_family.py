@@ -12,7 +12,7 @@ from ._chalcogen_imide import ylidene_group_atoms
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
 from ._parent_choice import senior_parent_name
 from ._retained_acids import single_site_prefixes
-from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
+from ._substituents import centre_nuclides, cited_branch_stereo, format_substituent_prefixes, name_branch
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _HALIDE_INFIX = {9: "fluorid", 17: "chlorid", 35: "bromid", 53: "iodid"}
@@ -325,15 +325,16 @@ def name_carbonic_family(mol):
     ):
         raise UnsupportedStructure("an anionic centre outside the acid group outranks the acid (P-41, P-72.6)")
     if len(centres) == 1:
-        return _name_at(mol, centres[0])[1]
+        return _name_at(mol, centres[0], cite_nuclides=True)[1]
     if not all(_is_acid_centre(mol, c) for c in centres):
         raise UnsupportedStructure("no single carbonic or cyanic acid group")
     senior = min(_class_rank(mol, c) for c in centres)
     return senior_parent_name(mol, [c for c in centres if _class_rank(mol, c) == senior], lambda c: _name_at(mol, c))
 
 
-def _name_at(mol, center):
-    """(number of N-substituents, name) with the acid group at `center` as the parent."""
+def _name_at(mol, center, cite_nuclides=False):
+    """(number of N-substituents, name) with the acid group at `center` as the parent; the nuclides of the centre and its
+    terminal oxygens are cited in front of the acid name when this is the only candidate (P-82.2.1, P-82.6.2)."""
     graph = adjacency(mol)
     atom = mol.GetAtomWithIdx(center)
     if any(_bond(mol, center, n.GetIdx()) == 3.0 for n in atom.GetNeighbors()):
@@ -397,6 +398,8 @@ def _name_at(mol, center):
         raise UnsupportedStructure("atoms outside the carbonic acid group and its nitrogen substituents")
     name = carbonic_acid_name(x, ligands, amino=amino is not None)
     name = _labelled(atom, name)
+    if cite_nuclides:
+        name = centre_nuclides(center, oxygens=True) + name
     if anions:
         name = _anionic(name)
         if hydrogens:

@@ -7,7 +7,13 @@ from rdkit import Chem, rdBase
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._adduct import has_adduct_shape, has_bare_inorganic_component, has_inorganic_component, name_adduct
 from ._acyclic import name_acyclic_alkane
-from ._acid_derivatives import has_isotope_acyl_halide_shape, name_acid_derivative, name_isotope_acyl_halide, name_phosphorous_acid
+from ._acid_derivatives import (
+    has_isotope_acyl_halide_shape,
+    name_acid_derivative,
+    name_isotope_acyl_halide,
+    name_labelled_anhydride,
+    name_phosphorous_acid,
+)
 from ._acid_salts import name_acid_salt
 from ._hetero_carboxylic import name_hetero_parent_acid
 from ._polycarbonic import name_polycarbonic
@@ -822,7 +828,7 @@ def _name_labelled_substituents(mol):
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
             name, partial, failure = None, None, None
-            for namer in (_oxoacid_name, name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS):
+            for namer in (_oxoacid_name, name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS, name_carbonic_family, name_labelled_anhydride):
                 context["consumed"].clear()
                 try:
                     candidate = namer(clean)
