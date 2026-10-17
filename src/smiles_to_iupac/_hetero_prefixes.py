@@ -112,6 +112,7 @@ def _has_senior_principal_group(mol):
         or BORON_ACID_PARENT.get()
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_SULFONYL)
+        or any(mol.HasSubstructMatch(query) for query in _NONCARBON_ACID_ESTERS)
         or mol.HasSubstructMatch(_HEAVY_CHALCOGENOL)
         or mol.HasSubstructMatch(AMINE_PATTERN)
         or mol.HasSubstructMatch(_ENAMINE_PATTERN)

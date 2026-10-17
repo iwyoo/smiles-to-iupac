@@ -21,3 +21,8 @@ def name_inorganic_ester_parent(mol):
         if has_shape(mol):
             return namer(mol)
     raise UnsupportedStructure("no ester of sulfuric, sulfurous, nitric or nitrous acid")
+
+
+def has_inorganic_ester_parent(mol):
+    return any(has_shape(mol) for has_shape, _ in _ESTERS)
+

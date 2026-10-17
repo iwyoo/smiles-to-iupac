@@ -870,6 +870,8 @@ def test_phosphate_and_sulfate_esters_on_a_ring_or_assembly_are_multiplied(smile
         pytest.param("[O-][N+](=O)OCCC(=S)N", "3-amino-3-sulfanylidenepropyl nitrate", id="thioamide"),
         pytest.param("OP(=O)(O)OCC[SeH]", "2-selanylethyl dihydrogen phosphate", id="selenol"),
         pytest.param("COS(=O)(=O)OCCSC", "methyl 2-(methylsulfanyl)ethyl sulfate", id="neutral_diester"),
+        pytest.param("[O-][N+](=O)OCCC=NO", "3-(hydroxyimino)propyl nitrate", id="oxime_beside_a_nitrate"),
+        pytest.param("O=NOCCSSC", "2-(methyldisulfanyl)ethyl nitrite", id="disulfide_beside_a_nitrite"),
     ],
 )
 def test_ester_of_a_noncarbon_acid_is_the_parent_beside_lower_groups(smiles, expected):
