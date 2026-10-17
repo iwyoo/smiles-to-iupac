@@ -308,6 +308,7 @@ from ._isocyanide import has_isocyanide_shape, name_isocyanide
 from ._isoselenocyanate import has_isoselenocyanate_shape, name_isoselenocyanate
 from ._isotellurocyanate import has_isotellurocyanate_shape, name_isotellurocyanate
 from ._isothiocyanate import has_isothiocyanate_shape, name_isothiocyanate
+from ._inorganic_ester_parent import name_inorganic_ester_parent
 from ._nitrate_ester import has_nitrate_ester_shape, name_nitrate_ester
 from ._carbonic_acid import has_carbonic_acid_shape, name_carbonic_acid
 from ._nitrite_ester import has_nitrite_ester_shape, name_nitrite_ester
@@ -1244,6 +1245,7 @@ def _name_unabridged_body(smiles: str) -> str:
                 name_acid_salt,
                 name_polycarbonic,
                 name_carbonic_family,
+                name_inorganic_ester_parent,
                 name_acid_derivative,
                 name_boron_peroxy_ester,
                 name_hetero_parent_acid,

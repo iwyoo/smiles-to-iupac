@@ -23,18 +23,17 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 Scope: a single sulfur atom shaped like a sulfite ester -- one S=O
 double bond, and two more S-O positions, each either an ester (S-O-R), a
 plain S-OH partial-ester remainder, or a single deprotonated S-O^- salt
-position, each R named via `name_branch` (a plain alkyl chain, a
-branched chain, or a plain benzene ring, and their halogenated variants,
-exactly like `_sulfate.py`'s R), identical or mixed freely. Explicitly
-out of scope (raise `UnsupportedStructure`): a 2+/3+ or ammonium cation,
-any chalcogen-replacement analogue, and any other heteroatom.
+position, each R named via `name_branch` with the groups that rank below
+the ester as prefixes (P-41), identical or mixed freely. Explicitly out of
+scope (raise `UnsupportedStructure`): a 2+/3+ or ammonium cation, any
+chalcogen-replacement analogue, and an acid, anhydride or other ester in R.
 """
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import centre_nuclides
-from ._phosphate import allowed_outside_oxygen, cited_ester_groups, format_ester_entries
+from ._phosphate import check_ester_organyl, cited_ester_groups, format_ester_entries
 from ._salt import _MONOATOMIC_CATION_NAMES
 
 _SULFUR = 16
@@ -116,23 +115,7 @@ def name_sulfite(mol) -> str:
     elif other_frags:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    for idx in anion_frag:
-        atom = mol.GetAtomWithIdx(idx)
-        if atom.GetIsotope() != 0 or (atom.GetFormalCharge() != 0 and idx not in charged_oxygens):
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num == _SULFUR and idx != sulfur.GetIdx():
-            raise UnsupportedStructure("more than one sulfur atom is not supported yet")
-        if atomic_num not in (1, 6, 7, 8, _SULFUR, *HALOGEN_PREFIXES):
-            raise UnsupportedStructure(
-                "heteroatoms other than the sulfite's own sulfur/"
-                "oxygens and a halogen substituent are not supported yet"
-            )
-        if atomic_num == 8 and idx not in group_oxygens and not allowed_outside_oxygen(atom, bool(charged_oxygens)):
-            raise UnsupportedStructure(
-                "an oxygen atom not part of the sulfite's own "
-                "S(=O)(OR)2 group is out of scope for this module"
-            )
+    check_ester_organyl(mol, group_oxygens | {sulfur.GetIdx()}, bool(charged_oxygens), atoms=anion_frag)
 
     double_os = {
         n.GetIdx()
