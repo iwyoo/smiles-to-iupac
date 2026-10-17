@@ -129,6 +129,21 @@ def test_boron_acids_outrank_imine_ester_and_element_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-41, P-72.2.2.2.2: an anion outranks every acid, so the olate or thiolate is the parent and the boron group a prefix
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[O-]CCCB(O)O", "3-boronopropan-1-olate", id="boronic_acid_beside_an_alkoxide"),
+        pytest.param("[O-]c1ccc(B(O)O)cc1", "4-boronophenoxide", id="boronic_acid_beside_a_phenoxide"),
+        pytest.param("[S-]CCB(O)O", "2-boronoethane-1-thiolate", id="boronic_acid_beside_a_thiolate"),
+        pytest.param("[O-]CCCB(O)c1ccccc1", "3-[hydroxy(phenyl)boranyl]propan-1-olate", id="borinic_acid_beside_an_alkoxide"),
+        pytest.param("[O-]CCCB(O)OC", "3-[hydroxy(methoxy)boranyl]propan-1-olate", id="boronic_ester_beside_an_alkoxide"),
+    ],
+)
+def test_boron_acid_group_beside_an_olate_or_thiolate_is_a_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [
