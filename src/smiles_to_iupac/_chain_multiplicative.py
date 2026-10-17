@@ -8,7 +8,7 @@ from itertools import combinations
 from rdkit import Chem
 
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_prefix_placeholder
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, is_prefix_placeholder
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
@@ -620,6 +620,10 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
         linker = _linker_text(branches, central, arm_parts, bare=not lead)
+        if unit_kind == "inorganic_amide":
+            from ._hetero_prefixes import _without_enclosing_marks
+
+            return f"{_without_enclosing_marks(_linker_text(branches, central, arm_parts, False))}{multiplier_word(count, True)}{enclose(text)}"
         if unit_kind == "imine":
             if _imine_unit_needs_bis(text, units[0][0]):
                 return f"{lead}{linker}{multiplier_word(count, True)}({text})"
@@ -731,6 +735,8 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return name if _CENTRE_ACID.search(name) else None
     if unit_kind == "carbamic":
         return name if _CARBAMIC_ACID.search(name) else None
+    if unit_kind == "inorganic_amide":
+        return name if _INORGANIC_AMIDE.search(name) else None
     if unit_kind == "anion":
         return name if re.search(r"(?:ide|uide|ate)$", name) else None
     if unit_kind == "ester":
@@ -1124,6 +1130,7 @@ def _phosphonic_candidates(mol, graph):
 
 
 _CENTRE_ACID = re.compile(r"(?:bor|phosph|ars|stib)(?:on|in)(?:ic|ous) acid$")
+_INORGANIC_AMIDE = re.compile(r"(?:nitramide|(?:ous|ic) amide)$")
 _CARBAMIC_ACID = re.compile(r"carbam\w*ic (?:[A-Za-z,]+-)?acid$|carbam\w*ic acid$")
 _UREA_STEMS = {8: "urea", 16: "thiourea", 34: "selenourea", 52: "tellurourea"}
 
@@ -1229,6 +1236,31 @@ def _nitrogen_unit_candidates(mol, graph, core_of, senior):
     return {} if senior(mol, cores) else candidates
 
 
+def _inorganic_amide_core(mol, nitrogen):
+    """The atoms of the nitroso, nitro or halogen group that makes `nitrogen` the amide nitrogen of nitrous, nitric or a
+    halogen oxoacid, or None when it carries no such group or several."""
+    from ._halogen_amide import _oxo_oxygens
+    from ._nitro_group import nitro_or_nitroso_group
+
+    cores = []
+    for neighbor in nitrogen.GetNeighbors():
+        if neighbor.GetAtomicNum() in HALOGEN_PREFIXES and not neighbor.GetFormalCharge():
+            oxygens = _oxo_oxygens(neighbor, nitrogen)
+            if oxygens is not None:
+                cores.append({neighbor.GetIdx(), *(o.GetIdx() for o in oxygens)})
+            continue
+        group = nitro_or_nitroso_group(mol, neighbor)
+        if group is not None and group[0] in ("nitro", "nitroso"):
+            cores.append({neighbor.GetIdx(), *(o.GetIdx() for o in group[1])})
+    return cores[0] if len(cores) == 1 else None
+
+
+def _senior_to_inorganic_amide(mol, cores):
+    from ._inorganic_acid_derivative import _only_prefix_groups_beyond
+
+    return not _only_prefix_groups_beyond(mol, cores)
+
+
 def _senior_to_carbamic(mol, cores):
     from ._chalcogenourea import _SENIOR_TO_UREA
 
@@ -1280,6 +1312,7 @@ def _chain_multiplicative_name(mol, stereo):
         ("centre_acid", _acid_centre_candidates(mol, graph)),
         ("carbamic", _nitrogen_unit_candidates(mol, graph, _carbamic_core, _senior_to_carbamic)),
         ("urea", _nitrogen_unit_candidates(mol, graph, _urea_core, _senior_to_urea)),
+        ("inorganic_amide", _nitrogen_unit_candidates(mol, graph, _inorganic_amide_core, _senior_to_inorganic_amide)),
     ):
         for arms in _rank_candidates(candidates, None):
             name = _attempt(mol, graph, stereo, arms, kind)
