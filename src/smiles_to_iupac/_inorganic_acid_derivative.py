@@ -3,6 +3,8 @@ P-67.1.2.6): a nitroso or nitro group on an amine nitrogen makes an amide of nit
 amide', 'methyl(nitro)nitramide'), a halogen on P, As or Sb an acid halide ('methylphosphinous chloride') and the group
 =N(O)OH or >N(O)OH an azinic acid ('ethylideneazinic acid'). Carbon groups are cited as prefixes without locants."""
 
+from rdkit import Chem
+
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._chalcogen_imide import ylidene_group_atoms
 from ._chalcogenourea import has_group_senior_to_urea
@@ -16,6 +18,7 @@ from ._substituents import (
     name_branch,
 )
 
+_AMIDINE = Chem.MolFromSmarts("[CX3](=[NX2])[NX3]")
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _MULTIPLIER = {1: "", 2: "di"}
 _PREFIX_ELEMENTS = {7, 8, 16, 34, 52, *HALOGEN_PREFIXES}
@@ -74,9 +77,11 @@ def _is_group_atom(atom):
 def _only_prefix_groups_beyond(mol, covered):
     """Every atom outside the amide group belongs to a group that ranks below an amide of nitrous or nitric acid, so it is a
     prefix: no acid, ester, acid halide or amide of a carbon or sulfur acid, no charge, no element of another acid (P-41)."""
-    return all(
-        a.GetIdx() in covered or _is_group_atom(a) or a.GetAtomicNum() in _PREFIX_ELEMENTS for a in mol.GetAtoms()
-    ) and not has_group_senior_to_urea(mol, covered)
+    return (
+        all(a.GetIdx() in covered or _is_group_atom(a) or a.GetAtomicNum() in _PREFIX_ELEMENTS for a in mol.GetAtoms())
+        and not has_group_senior_to_urea(mol, covered)
+        and not any(match[0] not in covered for match in mol.GetSubstructMatches(_AMIDINE))
+    )
 
 
 def _single_nitrogen_acid_amide(mol):

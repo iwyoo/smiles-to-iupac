@@ -11,6 +11,7 @@ from rdkit import Chem
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import carbo_suffix
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._nitro_group import nitro_or_nitroso_group
 
 _PARENT_ELEMENTS = {5, 7, 13, 14, 15, 32, 33, 50, 51, 82, 83}
 _ACID_CENTERS = {6, 16, 34, 52}
@@ -23,7 +24,7 @@ def _nitrogen_chain(mol, first):
         following = [
             n.GetIdx()
             for n in mol.GetAtomWithIdx(chain[-1]).GetNeighbors()
-            if n.GetAtomicNum() == 7 and n.GetIdx() not in chain and not n.IsInRing()
+            if n.GetAtomicNum() == 7 and n.GetIdx() not in chain and not n.IsInRing() and nitro_or_nitroso_group(mol, n) is None
         ]
         if len(following) > 1:
             return None
@@ -44,7 +45,7 @@ def _hydrazine_acid(mol, found):
     ends = [
         n.GetIdx()
         for n in mol.GetAtomWithIdx(first).GetNeighbors()
-        if n.GetAtomicNum() == 7 and not n.IsInRing()
+        if n.GetAtomicNum() == 7 and not n.IsInRing() and nitro_or_nitroso_group(mol, n) is None
     ]
     if not ends:
         return None
