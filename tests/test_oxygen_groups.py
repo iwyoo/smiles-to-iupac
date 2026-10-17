@@ -1539,3 +1539,16 @@ def test_sulfonyl_group_beside_an_ester_type_parent(smiles, expected):
 )
 def test_identical_esters_joined_through_a_metalloid_or_heteroatom_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CNC(=O)OCCOCCOC(=O)NC", "oxydi(ethane-2,1-diyl) bis(methylcarbamate)", id="o_linked_carbamates_through_a_heteroatom_diyl"),
+        pytest.param("COC(=O)NCCNC(=O)OC", "dimethyl (ethane-1,2-diyl)bis(carbamate)", id="n_linked_carbamates"),
+        pytest.param("CNC(=S)OCCOC(=S)NC", "O,O′-ethane-1,2-diyl bis(methylcarbamothioate)", id="thiono_carbamates"),
+        pytest.param("CNC(=S)SCCSC(=S)NC", "S,S′-ethane-1,2-diyl bis(methylcarbamodithioate)", id="s_esters_of_the_dithiocarbamic_acid"),
+    ],
+)
+def test_identical_n_substituted_carbamates_on_one_diyl_group_are_esters_not_a_skeletal_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
