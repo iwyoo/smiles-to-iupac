@@ -129,6 +129,15 @@ def _retained_thio_group(mol, centre, oxo, ligands):
     return {1: "thio", 3: "trithio"}.get(thio, "") + mono if thio in (1, 3) else None
 
 
+_CHALCOGEN_WORD = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
+
+
+def stem_with_group(group, compound, centre, terminal):
+    """'(2-carboxyethyl)phosphonoyl': the organyl group cited in front of the acyl group of the organylphosphonic acid, whose
+    own carboxylic acid group outranks it so that the acid cannot be named (P-67.1.4.1.1.3)."""
+    return (enclose(group) if compound else group) + _MONO[centre] + _CHALCOGEN_WORD[terminal] + "yl"
+
+
 def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
     """(name, compound) of the acyl group of the P, As or Sb `centre` attached through `attach` when functional replacement
     modifies the acid, else None."""
@@ -172,6 +181,16 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
         oxygen = editable.AddAtom(Chem.Atom(8))
         editable.AddBond(new_centre, oxygen, Chem.BondType.SINGLE)
     acid = editable.GetMol()
+    from ._phosphonic_acid import _SENIOR_ACIDS
+
+    if any(acid.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+        organyl = [n for n in ligands if roles[n] == "organyl"]
+        if len(organyl) != 1 or "infix" in roles.values():
+            return None
+        group, compound = name_branch(graph, organyl[0], centre, halogens, aromatic_atoms, mol=mol)
+        stem = enclose(stem_with_group(group, compound, atom.GetAtomicNum(), mol.GetAtomWithIdx(oxo).GetAtomicNum()))
+        entries = [name_branch(graph, n, centre, halogens, aromatic_atoms, mol=mol) for n in ligands if roles[n] == "prefix"]
+        return (format_mononuclear_prefixes(entries) if entries else "") + stem, True
     try:
         Chem.SanitizeMol(acid)
         name = smiles_to_iupac(Chem.MolToSmiles(acid))

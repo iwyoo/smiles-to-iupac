@@ -876,3 +876,16 @@ def test_phosphate_and_sulfate_esters_on_a_ring_or_assembly_are_multiplied(smile
 )
 def test_ester_of_a_noncarbon_acid_is_the_parent_beside_lower_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)CCP(=O)(O)CCCC(=O)O", "4-{hydroxy[(2-carboxyethyl)phosphonoyl]}butanoic acid", id="carboxyalkyl_on_phosphinic_acid_is_a_substituent_of_phosphonoyl"),
+        pytest.param("OC(=O)CP(=O)(O)CCC(=O)O", "3-{hydroxy[(carboxymethyl)phosphonoyl]}propanoic acid", id="carboxymethyl_is_not_an_acetoyl_group"),
+        pytest.param("OC(=O)CCP(=S)(O)CCCC(=O)O", "4-{hydroxy[(2-carboxyethyl)phosphonothioyl]}butanoic acid", id="thio_analogue"),
+        pytest.param("OC(=O)CC[As](=O)(O)CCCC(=O)O", "4-{hydroxy[(2-carboxyethyl)arsonoyl]}butanoic acid", id="arsenic_analogue"),
+    ],
+)
+def test_phosphorus_acid_group_with_a_carboxyalkyl_organyl_beside_a_carboxylic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
