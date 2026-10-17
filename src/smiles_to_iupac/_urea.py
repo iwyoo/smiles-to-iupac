@@ -47,7 +47,7 @@ from rdkit import Chem
 from ._chalcogen_imide import ylidene_group_atoms
 from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first, unprimed_first_labelled
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
-from ._isotope_labels import descriptor, split_isotopes
+from ._isotope_labels import descriptor, modification_key, split_isotopes
 from ._parent_choice import senior_parent_name
 from ._substituents import format_substituent_prefixes
 
@@ -169,6 +169,9 @@ def _labelled_urea_name(mol, labels, atomic_num=8):
         raise UnsupportedStructure("only a plain urea core can carry nuclide labels here")
     carbon_idx, (n1_idx, n2_idx) = core
     (chalcogen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == atomic_num)
+    tails = _hydrazine_tails(mol, adjacency(mol), carbon_idx, (n1_idx, n2_idx))
+    if all(t is not None for t in tails):
+        return _labelled_carbonohydrazide_name(mol, labels, (carbon_idx, chalcogen_idx, n1_idx, n2_idx), tails)
     amino_idx = _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx)
     if amino_idx is not None:
         return _labelled_semicarbazide_name(mol, labels, (carbon_idx, chalcogen_idx, n1_idx, n2_idx, amino_idx))
@@ -196,27 +199,90 @@ def _labelled_urea_name(mol, labels, atomic_num=8):
     return f"{prefixes}{nuclides}{_UREA_WORD[atomic_num]}"
 
 
+def _hydrazine_tails(mol, graph, carbon_idx, nitrogens):
+    """The second nitrogen of the hydrazine unit on each of `nitrogens`, or None where there is none."""
+    return [
+        next((t for t in graph[n] if t != carbon_idx and _is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n)), None)
+        for n in nitrogens
+    ]
+
+
+def _entry_items(mol, atom, entry, locant):
+    """[(nuclide, locant, count, repeatable)] of the nuclides of one nitrogen cited with a letter locant."""
+    items = [(entry["skeleton"], locant, 1, False)] if entry["skeleton"] else []
+    items.extend((nuclide, locant, count, mol.GetAtomWithIdx(atom).GetTotalNumHs() > 1) for nuclide, count in entry["H"].items())
+    return items
+
+
+def _carboxamide_group_nuclides(mol, labels, carbon_idx, chalcogen_idx, locanted):
+    """(text inserted before the ending, items for the descriptor in front of the parent) for the nuclides of the
+    carbon and the chalcogen of a carboxamide or carbohydrazide suffix: the carbon is cited in front of the suffix, with
+    the chalcogen when both are modified; a chalcogen alone is cited in front of the parent, with a letter locant where
+    the element occurs elsewhere or the other nuclides there are located (P-82.2.1, P-82.6.1.1, P-82.6.2)."""
+    carbon, chalcogen = (labels.get(a, {"skeleton": None, "H": {}}) for a in (carbon_idx, chalcogen_idx))
+    if carbon["H"] or chalcogen["H"]:
+        raise UnsupportedStructure("a hydrogen nuclide is not cited on the carbon or the chalcogen of a carboxamide suffix")
+    if carbon["skeleton"]:
+        group = [(e["skeleton"], None, 1, False) for e in (carbon, chalcogen) if e["skeleton"]]
+        return descriptor({}, {}, True, extra=group), []
+    if not chalcogen["skeleton"]:
+        return "", []
+    atom = mol.GetAtomWithIdx(chalcogen_idx)
+    several = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == atom.GetAtomicNum()) > 1
+    return "", [(chalcogen["skeleton"], atom.GetSymbol() if several or locanted else None, 1, False)]
+
+
+def _front_descriptor(parent_labels, positions, extra, capacity):
+    return descriptor(parent_labels, positions, False, extra=extra, capacity=capacity) if parent_labels or extra else ""
+
+
 def _labelled_semicarbazide_name(mol, labels, atoms):
-    """Hydrazine-1-carboxamide with hydrogen nuclides on its nitrogens: N for the amide nitrogen, 1 and 2 for the
-    hydrazine nitrogens, cited in front of 'hydrazine' (P-82.2.1, P-82.6.2)."""
-    carbon_idx, oxygen_idx, n1_idx, n2_idx, amino_idx = atoms
-    if set(labels) - {n1_idx, n2_idx, amino_idx}:
-        raise UnsupportedStructure("only the nitrogens of a semicarbazide can carry nuclide labels here")
+    """Hydrazine-1-carboxamide with nuclides: N for the amide nitrogen, 1 and 2 for the hydrazine nitrogens, cited in
+    front of 'hydrazine'; the carbon and the chalcogen of the suffix as in `_carboxamide_group_nuclides` (P-82.2.1,
+    P-82.6.2)."""
+    carbon_idx, chalcogen_idx, n1_idx, n2_idx, amino_idx = atoms
+    if set(labels) - set(atoms):
+        raise UnsupportedStructure("only the atoms of a semicarbazide group can carry nuclide labels here")
     graph = adjacency(mol)
-    if all(any(_is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n) for t in graph[n] if t != carbon_idx) for n in (n1_idx, n2_idx)):
-        raise UnsupportedStructure("nuclide labels on a carbonohydrazide are not supported yet")
     alpha, amide = (n1_idx, n2_idx) if amino_idx in graph[n1_idx] else (n2_idx, n1_idx)
-    names = n_substituent_names(
-        mol, graph, set(atoms), (amide, alpha, amino_idx), carbon_idx, junior_groups=True
-    )
-    hydrazine = {n: entry for n, entry in labels.items() if n != amide}
-    amide_entry = labels.get(amide, {"skeleton": None, "H": {}})
-    extra = [
-        (nuclide, "N", count, mol.GetAtomWithIdx(amide).GetTotalNumHs() > 1) for nuclide, count in amide_entry["H"].items()
-    ] + ([(amide_entry["skeleton"], "N", 1, False)] if amide_entry["skeleton"] else [])
+    names = n_substituent_names(mol, graph, set(atoms), (amide, alpha, amino_idx), carbon_idx, junior_groups=True)
+    hydrazine = {n: entry for n, entry in labels.items() if n in (alpha, amino_idx)}
+    extra = _entry_items(mol, amide, labels.get(amide, {"skeleton": None, "H": {}}), "N")
+    inner, group = _carboxamide_group_nuclides(mol, labels, carbon_idx, chalcogen_idx, bool(hydrazine or extra))
     capacity = {n: mol.GetAtomWithIdx(n).GetTotalNumHs() for n in hydrazine}
-    nuclides = descriptor(hydrazine, {alpha: 1, amino_idx: 2}, False, extra=extra, capacity=capacity)
-    return _hydrazinecarboxamide_name(*names, nuclides=nuclides)
+    front = _front_descriptor(hydrazine, {alpha: 1, amino_idx: 2}, extra + group, capacity)
+    return _hydrazinecarboxamide_name(
+        *names, _AMIDE_ENDING[mol.GetAtomWithIdx(chalcogen_idx).GetAtomicNum()], nuclides=front, inner=inner
+    )
+
+
+def _labelled_carbonohydrazide_name(mol, labels, atoms, tails):
+    """Hydrazine-1-carbohydrazide with nuclides: the hydrazine unit that is the parent is the one senior by the
+    substituents (P-68.3.1.2.6) and then by its isotopic modification (P-44.4.1.11); the hydrazide unit takes N and N'."""
+    carbon_idx, chalcogen_idx, n1_idx, n2_idx = atoms
+    if set(labels) - {*atoms, *tails}:
+        raise UnsupportedStructure("only the atoms of a carbonohydrazide group can carry nuclide labels here")
+    names = n_substituent_names(
+        mol, adjacency(mol), {*atoms, *tails}, (n1_idx, tails[0], n2_idx, tails[1]), carbon_idx, junior_groups=True
+    )
+    units = ((n1_idx, tails[0]), (n2_idx, tails[1]))
+
+    def nuclides(parent_index):
+        parent, hydrazide = units[parent_index], units[1 - parent_index]
+        positions = {parent[0]: 1, parent[1]: 2}
+        parent_labels = {n: labels[n] for n in positions if n in labels}
+        extra = [
+            item
+            for atom, locant in zip(hydrazide, ("N", "N'"))
+            for item in _entry_items(mol, atom, labels.get(atom, {"skeleton": None, "H": {}}), locant)
+        ]
+        inner, group = _carboxamide_group_nuclides(mol, labels, carbon_idx, chalcogen_idx, bool(parent_labels or extra))
+        capacity = {n: mol.GetAtomWithIdx(n).GetTotalNumHs() for n in parent_labels}
+        return _front_descriptor(parent_labels, positions, extra + group, capacity), inner, modification_key(parent_labels, positions)
+
+    return _hydrazinecarbohydrazide_name(
+        (names[0], names[1]), (names[2], names[3]), _HYDRAZIDE_ENDING[mol.GetAtomWithIdx(chalcogen_idx).GetAtomicNum()], nuclides
+    )
 
 
 def name_urea(mol, atomic_num=8) -> str:
@@ -264,7 +330,7 @@ def _core_name(mol, atomic_num, core):
 
     core_atoms = {carbon_idx, oxygen_idx, n1_idx, n2_idx}
     graph = adjacency(mol)
-    tails = [next((t for t in graph[n] if t != carbon_idx and _is_hydrazine_tail(mol, mol.GetAtomWithIdx(t), n)), None) for n in (n1_idx, n2_idx)]
+    tails = _hydrazine_tails(mol, graph, carbon_idx, (n1_idx, n2_idx))
     if all(t is not None for t in tails):
         core_atoms.update(tails)
         units = ((n1_idx, tails[0]), (n2_idx, tails[1]))
@@ -309,15 +375,15 @@ def nitrogen_locants(mol):
     return {unprimed: "N", primed: "N'"}, f"{prefixes}urea"
 
 
-def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide", nuclides=""):
+def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide", nuclides="", inner=""):
     """Substituted hydrazinecarboxamide (P-66.1.1.1.1.3, P-66.3.5): N on the amide nitrogen, 1 and 2 on the
     hydrazine nitrogens."""
     positions = {"N": amide_names, 1: alpha_names, 2: beta_names}
     grouped = group_substituents({k: v for k, v in positions.items() if v})
     if not grouped:
-        return f"{nuclides}hydrazine{ending}"
+        return f"{nuclides}hydrazine{inner}{ending}"
     numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
-    return f"{format_substituent_prefixes(grouped)}{nuclides}hydrazine{'-1-' if numbered else ''}{ending}"
+    return f"{format_substituent_prefixes(grouped)}{nuclides}hydrazine{'-1-' if numbered else ''}{inner}{ending}"
 
 
 _HYDRAZIDE_ENDING = {8: "carbohydrazide", 16: "carbothiohydrazide", 34: "carboselenohydrazide", 52: "carbotellurohydrazide"}
@@ -327,23 +393,27 @@ def _locant_rank(locant):
     return (0, locant) if isinstance(locant, int) else (1, len(locant))
 
 
-def _hydrazinecarbohydrazide_name(unit_a, unit_b, ending):
+def _hydrazinecarbohydrazide_name(unit_a, unit_b, ending, nuclides=None):
     """Hydrazine-1-carbohydrazide (P-68.3.1.2.6): the hydrazine unit with more substituents is the parent chain (1 on
     the nitrogen bonded to the carbonyl carbon, 2 on the other), the other unit is the hydrazide (N, N'); then the
-    lowest locants, then the alphanumerically first prefix at the lowest locant."""
+    lowest locants, then the alphanumerically first prefix at the lowest locant, then the isotopic modification of the
+    parent. `nuclides(index)` gives (descriptor in front of the parent, text before the ending, modification key) for
+    the unit `index` as the parent."""
     options = []
-    for parent, hydrazide in ((unit_a, unit_b), (unit_b, unit_a)):
+    for index, (parent, hydrazide) in enumerate(((unit_a, unit_b), (unit_b, unit_a))):
         positions = {1: parent[0], 2: parent[1], "N": hydrazide[0], "N'": hydrazide[1]}
         grouped = group_substituents({k: v for k, v in positions.items() if v})
         by_name = sorted(grouped, key=alpha_sort_key)
+        front, inner, modification = nuclides(index) if nuclides else ("", "", ())
         key = (
             -(len(parent[0]) + len(parent[1])),
             sorted(_locant_rank(loc) for info in grouped.values() for loc in info["locants"]),
             [sorted(_locant_rank(loc) for loc in grouped[name]["locants"]) for name in by_name],
+            modification,
         )
-        options.append((key, grouped))
-    grouped = min(options, key=lambda option: option[0])[1]
+        options.append((key, grouped, front, inner))
+    _, grouped, front, inner = min(options, key=lambda option: option[0])
     if not grouped:
-        return f"hydrazine{ending}"
+        return f"{front}hydrazine{inner}{ending}"
     numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
-    return f"{format_substituent_prefixes(grouped)}hydrazine{'-1-' if numbered else ''}{ending}"
+    return f"{format_substituent_prefixes(grouped)}{front}hydrazine{'-1-' if numbered else ''}{inner}{ending}"
