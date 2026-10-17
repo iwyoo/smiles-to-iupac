@@ -5,6 +5,7 @@ amide', 'methyl(nitro)nitramide'), a halogen on P, As or Sb an acid halide ('met
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._chalcogen_imide import ylidene_group_atoms
+from ._chalcogenourea import has_group_senior_to_urea
 from ._hydride_chain import _is_pseudohalide_nitrogen
 from ._phosphonic_acid import CENTER_STEMS
 from ._substituents import (
@@ -17,6 +18,7 @@ from ._substituents import (
 
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _MULTIPLIER = {1: "", 2: "di"}
+_PREFIX_ELEMENTS = {7, 8, 16, 34, 52, *HALOGEN_PREFIXES}
 
 
 def _bond(mol, a, b):
@@ -69,6 +71,22 @@ def _is_group_atom(atom):
     return atom.GetAtomicNum() == 6 or (atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetFormalCharge())
 
 
+def _only_prefix_groups_beyond(mol, covered):
+    """Every atom outside the amide group belongs to a group that ranks below an amide of nitrous or nitric acid, so it is a
+    prefix: no acid, ester, acid halide or amide of a carbon or sulfur acid, no charge, no element of another acid (P-41)."""
+    return all(
+        a.GetIdx() in covered or _is_group_atom(a) or a.GetAtomicNum() in _PREFIX_ELEMENTS for a in mol.GetAtoms()
+    ) and not has_group_senior_to_urea(mol, covered)
+
+
+def _single_nitrogen_acid_amide(mol):
+    return 1 == sum(
+        1
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 7 and any(_is_nitro(mol, n, a.GetIdx()) or _is_nitroso(mol, n, a.GetIdx()) for n in a.GetNeighbors())
+    )
+
+
 def _nitrogen_amide(mol):
     for centre in mol.GetAtoms():
         if centre.GetAtomicNum() != 7 or centre.GetFormalCharge() or centre.IsInRing() or centre.GetDegree() < 1:
@@ -80,11 +98,11 @@ def _nitrogen_amide(mol):
         taken = {n.GetIdx() for n in (*nitro, *nitroso)}
         others = [n for n in centre.GetNeighbors() if n.GetIdx() not in taken]
         amino = [n for n in others if n.GetAtomicNum() == 7 and not n.GetFormalCharge() and not n.IsInRing()]
-        if len(amino) == 1 and len(nitro) + len(nitroso) == 1 and _terminal_nitrogen_ok(mol, amino[0], centre):
+        if len(amino) == 1 and len(nitro) + len(nitroso) == 1 and not _is_pseudohalide_nitrogen(amino[0]) and _terminal_nitrogen_ok(mol, amino[0], centre):
             carbons = [n for n in others if n.GetIdx() != amino[0].GetIdx()]
             if all(n.GetAtomicNum() == 6 and _bond(mol, centre.GetIdx(), n.GetIdx()) == 1.0 for n in carbons):
                 covered = {centre.GetIdx(), amino[0].GetIdx(), *taken, *(o.GetIdx() for g in (*nitro, *nitroso) for o in g.GetNeighbors())}
-                if all(a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()):
+                if _only_prefix_groups_beyond(mol, covered) and _single_nitrogen_acid_amide(mol):
                     return centre, nitro, nitroso, carbons, amino
         pseudohalide = [n for n in others if _is_pseudohalide_nitrogen(n)]
         ylidenes = {n.GetIdx(): ylidene_group_atoms(mol, n.GetIdx(), centre.GetIdx()) for n in others}
@@ -102,10 +120,7 @@ def _nitrogen_amide(mol):
         for group in pseudohalide:
             carbon = next(n for n in group.GetNeighbors() if n.GetAtomicNum() == 6)
             covered |= {group.GetIdx(), carbon.GetIdx(), *(x.GetIdx() for x in carbon.GetNeighbors())}
-        carbons_ok = all(
-            a.GetIdx() in covered or _is_group_atom(a) or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()
-        )
-        if carbons_ok:
+        if _only_prefix_groups_beyond(mol, covered) and _single_nitrogen_acid_amide(mol):
             return centre, nitro, nitroso, others, []
     return None
 
