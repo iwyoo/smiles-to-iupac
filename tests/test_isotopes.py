@@ -815,6 +815,26 @@ def test_hydrogen_nuclides_on_the_nitrogens_of_a_semicarbazide(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-82.6.1.1, P-82.6.2, P-44.4.1.11: the carbon of the carboxamide or carbohydrazide suffix stands in front of the suffix (with
+# the chalcogen when both are modified), a lone chalcogen in front of 'hydrazine'; the hydrazine unit that is modified is the parent
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("N[13C](=O)NN", "hydrazine(13C)carboxamide", id="suffix_carbon"),
+        pytest.param("NC(=[18O])NN", "(18O)hydrazinecarboxamide", id="lone_oxygen"),
+        pytest.param("N[13C](=[18O])N[15NH2]", "(2-15N)hydrazine(13C,18O)carboxamide", id="carbon_oxygen_and_nitrogen"),
+        pytest.param("NC(=[18O])NN[2H]", "(2-2H1,O-18O)hydrazinecarboxamide", id="oxygen_located_beside_a_located_nuclide"),
+        pytest.param("N[13C](=S)NNC", "2-methylhydrazine-1-(13C)carbothioamide", id="suffix_carbon_after_a_locant"),
+        pytest.param("NN[13C](=[18O])NN", "hydrazine(13C,18O)carbohydrazide", id="carbohydrazide_carbon_and_oxygen"),
+        pytest.param("[15NH2]NC(=O)NN", "(2-15N)hydrazinecarbohydrazide", id="modified_unit_is_the_parent"),
+        pytest.param("[2H]NNC(=O)N([2H])N", "(1,N'-2H2)hydrazinecarbohydrazide", id="lower_locant_unit_is_the_parent"),
+        pytest.param("CNNC(=O)N[15NH2]", "2-methyl(N'-15N)hydrazine-1-carbohydrazide", id="substituent_decides_before_modification"),
+    ],
+)
+def test_nuclides_of_the_carboxamide_group_and_of_a_carbonohydrazide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-82.5, P-82.6.2: the acyl group with the more modified atoms is the hydrazide parent, then the lowest locants (N before N');
 # the nuclides of the other acyl group stand in front of its stem
 @pytest.mark.parametrize(
