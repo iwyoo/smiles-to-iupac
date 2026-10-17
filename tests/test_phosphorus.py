@@ -799,6 +799,19 @@ def test_phosphinate_beside_a_senior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-65.6.3.2.2, P-15.3: identical esters of a carboxylic or sulfonic acid joined through a phosphate are multiplied, the phosphate being part of the linker
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=O)OCCCOP(=O)(O)OCCCOC(C)=O", "(hydroxyphosphoryl)bis(oxypropane-3,1-diyl) diacetate", id="hydrogen_phosphate_carboxylate"),
+        pytest.param("CS(=O)(=O)OCCCOP(=O)(OC)OCCCOS(C)(=O)=O", "(methoxyphosphoryl)bis(oxypropane-3,1-diyl) dimethanesulfonate", id="triester_sulfonate"),
+        pytest.param("CC(=O)Oc1ccc(OP(=O)(O)Oc2ccc(OC(C)=O)cc2)cc1", "(hydroxyphosphoryl)bis(oxy-4,1-phenylene) diacetate", id="aryl_arms"),
+    ],
+)
+def test_phosphate_joining_identical_esters_is_multiplicative(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-41, P-65.6.3, P-67.1.3.2: the ester of the senior acid is the parent, the phosphate a (phosphonooxy) prefix, and an amide or an acid halide on the organyl group (classes 11 and 10, below the ester) a prefix too
 @pytest.mark.parametrize(
     "smiles, expected",
