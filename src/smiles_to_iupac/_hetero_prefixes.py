@@ -522,6 +522,14 @@ def _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, infix):
     return name[: ending.start()] + "e-" + ending.group(1) + "-" + infix, True
 
 
+def _alcoholate_anion_parent(mol):
+    """Whether the structure has the anion of an alcohol, phenol, thiol or its heavier analogues, which is then the parent."""
+    return any(
+        a.HasProp("_anion") and a.GetAtomicNum() in (8, 16, 34, 52) and any(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
+        for a in mol.GetAtoms()
+    )
+
+
 def _without_enclosing_marks(name):
     pairs = {"(": ")", "[": "]", "{": "}"}
     if name[:1] not in pairs or name[-1:] != pairs[name[0]]:
@@ -914,6 +922,26 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return oxidized
     if order == 1.0 and is_diazonium_nitrogen(atom):
         return "diazyn-1-ium-1-yl", True
+    if z == 7 and atom.GetFormalCharge() == 1 and order == 1.0 and _alcoholate_anion_parent(mol):
+        # P-74.1.3: the cation on another parent than the olate or thiolate is named as the cationic amine, 'aminiumyl'
+        from ._substituents import ISOTOPE_LABELS
+        from ._zwitterion import _ammonium_prefix
+
+        context = ISOTOPE_LABELS.get()
+        cation, stack = {root}, [root]
+        while stack:
+            for n in graph[stack.pop()]:
+                if n != coming_from and n not in cation:
+                    cation.add(n)
+                    stack.append(n)
+        found = None
+        if not (context and any(a in context["labels"] for a in cation)):
+            try:
+                found = _without_enclosing_marks(_ammonium_prefix(mol, root, coming_from))
+            except UnsupportedStructure:
+                pass
+        if found is not None:
+            return found, found != "azaniumyl"
     if (
         z == 7
         and (
