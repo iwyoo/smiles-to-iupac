@@ -1889,7 +1889,13 @@ def _name_mol(mol) -> str:
     # before this shape's own num_rings==3..6 check would run if it stayed
     # down with the other ring modules further below.
     boron_acid = has_boronic_acid_shape(mol) or has_borinic_acid_shape(mol)
-    acid_centre = boron_acid or has_phosphonic_acid_shape(mol) or has_phosphinic_acid_shape(mol)
+    acid_centre = (
+        boron_acid
+        or has_phosphonic_acid_shape(mol)
+        or has_phosphinic_acid_shape(mol)
+        or has_phosphanone_shape(mol)
+        or has_phosphanimine_shape(mol)
+    )
     if 3 <= mol.GetRingInfo().NumRings() <= 6 and not acid_centre:
         ring_assembly_chain_core = find_ring_assembly_chain_core(mol)
         if ring_assembly_chain_core is not None:
