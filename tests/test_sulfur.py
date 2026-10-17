@@ -143,6 +143,27 @@ def test_stereocentre_of_the_organyl_group_of_a_noncarbon_oxoacid_ester(smiles, 
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-41, P-67.1.3.2: the ester of a noncarbon acid ranks above every group that is only a prefix of it, so it stays the parent
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OS(=O)(=O)OCCS", "2-sulfanylethyl hydrogen sulfate", id="thiol"),
+        pytest.param("OS(=O)(=O)OCC[SeH]", "2-selanylethyl hydrogen sulfate", id="selenol"),
+        pytest.param("OS(=O)(=O)OCCOO", "2-hydroperoxyethyl hydrogen sulfate", id="peroxol"),
+        pytest.param("OS(=O)(=O)OCCC(=O)Cl", "3-chloro-3-oxopropyl hydrogen sulfate", id="acid_chloride"),
+        pytest.param("OS(=O)(=O)OCCNS(C)(=O)=O", "2-(methanesulfonamido)ethyl hydrogen sulfate", id="sulfonamide"),
+        pytest.param("OS(=O)(=O)OCCC=NO", "3-(hydroxyimino)propyl hydrogen sulfate", id="oxime"),
+        pytest.param("OS(=O)(=O)OCCP(C)C", "2-(dimethylphosphanyl)ethyl hydrogen sulfate", id="phosphane"),
+        pytest.param("OS(=O)OCCS", "2-sulfanylethyl hydrogen sulfite", id="sulfite"),
+        pytest.param("[O-][N+](=O)OCCOO", "2-hydroperoxyethyl nitrate", id="nitrate"),
+        pytest.param("OP(=O)(O)OCC[SeH]", "2-selanylethyl dihydrogen phosphate", id="phosphate_beside_a_selenol"),
+        pytest.param("COS(=O)(=O)OCCSSC", "methyl 2-(methyldisulfanyl)ethyl sulfate", id="neutral_diester_beside_a_disulfide"),
+    ],
+)
+def test_noncarbon_oxoacid_ester_outranks_the_groups_it_carries(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [

@@ -358,7 +358,9 @@ def name_heteroacyclic(mol):
 
 
 def _name_heteroacyclic(mol, amine_groups):
-    if len(Chem.GetMolFrags(mol)) != 1:
+    from ._acid_derivatives import has_noncarbon_acid_ester
+
+    if len(Chem.GetMolFrags(mol)) != 1 or has_noncarbon_acid_ester(mol, carbon_groups_only=True):
         return None
     aminium = {} if any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()) else _aminium_groups(mol)
     polychalcogens = polychalcogen_atoms(mol)

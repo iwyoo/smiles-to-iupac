@@ -1651,6 +1651,27 @@ def _free_cation(atom):
     return atom.GetFormalCharge() > 0 and not any(n.GetFormalCharge() < 0 for n in atom.GetNeighbors())
 
 
+def has_noncarbon_acid_ester(mol, carbon_groups_only=False):
+    """An ester of sulfuric, sulfurous, nitric or nitrous acid, which these namers do not take as a link; with
+    `carbon_groups_only` every organyl group of the ester is bonded through carbon."""
+    from ._nitrate_ester import _nitrate_ester_nitrogen_atoms
+    from ._nitrite_ester import _nitrite_ester_nitrogen_atoms
+    from ._sulfate import _sulfate_sulfur_atoms
+    from ._sulfite import _sulfite_sulfur_atoms
+
+    for finder in (_sulfate_sulfur_atoms, _sulfite_sulfur_atoms, _nitrate_ester_nitrogen_atoms, _nitrite_ester_nitrogen_atoms):
+        for centre in finder(mol):
+            if not carbon_groups_only or all(
+                n.GetAtomicNum() == 6
+                for o in centre.GetNeighbors()
+                if o.GetAtomicNum() == 8 and o.GetDegree() == 2
+                for n in o.GetNeighbors()
+                if n.GetIdx() != centre.GetIdx()
+            ):
+                return True
+    return False
+
+
 def name_acid_derivative(mol):
     """Name of an ester, anhydride or acyl halide with no free acid group, else raises."""
     if any(atom.GetAtomicNum() not in _ORGANIC_ELEMENTS for atom in mol.GetAtoms()):
@@ -1658,6 +1679,8 @@ def name_acid_derivative(mol):
     links, acid = find_links(mol)
     if not links:
         raise UnsupportedStructure("no acid derivative group")
+    if all(l.kind in ("halide", "pseudohalide") for l in links) and has_noncarbon_acid_ester(mol):
+        raise UnsupportedStructure("an ester of a noncarbon acid outranks an acid halide (P-41)")
     if not acid and any(_free_anion(a) for a in mol.GetAtoms()):
         raise UnsupportedStructure("an anionic group outranks the ester, which is then a prefix (P-41)")
     if not acid and any(_free_cation(a) for a in mol.GetAtoms()):

@@ -117,23 +117,61 @@ def _is_hydroxy_on_carbon(oxygen) -> bool:
 
 
 def allowed_outside_oxygen(oxygen, anionic) -> bool:
-    """An oxygen of an R group that stays a prefix: hydroxy, ether, oxo of a ketone or amide. The oxygens of a
-    carboxylic ester or acid outrank a neutral phosphate ester and are allowed only beside an anionic phosphate."""
+    """An oxygen of an R group that stays a prefix: hydroxy, ether, oxo of a ketone, amide or acid halide, the
+    hydroperoxy group, the oxygens of a nitroso group, an oxime or a sulfone, sulfoxide or sulfonamide. The oxygens of
+    a carboxylic ester or acid, and of a sulfonic acid or ester, outrank a neutral ester of a noncarbon acid and are
+    allowed only beside an anionic ester."""
     if _is_hydroxy_on_carbon(oxygen):
         return True
+    neighbors = oxygen.GetNeighbors()
     if oxygen.GetDegree() == 1:
-        (carbon,) = oxygen.GetNeighbors()
-        if carbon.GetAtomicNum() != 6:
+        (other,) = neighbors
+        if other.GetAtomicNum() == 7:
+            return True
+        if other.GetAtomicNum() == 8:
+            return other.GetDegree() == 2 and all(n.GetAtomicNum() in (6, 8) for n in other.GetNeighbors())
+        if other.GetAtomicNum() in (16, 34, 52):
+            return _is_sulfone_like(other) or anionic
+        if other.GetAtomicNum() != 6:
             return False
-        acid_or_ester = any(n.GetAtomicNum() == 8 and n.GetIdx() != oxygen.GetIdx() for n in carbon.GetNeighbors())
+        acid_or_ester = any(n.GetAtomicNum() == 8 and n.GetIdx() != oxygen.GetIdx() for n in other.GetNeighbors())
         return anionic or not acid_or_ester
-    if oxygen.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in oxygen.GetNeighbors()):
+    if oxygen.GetDegree() == 2 and all(n.GetAtomicNum() in (6, 7, 8) for n in neighbors):
+        if any(n.GetAtomicNum() == 7 and any(o.GetAtomicNum() == 8 and o.GetDegree() == 1 for o in n.GetNeighbors()) for n in neighbors):
+            return False
+        if any(n.GetAtomicNum() == 8 for n in neighbors):
+            return all(n.GetAtomicNum() in (6, 8) for n in neighbors)
         acyl = any(
             b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(c).GetAtomicNum() == 8
-            for c in oxygen.GetNeighbors()
+            for c in neighbors
             for b in c.GetBonds()
         )
         return anionic or not acyl
+    return False
+
+
+def _is_sulfone_like(atom) -> bool:
+    """A chalcogen with doubly bonded oxygens whose other bonds go to carbon, nitrogen or another chalcogen: a sulfide,
+    sulfoxide, sulfone or sulfonamide group, which ranks below an ester (P-41), not a sulfonic acid or ester."""
+    return all(
+        b.GetOtherAtom(atom).GetAtomicNum() in (6, 7, 16, 34, 52) or (b.GetOtherAtom(atom).GetAtomicNum() == 8 and b.GetBondTypeAsDouble() == 2.0)
+        for b in atom.GetBonds()
+    )
+
+
+def allowed_organyl_atom(atom, anionic) -> bool:
+    """Whether an atom of an organyl group of an ester of a noncarbon acid belongs to a group that ranks below the
+    ester (P-41, classes 10-20): the halogens and the elements of carbon, nitrogen, oxygen, the sulfanyl, selanyl and
+    sulfonyl-type groups of the chalcogens and the phosphanyl and arsanyl groups."""
+    z = atom.GetAtomicNum()
+    if z in (1, 6, 7, *HALOGEN_PREFIXES):
+        return True
+    if z == 8:
+        return allowed_outside_oxygen(atom, anionic)
+    if z in (16, 34, 52):
+        return _is_sulfone_like(atom)
+    if z in (15, 33):
+        return atom.GetDegree() <= 3 and all(n.GetAtomicNum() in (1, 6) for n in atom.GetNeighbors())
     return False
 
 
@@ -184,26 +222,22 @@ def name_polyester_through_acetates(mol, centers, word, prefix):
     return name
 
 
-def check_ester_organyl(mol, group_atoms):
-    """Raise unless every atom outside the ester group `group_atoms` of a nitrate or nitrite belongs to an organyl group
-    whose substituents rank below the ester (P-41): hydroxy, ether, oxo, amino, nitrile, nitro, sulfide, halogen and the
+def check_ester_organyl(mol, group_atoms, anionic=False, within=None):
+    """Raise unless every atom of `within` (default: all) outside the ester group `group_atoms` of a noncarbon acid
+    belongs to an organyl group whose substituents rank below the ester (P-41): hydroxy, ether, oxo, amino, nitrile,
+    nitro, nitroso, sulfide, thiol, selenol, hydroperoxy, acid halide, amide, oxime, sulfone, sulfonamide, halogen and the
     rings with nitrogen, oxygen or sulfur; an acid, another ester or an anhydride outranks it."""
     nitro = set()
     for atom in mol.GetAtoms():
         if atom.GetIdx() not in group_atoms and is_nitro_nitrogen(mol, atom.GetIdx()):
             nitro |= {atom.GetIdx(), *(n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 8)}
     for atom in mol.GetAtoms():
-        if atom.GetIdx() in group_atoms or atom.GetIdx() in nitro:
+        if atom.GetIdx() in group_atoms or atom.GetIdx() in nitro or (within is not None and atom.GetIdx() not in within):
             continue
         if atom.GetIsotope() or atom.GetFormalCharge():
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        z = atom.GetAtomicNum()
-        if z == 8 and not allowed_outside_oxygen(atom, False):
-            raise UnsupportedStructure("an acid or another ester outranks the nitrogen acid ester")
-        if z == 16 and (atom.GetDegree() > 2 or any(n.GetAtomicNum() == 8 for n in atom.GetNeighbors())):
-            raise UnsupportedStructure("a sulfur group outranking the ester is not supported here")
-        if z not in (1, 6, 7, 8, 16, *HALOGEN_PREFIXES):
-            raise UnsupportedStructure("this element in the organyl group of the ester is not supported yet")
+        if not allowed_organyl_atom(atom, anionic):
+            raise UnsupportedStructure("an acid, another ester or another element in the organyl group outranks or is not an ester prefix")
 
 
 def has_phosphate_shape(mol) -> bool:
@@ -249,19 +283,14 @@ def name_phosphate(mol) -> str:
             atom.GetFormalCharge() != 0 and idx not in charged_oxygens and not (zwitterion and idx in positive)
         ):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num == _PHOSPHORUS and idx != phosphorus.GetIdx():
+        if atom.GetAtomicNum() == _PHOSPHORUS and idx != phosphorus.GetIdx():
             raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
-        if atomic_num not in (1, 6, 7, 8, _PHOSPHORUS, *HALOGEN_PREFIXES):
-            raise UnsupportedStructure(
-                "heteroatoms other than the phosphate's own phosphorus/"
-                "oxygens and a halogen substituent are not supported yet"
-            )
-        if atomic_num == 8 and idx not in group_oxygens and not allowed_outside_oxygen(atom, bool(charged_oxygens)):
-            raise UnsupportedStructure(
-                "an oxygen atom not part of the phosphate's own "
-                "P(=O)(OR)3 group is out of scope for this module"
-            )
+    check_ester_organyl(
+        mol,
+        {phosphorus.GetIdx(), *group_oxygens},
+        anionic=bool(charged_oxygens),
+        within={i for i in anion_frag if i not in positive},
+    )
 
     double_o = next(
         n
