@@ -1078,3 +1078,16 @@ def test_lactam_units_with_a_substituted_linker_and_ring_assembly_linkers(smiles
 )
 def test_hydrazide_and_amidoxime_units_joined_by_a_linker(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("Nc1ccc(N=Nc2ccc(N)cc2)cc1", "4,4'-diazenediyldianiline", id="azo_linker"),
+        pytest.param("Cc1cc(ccc1N)N=Nc1ccc(N)c(C)c1", "4,4'-diazenediylbis(2-methylaniline)", id="azo_linker_between_substituted_units"),
+        pytest.param("Nc1ccc(NNc2ccc(N)cc2)cc1", "4,4'-(hydrazine-1,2-diyl)dianiline", id="hydrazine_linker"),
+        pytest.param("Nc1ccc(N=Nc2ccc(N)c(C)c2)cc1", "4-[(4-aminophenyl)diazenyl]-2-methylaniline", id="different_units_are_not_multiplied"),
+    ],
+)
+def test_aniline_units_joined_through_a_nitrogen_linker_that_is_not_an_amine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

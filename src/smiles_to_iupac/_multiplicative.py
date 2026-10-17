@@ -459,7 +459,7 @@ def _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=
         principal_group = next(g.name for g in groups if g.anchor in unit_atoms and g.rank == principal)
         if principal_group not in SUFFIX_CARRIERS and principal_group not in KETONE_LIKE:
             return None
-    if principal_group == "amine" and any(mol.GetAtomWithIdx(u.linker_atom).GetAtomicNum() == 7 for u in selected):
+    if principal_group == "amine" and any(g.name == "amine" and g.anchor == u.linker_atom for g in groups for u in selected):
         return None
     if merge_assemblies and principal is None:
         unit_key = ring_seniority_key(mol, selected[0].ring_atoms)
