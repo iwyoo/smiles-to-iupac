@@ -32,7 +32,7 @@ def _centre_match(mol, atom):
     if atom.GetDegree() != {(16, 2): 4, (16, 1): 3, (15, 1): 4, (15, 0): 3}[(atom.GetAtomicNum(), len(doubled))]:
         return None
     carbon = next(n for n in esters[0].GetNeighbors() if n.GetIdx() != atom.GetIdx())
-    if carbon.GetAtomicNum() != 6 or carbon.GetIsAromatic():
+    if carbon.GetAtomicNum() != 6:
         return None
     return atom, doubled[0] if doubled else atom, esters[0], carbon
 
@@ -43,7 +43,7 @@ def inorganic_ester_matches(mol):
         return []
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() in _CENTRES:
+        if atom.GetAtomicNum() in _CENTRES and not atom.GetIsAromatic():
             match = _centre_match(mol, atom)
             if match is None:
                 return []
@@ -54,9 +54,11 @@ def inorganic_ester_matches(mol):
     for atom in mol.GetAtoms():
         if atom.GetIdx() in owned:
             continue
-        if atom.GetFormalCharge() or atom.GetIsotope() or atom.GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES):
+        if atom.GetFormalCharge() or atom.GetIsotope() or not (
+            atom.GetAtomicNum() in (6, 8, *HALOGEN_PREFIXES) or (atom.GetAtomicNum() in (7, 16) and atom.GetIsAromatic())
+        ):
             return []
-        if atom.GetAtomicNum() == 8 and (atom.GetDegree() > 2 or atom.IsInRing()):
+        if atom.GetAtomicNum() == 8 and (atom.GetDegree() > 2 or (atom.IsInRing() and not atom.GetIsAromatic())):
             return []
         if any(b.GetBondTypeAsDouble() == 2.0 and (b.GetBeginAtom().GetAtomicNum() != 6 or b.GetEndAtom().GetAtomicNum() != 6) for b in atom.GetBonds()):
             return []

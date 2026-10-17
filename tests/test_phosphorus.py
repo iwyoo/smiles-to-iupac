@@ -827,3 +827,21 @@ def test_phosphate_joining_identical_esters_is_multiplicative(smiles, expected):
 )
 def test_phosphate_beside_an_ester_and_a_junior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-67.1.3.2, P-65.6.3.2.2, P-15.3, P-28: identical phosphate or sulfate esters on a ring or a ring assembly are multiplied on the diyl of that ring or assembly
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OP(=O)(O)Oc1ccc(OP(=O)(O)O)cc1", "1,4-phenylene bis(dihydrogen phosphate)", id="phenylene_para"),
+        pytest.param("OP(=O)(O)Oc1ccccc1OP(=O)(O)O", "1,2-phenylene bis(dihydrogen phosphate)", id="phenylene_ortho"),
+        pytest.param("OP(=O)(O)Oc1ccc(OP(=O)(O)O)cc1C", "2-methyl-1,4-phenylene bis(dihydrogen phosphate)", id="substituted_phenylene"),
+        pytest.param("OP(=O)(O)Oc1ccc2cc(OP(=O)(O)O)ccc2c1", "naphthalene-2,6-diyl bis(dihydrogen phosphate)", id="fused_ring"),
+        pytest.param("OP(=O)(O)Oc1ccc(OP(=O)(O)O)nc1", "pyridine-2,5-diyl bis(dihydrogen phosphate)", id="heteroring"),
+        pytest.param("OP(=O)(O)Oc1ccc(cc1)-c1ccc(OP(=O)(O)O)cc1", "[1,1'-biphenyl]-4,4'-diyl bis(dihydrogen phosphate)", id="ring_assembly"),
+        pytest.param("OS(=O)(=O)Oc1ccc(cc1)-c1ccc(OS(=O)(=O)O)cc1", "[1,1'-biphenyl]-4,4'-diyl bis(hydrogen sulfate)", id="assembly_sulfate"),
+        pytest.param("OP(=O)(O)Oc1ccc(cc1)-c1ccc(cc1)-c1ccc(OP(=O)(O)O)cc1", "[1¹,2¹:2⁴,3¹-terphenyl]-1⁴,3⁴-diyl bis(dihydrogen phosphate)", id="terphenyl_end_rings"),
+    ],
+)
+def test_phosphate_and_sulfate_esters_on_a_ring_or_assembly_are_multiplied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
