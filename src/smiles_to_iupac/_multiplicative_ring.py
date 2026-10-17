@@ -318,6 +318,7 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     principal = principal_rank_of(groups, unit_atoms)
     suffix_name = None
     suffix_atoms = []
+    hydroxy_nitrogens = []
     prefix_roots = []
     amine_roots = []
     for r, n in _ring_roots(mol, spec, {(junction, linker_atom)}):
@@ -331,6 +332,8 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
                 return None
             suffix_name = group.name
             suffix_atoms.append(r)
+            if group.name == "amidine" and any(mol.GetAtomWithIdx(a).GetAtomicNum() == 8 for a in group.atoms):
+                hydroxy_nitrogens.append(r)
         else:
             prefix_roots.append((r, n))
     if principal is not None:
@@ -357,6 +360,7 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     else:
         core, has_locants = parent_text(spec, locants), False
     nitrogen_entries = _nitrogen_entries(mol, amine_roots, len(suffix_atoms), locants, groups, name_function)
+    nitrogen_entries += [("N'" if len(suffix_atoms) == 1 else f"N'{locants[r]}", "hydroxy", False) for r in hydroxy_nitrogens]
     prefix_text = _prefix_text(entries, locants, nitrogen_entries)
     return UnitText(
         _join(prefix_text, core), locants[junction], bool(prefix_text), has_locants or any(ch.isdigit() for ch in core)
