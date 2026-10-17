@@ -324,6 +324,27 @@ def _pyrrole_ring_kind(mol, ring):
     return None
 
 
+def ring_kinds_with_hydro(mol, graph, atom_rings):
+    """([kind of each ring], [rings taking hydro prefixes]): a saturated or partly saturated ring that is the hydro
+    form of the mancude ring of the other components counts as that mancude kind (P-54.3)."""
+    kinds, hydro_rings = [], []
+    for ring in atom_rings:
+        kind = _ring_kind(mol, ring, allow_multiple=True) or _pyrrole_ring_kind(mol, ring)
+        if kind is None:
+            kind = saturated_counterpart_kind(mol, graph, ring)
+            if kind is not None:
+                hydro_rings.append(frozenset(ring))
+        kinds.append(kind)
+    if ("aromatic", 6) in kinds:
+        for i, kind in enumerate(kinds):
+            if kind == ("saturated", 6) and (
+                not _has_ring_multiple_bond(mol, atom_rings[i]) or partly_hydrogenated_benzene(mol, atom_rings[i])
+            ):
+                kinds[i] = ("aromatic", 6)
+                hydro_rings.append(frozenset(atom_rings[i]))
+    return kinds, hydro_rings
+
+
 def find_ring_assembly_chain_core(mol):
     """Return (path, connections, ring_kind) if `mol` is an unbranched
     chain of 3-6 disjoint identical-kind-and-size rings (all benzo, or all
@@ -343,21 +364,7 @@ def find_ring_assembly_chain_core(mol):
     if not (_MIN_RINGS <= n <= _MAX_RINGS):
         return None
     graph = adjacency(mol)
-    kinds, hydro_rings = [], []
-    for ring in atom_rings:
-        kind = _ring_kind(mol, ring, allow_multiple=True) or _pyrrole_ring_kind(mol, ring)
-        if kind is None:
-            kind = saturated_counterpart_kind(mol, graph, ring)
-            if kind is not None:
-                hydro_rings.append(frozenset(ring))
-        kinds.append(kind)
-    if ("aromatic", 6) in kinds:
-        for i, kind in enumerate(kinds):
-            if kind == ("saturated", 6) and (
-                not _has_ring_multiple_bond(mol, atom_rings[i]) or partly_hydrogenated_benzene(mol, atom_rings[i])
-            ):
-                kinds[i] = ("aromatic", 6)
-                hydro_rings.append(frozenset(atom_rings[i]))
+    kinds, hydro_rings = ring_kinds_with_hydro(mol, graph, atom_rings)
     if len(set(kinds)) != 1 or None in kinds or len(hydro_rings) == n:
         return None
     (ring_kind,) = set(kinds)

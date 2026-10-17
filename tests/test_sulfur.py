@@ -808,7 +808,7 @@ def test_two_ring_and_heteroaromatic_chain_thiol(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("SC1CCCC(c2ccccc2)C1c3ccccc3", "2,3-diphenylcyclohexane-1-thiol", id="three_rings"),
+        pytest.param("SC1CCCC(c2ccccc2)C1c3ccccc3", "2¹,2²,2³,2⁴,2⁵,2⁶-hexahydro[1¹,2¹:2²,3¹-terphenyl]-2³-thiol", id="three_rings"),
         pytest.param("SCC1CCCCC1c1ccccc1", "(2-phenylcyclohexyl)methanethiol", id="chain_thiol"),
     ],
 )

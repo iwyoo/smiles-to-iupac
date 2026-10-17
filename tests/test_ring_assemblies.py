@@ -181,6 +181,10 @@ def test_double_bond_junction_between_fused_systems(smiles, expected):
         pytest.param("C1(=CC=CCC1)C1=CC=CC=C1", "2,3-dihydro-1,1'-biphenyl", id="two_rings_benzene_and_cyclohexadiene_take_hydro_prefixes"),
         pytest.param("C1=CCCCC1c1ccccc1", "1,2,3,4-tetrahydro-1,1'-biphenyl", id="benzene_and_cyclohexene_take_hydro_prefixes"),
         pytest.param("C1CC=CC=C1C1=CC=C(C=C1)C1=CC=CC=C1", "1²,1³-dihydro-1¹,2¹:2⁴,3¹-terphenyl", id="three_rings_benzene_and_cyclohexadiene_take_hydro_prefixes"),
+        pytest.param("Oc1ccc(cc1)-c1ccc(cc1)C1CCCCC1", "3¹,3²,3³,3⁴,3⁵,3⁶-hexahydro[1¹,2¹:2⁴,3¹-terphenyl]-1⁴-ol", id="hydro_assembly_with_a_suffix_group"),
+        pytest.param("Cc1ccc(cc1)-c1ccc(cc1)C1CCCCC1", "3⁴-methyl-1¹,1²,1³,1⁴,1⁵,1⁶-hexahydro-1¹,2¹:2⁴,3¹-terphenyl", id="hydro_assembly_with_a_substituent_prefix"),
+        pytest.param("Oc1ccc(cc1)-c1ccc(cc1)C1=CCCCC1", "3²,3³,3⁴,3⁵-tetrahydro[1¹,2¹:2⁴,3¹-terphenyl]-1⁴-ol", id="partly_saturated_ring_beside_a_suffix_group"),
+        pytest.param("Oc1ccc(nc1)C1CCCCN1", "1',2',3',4',5',6'-hexahydro[2,2'-bipyridin]-5-ol", id="two_ring_hydro_assembly_with_a_suffix_group"),
     ],
 )
 def test_4_chlorobiphenyl_and_related(smiles, expected):
@@ -423,8 +427,8 @@ def test_senior_ring_assembly_is_the_parent_beside_another_assembly(smiles, expe
         ),
         pytest.param(
             "CCCCCC1CCC(c2cc(C=O)ccc2-c2ccccc2)CC1",
-            "2-(4-pentylcyclohexyl)[1,1'-biphenyl]-4-carbaldehyde",
-            id="cyclohexyl_substituent_beside_a_biphenyl_aldehyde",
+            "3⁴-pentyl-3¹,3²,3³,3⁴,3⁵,3⁶-hexahydro[1¹,2¹:2²,3¹-terphenyl]-2⁴-carbaldehyde",
+            id="cyclohexane_ring_of_a_terphenyl_aldehyde_takes_hydro_prefixes",
         ),
     ],
 )
