@@ -486,6 +486,13 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         return result
     name, compound = result
     capacity = _hydrogen_capacity(context, labelled)
+    extra = []
+    oxygens = _carbonyl_oxygens(mol, graph, root, coming_from) if mol is not None else set()
+    acyl_oxygen = {a: e for a, e in labelled.items() if a in oxygens and e["skeleton"] and not e["H"]}
+    if acyl_oxygen and len(acyl_oxygen) < len(labelled):
+        extra = [(e["skeleton"], None, 1, False) for e in acyl_oxygen.values()]
+        labelled = {a: e for a, e in labelled.items() if a not in acyl_oxygen}
+        context["consumed"].update(acyl_oxygen)
     amino = _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
     if amino is not None:
         return amino, compound
@@ -524,7 +531,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         # P-82.6.3.2: the carbonyl carbon is not numbered in the retained name, so the systematic name cites it
         context["consumed"].add(root)
         stem = "benzene" if name == "benzoyl" else name[: -len("carbonyl")]
-        return stem + descriptor(labelled, {root: 1}, True, capacity=capacity) + "carbonyl", True
+        return stem + descriptor(labelled, {root: 1}, True, extra=extra, capacity=capacity) + "carbonyl", True
     benzyl = re.fullmatch(r"(\([^()]*\)-)?benzyl", name)
     if benzyl and set(labelled) == {root}:
         context["consumed"].add(root)
@@ -552,12 +559,14 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if centre is not None:
         context["consumed"].update(labelled)
         return centre, compound
-    if name == "acetyl" and mol is not None:
+    if name.endswith("acetyl") and mol is not None:
         methyl = [n for n in graph[root] if n != coming_from and mol.GetAtomWithIdx(n).GetAtomicNum() == 6]
-        if len(methyl) == 1 and set(labelled) == {methyl[0]}:
+        if len(methyl) == 1 and set(labelled) <= {root, methyl[0]}:
             context["consumed"].update(labelled)
-            omit = _fully_modified(labelled, {methyl[0]: 2}, capacity, {methyl[0]})
-            return descriptor(labelled, {methyl[0]: 2}, omit, capacity=capacity) + name, True
+            positions = {root: 1, methyl[0]: 2}
+            skeleton = any(entry["skeleton"] for entry in labelled.values())
+            omit = name == "acetyl" and _fully_modified(labelled, positions, capacity, set(positions) if skeleton else {methyl[0]})
+            return name[: -len("acetyl")] + descriptor(labelled, positions, omit, extra=extra, capacity=capacity) + "acetyl", True
     positions = _plain_chain_positions(graph, root, coming_from, atoms, mol)
     if positions is not None and name.isalpha():
         context["consumed"].update(labelled)
@@ -578,6 +587,15 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
             b.GetBondTypeAsDouble() > 1.0 and b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms for b in mol.GetBonds()
         )
         chain, _, _, _ = _select_winning_structure(graph, root, coming_from, named, mol, aromatic_atoms, unsaturated or multiple)
+        carbonyl_oxygens = _carbonyl_oxygens(mol, graph, root, coming_from)
+        if carbonyl_oxygens and set(labelled) <= carbonyl_oxygens and not any(e["H"] for e in labelled.values()):
+            retained = next((w for w in ("acetyl", "benzoyl", "formyl") if name.endswith(w)), None)
+            stem_index = len(name) - len(retained) if retained else name.rfind(alkyl_name(len(chain))[:-2])
+            if stem_index < 0:
+                raise UnsupportedStructure("the principal chain of this substituent name is not delimited")
+            context["consumed"].update(labelled)
+            text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
+            return name[:stem_index] + text + name[stem_index:], compound
         if any(a not in chain for a in labelled):
             raise UnsupportedStructure("an isotopically modified atom off the principal chain of a substituent is not supported yet")
         positions = _lowest_chain_positions(mol, chain, root, labelled)
@@ -594,7 +612,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if hydro is not None:
         labelled, capacity, hydro_text = _split_hydro_labels(mol, positions, labelled, capacity, hydro)
         stem_index = hydro.end()
-    text = descriptor(labelled, positions, omit, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
+    text = descriptor(labelled, positions, omit, extra=extra, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, positions))
     start = hydro.start() if hydro is not None else stem_index
     return name[:start] + hydro_text + text + ("-" if name[stem_index:stem_index + 1].isdigit() else "") + name[stem_index:], compound
 
@@ -630,6 +648,19 @@ def _labelled_ether_oxygen(mol, root, labelled, name):
         and name.endswith("oxy")
         and all(n.GetAtomicNum() == 6 and not _carbonyl_carbon(mol, n.GetIdx()) for n in oxygen.GetNeighbors())
     )
+
+
+def _carbonyl_oxygens(mol, graph, root, coming_from):
+    """The terminal doubly bonded oxygen of an acyl group at `root`."""
+    if not _carbonyl_carbon(mol, root):
+        return set()
+    return {
+        n for n in graph[root]
+        if n != coming_from
+        and mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+        and mol.GetAtomWithIdx(n).GetDegree() == 1
+        and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0
+    }
 
 
 def _carbonyl_carbon(mol, atom):
@@ -1049,6 +1080,9 @@ def cite_heteroatom_double_bonds(named, graph, root, coming_from, mol, context):
     return (f"({','.join(codes)})-{name}", True) if codes else named
 
 
+_LEADING_LOCANTED_NUCLIDE = re.compile(r"\([\d,]+-\d+[A-Z]")
+
+
 def _name_branch_isotopes(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     forced = FORCED_BRANCH_NAMES.get()
     if forced and mol is not None and mol.GetNumAtoms() == forced[0] and root in forced[1]:
@@ -1070,7 +1104,9 @@ def _name_branch_isotopes(graph, root, coming_from, halogens=None, aromatic_atom
         labelled = _label_branch(
             result, graph, root, coming_from, halogens, mol, aromatic_atoms or frozenset(), unsaturated
         )
-        cited = frozenset(stereo["used"] - cited_before) if stereo else frozenset()
+        if mol is not None and _carbonyl_carbon(mol, root) and _LEADING_LOCANTED_NUCLIDE.match(labelled[0]):
+            labelled = (labelled[0], True)
+        cited =frozenset(stereo["used"] - cited_before) if stereo else frozenset()
         cache[key] = (labelled, frozenset(context["consumed"] - before), cited)
     result, used, cited = cache[key]
     context["consumed"].update(used)

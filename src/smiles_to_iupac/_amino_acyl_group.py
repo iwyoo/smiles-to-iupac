@@ -39,6 +39,11 @@ def amino_acyl_group(mol, graph, root, coming_from):
                 stack.append(n)
     if any(coming_from in graph[a] for a in inside if a != root):
         return None
+    from ._substituents import ISOTOPE_LABELS
+
+    labels = ISOTOPE_LABELS.get()
+    if labels and any(a in labels["labels"] for a in inside):
+        return None
     if any(mol.GetAtomWithIdx(a).HasProp(CATION_INSERT_PROP) for a in inside):
         return None
     editable = Chem.RWMol(mol)

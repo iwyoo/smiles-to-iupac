@@ -809,7 +809,7 @@ def test_hydrogen_nuclides_on_the_nitrogens_of_a_semicarbazide(smiles, expected)
         pytest.param("[13CH3]C(=O)NNC(C)=O", "N'-acetyl(2-13C)acetohydrazide", id="carbon_nuclide"),
         pytest.param("[2H]N(NC(C)=O)C(C)=O", "N'-acetyl(N-2H)acetohydrazide", id="nitrogen_nuclide_takes_the_lower_locant_N"),
         pytest.param("CC(=O)N([2H])N([2H])C(C)=O", "N'-acetyl(N,N'-2H2)acetohydrazide", id="both_nitrogens"),
-        pytest.param("[2H]C([2H])([2H])C(=O)NNC(=O)C([2H])([2H])[2H]", "N'-(2H3)acetyl(2,2,2-2H3)acetohydrazide", id="both_acyl_groups"),
+        pytest.param("[2H]C([2H])([2H])C(=O)NNC(=O)C([2H])([2H])[2H]", "N'-[(2H3)acetyl](2,2,2-2H3)acetohydrazide", id="both_acyl_groups"),
         pytest.param("[2H]CCC(=O)NNC(=O)CC", "N'-propanoyl(3-2H1)propanehydrazide", id="longer_chain"),
     ],
 )
@@ -951,6 +951,26 @@ def test_labelled_organyl_group_of_an_acid(smiles, expected):
     ],
 )
 def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.3.2, P-66.1.2: the junior acyl group of a diacylamine is an N-prefix that cites the nuclides of its own carbonyl carbon
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[13C](=O)NC(=O)c1ccccc1", "N-[(1-13C)acetyl]benzamide", id="carbonyl_carbon_of_acetyl"),
+        pytest.param("ClC[13C](=O)NC(=O)c1ccccc1", "N-[chloro(1-13C)acetyl]benzamide", id="substituted_acetyl"),
+        pytest.param("NC[13C](=O)NC(=O)c1ccccc1", "N-[amino(1-13C)acetyl]benzamide", id="amino_acid_acyl_without_its_retained_name"),
+        pytest.param("C[13C](=O)N(C(C)=O)C(=O)c1ccccc1", "N-[(1-13C)acetyl]-N-acetylbenzamide", id="labelled_acyl_beside_an_identical_unlabelled_one"),
+        pytest.param("CC[13C](=O)NC(=O)c1ccccc1", "N-[(1-13C)propanoyl]benzamide", id="acyl_group_other_than_acetyl"),
+        pytest.param("C[13C](=[18O])NNC(=O)c1ccccc1", "N'-[(1-13C,18O)acetyl]benzohydrazide", id="carbonyl_oxygen_with_the_carbon_on_a_hydrazide"),
+        pytest.param("CC(=[18O])NC(=O)c1ccccc1", "N-(18O)acetylbenzamide", id="carbonyl_oxygen_of_the_acyl_prefix"),
+        pytest.param("C[13C](=O)NC(=O)NC(C)=O", "N-(acetylcarbamoyl)(1-13C)acetamide", id="acyl_inside_a_carbamoyl_prefix"),
+        pytest.param("C[13C](=O)NC(=O)NC(=O)c1ccccc1", "N-{[(1-13C)acetyl]carbamoyl}benzamide", id="labelled_acyl_inside_the_carbamoyl_prefix_of_a_senior_amide"),
+        pytest.param("C[13C](=O)NNC(=O)[13c]1ccccc1", "N'-[(1-13C)acetyl](1-13C)benzohydrazide", id="labelled_parent_and_labelled_acyl_prefix"),
+    ],
+)
+def test_nuclide_on_the_carbonyl_carbon_of_an_n_acyl_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

@@ -492,8 +492,8 @@ def _mark_stereo_used(mol, graph, carbon, from_atom):
         )
 
 
-def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
-    from ._substituents import name_branch
+def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms, label_acyl=False):
+    from ._substituents import label_functional_branch, name_branch
 
     out = []
     for a in atoms:
@@ -501,7 +501,8 @@ def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
             mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() == 2.0
             for n in graph[a]
         ):
-            out.append(_functional_carbon(graph, a, parent, halogens, aromatic_atoms, mol))
+            acyl = _functional_carbon(graph, a, parent, halogens, aromatic_atoms, mol)
+            out.append(label_functional_branch(acyl, graph, a, parent, halogens, mol) if label_acyl else acyl)
         else:
             out.append(name_branch(graph, a, parent, halogens, aromatic_atoms, mol=mol))
     return out
@@ -1594,7 +1595,7 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if len(tail) == 1 and mol.GetAtomWithIdx(tail[0]).GetAtomicNum() == 6:
                 rname, rcomp = name_branch(graph, tail[0], subs[0], halogens, aromatic_atoms, mol=mol)
                 return f"2-{_enclose(rname, rcomp)}diazene-1-carbonyl", True
-        name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
+        name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms, label_acyl=True))
         return _amino_stem(name) + "carbamoyl", True
     if z == 6:
         try:

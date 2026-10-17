@@ -11,8 +11,8 @@ from ._diacylamine import (
     _side,
     donor_names,
     forced_for_unlabelled,
+    methylate_donor,
     modified_atoms_beyond,
-    placeholder_carbon,
     unlabelled_with_labels,
 )
 from ._dipolar import _smiles_with_order
@@ -60,8 +60,8 @@ def diacylhydrazine_name(mol):
     """The name of a molecule with an acyclic N-N bond whose nitrogens carry two or more acyl groups, else None."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
-    mol, labels = unlabelled_with_labels(mol)
-    if mol is None:
+    mol, labels = unlabelled_with_labels(mol, heteroatoms=True)
+    if mol is None or any(mol.GetAtomWithIdx(a).GetAtomicNum() not in (6, 8) for a in labels):
         return None
     pairs = []
     for a, b in _hydrazine_pair(mol):
@@ -98,12 +98,7 @@ def diacylhydrazine_name(mol):
         removed |= _side(graph, r, n) - {r}
         editable.RemoveBond(n, r)
     for r, n in donors:
-        atom = editable.GetAtomWithIdx(r)
-        placeholder_carbon(atom)
-        for bond in list(atom.GetBonds()):
-            if bond.GetOtherAtomIdx(r) in removed:
-                editable.RemoveBond(r, bond.GetOtherAtomIdx(r))
-        editable.AddBond(n, r, Chem.BondType.SINGLE)
+        methylate_donor(editable, r, n, removed)
     restore_labels(editable, mol, labels, skip=removed | {r for r, _ in donors})
     for idx in sorted(removed, reverse=True):
         editable.RemoveAtom(idx)

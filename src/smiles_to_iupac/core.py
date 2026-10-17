@@ -1008,7 +1008,10 @@ def _require_isotopes_cited(mol, name):
     if not expected:
         return
     cited = _cited_nuclides(name)
-    for given in [a.GetProp(PREFIX_PROP) for a in mol.GetAtoms() if a.HasProp(PREFIX_PROP)]:
+    forced = FORCED_BRANCH_NAMES.get()
+    given_names = [a.GetProp(PREFIX_PROP) for a in mol.GetAtoms() if a.HasProp(PREFIX_PROP)]
+    given_names += [forced_name for forced_name, _ in forced[1].values()] if forced else []
+    for given in given_names:
         if given in name:
             for key, count in _cited_nuclides(given).items():
                 cited[key] = cited.get(key, 0) - count

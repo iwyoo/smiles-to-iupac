@@ -138,6 +138,17 @@ def unlabelled_with_labels(mol, heteroatoms=False):
     return clean, labels
 
 
+def methylate_donor(editable, donor, nitrogen, removed):
+    """Turns the acyl atom `donor` into a methyl-type carbon bonded to `nitrogen`, dropping its bonds to the atoms `removed`;
+    it gets its hydrogens back even when a nuclide label made it a bracket atom."""
+    atom = editable.GetAtomWithIdx(donor)
+    placeholder_carbon(atom)
+    for bond in list(atom.GetBonds()):
+        if bond.GetOtherAtomIdx(donor) in removed:
+            editable.RemoveBond(donor, bond.GetOtherAtomIdx(donor))
+    editable.AddBond(nitrogen, donor, Chem.BondType.SINGLE)
+
+
 def diacylamine_name(mol):
     """The name of a molecule with an acyclic nitrogen bearing two or three acyl groups, else None."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
@@ -167,7 +178,6 @@ def diacylamine_name(mol):
     except UnsupportedStructure:
         return None
     editable = Chem.RWMol(mol)
-    placeholders = {}
     removed = set()
     for r in donors:
         side = _side(graph, r, nitrogen.GetIdx())
@@ -175,13 +185,7 @@ def diacylamine_name(mol):
         editable.RemoveBond(nitrogen.GetIdx(), r)
     keep = sorted(removed, reverse=True)
     for donor in donors:
-        atom = editable.GetAtomWithIdx(donor)
-        placeholder_carbon(atom)
-        for bond in list(atom.GetBonds()):
-            if bond.GetOtherAtomIdx(donor) in removed:
-                editable.RemoveBond(donor, bond.GetOtherAtomIdx(donor))
-        editable.AddBond(nitrogen.GetIdx(), donor, Chem.BondType.SINGLE)
-        placeholders[donor] = None
+        methylate_donor(editable, donor, nitrogen.GetIdx(), removed)
     restore_labels(editable, mol, labels, skip=removed | set(donors))
     for idx in keep:
         editable.RemoveAtom(idx)
