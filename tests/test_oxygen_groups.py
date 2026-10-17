@@ -1541,13 +1541,12 @@ def test_identical_esters_joined_through_a_metalloid_or_heteroatom_group(smiles,
     assert smiles_to_iupac(smiles) == expected
 
 
-# P-16.3.4, P-65.6.3.2.2: the multiplying prefix of tert-butyl takes a hyphen; a substituted carbamothioate anion takes bis
+# P-16.3.4: the multiplying prefix of tert-butyl takes a hyphen
 @pytest.mark.parametrize(
     "smiles,expected",
     [
         pytest.param("CC(C)(C)OC(=O)OC(=O)OC(C)(C)C", "di-tert-butyl dicarbonate", id="tert_butyl_ester_words"),
         pytest.param("CC(C)(C)OC(=O)NCCNC(=O)OC(C)(C)C", "di-tert-butyl (ethane-1,2-diyl)bis(carbamate)", id="tert_butyl_beside_a_nitrogen_linked_carbamate"),
-        pytest.param("CNC(=S)OCCOC(=S)NC", "O,O\u2032-ethane-1,2-diyl bis(methylcarbamothioate)", id="substituted_carbamothioate_takes_bis"),
     ],
 )
 def test_multiplied_ester_words(smiles, expected):

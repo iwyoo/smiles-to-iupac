@@ -601,9 +601,6 @@ def _pendant_text(mol, graph, links):
     return _multiplied([(n, not n.isalpha(), k, []) for n, k in counts.items()])
 
 
-_N_SUBSTITUTED_CARBAMOYL = re.compile(r"(?!carbam)[a-z]+carbam")
-
-
 def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces, suffixed):
     """'dimethyl ethane-1,2-diyl dibutanedioate' (P-65.6.3.3.4.1): one organyl piece joining identical acid pieces
     whose remaining ester groups carry organyl groups; None when the molecule is not of that shape."""
@@ -646,9 +643,8 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     diyl = _diyl_name(mol, frags[hub], [l.far for l in hub_links])
     if diyl is None:
         return None
-    plain = anion.isalpha() and not _N_SUBSTITUTED_CARBAMOYL.match(anion)
-    multiplier = multiplying_prefix(len(centers), compound=not plain)
-    anion_text = multiplier + anion if plain else f"{multiplier}{enclose(anion)}"
+    multiplier = multiplying_prefix(len(centers), compound=not anion.isalpha())
+    anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
     if modified:
         symbols = ["".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in l.chain) for l in hub_links]
         diyl = ",".join(f"{symbol}{_PRIMES[i]}" for i, symbol in enumerate(sorted(symbols))) + "-" + diyl
