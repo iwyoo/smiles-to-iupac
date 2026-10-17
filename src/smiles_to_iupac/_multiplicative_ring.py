@@ -227,11 +227,14 @@ def _citation_key(entries):
     return tuple(loc for loc, _ in sorted(entries, key=lambda e: (citation_order_key(e[1]), e[0])))
 
 
-def _prefix_text(entries, locants):
+def _prefix_text(entries, locants, nitrogen_entries=()):
     grouped = {}
     for r, name, compound in entries:
         info = grouped.setdefault(name, {"locants": [], "compound": compound})
         info["locants"].append(locants[r])
+    for locant, name, compound in nitrogen_entries:
+        info = grouped.setdefault(name, {"locants": [], "compound": compound})
+        info["locants"].append(locant)
     return format_substituent_prefixes(grouped) if grouped else ""
 
 
@@ -256,6 +259,27 @@ def _group_at(mol, groups, ring_atom, root):
         if (attached, anchor_root) == (ring_atom, root) and g.atoms - {ring_atom} == atoms and _is_primary(mol, g):
             return g
     return None
+
+
+def _substituted_amine_at(mol, groups, ring_atom, root):
+    """The amine group whose nitrogen `root` hangs on `ring_atom` and carries carbon substituents of its own (P-62.2.2)."""
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() != 7 or atom.IsInRing() or atom.GetDegree() < 2:
+        return None
+    return next((g for g in groups if g.name == "amine" and g.anchor == root), None)
+
+
+def _nitrogen_entries(mol, amine_roots, amine_count, locants, groups, name_function):
+    """N-locant prefixes of the substituted amine groups of a unit: 'N' for a single amine suffix, 'N1', 'N3' when the
+    suffix is multiplied (P-62.2.2)."""
+    entries = []
+    for r, nitrogen in amine_roots:
+        locant = "N" if amine_count == 1 else f"N{locants[r]}"
+        for neighbor in mol.GetAtomWithIdx(nitrogen).GetNeighbors():
+            if neighbor.GetIdx() != r:
+                name, compound = prefix_name(mol, neighbor.GetIdx(), nitrogen, "amine", name_function, groups)
+                entries.append((locant, name, compound))
+    return entries
 
 
 def _prefix_entries(mol, roots, groups, suffix_group, name_function):
@@ -295,8 +319,13 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     suffix_name = None
     suffix_atoms = []
     prefix_roots = []
+    amine_roots = []
     for r, n in _ring_roots(mol, spec, {(junction, linker_atom)}):
         group = _group_at(mol, groups, r, n)
+        if group is None and principal == SUFFIX_RANKS["amine"]:
+            group = _substituted_amine_at(mol, groups, r, n)
+            if group is not None:
+                amine_roots.append((r, n))
         if group is not None and group.rank == principal and group.name in _SUFFIX_WORDS:
             if suffix_name not in (None, group.name):
                 return None
@@ -305,7 +334,7 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
         else:
             prefix_roots.append((r, n))
     if principal is not None:
-        principal_count = sum(1 for g in groups if g.anchor in unit_atoms and g.rank == principal)
+        principal_count = len({g.anchor for g in groups if g.anchor in unit_atoms and g.rank == principal})
         if suffix_name is None or principal_count != len(suffix_atoms):
             return None
     entries = _prefix_entries(mol, prefix_roots, groups, suffix_name, name_function)
@@ -327,7 +356,8 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
         core, has_locants = _suffix_text(parent_text(spec, locants), suffix_name, [locants[a] for a in suffix_atoms], spec)
     else:
         core, has_locants = parent_text(spec, locants), False
-    prefix_text = _prefix_text(entries, locants)
+    nitrogen_entries = _nitrogen_entries(mol, amine_roots, len(suffix_atoms), locants, groups, name_function)
+    prefix_text = _prefix_text(entries, locants, nitrogen_entries)
     return UnitText(
         _join(prefix_text, core), locants[junction], bool(prefix_text), has_locants or any(ch.isdigit() for ch in core)
     )

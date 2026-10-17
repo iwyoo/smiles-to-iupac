@@ -1340,6 +1340,12 @@ def test_several_identical_cationic_centres(smiles, expected):
         pytest.param("[NH3+]c1ccc(cc1)C(C)(C)c1ccc(cc1)[NH3+]", "4,4'-(propane-2,2-diyl)bis(anilinium)", id="anilinium_units_on_rings"),
         pytest.param("[NH3+]C1CCC(CC1)OC1CCC(CC1)[NH3+]", "4,4'-oxybis(cyclohexan-1-aminium)", id="cycloalkane_units"),
         pytest.param(
+            "C[N+](C)(C)c1ccc(cc1)Cc1ccc(cc1)[N+](C)(C)C",
+            "4,4'-methylenebis(N,N,N-trimethylanilinium)",
+            id="quaternary_anilinium_units",
+        ),
+        pytest.param("C[NH2+]c1ccc(cc1)Oc1ccc(cc1)[NH2+]C", "4,4'-oxybis(N-methylanilinium)", id="secondary_anilinium_units"),
+        pytest.param(
             "C[N+](C)(C)CCOC(=O)CCC(=O)OCC[N+](C)(C)C",
             "2,2'-[butanedioylbis(oxy)]bis(N,N,N-trimethylethan-1-aminium)",
             id="cation_outranks_the_ester_linker",

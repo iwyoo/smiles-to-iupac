@@ -86,6 +86,7 @@ _JUNIOR_PATTERNS = [
 ]
 
 _CLASS_QUERIES = [(name, Chem.MolFromSmarts(smarts), anchor) for name, smarts, anchor in _CLASS_PATTERNS]
+_AMMONIUM_QUERY = ("amine", Chem.MolFromSmarts(f"[NX4+;!R;!$(N~[!#6;!#1])]{_NOT_CARBONYL}"), 0)
 _JUNIOR_QUERIES = [Chem.MolFromSmarts(smarts) for smarts in _JUNIOR_PATTERNS]
 _THIOKETONE_QUERY = Chem.MolFromSmarts("[#6][CX3](=[SX1,SeX1,TeX1])[#6]")
 _HIDDEN_THIOAMIDE_QUERY = Chem.MolFromSmarts("[CX3;!R;$(C-[#7;R])]=[SX1,SeX1,TeX1]")
@@ -184,10 +185,12 @@ def classify(mol):
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in _ALLOWED_ELEMENTS or atom.GetIsotope() or atom.GetNumRadicalElectrons():
             return None
+    from ._amine import CATIONIC_AMINES
+
     covered = set()
     groups = []
     ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    for name, query, anchor in _CLASS_QUERIES:
+    for name, query, anchor in _CLASS_QUERIES + ([_AMMONIUM_QUERY] if CATIONIC_AMINES.get() else []):
         for match in mol.GetSubstructMatches(query):
             if any(a in ring_atoms for i, a in enumerate(match) if i != anchor and mol.GetAtomWithIdx(a).GetAtomicNum() != 6):
                 return None
