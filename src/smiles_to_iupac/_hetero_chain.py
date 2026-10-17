@@ -13,6 +13,7 @@ from ._phosphanyl_group import PREFIX_PROP
 from ._prefix_groups import PrefixNamer
 from ._substituents import format_substituent_prefixes, name_branch
 
+KEPT_ATOMS_PROP = "_kept_atoms"
 _ALLOWED = {6, 7, 8, 16}
 _A_PREFIX = {8: "oxa", 16: "thia", 7: "aza"}
 _SENIORITY = [8, 16, 7]
@@ -201,6 +202,7 @@ def _contract(mol, graph, comps, backbone, principal):
         rw.RemoveAtom(idx)
     out = rw.GetMol()
     Chem.SanitizeMol(out)
+    out.SetProp(KEPT_ATOMS_PROP, ",".join(str(i) for i in range(mol.GetNumAtoms()) if i not in drop))
     return out
 
 

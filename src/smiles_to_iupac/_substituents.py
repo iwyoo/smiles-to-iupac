@@ -727,7 +727,7 @@ _CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selan
 
 _CENTRE_PREFIX_STEM = {
     5: "boranyl|borono",
-    7: "nitroso|nitro|azaniumyl",
+    7: "nitroso|nitro|azaniumyl|azanyl",
     13: "alumanyl",
     14: "silyl",
     15: "phosphanyl|phosphoryl|phosphorothioyl|phosphinoyl|phosphinothioyl|phosphono|phosphinico",
