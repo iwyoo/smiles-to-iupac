@@ -987,6 +987,9 @@ def test_nuclide_on_the_carbonyl_carbon_of_an_n_acyl_prefix(smiles, expected):
         pytest.param("C[N+](C)([O-])C[N+](C)([13CH3])[O-]", "N-{[dimethyl(oxo)-λ5-azanyl]methyl}-N-methyl(13C)methanamine N-oxide", id="more_modified_oxide_is_the_parent"),
         pytest.param("C[N+](C)([O-])C[15N+](C)(C)[O-]", "1-[dimethyl(oxo)-λ5-azanyl]-N,N-dimethyl(15N)methanamine N-oxide", id="oxidized_nitrogen_of_the_parent_of_a_dioxide"),
         pytest.param("[O-][N+](C)(C)[13CH2]CN(C)C", "2-(dimethylamino)-N,N-dimethyl(1-13C)ethan-1-amine N-oxide", id="backbone_carbon_beside_an_amino_prefix"),
+        pytest.param("[O-][N+](C)(C)CC[15N](C)C", "2-[dimethyl(15N)amino]-N,N-dimethylethan-1-amine N-oxide", id="nitrogen_of_an_amino_prefix"),
+        pytest.param("[O-][N+](C)(C)CCN(C)CC[15N](C)C", "2-({2-[dimethyl(15N)amino]ethyl}(methyl)amino)-N,N-dimethylethan-1-amine N-oxide", id="nitrogen_of_an_amino_prefix_inside_another"),
+        pytest.param("C[N+]([O-])(C)CC[15N]1CCCC1", "N,N-dimethyl-2-[(15N)pyrrolidin-1-yl]ethan-1-amine N-oxide", id="nitrogen_of_a_ring_amino_prefix"),
     ],
 )
 def test_nuclide_on_the_nitrogen_of_an_n_oxide(smiles, expected):

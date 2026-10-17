@@ -5,9 +5,22 @@ through `name_branch` and every heteroatom inside a branch resolved first.
 """
 
 from ._alkoxy import alkoxy_prefix
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix, is_nitro_nitrogen, named_prefix
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    halogen_prefix,
+    halogen_substituents,
+    is_nitro_nitrogen,
+    named_prefix,
+)
 from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import (
+    ISOTOPE_LABELS,
+    format_mononuclear_prefixes,
+    format_substituent_prefixes,
+    label_functional_branch,
+    name_branch,
+)
 
 _SIMPLE = {"amino", "hydroxy", "sulfanyl", "methoxy", "ethoxy", "propoxy", "butoxy", "phenoxy", "nitro", "cyano"}
 _METALLOID = {5: "boranyl", 14: "silyl", 32: "germyl", 50: "stannyl", 82: "plumbyl"}
@@ -43,6 +56,11 @@ class PrefixNamer:
 
     def placeholder(self, n, parent):
         name, compound = self.name(n, parent)
+        context = ISOTOPE_LABELS.get()
+        if context and context["mol"] is self.mol:
+            name, compound = label_functional_branch(
+                (name, compound), self.graph, n, parent, halogen_substituents(self.mol), self.mol
+            )
         return enclose(name) if compound else name
 
     def _rings_of(self, atom):
