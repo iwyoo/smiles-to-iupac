@@ -366,6 +366,25 @@ def test_azido_prefix_beside_a_noncarbon_oxoacid_and_a_urea(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param(
+            "C[C@H](CP(=O)(O)O)C(=O)N=[N+]=[N-]",
+            "[(2S)-3-azido-2-methyl-3-oxopropyl]phosphonic acid",
+            id="acyl_azide_ranks_below_the_phosphonic_acid_carbon",
+        ),
+        pytest.param(
+            "C[C@H](CB(O)O)C(=O)N=[N+]=[N-]",
+            "[(2R)-3-azido-2-methyl-3-oxopropyl]boronic acid",
+            id="acyl_azide_ranks_above_the_boronic_acid_carbon",
+        ),
+    ],
+)
+def test_descriptor_beside_a_collapsed_azide_is_that_of_the_structure(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC(C)=NN=C(C)C", "di(propan-2-ylidene)hydrazine", id="symmetric_azine"),
         pytest.param("CCC(C)=NN=C1CCCCC1", "(butan-2-ylidene)(cyclohexylidene)hydrazine", id="unsymmetrical_azine_with_a_ring"),
         pytest.param("C=CC=NN=CC", "ethylidene(prop-2-en-1-ylidene)hydrazine", id="azine_with_an_unsaturated_ylidene_group"),

@@ -6,7 +6,7 @@ SMILES round trip.
 
 from rdkit import Chem
 
-from ._common import AZIDO_MAP_NUMBER, NITRO_MAP_NUMBER, NITROSO_MAP_NUMBER, is_nitro_nitrogen
+from ._common import AZIDO_MAP_NUMBER, NITRO_MAP_NUMBER, NITROSO_MAP_NUMBER, is_nitro_nitrogen, match_cip_labels
 
 _MAP_OF = {"nitro": NITRO_MAP_NUMBER, "nitroso": NITROSO_MAP_NUMBER, "azido": AZIDO_MAP_NUMBER}
 
@@ -81,4 +81,6 @@ def contract_nitro_groups(mol):
         rw.RemoveAtom(idx)
     out = rw.GetMol()
     Chem.SanitizeMol(out)
+    kept = [i for i in range(mol.GetNumAtoms()) if i not in drop]
+    match_cip_labels(mol, out, dict(enumerate(kept)))
     return out
