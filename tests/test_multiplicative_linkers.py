@@ -1021,3 +1021,14 @@ def test_divalent_central_groups_with_replaced_chalcogen_positions_and_hetero_su
 def test_azolyl_units_joined_through_a_nitrogen_of_the_linker(smiles, expected):
     # P-62.2.1.3: a nitrogen on a ring nitrogen is the amine of the ring; P-44.1.1: a carbon chain holding both has the most principal groups
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)(c1ccc(S(=O)(=O)O)cc1)c1ccc(S(=O)(=O)O)cc1", "4,4'-(propane-2,2-diyl)di(benzene-1-sulfonic acid)", id="substituted_carbon_linker"),
+        pytest.param("CN(c1ccc(S(=O)(=O)Cl)cc1)c1ccc(S(=O)(=O)Cl)cc1", "4,4'-(methylazanediyl)di(benzene-1-sulfonyl) dichloride", id="substituted_nitrogen_linker_of_acid_halide_units"),
+    ],
+)
+def test_sulfonic_acid_units_joined_by_a_linker_that_carries_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

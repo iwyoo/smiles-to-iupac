@@ -11,7 +11,7 @@ from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix, hal
 
 SUFFIX_CARRIERS = {
     "carboxylic_acid": ("C(=O)O", "benzoic acid"),
-    "sulfonic_acid": ("S(=O)(=O)O", "benzenesulfonic acid"),
+    "sulfonic_acid": ("S(=O)(=O)O", "benzene-1-sulfonic acid"),
     "amide": ("C(N)=O", "benzamide"),
     "amidine": ("C(N)=N", "benzene-1-carboximidamide"),
     "sulfonamide": ("S(N)(=O)=O", "benzenesulfonamide"),
