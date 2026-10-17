@@ -17,6 +17,7 @@ from ._common import (
     specified_stereo_elements,
 )
 from ._multiplicative_text import enclose
+from ._nitro_group import nitro_or_nitroso_group
 from ._numerals import numerical_term
 from ._oxoacid_acyl import senior_centres
 from ._phosphate import format_ester_words
@@ -114,8 +115,8 @@ def _plain_tree(mol, graph, root, behind):
 
 
 def _carbon_substituents(mol, graph, halogens, atom, skip):
-    """[(name, compound)] of the carbon groups and the hydroxy or alkoxy groups on `atom` outside `skip`, or None when
-    another atom is bonded."""
+    """[(name, compound)] of the carbon groups, the hydroxy or alkoxy groups and the halogen, nitro and nitroso groups
+    on `atom` outside `skip`, or None when another atom is bonded."""
     found = []
     for n in graph[atom.GetIdx()]:
         if n in skip:
@@ -123,6 +124,13 @@ def _carbon_substituents(mol, graph, halogens, atom, skip):
         neighbor = mol.GetAtomWithIdx(n)
         if mol.GetBondBetweenAtoms(atom.GetIdx(), n).GetBondTypeAsDouble() != 1.0:
             return None
+        if n in halogens:
+            found.append((halogens[n], False))
+            continue
+        group = nitro_or_nitroso_group(mol, neighbor)
+        if group is not None:
+            found.append((group[0], False))
+            continue
         if neighbor.GetAtomicNum() == 8 and neighbor.GetDegree() == 1 and neighbor.GetTotalNumHs() == 1 and not neighbor.GetIsotope():
             found.append(("hydroxy", False))
             continue
@@ -204,7 +212,7 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
     if order == 3.0 and neighbor.GetDegree() == 1 and not neighbor.GetTotalNumHs():
         return {"role": "ylidene", "kind": "nitride", "H": False}
     others = [n for n in neighbor.GetNeighbors() if n.GetIdx() != centre.GetIdx()]
-    nitrogens = [n for n in others if n.GetAtomicNum() == 7]
+    nitrogens = [n for n in others if n.GetAtomicNum() == 7 and nitro_or_nitroso_group(mol, n) is None]
     if len(nitrogens) > 1:
         return None
     if nitrogens:
