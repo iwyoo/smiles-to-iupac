@@ -80,7 +80,7 @@ _JUNIOR_PATTERNS = [
     f"{_NOT_CARBONYL}[SX2,SeX2,TeX2;!R][SX2,SeX2,TeX2;!R]{_NOT_CARBONYL}",
     f"{_NOT_CARBONYL}[SX3,SeX3,TeX3;!R](=O){_NOT_CARBONYL}",
     f"{_NOT_CARBONYL}[SX4,SeX4,TeX4;!R](=O)(=O){_NOT_CARBONYL}",
-    f"{_NOT_CARBONYL}[PX4,AsX4,SbX4;!R](=O)[OX2H1,#6]",
+    f"{_NOT_CARBONYL}[PX4,AsX4,SbX4;!R](=[O,S,Se,Te])[OX2,NX3H2,F,Cl,Br,I,#6]",
     "[#6,#7][N+](=O)[O-]",
     "[#6,#7][NX2]=O",
     "[#6][NX2;!R]=[NX2;!R][#6]",

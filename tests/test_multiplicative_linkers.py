@@ -808,6 +808,25 @@ def test_sulfinyl_linkers_of_multiplicative_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-15.3.1.2, P-41, P-67.1.4.1.1.2 to P-67.1.4.1.1.5: a phosphoryl-type group joins chains or rings that carry the principal group
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)CCP(=O)(CCC(=O)O)CCC(=O)O", "3,3',3''-phosphoryltripropanoic acid", id="three_chains_on_phosphoryl"),
+        pytest.param("CP(=O)(CCC(=O)O)CCC(=O)O", "3,3'-(methylphosphonoyl)dipropanoic acid", id="organyl_group_makes_a_phosphonoyl"),
+        pytest.param("OC(=O)CCP(C)(CCC(=O)O)=S", "3,3'-(methylphosphonothioyl)dipropanoic acid", id="chalcogen_analogue_of_phosphonoyl"),
+        pytest.param("COC(=O)CCP(=O)(CCC(=O)OC)CCC(=O)OC", "trimethyl 3,3',3''-phosphoryltripropanoate", id="ester_chains"),
+        pytest.param("OC(=O)CCP(=O)(Cl)CCC(=O)O", "3,3'-(chlorophosphoryl)dipropanoic acid", id="halogen_on_phosphoryl_beside_acid_chains"),
+        pytest.param("OC(=O)c1ccc(cc1)P(=S)(O)c1ccc(cc1)C(=O)O", "4,4'-(hydroxyphosphorothioyl)dibenzoic acid", id="rings_on_a_substituted_phosphorothioyl"),
+        pytest.param("C[As](=O)(CCC(=O)O)CCC(=O)O", "3,3'-(methylarsonoyl)dipropanoic acid", id="arsenic_analogue"),
+        pytest.param("P(=O)(O)(CCC#N)CCC#N", "bis(2-cyanoethyl)phosphinic acid", id="phosphinic_acid_outranks_nitrile_chains"),
+        pytest.param("P(=O)(OC)(c1ccc(cc1)O)c1ccc(cc1)O", "methyl bis(4-hydroxyphenyl)phosphinate", id="phosphinate_outranks_phenol_rings"),
+    ],
+)
+def test_phosphoryl_type_groups_as_multiplying_linkers(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

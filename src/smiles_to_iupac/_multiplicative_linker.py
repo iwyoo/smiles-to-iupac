@@ -20,7 +20,16 @@ from ._substituents import format_mononuclear_prefixes, format_substituent_prefi
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
 _CHALCOGEN_SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _TERMINAL_DOUBLE_WORDS = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
-_OXOACID_LINKER = {15: ("phosphoryl", "phosphonoyl"), 33: ("arsoryl", "arsonoyl"), 51: ("stiboryl", "stibonoyl")}
+_OXOACID_STEMS = {15: ("phosphor", "phosphon"), 33: ("arsor", "arson"), 51: ("stibor", "stibon")}
+_CHALCOGEN_INFIX = {16: "thio", 34: "seleno", 52: "telluro"}
+_HALOGENS = (9, 17, 35, 53)
+_CLASS_OF_UNIT_GROUP = {
+    "carboxylic_acid": 7, "sulfonic_acid": 7, "sulfinic_acid": 7, "acid": 7, "thioic": 7, "peroxoic": 7, "imidic": 7, "sulfonic": 7,
+    "ester": 9, "sulfonate_ester": 9, "acyl_halide": 10, "sulfonyl_halide": 10,
+    "amide": 11, "sulfonamide": 11, "chalcogen_amide": 11, "amidine": 11, "hydrazide": 12,
+    "nitrile": 14, "aldehyde": 15,
+}
+_HETERONE_CLASS = 15.5
 _SUBSTITUTABLE_WORDS = {
     7: ("azanediyl", "nitrilo"),
     **{z: (f"{stem}diyl", f"{stem}triyl") for z, (stem, _, _) in MONONUCLEAR_HYDRIDES.items()},
@@ -215,6 +224,24 @@ def _imido_n_prefix(mol, centre, pend, ctx):
     return "-".join(parts)
 
 
+def _unit_outranks_linker_group(mol, ligand, ctx):
+    """Whether the principal group of the multiplied units outranks the group that the linking phosphorus, arsenic or
+    antimony atom is: a heterone (P-64.7) when all its ligands are carbon, else the acid, ester, acid halide or amide
+    that the ligand makes of it (P-41; the acids of carbon and sulfur rank first)."""
+    if ctx.unit_group is None:
+        return True
+    unit = _CLASS_OF_UNIT_GROUP.get(ctx.unit_group, 99)
+    if ligand is None or mol.GetAtomWithIdx(ligand).GetAtomicNum() == 6:
+        return unit < _HETERONE_CLASS
+    atom = mol.GetAtomWithIdx(ligand)
+    z = atom.GetAtomicNum()
+    if z == 8:
+        linker = 7 if atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1 else 9 if atom.GetDegree() == 2 else None
+    else:
+        linker = 10 if z in _HALOGENS else 11 if z == 7 else None
+    return linker is not None and unit <= linker
+
+
 def _hetero_part(mol, atoms, attachments, ctx, directed=None):
     pairs = {(a, b) for a, b, _ in attachments}
     pend = _pendants(mol, atoms, pairs)
@@ -250,20 +277,29 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             raise UnsupportedStructure("this heteroatom chain is not supported as a multiplicative linker")
         return Part(word, False, False)
     count = len(attachments)
-    if z in _OXOACID_LINKER and count == 2:
+    if z in _OXOACID_STEMS and count in (2, 3):
         oxo = [
             r
             for a, r in pend
-            if mol.GetAtomWithIdx(r).GetAtomicNum() == 8
+            if mol.GetAtomWithIdx(r).GetAtomicNum() in (8, *_CHALCOGEN_INFIX)
             and mol.GetAtomWithIdx(r).GetDegree() == 1
             and mol.GetBondBetweenAtoms(a, r).GetBondTypeAsDouble() == 2.0
         ]
         rest = [r for _, r in pend if r not in oxo]
-        if len(oxo) == 1 and len(rest) == 1:
+        if len(oxo) == 1 and len(rest) == 3 - count:
+            if not _unit_outranks_linker_group(mol, rest[0] if rest else None, ctx):
+                raise DecompositionRejected("the phosphorus group outranks the multiplied units")
+            infix = _CHALCOGEN_INFIX.get(mol.GetAtomWithIdx(oxo[0]).GetAtomicNum())
+            fundamental, organyl = _OXOACID_STEMS[z]
+            ending = f"o{infix}yl" if infix else "yl"
+            if not rest:
+                return Part(fundamental + ending, False, False)
             entries = [_entry(mol, atoms[0], rest[0], ctx)]
             if mol.GetAtomWithIdx(rest[0]).GetAtomicNum() == 6:
-                return Part(format_mononuclear_prefixes(entries) + _OXOACID_LINKER[z][1], True, False)
-            return Part(format_mononuclear_prefixes(entries) + _OXOACID_LINKER[z][0], True, False)
+                word = organyl + (ending if infix else "oyl")
+            else:
+                word = fundamental + ending
+            return Part(format_mononuclear_prefixes(entries) + word, True, False)
     if z in _SUBSTITUTABLE_WORDS:
         divalent, trivalent = _SUBSTITUTABLE_WORDS[z]
         if count == 3 and not pend:
