@@ -439,6 +439,8 @@ def test_isotope_on_substituents_and_prefixed_parents(smiles, expected):
         pytest.param("C=C([2H])C", "(2-2H)prop-1-ene", id="deuterium_on_an_alkene_carbon"),
         pytest.param("[2H]C#CC", "(1-2H)prop-1-yne", id="deuterated_alkyne"),
         pytest.param("C/C=C/C[2H]", "(2E)-(1-2H1)but-2-ene", id="alkene_configuration_with_a_label"),
+        pytest.param("[2H][C@H](c1ccccc1)OC(C)=O", "(R)-phenyl(2H1)methyl acetate", id="isotopic_stereocentre_of_a_benzyl_group"),
+        pytest.param("[2H][C@H]1CCCC[C@@H]1NC(N)=O", "[(1S,2S)-(2-2H1)cyclohexyl]urea", id="isotopic_stereocentre_of_a_ring_group"),
         pytest.param("C[C@H]([2H])O", "(1S)-(1-2H1)ethan-1-ol", id="stereocentre_created_by_deuterium"),
         pytest.param("C[C@@H]([2H])O", "(1R)-(1-2H1)ethan-1-ol", id="opposite_isotopic_stereocentre"),
         pytest.param("[13CH3][C@H](Cl)C(=O)O", "(2S)-2-chloro(3-13C)propanoic acid", id="stereocentre_beside_a_labelled_acid"),

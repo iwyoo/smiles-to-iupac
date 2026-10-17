@@ -433,6 +433,22 @@ def test_group2_additive_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC[C@H](C)[Li]", "[(2S)-butan-2-yl]lithium"),
+        ("CC[C@H](C)[Mg]Br", "[(2S)-butan-2-yl]magnesium bromide"),
+        ("CC[C@H](C)[Mg][C@@H](C)CC", "bis[(2S)-butan-2-yl]magnesium"),
+        ("CC[C@H](C)[Zn]C", "[(2S)-butan-2-yl](methyl)zinc"),
+        ("CC/C=C/[Li]", "[(1E)-but-1-en-1-yl]lithium"),
+        ("C/C=C\\[Zn]C", "methyl[(1Z)-prop-1-en-1-yl]zinc"),
+        ("C[C@H](c1ccccc1)[Mg]C", "methyl[(1R)-1-phenylethyl]magnesium"),
+    ],
+)
+def test_organometallic_hydrocarbyl_group_cites_its_stereo_elements(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_two_metal_atoms_raises__group1_2_organometallic():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Li]C.[Na]CC")

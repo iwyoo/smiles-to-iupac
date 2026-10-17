@@ -532,9 +532,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         context["consumed"].add(root)
         stem = "benzene" if name == "benzoyl" else name[: -len("carbonyl")]
         return stem + descriptor(labelled, {root: 1}, True, extra=extra, capacity=capacity) + "carbonyl", True
-    if name == "benzyl" and set(labelled) == {root}:
+    benzyl = re.fullmatch(r"(\([^()]*\)-)?benzyl", name)
+    if benzyl and set(labelled) == {root}:
         context["consumed"].add(root)
-        return "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
+        return (benzyl.group(1) or "") + "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
     sulfonyl = _labelled_sulfonyl(name, graph, root, coming_from, mol, labelled)
     if sulfonyl is not None:
         context["consumed"].update(labelled)

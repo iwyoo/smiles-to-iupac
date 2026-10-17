@@ -9,6 +9,7 @@ from rdkit import Chem
 
 from ._common import assign_cip_labels, is_nonstereogenic_centre, match_cip_labels
 from ._common import (
+    ISOTOPIC_CIP,
     UnsupportedStructure,
     adjacency,
     alpha_sort_key,
@@ -76,8 +77,14 @@ def cip_labels(mol, side, chain_double_bonds=False):
         if inside:
             in_side.append(element)
     specified = [e for e in in_side if e.specified == Chem.StereoSpecified.Specified]
+    isotopic = ISOTOPIC_CIP.get()
+    centres = (
+        [(a, code) for a, code in isotopic[1].items() if a in side]
+        if isotopic is not None and mol.GetNumAtoms() == isotopic[0]
+        else []
+    )
     if not specified:
-        return []
+        return centres
     allowed = _is_double_bond if chain_double_bonds else _is_ring_double_bond
     if any(
         e.type != Chem.StereoType.Atom_Tetrahedral and not allowed(mol, e) and not is_polyhedral_centre(mol, e) for e in specified
@@ -108,7 +115,7 @@ def cip_labels(mol, side, chain_double_bonds=False):
             if not bond.HasProp("_CIPCode"):
                 raise UnsupportedStructure("could not determine a CIP label for a ring double bond")
             labels.append(((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), bond.GetProp("_CIPCode")))
-    return labels
+    return labels + [entry for entry in centres if entry[0] not in dict(labels)]
 
 
 def _has_bare_cumulated_end(bond):
