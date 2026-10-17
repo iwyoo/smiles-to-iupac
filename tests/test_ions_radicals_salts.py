@@ -1328,6 +1328,28 @@ def test_several_identical_cationic_centres(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-15.3.2, P-73.1.1.2, P-41: identical aminium or anilinium units joined by a divalent group are multiplied with 'bis', the cation
+# outranking the ester or ether that joins them
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[NH3+]CCOCC[NH3+]", "2,2'-oxybis(ethan-1-aminium)", id="chain_units_joined_by_oxygen"),
+        pytest.param("C[NH2+]CCOCC[NH2+]C", "2,2'-oxybis(N-methylethan-1-aminium)", id="secondary_chain_units"),
+        pytest.param("C[N+](C)(C)CCSSCC[N+](C)(C)C", "2,2'-disulfanediylbis(N,N,N-trimethylethan-1-aminium)", id="quaternary_units_joined_by_a_dichalcogen"),
+        pytest.param("[NH3+]CCOc1ccc(cc1)OCC[NH3+]", "2,2'-[1,4-phenylenebis(oxy)]bis(ethan-1-aminium)", id="concatenated_linker"),
+        pytest.param("[NH3+]c1ccc(cc1)C(C)(C)c1ccc(cc1)[NH3+]", "4,4'-(propane-2,2-diyl)bis(anilinium)", id="anilinium_units_on_rings"),
+        pytest.param("[NH3+]C1CCC(CC1)OC1CCC(CC1)[NH3+]", "4,4'-oxybis(cyclohexan-1-aminium)", id="cycloalkane_units"),
+        pytest.param(
+            "C[N+](C)(C)CCOC(=O)CCC(=O)OCC[N+](C)(C)C",
+            "2,2'-[butanedioylbis(oxy)]bis(N,N,N-trimethylethan-1-aminium)",
+            id="cation_outranks_the_ester_linker",
+        ),
+    ],
+)
+def test_aminium_units_joined_multiplicatively(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-73.1.1.2, P-31.2: a protonated ring nitrogen of a hydrogenated fused or bicyclic ring is the 'ium' of its parent hydride with the hydro prefixes kept
 @pytest.mark.parametrize(
     "smiles,expected",

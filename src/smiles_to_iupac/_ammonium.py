@@ -138,15 +138,25 @@ def name_polyammonium(mol) -> str:
             copy.SetNumExplicitHs(atom.GetTotalNumHs() - 1)
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
+    from ._multiplicative import name_if_multiplicative
+    from ._polyfunctional import cationic_multiplied_units
+
     token = CATIONIC_AMINES.set(True)
     try:
-        name = name_amine(base)
+        try:
+            name = name_amine(base)
+        except UnsupportedStructure:
+            name = None
+        match = re.search(r"(di|tri|tetra|penta|hexa)amine$", name or "")
+        if match is not None:
+            return f"{name[:match.start()]}{_MULTIPLIED_AMINIUM[match.group(1)]}(aminium)"
+        multiplicative = name_if_multiplicative(base)
     finally:
         CATIONIC_AMINES.reset(token)
-    match = re.search(r"(di|tri|tetra|penta|hexa)(amine|aniline)$", name)
-    if match is None:
+    named = cationic_multiplied_units(multiplicative, sum(1 for a in mol.GetAtoms() if a.GetFormalCharge())) if multiplicative else None
+    if named is None:
         raise UnsupportedStructure("the polycation is not named as a multiple amine parent")
-    return f"{name[:match.start()]}{_MULTIPLIED_AMINIUM[match.group(1)]}(aminium)"
+    return named
 
 
 def _heteroatom_acyl(mol, carbon) -> bool:

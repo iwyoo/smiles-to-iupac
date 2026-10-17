@@ -1918,6 +1918,43 @@ def _name_aminium(base, labels=None, parent="amine", cationic=None):
 
 
 _MULTIPLIED = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
+_UNIT_COUNT = {"di": 2, "bis": 2, "tri": 3, "tris": 3, "tetra": 4, "tetrakis": 4}
+_UNIT_WORD = {2: "bis", 3: "tris", 4: "tetrakis"}
+
+
+def _multiplied_amine_unit(name):
+    """(index where the multiplying prefix starts, its prefix, the unit text without its amine ending, the ending) of a
+    multiplicative name whose last component is a multiplied amine or aniline unit, else None."""
+    ending = next((e for e in ("amine", "aniline") if name.endswith(e) or name.endswith(e + ")")), None)
+    if ending is None:
+        return None
+    if not name.endswith(")"):
+        match = re.search(r"(di|tri|tetra)(aniline)$", name)
+        return None if match is None or ending != "aniline" else (match.start(), match.group(1), "", "aniline")
+    depth = 0
+    for index in range(len(name) - 1, -1, -1):
+        depth += (name[index] == ")") - (name[index] == "(")
+        if depth == 0:
+            inner = name[index + 1 : -1]
+            before = re.search(r"(di|tri|tetra|bis|tris|tetrakis)$", name[:index])
+            if before is None or not inner.endswith(ending):
+                return None
+            return before.start(), before.group(1), inner[: -len(ending)], ending
+    return None
+
+
+def cationic_multiplied_units(name, cationic):
+    """`name` with the identical amine units of a multiplicative name made aminium units, or None when it is not one
+    (P-15.3.2, P-73.1.1.2); the locant of an ethane unit is cited because multiplicative names cite all locants (P-14.3.4)."""
+    found = _multiplied_amine_unit(name)
+    if found is None:
+        return None
+    start, prefix, unit, ending = found
+    count = _UNIT_COUNT[prefix]
+    if cationic and count != cationic:
+        raise UnsupportedStructure("a neutral amino group beside the cationic units is not cited as a prefix of this parent")
+    unit = re.sub(r"(?<!m)ethan$", "ethan-1-", unit)
+    return f"{name[:start]}{_UNIT_WORD[count]}({unit}{ending[:-1]}ium)"
 
 
 def _cationic_group_suffix(name, parent, cationic=None):
@@ -1934,6 +1971,9 @@ def _cationic_group_suffix(name, parent, cationic=None):
             multiplier = {"di": "bis", "tri": "tris", "tetra": "tetrakis"}[match.group("mult")]
             return f"{name[:match.start()]}{multiplier}({word})"
         return name[:match.start()] + word
+    multiplied = cationic_multiplied_units(name, cationic) if parent == "amine" else None
+    if multiplied is not None:
+        return multiplied
     if not name.endswith(("amine", "aniline", "imine") if parent == "imine" else ("amine", "aniline")):
         raise UnsupportedStructure("the cation is not named as an amine or imine parent")
     imines = re.search(r"(di|tri|tetra)imine$", name) if parent == "imine" else None
@@ -2333,12 +2373,10 @@ def _name_labelled(mol, labels, finish=None):
 
 
 def _cationic_amine_parent(mol):
-    """A substituted ammonium centre is the parent beside neutral groups (P-41, class 6), so it is never the linker of a
-    multiplied name."""
-    return AMINIUM.get() is True and any(
-        a.GetAtomicNum() == 7 and (a.GetFormalCharge() == 1 or a.HasProp("_cationic_amine")) and a.GetDegree() > 1
-        for a in mol.GetAtoms()
-    )
+    """A single substituted ammonium centre is the parent beside neutral groups (P-41, class 6), so it is never the linker
+    of a multiplied name; several centres are the identical parents that a linker joins."""
+    centres = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7 and (a.GetFormalCharge() == 1 or a.HasProp("_cationic_amine"))]
+    return AMINIUM.get() is True and len(centres) == 1 and centres[0].GetDegree() > 1
 
 
 def _ionic_linker_centre(mol):
