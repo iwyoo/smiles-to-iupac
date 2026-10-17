@@ -764,6 +764,9 @@ def test_isotopically_modified_steroid_parent_hydride(smiles, expected):
         pytest.param("C1CCC2C([2H])CCCC2C1", "decahydro(1-2H)naphthalene", id="hydro_prefix_without_locants"),
         pytest.param("[2H]C1CCC(=O)c2ccccc21", "3,4-dihydro(4-2H)naphthalen-1(2H)-one", id="added_hydrogen_is_not_a_nuclide"),
         pytest.param("[2H]c1ccc2c(c1)CCCN2C(C)=O", "1-[3,4-dihydro(6-2H)quinolin-1(2H)-yl]ethan-1-one", id="descriptor_of_a_ring_substituent_follows_its_hydro_prefixes"),
+        pytest.param("C[13C]12CCCCC1CCCC2", "4a-methyldecahydro(4a-13C)naphthalene", id="skeletal_label_on_a_substituted_ring_fusion_carbon"),
+        pytest.param("O[13C]12CCCCC1CCCC2", "octahydro(4a-13C)naphthalen-4a(2H)-ol", id="skeletal_label_on_a_fusion_carbon_that_takes_added_hydrogen"),
+        pytest.param("C[13C]12CCCC1CCCC2", "3a-methyloctahydro(3a-13C)-1H-indene", id="substituted_fusion_carbon_of_a_five_membered_ring"),
     ],
 )
 def test_isotopic_descriptor_after_the_hydro_prefixes(smiles, expected):

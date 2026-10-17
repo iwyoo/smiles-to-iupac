@@ -2167,7 +2167,7 @@ def _split_hydro_labels(mol, position_of, labels, capacity, match):
     kept, kept_capacity, modified = {}, dict(capacity), {}
     for atom, entry in labels.items():
         total = sum(entry["H"].values())
-        parent_hydrogens = mol.GetAtomWithIdx(atom).GetTotalNumHs() - (atom in hydro_atoms)
+        parent_hydrogens = max(mol.GetAtomWithIdx(atom).GetTotalNumHs() - (atom in hydro_atoms), 0)
         if atom in hydro_atoms and total > parent_hydrogens:
             if len(entry["H"]) != 1 or total - parent_hydrogens != 1:
                 raise UnsupportedStructure("the hydrogens added by a hydro prefix are modified in different ways")
