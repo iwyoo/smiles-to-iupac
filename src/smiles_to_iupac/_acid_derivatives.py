@@ -966,7 +966,10 @@ def name_ester(mol, links):
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element of the organyl part is not cited by any supported name")
-    free_slots = [(a, group[0]) for a in acid_atoms if _center(mol, a) is not None for group in _free_groups(mol, a)]
+    acid_class = _center(mol, chosen[0].center)[0]
+    free_slots = [
+        (a, group[0]) for a in acid_atoms if (_center(mol, a) or (None,))[0] == acid_class for group in _free_groups(mol, a)
+    ]
     free_centers = [center for center, _ in free_slots]
     free = len(free_centers)
     hydrogen_positions = None
@@ -1689,7 +1692,20 @@ def name_acid_derivative(mol):
         from ._multiplicative import name_if_multiplicative
         from ._polyfunctional import name_polyfunctional
 
-        return name_if_multiplicative(mol) or name_polyfunctional(mol)
+        try:
+            return name_if_multiplicative(mol) or name_polyfunctional(mol)
+        except UnsupportedStructure:
+            # an ester of a senior acid (P-41 class 7a, 7b) is the parent beside the hydrogen esters of a noncarbon acid, but
+            # a free acid group, an anion or a cation outranks every ester
+            hydrogen_esters = {l.center for l in esters}
+            if (
+                esters
+                and all(c in hydrogen_esters and _center(mol, c)[0] in ("carbonic", "inorganic") for c in acid)
+                and all(l.kind in ("ester", "halide") for l in links)
+                and not any(a.GetFormalCharge() for a in mol.GetAtoms())
+            ):
+                return name_ester(mol, links)
+            raise
     kinds = {l.kind for l in links}
     if "anhydride" in kinds:
         return name_anhydride(mol, links)
