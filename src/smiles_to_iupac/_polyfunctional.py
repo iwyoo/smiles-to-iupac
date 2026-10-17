@@ -1067,11 +1067,24 @@ def _paths(adj, eligible):
     return paths
 
 
+_ACID_OR_CARBOXYLIC_ESTER = [
+    Chem.MolFromSmarts(smarts)
+    for smarts in (
+        "[CX3](=[O,S,Se,Te])[OX2H1,OX1-,OX2,SX2,SeX2,TeX2]",
+        "[#16X4](=O)(=O)([#6])[OX2H1,OX1-]",
+        "[#15X4](=O)([#6,#7])[OX2H1,OX1-]",
+    )
+]
+
+
 def name_polyfunctional(mol) -> str:
+    from ._inorganic_ester_parent import has_inorganic_ester_parent
     from ._isotope_labels import split_isotopes
     from ._linear_phane import has_linear_phane_shape, name_linear_phane
     from ._radical_group import has_radical_group_shape, name_radical_group
 
+    if has_inorganic_ester_parent(mol) and not any(mol.HasSubstructMatch(q) for q in _ACID_OR_CARBOXYLIC_ESTER):
+        raise UnsupportedStructure("an ester of a noncarbon acid is the parent and is named by its own namer")
     if has_linear_phane_shape(mol):
         return name_linear_phane(mol)
     if has_radical_group_shape(mol):
