@@ -201,9 +201,9 @@ def _carbamoyl_carbons(mol, chalcogen=8):
 
 
 def _carbamate_ester_oxygen(carbon):
-    """The carbon of a carbamate ester, bonded to an oxygen that carries a carbon: the ester outranks the skeletal chain (P-41)."""
+    """The carbon of a carbamate ester, bonded to a chalcogen that carries a carbon: the ester outranks the skeletal chain (P-41)."""
     return any(
-        n.GetAtomicNum() == 8 and any(m.GetAtomicNum() == 6 for m in n.GetNeighbors() if m.GetIdx() != carbon.GetIdx())
+        n.GetAtomicNum() in (8, 16, 34, 52) and any(m.GetAtomicNum() == 6 for m in n.GetNeighbors() if m.GetIdx() != carbon.GetIdx())
         for n in carbon.GetNeighbors()
     )
 

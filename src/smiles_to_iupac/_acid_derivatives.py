@@ -643,8 +643,12 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     diyl = _diyl_name(mol, frags[hub], [l.far for l in hub_links])
     if diyl is None:
         return None
-    multiplier = multiplying_prefix(len(centers), compound=not anion.isalpha())
-    anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
+    n_substituted = any(
+        n.GetAtomicNum() == 7 and n.GetDegree() > 1 for n in mol.GetAtomWithIdx(first[0].center).GetNeighbors()
+    )
+    compound = not anion.isalpha() or n_substituted
+    multiplier = multiplying_prefix(len(centers), compound=compound)
+    anion_text = f"{multiplier}{enclose(anion)}" if compound else multiplier + anion
     if modified:
         symbols = ["".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in l.chain) for l in hub_links]
         diyl = ",".join(f"{symbol}{_PRIMES[i]}" for i, symbol in enumerate(sorted(symbols))) + "-" + diyl
