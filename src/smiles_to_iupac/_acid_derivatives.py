@@ -697,7 +697,7 @@ def _suffixed_links(mol, frags, acid_pieces):
     return {c: _suffix_links(mol, ls, frags[c], lambda l: l.chain[-1]) if len(ls) > 1 else ls for c, ls in acid_pieces.items()}
 
 
-_ORGANIC_ELEMENTS_OF_LINKERS = frozenset({1, 6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
+_ORGANIC_ELEMENTS_OF_LINKERS = frozenset({1, 6, 7, 8, 9, 15, 16, 17, 34, 35, 52, 53})
 
 
 def _chalcogen_modified(mol, link):
@@ -918,7 +918,7 @@ def name_ester(mol, links):
                 try:
                     return name_diester_acyloxy(mol)
                 except UnsupportedStructure:
-                    if all(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 for l in esters) and all(
+                    if all(_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) == 0 for l in esters) and all(
                         a.GetAtomicNum() in _ORGANIC_ELEMENTS_OF_LINKERS for a in mol.GetAtoms()
                     ):
                         from ._chain_multiplicative import ester_multiplicative_name
@@ -1676,6 +1676,15 @@ def name_acid_derivative(mol):
             _center(mol, l.center)[0] in ("carbonic", "inorganic") for l in esters
         ) and all(l.kind in ("ester", "halide") for l in links):
             return name_ester(mol, links)
+        if (
+            not any(a.GetFormalCharge() for a in mol.GetAtoms())
+            and all(_center(mol, c)[0] == "inorganic" and c in {l.center for l in esters} for c in acid)
+            and any(_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) == 0 for l in esters)
+        ):
+            try:
+                return name_ester(mol, links)
+            except UnsupportedStructure:
+                pass
         if all(_center(mol, c)[0] == "carbonic" for c in acid) and all(l.kind == "anhydride" for l in links):
             return name_anhydride(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
