@@ -1046,3 +1046,16 @@ def test_sulfonic_acid_units_joined_by_a_linker_that_carries_substituents(smiles
 )
 def test_lactam_units_with_a_substituted_linker_and_ring_assembly_linkers(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NNC(=O)c1ccc(Oc2ccc(C(=O)NN)cc2)cc1", "4,4'-oxydibenzohydrazide", id="hydrazide_units"),
+        pytest.param("CC(C)(c1ccc(C(=O)NN)cc1)c1ccc(C(=O)NN)cc1", "4,4'-(propane-2,2-diyl)dibenzohydrazide", id="hydrazide_units_substituted_linker"),
+        pytest.param("NC(=NO)c1ccc(Oc2ccc(C(N)=NO)cc2)cc1", "4,4'-oxybis(N'-hydroxybenzene-1-carboximidamide)", id="amidoxime_units"),
+        pytest.param("CN(c1ccc(C(N)=NO)cc1)c1ccc(C(N)=NO)cc1", "4,4'-(methylazanediyl)bis(N'-hydroxybenzene-1-carboximidamide)", id="amidoxime_units_substituted_linker"),
+    ],
+)
+def test_hydrazide_and_amidoxime_units_joined_by_a_linker(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
