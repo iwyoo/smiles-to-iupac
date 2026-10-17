@@ -1307,7 +1307,7 @@ def _name_unabridged_body(smiles: str) -> str:
                     pass
             if configured_spiro_union is not None:
                 return configured_spiro_union
-            if not _has_ionic_centre(parsed) and has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed):
+            if not _has_ionic_centre(parsed) and has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed) and not has_inorganic_acid_derivative_shape(parsed):
                 try:
                     return name_polyfunctional(parsed)
                 except UnsupportedStructure:
