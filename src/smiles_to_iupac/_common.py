@@ -758,6 +758,17 @@ def is_nitro_nitrogen(mol, idx):
     return orders == [2.0, 2.0] and charges == [0, 0]
 
 
+def nitro_group_atoms(mol):
+    """(nitro atoms, nitrate ester atoms): the nitrogen and oxygen atoms of every nitro group and of every nitrate ester
+    group, whose charges belong to the group."""
+    nitro, nitrate = set(), set()
+    for atom in mol.GetAtoms():
+        if is_nitro_nitrogen(mol, atom.GetIdx()):
+            ester = any(n.GetAtomicNum() == 8 and n.GetDegree() == 2 for n in atom.GetNeighbors())
+            (nitrate if ester else nitro).update({atom.GetIdx(), *(n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1)})
+    return nitro, nitrate
+
+
 YLO_MAP_NUMBER = 9001
 NITRO_MAP_NUMBER = 9002
 NITROSO_MAP_NUMBER = 9003

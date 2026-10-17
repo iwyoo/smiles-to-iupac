@@ -55,7 +55,7 @@ from collections import Counter
 
 from ._common import assign_cip_labels, match_cip_labels
 from ._multiplicative_text import enclose
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_nitro_nitrogen
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, nitro_group_atoms
 from ._numerals import multiplying_prefix
 from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import BRANCH_STEREO, name_branch, prefix_multiplier
@@ -181,21 +181,50 @@ def _outranks_ester(mol, atom) -> bool:
     return False
 
 
+_NONCARBON_ACIDS = (
+    (15, True), (15, False), (33, True), (33, False), (51, True), (51, False), (14, None), (5, None),
+    (16, True), (16, False), (34, True), (34, False), (52, True), (52, False), (7, True), (7, False),
+)
+
+
+def noncarbon_acid_rank(mol, atom):
+    """Position of the noncarbon acid whose ester or acid group is centred on `atom` in the seniority order of P-42.4 and
+    P-42.5 (0 is the most senior), -1 for a group that outranks every such ester (a centre bonded to carbon, an anhydride),
+    None when `atom` is not an acid centre."""
+    z = atom.GetAtomicNum()
+    if z not in {key[0] for key in _NONCARBON_ACIDS}:
+        return None
+    neighbors = atom.GetNeighbors()
+    if any(n.GetAtomicNum() == 6 for n in neighbors):
+        return -1
+    if any(n.GetAtomicNum() != 8 for n in neighbors):
+        return None
+    if any(n.GetDegree() == 2 and any(m.GetAtomicNum() != 6 for m in n.GetNeighbors() if m.GetIdx() != atom.GetIdx()) for n in neighbors):
+        return -1
+    oxo = sum(1 for n in neighbors if n.GetDegree() == 1 and (mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0 or n.GetFormalCharge() == -1))
+    highest = {15: oxo >= 1, 33: oxo >= 1, 51: oxo >= 1, 16: oxo >= 2, 34: oxo >= 2, 52: oxo >= 2, 7: oxo >= 2}.get(z)
+    return _NONCARBON_ACIDS.index((z, highest if z not in (5, 14) else None))
+
+
 def check_ester_organyl(mol, group_atoms, anionic=False, charged=frozenset(), atoms=None):
     """Raise unless every atom of `atoms` (all by default) outside the ester group `group_atoms` belongs to an organyl group
-    whose substituents rank below the ester (P-41): an acid, another ester or an anhydride outranks it, except beside an
-    anionic ester. The atoms of `charged` may carry a charge."""
-    nitro = set()
-    for atom in mol.GetAtoms():
-        if atom.GetIdx() not in group_atoms and is_nitro_nitrogen(mol, atom.GetIdx()):
-            nitro |= {atom.GetIdx(), *(n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 8)}
+    whose substituents rank below the ester (P-41): an acid, an anhydride or the ester of a senior acid (P-42) outranks it,
+    except beside an anionic ester. The atoms of `charged` may carry a charge."""
+    own = min(
+        (noncarbon_acid_rank(mol, mol.GetAtomWithIdx(i)) for i in group_atoms if mol.GetAtomWithIdx(i).GetAtomicNum() != 8),
+        default=None,
+        key=lambda rank: 99 if rank is None else rank,
+    )
+    nitro, nitrate = (found - group_atoms for found in nitro_group_atoms(mol))
     for atom in mol.GetAtoms() if atoms is None else (mol.GetAtomWithIdx(i) for i in atoms):
         if atom.GetIdx() in group_atoms or atom.GetIdx() in nitro:
             continue
-        if atom.GetIsotope() or (atom.GetFormalCharge() and atom.GetIdx() not in charged):
+        if atom.GetIsotope() or (atom.GetFormalCharge() and atom.GetIdx() not in charged and atom.GetIdx() not in nitrate):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if not anionic and _outranks_ester(mol, atom):
-            raise UnsupportedStructure("an acid or another ester outranks the ester of the noncarbon acid")
+            rank = noncarbon_acid_rank(mol, atom)
+            if own is None or rank is None or rank <= own:
+                raise UnsupportedStructure("an acid or another ester outranks the ester of the noncarbon acid")
 
 
 def has_phosphate_shape(mol) -> bool:

@@ -2161,7 +2161,7 @@ def boron_acid_parent():
 
 ACIDS_SENIOR_TO_BORON = [
     Chem.MolFromSmarts(smarts)
-    for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)[OX2H1]", "[#15,#33,#51;X3,X4]-[OX2H1]")
+    for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)([#6])[OX2H1]", "[#15,#33,#51;X3,X4]([#6])-[OX2H1]")
 ]
 
 

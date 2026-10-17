@@ -42,7 +42,7 @@ from rdkit import Chem
 
 from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._multiplicative_text import enclose
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 CENTER_STEMS = {15: "phosph", 33: "ars", 51: "stib"}
@@ -50,7 +50,7 @@ CENTER_STEMS = {15: "phosph", 33: "ars", 51: "stib"}
 
 _SENIOR_ACIDS = [
     Chem.MolFromSmarts(smarts)
-    for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)[OX2H1]", "[#34,#52;X4](=O)(=O)[OX2H1]")
+    for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)([#6])[OX2H1]")
 ]
 
 
@@ -110,8 +110,9 @@ def senior_acid_centres(mol, candidates):
 def require_phosphorus_acid_scope(mol, phosphorus):
     """A single phosphorus whose acid outranks every other group of the molecule (P-41): carboxylic and the
     sulfur-group acids are senior to phosphonic and phosphinic acids, which become phosphono prefixes."""
+    in_nitro_group = set().union(*nitro_group_atoms(mol))
     for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+        if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
     if not senior_acid_centres(mol, [phosphorus]) and sum(a.GetAtomicNum() in CENTER_STEMS for a in mol.GetAtoms()) > 1:
         raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
