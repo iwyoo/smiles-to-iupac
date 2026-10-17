@@ -1582,6 +1582,8 @@ def name_isotope_acyl_halide(mol):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
+    kept = [i for i in range(mol.GetNumAtoms()) if i not in dropped]
+    match_cip_labels(mol, acid, dict(enumerate(kept)))
     name = f"{acyl_name(smiles_to_iupac(Chem.MolToSmiles(acid)))} {_class_words(mol, links)}"
     hydrogen_bearing = {
         (a.GetIdx() if a.GetAtomicNum() != 1 else a.GetNeighbors()[0].GetIdx())
