@@ -9,7 +9,7 @@ from rdkit import Chem
 from ._borinic_acid import _borinic_acid_boron_atoms, name_borinic_acid
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 _BORON = 5
@@ -49,8 +49,9 @@ def name_boronic_acid(mol) -> str:
     (boron,) = boron_atoms
     junior_boron = {a.GetIdx() for a in _borinic_acid_boron_atoms(mol)}
 
+    in_nitro_group = set().union(*nitro_group_atoms(mol))
     for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
+        if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
             raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx() and atom.GetIdx() not in junior_boron:

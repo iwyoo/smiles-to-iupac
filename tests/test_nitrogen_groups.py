@@ -1091,9 +1091,17 @@ def test_identical_nitrate_and_nitrite_groups_are_multiplied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_nitrate_beside_a_nitrite_is_not_multiplied():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=[N+]([O-])OCCON=O")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=[N+]([O-])OCCON=O", "2-(nitrosooxy)ethyl nitrate", id="nitric_acid_outranks_nitrous_acid"),
+        pytest.param("OS(=O)(=O)OCCB(O)O", "[2-(sulfooxy)ethyl]boronic acid", id="boronic_acid_outranks_an_ester"),
+        pytest.param("O=[N+]([O-])OCCB(O)O", "[2-(nitrooxy)ethyl]boronic acid", id="boronic_acid_beside_a_nitrate_group"),
+        pytest.param("OS(=O)(=O)OCCP(=O)(O)O", "[2-(sulfooxy)ethyl]phosphonic acid", id="phosphonic_acid_outranks_an_ester"),
+    ],
+)
+def test_esters_of_noncarbon_acids_rank_by_the_order_of_their_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
