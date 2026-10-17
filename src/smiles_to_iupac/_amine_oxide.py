@@ -12,6 +12,11 @@ from ._substituents import name_branch
 
 
 _CHALCOGEN_CLASS = {8: "oxide", 16: "sulfide", 34: "selenide", 52: "telluride"}
+_NUCLIDE_GROUP = re.compile(r"\((?:[^()]*-)?(?:\d+[A-Z][a-z]?\d*,?)+\)")
+
+
+def _unlabelled_text(name):
+    return re.sub(r"[()\[\]{}]", "", _NUCLIDE_GROUP.sub("", name))
 
 
 def _oxide_ligand(mol, nitrogen):
@@ -313,7 +318,13 @@ def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
     labels = outer["labels"] if outer and outer["mol"] is reduced_mol else {}
     start = set(outer["consumed"]) if labels else set()
     names = []
-    for contracted in contract_hetero_groups_candidates(reduced_mol, {position}):
+    try:
+        candidates = contract_hetero_groups_candidates(reduced_mol, {position})
+    except UnsupportedStructure:
+        if not labels:
+            raise
+        candidates = []
+    for contracted in candidates:
         if not labels:
             try:
                 names.append((_name_mol(contracted), set()))
@@ -343,10 +354,25 @@ def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
         outer["consumed"].update(start)
     if not names:
         reduced_mol.GetAtomWithIdx(position).SetBoolProp("_oxidized_amine", True)
+        target = reduced_mol
+        if labels:
+            editable = Chem.RWMol(reduced_mol)
+            restore_labels(editable, reduced_mol, labels)
+            target = editable.GetMol()
+            Chem.SanitizeMol(target)
+        token = ISOTOPE_LABELS.set(None)
         try:
-            return name_polyfunctional(reduced_mol)
+            name = name_polyfunctional(target)
+            if labels:
+                _require_isotopes_cited(target, name)
+                if _unlabelled_text(name) != _unlabelled_text(name_polyfunctional(reduced_mol)):
+                    raise UnsupportedStructure("the nuclides choose another parent than the oxidized nitrogen")
+                outer["consumed"].update(labels)
+            return name
         except UnsupportedStructure:
             raise UnsupportedStructure("no amine parent carries the oxidized nitrogen of this polyamine N-oxide")
+        finally:
+            ISOTOPE_LABELS.reset(token)
     name, consumed = min(names)
     if labels:
         outer["consumed"].update(consumed)
