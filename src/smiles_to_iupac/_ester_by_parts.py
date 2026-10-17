@@ -5,16 +5,21 @@ split at the O-alkyl bond; the acid fragment is named as a free acid and its
 works as an ester acyl part.
 """
 
+import re
+
 from rdkit import Chem
 
+from ._carbonic_amide import _carbonic_carbon
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._isotope_labels import restore_labels
 from ._numerals import multiplying_prefix
+from ._polycarbonic import chain_numbering
 from ._substituents import BRANCH_STEREO, name_branch
 
 _ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
 _PEROXY_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][OX2;!R][#6]")
+_CARBONIC_LINK = Chem.MolFromSmarts("[C;!R]O[C;!R]")
 _FREE_ACID = Chem.MolFromSmarts("[CX3](=O)[OX2H1]")
 _HYDROGEN_WORDS = {1: "hydrogen", 2: "dihydrogen", 3: "trihydrogen"}
 
@@ -108,6 +113,21 @@ def _ester_locants(mol, acid, removed, matches, named_by_arm):
     carbons = [new_index[acyl] for acyl, _, _, _ in matches]
     plain = Chem.Mol(acid)
     ranks = Chem.CanonicalRankAtoms(plain, breakTies=False)
+    numbering = chain_numbering(acid)
+    if numbering:
+        ends = [c for c, locant in numbering.items() if locant in (1, 2 * len(numbering) - 1)]
+        bare = Chem.Mol(acid)
+        for atom in bare.GetAtoms():
+            atom.SetIsotope(0)
+        bare_ranks = Chem.CanonicalRankAtoms(bare, breakTies=False)
+        if len({bare_ranks[c] for c in ends}) > 1 or len({ranks[c] for c in ends}) == 1:
+            return {}
+        if set(ends) <= set(carbons) and len(set(named_by_arm.values())) == 1:
+            return {}
+        found = {}
+        for arm, carbon in enumerate(carbons):
+            found.setdefault(named_by_arm[arm], []).append(str(numbering[carbon]))
+        return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in found.items()}
     if len({ranks[c] for c in carbons}) == 1:
         return {}
     for atom in acid.GetAtoms():
@@ -179,19 +199,34 @@ def _require_ester_with_its_free_acid(mol, matches):
     for acyl_carbon, *_ in matches:
         reached, stack = {acyl_carbon}, [acyl_carbon]
         while stack:
-            for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
-                if n.GetIdx() in carbons and n.GetIdx() not in reached:
-                    reached.add(n.GetIdx())
-                    stack.append(n.GetIdx())
+            current = stack.pop()
+            for n in mol.GetAtomWithIdx(current).GetNeighbors():
+                onward = [n.GetIdx()] if n.GetIdx() in carbons else []
+                if n.GetAtomicNum() == 8 and n.GetDegree() == 2:
+                    onward = [m.GetIdx() for m in n.GetNeighbors() if m.GetIdx() != current and _carbonic_link(mol, current, m.GetIdx())]
+                for idx in onward:
+                    if idx not in reached:
+                        reached.add(idx)
+                        stack.append(idx)
         if not reached & free:
             raise UnsupportedStructure("an ester that is not on the carbon skeleton of the free acid is an alkoxy-oxo prefix")
+
+
+def _carbonic_link(mol, first, second):
+    """Whether two carbons are the units of a polycarbonic acid joined through one oxygen."""
+    return _carbonic_carbon(mol.GetAtomWithIdx(first)) and _carbonic_carbon(mol.GetAtomWithIdx(second))
+
+
+def _polycarbonic(mol):
+    return any(_carbonic_link(mol, m[0], m[2]) for m in mol.GetSubstructMatches(_CARBONIC_LINK))
 
 
 def _ester_matches(mol):
     """(acyl carbon, carbonyl oxygen, ester oxygen, alkyl carbon) of each ester group; the ester oxygen of a peroxy ester
     is the one bonded to the alkyl carbon, so the peroxoic acid is what the split leaves."""
     peroxy = [(m[0], m[1], m[3], m[4]) for m in mol.GetSubstructMatches(_PEROXY_ESTER)]
-    return (*mol.GetSubstructMatches(_ESTER), *peroxy)
+    esters = [m for m in mol.GetSubstructMatches(_ESTER) if not _carbonic_link(mol, m[0], m[3])]
+    return (*esters, *peroxy)
 
 
 def _name_ester_parts(mol, labels, original=None) -> str:
@@ -227,11 +262,12 @@ def _name_ester_parts(mol, labels, original=None) -> str:
     labels = dict(labels)
     if labels:
         bridging = {ester_oxygen: i for i, (_, _, ester_oxygen, _) in enumerate(matches)}
+        polycarbonic = _polycarbonic(mol)
         carbonyl = {
             m.GetIdx()
             for acyl_carbon, _, _, _ in matches
             for m in mol.GetAtomWithIdx(acyl_carbon).GetNeighbors()
-            if m.GetAtomicNum() == 8 and m.GetIdx() not in bridging
+            if m.GetAtomicNum() == 8 and m.GetIdx() not in bridging and not polycarbonic
         }
         for idx in [i for i in labels if i in bridging or i in carbonyl]:
             entry = labels[idx]
@@ -243,7 +279,9 @@ def _name_ester_parts(mol, labels, original=None) -> str:
                 raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
             ester_labels[idx] = (entry["skeleton"], bridging.get(idx))
             del labels[idx]
-        if len({a for _, _, _, a in matches}) != len(matches):
+        if len({a for _, _, _, a in matches}) != len(matches) or (
+            ester_labels and any(i not in removed for i in labels)
+        ):
             raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
 
     if original is not None:
@@ -303,12 +341,13 @@ def _name_ester_parts(mol, labels, original=None) -> str:
         for nuclide, _ in ester_labels.values():
             counts[nuclide] = counts.get(nuclide, 0) + 1
         text = "(" + ",".join(f"{n}{c}" for n, c in sorted(counts.items())) + ")"
-        anion = text + anion if anion == "carbonate" else _insert_before_ending(anion, text)
+        stem = re.search(r"(?:di|tri|tetra)?carbonate$", anion)
+        anion = anion[: stem.start()] + text + anion[stem.start():] if stem else _insert_before_ending(anion, text)
     grouped = {}
     for (name, locant), (count, compound, _) in named.items():
         grouped.setdefault(name, []).append((locant, count, compound))
     located = {}
-    if len(grouped) > 1 and not ester_labels:
+    if (len(grouped) > 1 or _polycarbonic(mol)) and not ester_labels:
         located = _ester_locants(mol, acid, removed, matches, named_by_arm)
     parts = []
     for name in sorted(grouped, key=alpha_sort_key):

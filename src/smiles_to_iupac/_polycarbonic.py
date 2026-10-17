@@ -14,7 +14,8 @@ from ._carbonic_amide import _arm_atoms
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._polycarbonic_nuclides import chain_nuclide_key, chain_nuclides_text, insert_chain_nuclides
+from ._substituents import ISOTOPE_LABELS, format_substituent_prefixes, name_branch
 
 _PREFIX_WORDS = {"fluorid": "fluoro", "chlorid": "chloro", "bromid": "bromo", "iodid": "iodo", "azid": "azido", "isocyanid": "isocyano", "isocyanatid": "isocyanato", "isothiocyanatid": "isothiocyanato", "isoselenocyanatid": "isoselenocyanato", "isotellurocyanatid": "isotellurocyanato"}
 _UNITS = {2: "di", 3: "tri", 4: "tetra"}
@@ -126,13 +127,13 @@ def end_numberings(mol):
     return [(order, {c: 2 * i + 1 for i, c in enumerate(order)}) for key, order in keyed if key == lowest]
 
 
-def name_polycarbonic(mol):
+def name_polycarbonic(mol, numbered=None):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("several fragments")
     if any(a.GetFormalCharge() for a in mol.GetAtoms()):
         return _dianion_name(mol)
     graph, bridges, ends, n = _chain_setup(mol, substituted=True)
-    best = None
+    found = []
     for start in ends:
         order = _walk(bridges, start, n)
         try:
@@ -149,9 +150,11 @@ def name_polycarbonic(mol):
             tuple(sorted((word, loc) for loc, word in replaced)),
             tuple(sorted((name, loc) for loc, name, _ in entries)),
         )
-        if best is None or key < best[0]:
-            best = (key, order, replaced, entries)
-    _, order, replaced, entries = best
+        found.append((key, order, replaced, entries))
+    best_key = min(key for key, *_ in found)
+    _, order, replaced, entries = min(
+        (c for c in found if c[0] == best_key), key=lambda c: chain_nuclide_key(mol, c[1], bridges)
+    )
     amido = [p for p, w in replaced if w == "amido"]
     if n == 2 and amido and (2, "imido") in replaced and all(p != amido[0] for p, w in replaced if w != "amido"):
         raise UnsupportedStructure("a carbamic acid carrying a carbamoyl group on nitrogen is named as such (P-66.1.6.1.1.4)")
@@ -160,7 +163,28 @@ def name_polycarbonic(mol):
     ]
     if len(ends_ligands) == 2:
         raise UnsupportedStructure("two non-hydroxy end groups make an acyl halide of the polycarbonic acid")
-    return _compose(mol, n, replaced, _letters(mol, graph, order, bridges), _substituent_prefix(entries))
+    if numbered is not None:
+        numbered.update({center: 2 * i + 1 for i, center in enumerate(order)})
+    name = _compose(mol, n, replaced, _letters(mol, graph, order, bridges), _substituent_prefix(entries))
+    return insert_chain_nuclides(name, chain_nuclides_text(mol, order, bridges))
+
+
+def chain_numbering(acid):
+    """{carbon: locant} of the numbering that the name of the polycarbonic acid `acid` takes, its nuclides deciding between
+    equivalent directions, else {}."""
+    from ._isotope_labels import split_isotopes
+
+    split = split_isotopes(acid)
+    clean, labels = (split[0], split[1]) if split else (acid, {})
+    token = ISOTOPE_LABELS.set({"labels": labels, "consumed": set(), "mol": clean} if labels else None)
+    numbered = {}
+    try:
+        name_polycarbonic(clean, numbered)
+    except UnsupportedStructure:
+        return {}
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    return numbered
 
 
 def _locant_number(locant):
