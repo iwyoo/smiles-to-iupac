@@ -56,6 +56,7 @@ _SENIOR_TO_SELENOL = [
         "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
     )
 ]
+_NONCARBON_ACID_ESTERS = [Chem.MolFromSmarts(smarts) for smarts in ("[!#6;!#1](=[O,S])[OX2][#6]", "[#5][OX2][#6]")]
 _SELONE_KETONE = Chem.MolFromSmarts("[#6][CX3](=[Se])[#6]")
 _SELENOL = Chem.MolFromSmarts("[SeX2H1][#6;!$([#6]=[O,S,Se,Te])]")
 _HEAVY_CHALCOGENOL = Chem.MolFromSmarts("[SeX2H1,TeX2H1][#6;!$([#6]=[O,S,Se,Te])]")
@@ -178,7 +179,8 @@ def require_senior_group(mol, z, parent=None):
     if parent is not None and mol.GetAtomWithIdx(parent).GetAtomicNum() == 7:
         return
     if z in (34, 52) and not any(
-        mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *([_SELONE_KETONE, _SELENOL] if z == 52 else []))
+        mol.HasSubstructMatch(query)
+        for query in (*_SENIOR_TO_SELENOL, *_NONCARBON_ACID_ESTERS, *([_SELONE_KETONE, _SELENOL] if z == 52 else []))
     ):
         raise UnsupportedStructure("a selenol, tellurol, selone or tellone is the principal group, not a prefix")
 

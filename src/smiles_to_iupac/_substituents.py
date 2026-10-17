@@ -1767,13 +1767,13 @@ def _chain_children(graph, node, parent, halogens, mol, aromatic_atoms):
 
 
 def _terminal_amide(graph, mol, carbon, parent):
-    """A -C(=O)-NR2 or -C(=NR)-NR2 carbon ending a carbon chain of more than one carbon, cited as 'amino' with 'oxo'
-    or 'imino' on the chain (P-66.1.1.4.1.1, P-66.4.1.3.2)."""
+    """A -C(=O)-NR2, -C(=S)-NR2 or -C(=NR)-NR2 carbon ending a carbon chain of more than one carbon, cited as 'amino' with
+    'oxo', 'sulfanylidene' or 'imino' on the chain (P-66.1.1.4.1.1, P-66.4.1.3.2)."""
     atom = mol.GetAtomWithIdx(carbon)
     if atom.IsInRing() or atom.GetFormalCharge() or mol.GetAtomWithIdx(parent).GetAtomicNum() != 6 or len(graph[carbon]) != 3:
         return False
     others = [n for n in graph[carbon] if n != parent]
-    oxo = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 2.0]
+    oxo = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() in (8, 16, 34, 52) and mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 2.0]
     amino = [n for n in others if (mol.GetAtomWithIdx(n).GetAtomicNum() == 7 or (mol.GetAtomWithIdx(n).GetAtomicNum() in (8, 16, 34, 52) and mol.GetAtomWithIdx(n).GetDegree() == 2)) and not mol.GetAtomWithIdx(n).GetFormalCharge() and not mol.GetAtomWithIdx(n).IsInRing() and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 1.0]
     imino = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(n).GetFormalCharge() and not mol.GetAtomWithIdx(n).IsInRing() and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 2.0]
     amidine_amino = [n for n in amino if mol.GetAtomWithIdx(n).GetAtomicNum() == 7]

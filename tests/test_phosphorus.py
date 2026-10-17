@@ -859,3 +859,18 @@ def test_phosphate_beside_an_ester_and_a_junior_group(smiles, expected):
 )
 def test_phosphate_and_sulfate_esters_on_a_ring_or_assembly_are_multiplied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-41, P-67.1.3.2: the ester of a noncarbon acid ranks above acid halides, amides, chalcogenols, sulfides and amines, which are prefixes of its organyl group
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OS(=O)(=O)OCCSC", "2-(methylsulfanyl)ethyl hydrogen sulfate", id="sulfide"),
+        pytest.param("OS(=O)(=O)OCCC(=O)Cl", "3-chloro-3-oxopropyl hydrogen sulfate", id="acyl_halide"),
+        pytest.param("[O-][N+](=O)OCCC(=S)N", "3-amino-3-sulfanylidenepropyl nitrate", id="thioamide"),
+        pytest.param("OP(=O)(O)OCC[SeH]", "2-selanylethyl dihydrogen phosphate", id="selenol"),
+        pytest.param("COS(=O)(=O)OCCSC", "methyl 2-(methylsulfanyl)ethyl sulfate", id="neutral_diester"),
+    ],
+)
+def test_ester_of_a_noncarbon_acid_is_the_parent_beside_lower_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

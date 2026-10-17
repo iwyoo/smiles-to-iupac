@@ -16,18 +16,17 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   module's own docstring for the full derivation.
 
 Scope: a single phosphorus atom shaped like a phosphite ester -- no P=O
-bond, three P-O-R single bonds, each R named via `name_branch` (a plain
-alkyl chain, a branched chain, or a plain benzene ring, and their
-halogenated variants, exactly like `_phosphate.py`'s R), identical or
-mixed freely. Explicitly out of scope (raise `UnsupportedStructure`):
-partial ("hydrogen") esters (a remaining P-OH, fewer than 3 ester
-oxygens), any chalcogen-replacement analogue, and any other heteroatom.
+bond, three P-O-R single bonds, each R named via `name_branch` with the
+groups that rank below the ester as prefixes (P-41), identical or mixed
+freely. Explicitly out of scope (raise `UnsupportedStructure`): partial
+("hydrogen") esters (a remaining P-OH, fewer than 3 ester oxygens), any
+chalcogen-replacement analogue, and an acid, anhydride or other ester in R.
 """
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphate import cited_ester_groups, format_ester_entries
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._phosphate import check_ester_organyl, cited_ester_groups, format_ester_entries
 
 _PHOSPHORUS = 15
 
@@ -63,25 +62,8 @@ def name_phosphite(mol) -> str:
         raise UnsupportedStructure("more than one phosphite group is not supported yet")
     (phosphorus,) = phosphorus_atoms
 
-    for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num == _PHOSPHORUS and atom.GetIdx() != phosphorus.GetIdx():
-            raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
-        if atomic_num not in (1, 6, 8, _PHOSPHORUS, *HALOGEN_PREFIXES):
-            raise UnsupportedStructure(
-                "heteroatoms other than the phosphite's own phosphorus/"
-                "oxygens and a halogen substituent are not supported yet"
-            )
-
     group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() == 8 and atom.GetIdx() not in group_oxygens:
-            raise UnsupportedStructure(
-                "an oxygen atom not part of the phosphite's own "
-                "P(OR)3 group is out of scope for this module"
-            )
+    check_ester_organyl(mol, group_oxygens | {phosphorus.GetIdx()})
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
