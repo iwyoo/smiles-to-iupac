@@ -147,31 +147,6 @@ def _plane_faces(mol, mapping):
     return hydrogens, coordinates, normal
 
 
-def _with_natural_ring_centres(mol, mapping, open_positions):
-    """The mol with its unspecified ring-fusion centres given the natural configuration, so that the 3D embedding used to
-    read faces has the shape of the parent instead of a random diastereomer."""
-    if not open_positions:
-        return mol
-    atoms = {p: mapping[p] for p in open_positions}
-    tags = (Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW)
-    for choice in itertools.product(tags, repeat=len(atoms)):
-        trial = Chem.Mol(mol)
-        for atom, tag in zip(atoms.values(), choice):
-            trial.GetAtomWithIdx(atom).SetChiralTag(tag)
-        embedded = _plane_faces(trial, mapping)
-        if embedded is None:
-            continue
-        hydrogens, coordinates, normal = embedded
-        ring_atoms = {mapping[p] for p in _RING_POSITIONS}
-        if all(
-            len(exo := _exocyclic_neighbors(hydrogens, atom, ring_atoms)) == 1
-            and _face_of(coordinates, normal, atom, [], exo[0]) == _NATURAL_FACE[p]
-            for p, atom in atoms.items()
-        ):
-            return trial
-    return mol
-
-
 def _exocyclic_neighbors(hydrogens, atom, ring_atoms):
     return [n.GetIdx() for n in hydrogens.GetAtomWithIdx(atom).GetNeighbors() if n.GetIdx() not in ring_atoms]
 
@@ -201,6 +176,42 @@ def _chirality_signature(hydrogens, atom, key):
 
 
 _NATURAL_C20 = {}
+_BETA_SIGNATURE = {}
+_REFERENCE = "C[C@H](CCCC(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C"
+
+
+def _face_key(position_of, x, others):
+    """Sort key of a neighbor of a ring atom: the ring neighbors by locant, then the exocyclic `others`, then `x`."""
+    return lambda n: 2000 if n == x else 1000 if n in others else position_of[n]
+
+
+def _beta_signatures():
+    """{position: chirality signature of a ring atom whose exocyclic neighbor `x` is β}, read once from the geometry of
+    5α-cholestane, whose ring system is planar enough for the faces to be read from the embedding (P-101.2.6)."""
+    if not _BETA_SIGNATURE:
+        mol = Chem.MolFromSmiles(_REFERENCE)
+        graph = {a.GetIdx(): {n.GetIdx() for n in a.GetNeighbors()} for a in mol.GetAtoms()}
+        mapping = _embeddings("cholest", graph, {a.GetIdx() for a in mol.GetAtoms() if a.IsInRing()})[0]
+        hydrogens, coordinates, normal = _plane_faces(mol, mapping)
+        Chem.AssignAtomChiralTagsFromStructure(hydrogens)
+        position_of = {atom: p for p, atom in mapping.items()}
+        ring_atoms = {mapping[p] for p in _RING_POSITIONS}
+        for position in _RING_POSITIONS:
+            atom = mapping[position]
+            exocyclic = _exocyclic_neighbors(hydrogens, atom, ring_atoms)
+            x = exocyclic[0]
+            others = [y for y in exocyclic if y != x]
+            signature = _chirality_signature(hydrogens, atom, _face_key(position_of | {n: 0 for n in exocyclic}, x, others))
+            _BETA_SIGNATURE[position] = signature if _face_of(coordinates, normal, atom, others, x) == "b" else 3 - signature
+    return _BETA_SIGNATURE
+
+
+def _topological_face(hydrogens, atom, position, x, exocyclic, position_of):
+    """'a' or 'b' for the exocyclic neighbor `x` of the ring atom, from the chirality of the atom alone: the faces are
+    those of the numbering of the ring system, whatever the fusion of the rings (5α or 5β)."""
+    others = [y for y in exocyclic if y != x]
+    key = _face_key(position_of | {n: 0 for n in exocyclic}, x, others)
+    return "b" if _chirality_signature(hydrogens, atom, key) == _beta_signatures()[position] else "a"
 
 
 def _natural_c20_signature():
@@ -516,11 +527,8 @@ def _configuration(mol, stem, mapping):
     specified = {a for a, e in potential.items() if e.specified == Chem.StereoSpecified.Specified}
     if not specified & set(mapping.values()):
         return {}, [], []
-    open_positions = [p for p in _NATURAL_FACE if p in mapping and mapping[p] in potential and mapping[p] not in specified]
-    embedded = _plane_faces(_with_natural_ring_centres(mol, mapping, open_positions), mapping)
-    if embedded is None:
-        raise UnsupportedStructure("the steroid could not be embedded in three dimensions")
-    hydrogens, coordinates, normal = embedded
+    hydrogens = Chem.AddHs(mol)
+    position_of = {atom: p for p, atom in mapping.items()}
     ring_atoms = {mapping[p] for p in _RING_POSITIONS}
     faces, descriptors, side = {}, [], []
     for position, atom in sorted(mapping.items(), key=lambda item: item[0]):
@@ -539,7 +547,7 @@ def _configuration(mol, stem, mapping):
             continue
         exocyclic = _exocyclic_neighbors(hydrogens, atom, ring_atoms)
         if atom in specified:
-            face = {x: _face_of(coordinates, normal, atom, [y for y in exocyclic if y != x], x) for x in exocyclic}
+            face = {x: _topological_face(hydrogens, atom, position, x, exocyclic, position_of) for x in exocyclic}
         else:
             face = {x: "x" for x in exocyclic}
         heavy = [x for x in exocyclic if hydrogens.GetAtomWithIdx(x).GetAtomicNum() != 1]
