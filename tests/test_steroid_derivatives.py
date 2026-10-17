@@ -17,8 +17,8 @@ ANDROSTANE = "C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2{x})CC[C@@H]4[C@@]3(CC{a}C4)C
         (ANDROSTANE.format(x="C(=O)OC", a="C(=O)"), "methyl 3-oxo-5α-androstane-17β-carboxylate"),
         (ANDROSTANE.format(x="C(=O)N", a="C"), "5α-androstane-17β-carboxamide"),
         # P-101.7.3: an ester of a steroid alcohol names the steroid as a substituent group.
-        (ANDROSTANE.format(x="C(C)=O", a="[C@@H](OC(C)=O)"), "(3R,5S,8R,9S,10S,13S,14S,17S)-17-acetyl-10,13-dimethylhexadecahydro-1H-cyclopenta[a]phenanthren-3-yl acetate"),
-        (ANDROSTANE.format(x="OC(C)=O", a="C"), "(5R,8R,9S,10S,13S,14S,17S)-10,13-dimethylhexadecahydro-1H-cyclopenta[a]phenanthren-17-yl acetate"),
+        (ANDROSTANE.format(x="C(C)=O", a="[C@@H](OC(C)=O)"), "20-oxo-5α-pregnan-3α-yl acetate"),
+        (ANDROSTANE.format(x="OC(C)=O", a="C"), "5α-androstan-17β-yl acetate"),
     ],
 )
 def test_derivatives_on_rings(smiles, expected):
@@ -34,6 +34,21 @@ def test_derivatives_on_rings(smiles, expected):
     ],
 )
 def test_terminal_segment_acid_is_an_oic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        # P-101.7.3, P-67.1.3.2: the sulfate ester outranks the ketone, which is cited in the steroid group.
+        ("C[C@]12CC[C@H]3[C@@H](CC=C4C[C@@H](OS(=O)(=O)O)CC[C@]34C)[C@@H]1CCC2=O", "17-oxoandrost-5-en-3\u03b2-yl hydrogen sulfate"),
+        # P-101.7.3, P-66.1.1.4: the steroid is the N-substituent of an amide.
+        ("C[C@]12CC[C@H]3[C@@H](CC=C4C[C@@H](NC(C)=O)CC[C@]34C)[C@@H]1CC[C@@H]2O", "N-(17\u03b2-hydroxyandrost-5-en-3\u03b2-yl)acetamide"),
+        # P-101.7.3, P-15.3: one acid on two alcohol groups of the steroid.
+        ("C[C@]12CC[C@H]3[C@@H](CC=C4C[C@@H](OC(C)=O)CC[C@]34C)[C@@H]1CC[C@@H]2OC(C)=O", "androst-5-ene-3\u03b2,17\u03b2-diyl diacetate"),
+    ],
+)
+def test_steroid_as_substituent_group_of_esters_and_amides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

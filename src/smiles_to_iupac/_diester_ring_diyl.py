@@ -302,6 +302,10 @@ def name_diester_ring_diyl(mol, matches):
     if selection is None:
         raise UnsupportedStructure("no ring system or chain carries the ester oxygens")
     kind, body, pool = selection
+    if kind == "ring":
+        natural = _semisystematic_diyl_esters(mol, graph, matches, pool)
+        if natural is not None:
+            return natural
     options = [(kind, [path], set(path)) for path in body] if kind == "chain" else [(kind, body, pool)]
 
     best = None
@@ -314,6 +318,18 @@ def name_diester_ring_diyl(mol, matches):
         raise UnsupportedStructure("no admissible numbering places every attachment and substituent on this skeleton")
     skeleton_nuclides({a: p for a, p in best[2].items()})
     return best[1]
+
+
+def _semisystematic_diyl_esters(mol, graph, matches, pool):
+    """'androst-5-ene-3β,17β-diyl diacetate': one acid on the several alcohol groups of a semisystematic parent (P-101.7.3)."""
+    from ._np import semisystematic_groups
+
+    on = [m for m in matches if m[3].GetIdx() in pool]
+    anions = acid_anions(mol, on)
+    if len(on) < 2 or len({name for name, _ in anions}) != 1:
+        return None
+    group = semisystematic_groups(mol, graph, [(m[3].GetIdx(), m[2].GetIdx()) for m in on])
+    return f"{group[0]} {cite_anions(anions, [0] * len(on), False)}" if group else None
 
 
 def _best_for_option(mol, graph, kind, body, pool, matches_on):

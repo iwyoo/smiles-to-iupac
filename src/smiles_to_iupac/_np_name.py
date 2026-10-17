@@ -17,10 +17,15 @@ _ACYL_SUFFIX = {
     ("amide", "o"): "amide",
 }
 _PREFIX = {"alcohol": "hydroxy", "ketone": "oxo", "amine": "amino", "aldehyde": "oxo"}
-_SENIORITY = ["acid", "ester", "ester_o", "diyl", "amide", "aldehyde", "ketone", "alcohol", "amine"]
+_SENIORITY = ["yl", "acid", "ester", "ester_o", "diyl", "amide", "aldehyde", "ketone", "alcohol", "amine"]
+FREE_VALENCE = 7777
+
+
+class Outranked(UnsupportedStructure):
+    """A group outside the parent ranks above the parent, so no modification of the parent gives a name."""
 _COUNTED = {
     "acid": "[CX3](=O)[OX2H1]",
-    "amide": "[CX3;!R](=O)[NX3;!R]",
+    "amide": "[CX3,SX4,PX4;!R](=O)[NX3;!R]",
     "aldehyde": "[CX3H1](=O)[#6]",
     "ketone": "[#6][CX3](=O)[#6]",
     "alcohol": "[OX2H][#6]",
@@ -120,14 +125,17 @@ def _carboxyl(view, atom, parent, mapped, ignored=frozenset()):
 
 def _acyl_oxygen(view, oxygen, parent, mapped):
     acyl = next((n for n in view.adj[oxygen] if n != parent), None)
-    if acyl is None or view.elem[acyl] != "C" or acyl in mapped:
+    if acyl is None or acyl in mapped:
         return None
     oxo = [n for n in view.adj[acyl] if view.elem[n] == "O" and len(view.adj[n]) == 1 and view.order[frozenset((acyl, n))] == 2]
-    if len(oxo) != 1 or len(view.adj[acyl]) > 3:
+    if not oxo:
         return None
-    if any(n not in (oxygen, oxo[0]) and view.elem[n] != "C" for n in view.adj[acyl]):
+    others = [n for n in view.adj[acyl] if n not in (oxygen, oxo[0])]
+    if view.elem[acyl] == "C" and len(oxo) == 1 and len(view.adj[acyl]) <= 3 and all(view.elem[n] == "C" for n in others):
+        return acyl
+    if view.elem[acyl] == "C" and any(view.elem[n] == "O" and view.adj[n] - {acyl} <= mapped for n in others):
         return None
-    return acyl
+    raise Outranked("an ester of an acid other than a carboxylic acid is named by its class, not as a prefix")
 
 
 def _acid_anion(view, oxygen, acyl, mapped):
@@ -174,6 +182,9 @@ def classify(cand, view, ignored=frozenset()):
     mol = view.mol
     for loc, atom in mapping.items():
         outside = [n for n in view.adj[atom] if n not in mapped and n not in ignored]
+        for n in [n for n in outside if mol.GetAtomWithIdx(n).GetAtomMapNum() == FREE_VALENCE]:
+            groups.add("yl", loc, {n}, {"anchor": n, "root": n})
+            outside.remove(n)
         leaf = loc not in ring_atoms and len(skel.adj[loc]) == 1
         if leaf and view.elem[atom] == "C":
             parent_atom = mapping[next(iter(skel.adj[loc]))]
@@ -212,6 +223,9 @@ def classify(cand, view, ignored=frozenset()):
                     continue
                 groups.branches.append((loc, n))
     _pair_acetals(view, mapping, groups)
+    held = {next(iter(atoms)) for _, atoms, _ in groups.classes.get("yl", [])}
+    if any(a.GetAtomMapNum() == FREE_VALENCE and a.GetIdx() not in held for a in mol.GetAtoms()):
+        raise UnsupportedStructure("the free valence is not on the parent skeleton")
     return groups
 
 
@@ -247,14 +261,14 @@ def alkyl_count(cand, view, groups):
     return count
 
 
-def principal_groups_left_outside(view, classes, principal, mapped=frozenset()):
+def principal_groups_left_outside(mol, classes, principal, mapped=frozenset()):
     """True when a group of the principal class or a senior one sits outside the parent (P-44.1.1.2, maximum number)."""
     senior = _SENIORITY if principal is None else _SENIORITY[: _SENIORITY.index(principal) + 1]
     for cls in senior:
         smarts = _COUNTED.get(cls)
         if smarts is None:
             continue
-        total = sum(1 for match in view.mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)) if not mapped.issuperset(match))
+        total = sum(1 for match in mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)) if not mapped.issuperset(match))
         if total > len(classes.get(cls, [])):
             return True
     return False

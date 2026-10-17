@@ -1443,7 +1443,8 @@ def _same_enclosing_marks(text):
     return text.translate(str.maketrans("[]{}", "()()"))
 
 
-_STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
+_FACE_DESCRIPTOR = re.compile(r"(?<=\d)[\u03b1\u03b2\u03be](?=[,\-)]|yl)")
+_STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in|" + _FACE_DESCRIPTOR.pattern)
 
 
 _CENTER_CODE = re.compile(r"(?<=[\d'′a-z\u00b2\u00b3\u00b9\u2070-\u209f\u1d43-\u1d4a])[RSrs](?=[,)\]])|(?<=[RS],)[RS](?=[,)\]])|\((?:R|S)\)")
@@ -1473,6 +1474,8 @@ def _cites_every_tetrahedral_center(mol, name) -> bool:
 
 
 def _cites_every_stereo_element(mol, name) -> bool:
+    if _FACE_DESCRIPTOR.search(name):
+        return True
     cited = len(_STEREO_TOKENS.findall(name))
     if _MULTIPLIED_GROUP_WORD.search(name):
         return cited > 0

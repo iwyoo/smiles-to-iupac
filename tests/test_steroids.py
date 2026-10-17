@@ -102,11 +102,11 @@ def test_side_chain_that_and_related(smiles, expected):
     [
         (
             "CC(C)CCC[C@@H](C)[C@H]1CCC2C3CC[C@H]4C[C@@H](OCC(=O)O)CC[C@]4(C)C3CC[C@@]21C",
-            "3β-(carboxymethoxy)-5α,8ξ,9ξ,14ξ-cholestane",
+            "[(5α,8ξ,9ξ,14ξ-cholestan-3β-yl)oxy]acetic acid",
         ),
         (
             "CC(C)CCC[C@@H](C)[C@@H]1CCC2C3CC[C@H]4C[C@@H](OCC(=O)O)CC[C@]4(C)C3CC[C@@]21C",
-            "3β-(carboxymethoxy)-5α,8ξ,9ξ,14ξ,17α-cholestane",
+            "[(5α,8ξ,9ξ,14ξ,17α-cholestan-3β-yl)oxy]acetic acid",
         ),
         (
             "CC(C)CCC[C@@H](C)[C@H]1CCC2C3CC[C@H]4C[C@@H](OC)CC[C@]4(C)C3CC[C@@]21C",
