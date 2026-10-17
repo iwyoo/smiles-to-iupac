@@ -113,6 +113,20 @@ def test_two_heterone_centres_on_one_chain_name_one_as_the_parent(smiles, expect
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CP(C)(=O)c1ccc(cc1)-c1ccccc1", "([1,1'-biphenyl]-4-yl)di(methyl)-λ5-phosphanone", id="ring_assembly_group"),
+        pytest.param("C[As](C)(=S)c1cccc(c1)-c1ccccc1", "([1,1'-biphenyl]-3-yl)di(methyl)-λ5-arsanethione", id="arsane_sulfide"),
+        pytest.param("CP(C)(=O)c1ccc(cc1)-c1ccc(O)cc1", "(4'-hydroxy[1,1'-biphenyl]-4-yl)di(methyl)-λ5-phosphanone", id="heterone_outranks_a_hydroxy_group"),
+        pytest.param("CP(C)(=NC)c1ccc(cc1)-c1ccccc1", "P-([1,1'-biphenyl]-4-yl)-N,P,P-trimethyl-λ5-phosphanimine", id="imide"),
+    ],
+)
+def test_ring_assembly_group_on_a_group_15_heterone_or_imide(smiles, expected):
+    # P-68.3.2.3.1, P-68.3.3, P-28.3.2, P-41
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_ring_phosphorus_oxide_is_a_lambda5_heterone():
     assert smiles_to_iupac("O=P1CCCCC1") == "1λ5-phosphinan-1-one"
 
