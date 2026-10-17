@@ -806,6 +806,10 @@ def test_phosphinate_beside_a_senior_group(smiles, expected):
         pytest.param("CC(=O)OCC(NC(C)=O)COP(=O)(O)O", "2-acetamido-3-(phosphonooxy)propyl acetate", id="carboxylic_ester_and_amide"),
         pytest.param("COC(=O)OCC(NC(C)=O)COP(=O)(O)O", "2-acetamido-3-(phosphonooxy)propyl methyl carbonate", id="carbonic_ester_and_amide"),
         pytest.param("ClC(=O)C(OC(C)=O)COP(=O)(O)O", "1-chloro-1-oxo-3-(phosphonooxy)propan-2-yl acetate", id="carboxylic_ester_and_acid_chloride"),
+        pytest.param("CS(=O)(=O)OCCCOP(=O)(O)O", "3-(phosphonooxy)propyl methanesulfonate", id="sulfonate_ester_organyl_group"),
+        pytest.param("COS(=O)(=O)CCCOP(=O)(O)O", "methyl 3-(phosphonooxy)propane-1-sulfonate", id="sulfonate_ester_acid_part"),
+        pytest.param("C(OP(=O)(O)O)CCSC#N", "3-(phosphonooxy)propyl thiocyanate", id="thiocyanate_ester"),
+        pytest.param("COS(=O)(=O)CCCOP(=O)(O)OC", "methyl 3-{[hydroxy(methoxy)phosphoryl]oxy}propane-1-sulfonate", id="phosphate_monoester_prefix"),
     ],
 )
 def test_phosphate_beside_an_ester_and_a_junior_group(smiles, expected):
