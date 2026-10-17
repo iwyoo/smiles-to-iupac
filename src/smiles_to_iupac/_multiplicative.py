@@ -231,7 +231,34 @@ def _class_gate(mol, groups, selected, systems, node_of):
 _HOMONUCLEAR_RUNS = (7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83)
 
 
-def _components(mol, linker_nodes, systems):
+def _merge_ring_assemblies(mol, result):
+    """Linking rings joined directly to each other make one component, named as a ring assembly (P-28.2)."""
+    rings = [cid for cid, (kind, _) in result.items() if kind == "ring"]
+    parent = {cid: cid for cid in rings}
+
+    def find(x):
+        while parent[x] != x:
+            x = parent[x]
+        return x
+
+    owner = {a: cid for cid in rings for a in result[cid][1]}
+    for bond in mol.GetBonds():
+        x, y = owner.get(bond.GetBeginAtomIdx()), owner.get(bond.GetEndAtomIdx())
+        if x is not None and y is not None and x != y:
+            parent[find(x)] = find(y)
+    merged = {}
+    for cid in rings:
+        merged.setdefault(find(cid), []).append(cid)
+    for members in merged.values():
+        if len(members) > 1:
+            atoms = sorted(a for cid in members for a in result[cid][1])
+            for cid in members:
+                del result[cid]
+            result[("S", atoms[0])] = ("assembly", atoms)
+    return result
+
+
+def _components(mol, linker_nodes, systems, merge_assemblies=False):
     parent = {}
 
     def find(x):
@@ -270,7 +297,7 @@ def _components(mol, linker_nodes, systems):
     for n in linker_nodes:
         if n[0] == "R":
             result[("R", n[1])] = ("ring", sorted(systems[n[1]]))
-    return result
+    return _merge_ring_assemblies(mol, result) if merge_assemblies else result
 
 
 def _branch_atoms(mol, cut_a, cut_b):
@@ -395,14 +422,14 @@ def _amino_nitrogens_on_carbon_skeleton(mol, selected):
     )
 
 
-def _attempt(mol, groups, selected, tree, core, name_function):
+def _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=False):
     systems, node_of, adj = tree
     selected_nodes = {u.node for u in selected}
     span = _prune(core, selected_nodes)
     linker_nodes = [n for n in span if n not in selected_nodes]
     if not linker_nodes or not _class_gate(mol, groups, selected, systems, node_of):
         return None
-    components = _components(mol, linker_nodes, systems)
+    components = _components(mol, linker_nodes, systems, merge_assemblies)
     found = _find_center(mol, components, selected)
     formazan = _formazan_central(mol, linker_nodes, selected)
     if formazan is None and (found is None or mol.HasSubstructMatch(FORMAZAN_SKELETON)):
@@ -433,6 +460,12 @@ def _attempt(mol, groups, selected, tree, core, name_function):
             return None
     if principal_group == "amine" and any(mol.GetAtomWithIdx(u.linker_atom).GetAtomicNum() == 7 for u in selected):
         return None
+    if merge_assemblies and principal is None:
+        unit_key = ring_seniority_key(mol, selected[0].ring_atoms)
+        assembly_atoms = set().union(*(set(a) for kind, a in components.values() if kind == "assembly"))
+        # the assembly of rings is a senior parent unless the multiplied rings outrank them (P-44.1.2.2)
+        if any(ring_seniority_key(mol, set(ring)) <= unit_key for ring in systems if set(ring) <= assembly_atoms):
+            return None
     amino_on_ring_nitrogen = any(_amino_on_ring_nitrogen(mol, u) for u in selected)
     if amino_on_ring_nitrogen and (
         len({u.linker_atom for u in selected}) == 1 or _amino_nitrogens_on_carbon_skeleton(mol, selected)
@@ -535,6 +568,21 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     if amino_on_ring_nitrogen:
         mark(name, "the amine groups on the ring nitrogens are principal groups, which outrank the ring hydrides multiplied here (P-44.1.1)")
     return name if descriptors is None else f"{descriptors}{name}"
+
+
+def _attempt_with_assemblies(mol, groups, selected, tree, core, name_function):
+    """The name with directly joined linking rings named as one ring assembly, else with the rings as separate components."""
+    systems, node_of, adj = tree
+    selected_nodes = {u.node for u in selected}
+    linker_rings = [n for n in _prune(core, selected_nodes) if n[0] == "R" and n not in selected_nodes]
+    if len(linker_rings) > 1:
+        try:
+            name = _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=True)
+        except UnsupportedStructure:
+            name = None
+        if name is not None:
+            return name
+    return _attempt(mol, groups, selected, tree, core, name_function)
 
 
 def _skeletal_arm(mol, arm_chain, components, center_edges, selected):
@@ -695,7 +743,7 @@ def _name_if_multiplicative(mol, name_function=None):
         named = []
         for _, selected in tier:
             try:
-                name = _attempt(mol, groups, selected, tree, core, name_function)
+                name = _attempt_with_assemblies(mol, groups, selected, tree, core, name_function)
             except UnsupportedStructure:
                 if not named:
                     raise

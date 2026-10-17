@@ -1032,3 +1032,17 @@ def test_azolyl_units_joined_through_a_nitrogen_of_the_linker(smiles, expected):
 )
 def test_sulfonic_acid_units_joined_by_a_linker_that_carries_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C1CCCN1CC(C)CN1CCCC1=O", "1,1'-(2-methylpropane-1,3-diyl)di(pyrrolidin-2-one)", id="branched_alkanediyl_between_lactams"),
+        pytest.param("O=C1CCCN1C[Si](C)(C)CN1CCCC1=O", "1,1'-[(dimethylsilanediyl)bis(methylene)]di(pyrrolidin-2-one)", id="substituted_silanediyl_between_lactams"),
+        pytest.param("O=C1CCCN1c1ccc(-c2ccc(N3CCCC3=O)cc2)cc1", "1,1'-([1,1'-biphenyl]-4,4'-diyl)di(pyrrolidin-2-one)", id="ring_assembly_linker"),
+        pytest.param("O=C(O)c1ccc(Oc2ccc(-c3ccc(Oc4ccc(C(=O)O)cc4)cc3)cc2)cc1", "4,4'-[[1,1'-biphenyl]-4,4'-diylbis(oxy)]dibenzoic acid", id="ring_assembly_between_oxy_arms"),
+        pytest.param("c1ccc(cc1)Oc1ccc(-c2ccc(Oc3ccccc3)cc2)cc1", "4,4'-diphenoxy-1,1'-biphenyl", id="assembly_outranks_benzene_units_without_a_principal_group"),
+    ],
+)
+def test_lactam_units_with_a_substituted_linker_and_ring_assembly_linkers(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
