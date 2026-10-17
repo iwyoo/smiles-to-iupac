@@ -285,7 +285,7 @@ def _name_ester_parts(mol, labels, original=None) -> str:
     try:
         for arm, (acyl_carbon, _, ester_oxygen, alkyl_carbon) in enumerate(matches):
             name, compound = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
-            locant = (f"{arm_label[arm][:-1]}O" if arm in arm_label and len(ester_labels) > 1 else "O") if ester_labels else ""
+            locant = (f"{arm_label[arm][:-1]}O" if arm in arm_label else "O") if ester_labels else ""
             entry = named.setdefault((name, locant), [0, compound, []])
             entry[0] += 1
             named_by_arm[arm] = name

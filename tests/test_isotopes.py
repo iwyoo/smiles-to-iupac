@@ -472,15 +472,15 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("CCC(=O)[18O]CC", "O-ethyl propan(18O1)oate", id="labelled_ester_oxygen"),
+        pytest.param("CCC(=O)[18O]CC", "18O-ethyl propan(18O1)oate", id="labelled_ester_oxygen"),
         pytest.param("CCC(=[18O])OCC", "O-ethyl propan(18O1)oate", id="labelled_carbonyl_oxygen_of_an_ester"),
         pytest.param("COC(=O)O[2H]", "methyl (2H)hydrogen carbonate", id="labelled_hydrogen_of_a_carbonate_half_ester"),
         pytest.param("COC(=O)[18OH]", "O-methyl hydrogen (18O1)carbonate", id="labelled_hydroxy_oxygen_of_a_carbonate_half_ester"),
-        pytest.param("CC[18O]C(=O)OC", "O-ethyl O-methyl (18O1)carbonate", id="labelled_bridging_oxygen_of_a_carbonate"),
+        pytest.param("CC[18O]C(=O)OC", "18O-ethyl O-methyl (18O1)carbonate", id="labelled_bridging_oxygen_of_a_carbonate"),
         pytest.param("CCOC(=[18O])[18O]C", "O-ethyl 18O-methyl (18O2)carbonate", id="two_labelled_oxygens_of_a_carbonate"),
         pytest.param("CCOC(=[18O])OCC", "O,O-diethyl (18O1)carbonate", id="labelled_carbonyl_oxygen_of_a_symmetric_carbonate"),
         pytest.param("CC(=[18O])OC", "O-methyl acet(18O1)ate", id="labelled_acetate_carbonyl"),
-        pytest.param("O=C([18O]C)c1ccccc1", "O-methyl benz(18O1)oate", id="labelled_benzoate_ester_oxygen"),
+        pytest.param("O=C([18O]C)c1ccccc1", "18O-methyl benz(18O1)oate", id="labelled_benzoate_ester_oxygen"),
         pytest.param("OC(=O)c1ccc(cc1)C(C)(C)[13CH3]", "4-[2-methyl(1-13C)propan-2-yl]benzoic acid", id="modified_tert_butyl_loses_its_retained_name"),
         pytest.param("OC(=O)c1ccc(cc1)[13C](C)(C)C", "4-[2-methyl(2-13C)propan-2-yl]benzoic acid", id="modified_quaternary_carbon_of_tert_butyl"),
         pytest.param("[2H]C([2H])([2H])C", "(1,1,1-2H3)ethane", id="locants_kept_when_isomers_exist"),
@@ -493,6 +493,22 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
     ],
 )
 def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=[18O])OC(=O)C", "(O-18O)acetic acetic anhydride", id="carbonyl_oxygen_of_one_acyl_group"),
+        pytest.param("CC(=O)[18O]C(=O)C", "acetic (18O)anhydride", id="bridging_oxygen_cited_before_the_class_word"),
+        pytest.param("CCC(=O)OC(=[18O])c1ccccc1", "(O-18O)benzoic propanoic anhydride", id="modified_acid_ordered_by_its_letters"),
+        pytest.param("CC(=O)OC(N)=[18O]", "acetic (O-18O)carbamic anhydride", id="carbonyl_oxygen_of_a_carbamic_component"),
+        pytest.param("CC(=O)OC(=[18O])OC", "acetic (O-methyl hydrogen (18O1)carbonate) anhydride", id="carbonyl_oxygen_of_a_carbonic_component"),
+        pytest.param("CC(=O)OC(=O)[18O]C", "acetic (18O-methyl hydrogen (18O1)carbonate) anhydride", id="ester_oxygen_of_a_carbonic_component"),
+        pytest.param("NC(=[18O])O", "(O-18O)carbamic acid", id="labelled_carbamic_acid"),
+    ],
+)
+def test_isotope_on_anhydride_oxygens(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

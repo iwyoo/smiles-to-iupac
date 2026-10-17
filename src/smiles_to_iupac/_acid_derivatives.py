@@ -1239,6 +1239,20 @@ def _alphabetical_acid_words(counts, class_word):
     return f"{' '.join(cited)} {class_word}"
 
 
+def _bridge_nuclide(mol, bridges):
+    """The descriptor of a labelled oxygen that is the only atom of the single bridge, cited in front of the class word
+    that denotes it (P-82.2.1); the oxygens of the acid components carry theirs in the acid words."""
+    context = ISOTOPE_LABELS.get()
+    if not context or context.get("mol") is not mol or len(bridges) != 1:
+        return ""
+    (chain, _, _), = bridges.values()
+    entry = context["labels"].get(chain[0]) if len(chain) == 1 else None
+    if entry is None or entry["H"] or not entry["skeleton"] or mol.GetAtomWithIdx(chain[0]).GetAtomicNum() != 8:
+        return ""
+    context["consumed"].add(chain[0])
+    return f"({entry['skeleton']})"
+
+
 def name_anhydride(mol, links):
     _reject_unsupported(mol)
     links = _senior_bridge_links(mol, links)
@@ -1277,7 +1291,7 @@ def name_anhydride(mol, links):
             _acid_group_count(mol, [a for a in frags[i] if a not in bridge_atoms], centers[i]) > 1 for i in components
         ):
             class_word = "monoanhydride"
-        return f"{text} {class_word}"
+        return f"{text} {_bridge_nuclide(mol, bridges)}{class_word}"
     hubs = [i for i in components if degrees[i] > 2]
     if hubs:
         if len(hubs) != 1:
@@ -1682,6 +1696,15 @@ def name_acid_derivative(mol):
     if "ester" in kinds:
         return _stereogenic_phosphorus_ester(mol, name_ester(mol, links))
     return name_acyl_halide(mol, links)
+
+
+def name_labelled_anhydride(mol):
+    """The anhydride name with the nuclides of its acid components and bridge cited, for a labelled structure whose
+    other acid derivatives keep their own part-wise names."""
+    links, _ = find_links(mol)
+    if not any(l.kind == "anhydride" for l in links):
+        raise UnsupportedStructure("no anhydride bridge")
+    return name_acid_derivative(mol)
 
 
 def _stereogenic_phosphorus_ester(mol, name):
