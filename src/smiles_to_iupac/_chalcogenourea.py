@@ -228,6 +228,6 @@ class Chalcogenourea:
         return senior_chalcogen(mol) == self.atomic_num
 
     def name(self, mol) -> str:
-        from ._urea import name_cores
+        from ._urea import name_urea
 
-        return name_cores(mol, self.atomic_num)
+        return name_urea(mol, self.atomic_num)

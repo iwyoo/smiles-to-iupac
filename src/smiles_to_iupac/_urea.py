@@ -47,7 +47,7 @@ from rdkit import Chem
 from ._chalcogen_imide import ylidene_group_atoms
 from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first, unprimed_first_labelled
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
-from ._isotope_labels import descriptor, nitrogen_hydrogen_descriptor, split_isotopes
+from ._isotope_labels import descriptor, split_isotopes
 from ._parent_choice import senior_parent_name
 from ._substituents import format_substituent_prefixes
 
@@ -160,31 +160,40 @@ def _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx):
     return None
 
 
-def _labelled_urea_name(mol, labels):
-    """N-substituted urea with hydrogen nuclides on its nitrogens: the labelled nitrogen takes the unprimed locant when
-    the two are otherwise equivalent (P-82.2.5, P-14.3.5)."""
-    core = _urea_core(mol)
+def _labelled_urea_name(mol, labels, atomic_num=8):
+    """N-substituted urea with nuclides on its carbon, chalcogen or nitrogens: the carbon and the chalcogen are the only
+    atoms of their element in the parent and need no locant, the nitrogens take N and N', the labelled one the unprimed
+    letter when the two are otherwise equivalent (P-82.2.1, P-82.6.1.1, P-82.2.5, P-14.3.5)."""
+    core = _urea_core(mol, atomic_num)
     if core is None or len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("only a plain urea core can carry nuclide labels on its nitrogens here")
+        raise UnsupportedStructure("only a plain urea core can carry nuclide labels here")
     carbon_idx, (n1_idx, n2_idx) = core
-    (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 8)
+    (chalcogen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == atomic_num)
     amino_idx = _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx)
     if amino_idx is not None:
-        return _labelled_semicarbazide_name(mol, labels, (carbon_idx, oxygen_idx, n1_idx, n2_idx, amino_idx))
-    if set(labels) - {n1_idx, n2_idx}:
-        raise UnsupportedStructure("only the two nitrogens of a plain urea can carry nuclide labels here")
+        return _labelled_semicarbazide_name(mol, labels, (carbon_idx, chalcogen_idx, n1_idx, n2_idx, amino_idx))
+    if set(labels) - {carbon_idx, chalcogen_idx, n1_idx, n2_idx}:
+        raise UnsupportedStructure("only the atoms of a plain urea group can carry nuclide labels here")
     n1_names, n2_names = n_substituent_names(
-        mol, adjacency(mol), {carbon_idx, oxygen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx, junior_groups=True
+        mol, adjacency(mol), {carbon_idx, chalcogen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx, junior_groups=True
     )
-    first = unprimed_first_labelled(n1_idx, n2_idx, n1_names, n2_names, labels)
+    nitrogen_labels = {n: e for n, e in labels.items() if n in (n1_idx, n2_idx)}
+    first = unprimed_first_labelled(n1_idx, n2_idx, n1_names, n2_names, nitrogen_labels)
     (unprimed, primed), (unprimed_names, primed_names) = (
         ((n1_idx, n2_idx), (n1_names, n2_names)) if first else ((n2_idx, n1_idx), (n2_names, n1_names))
     )
     locant = {unprimed: "N", primed: "N'"}
-    nuclides = nitrogen_hydrogen_descriptor(mol, {n: (locant[n], entry) for n, entry in sorted(labels.items(), key=lambda i: locant[i[0]])})
+    items = []
+    for atom, entry in sorted(labels.items(), key=lambda i: locant.get(i[0], "")):
+        if entry["skeleton"]:
+            items.append((entry["skeleton"], locant.get(atom), 1, False))
+        if entry["H"] and atom not in locant:
+            raise UnsupportedStructure("a hydrogen nuclide is cited only on the nitrogens of a urea")
+        items.extend((nuclide, locant[atom], count, mol.GetAtomWithIdx(atom).GetTotalNumHs() > 1) for nuclide, count in entry["H"].items())
+    nuclides = descriptor({}, {}, False, extra=items)
     positions = {"N": unprimed_names, "N'": primed_names}
     prefixes = format_substituent_prefixes(group_substituents({k: v for k, v in positions.items() if v}))
-    return f"{prefixes}{nuclides}urea"
+    return f"{prefixes}{nuclides}{_UREA_WORD[atomic_num]}"
 
 
 def _labelled_semicarbazide_name(mol, labels, atoms):
@@ -200,13 +209,11 @@ def _labelled_semicarbazide_name(mol, labels, atoms):
     names = n_substituent_names(
         mol, graph, set(atoms), (amide, alpha, amino_idx), carbon_idx, junior_groups=True
     )
-    if any(entry["skeleton"] or not entry["H"] for entry in labels.values()):
-        raise UnsupportedStructure("only hydrogen nuclides on the nitrogens of a semicarbazide are supported")
     hydrazine = {n: entry for n, entry in labels.items() if n != amide}
+    amide_entry = labels.get(amide, {"skeleton": None, "H": {}})
     extra = [
-        (nuclide, "N", count, mol.GetAtomWithIdx(amide).GetTotalNumHs() > 1)
-        for nuclide, count in labels.get(amide, {"H": {}})["H"].items()
-    ]
+        (nuclide, "N", count, mol.GetAtomWithIdx(amide).GetTotalNumHs() > 1) for nuclide, count in amide_entry["H"].items()
+    ] + ([(amide_entry["skeleton"], "N", 1, False)] if amide_entry["skeleton"] else [])
     capacity = {n: mol.GetAtomWithIdx(n).GetTotalNumHs() for n in hydrazine}
     nuclides = descriptor(hydrazine, {alpha: 1, amino_idx: 2}, False, extra=extra, capacity=capacity)
     return _hydrazinecarboxamide_name(*names, nuclides=nuclides)
@@ -215,9 +222,7 @@ def _labelled_semicarbazide_name(mol, labels, atoms):
 def name_urea(mol, atomic_num=8) -> str:
     split = split_isotopes(mol)
     if split is not None:
-        if atomic_num != 8:
-            raise UnsupportedStructure("nuclide labels on a chalcogenourea are not supported yet")
-        return _labelled_urea_name(*split[:2])
+        return _labelled_urea_name(*split[:2], atomic_num)
     return name_cores(mol, atomic_num)
 
 
