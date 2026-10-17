@@ -392,6 +392,14 @@ def test_substituted_units_and_locants(smiles, expected):
         ("OC(=O)c1ccc(C(=O)c2ccc(C(=O)O)cc2)cc1", "4,4'-carbonyldibenzoic acid"),
         ("OC(=O)c1ccc(C(O)c2ccc(C(=O)O)cc2)cc1", "4,4'-(hydroxymethylene)dibenzoic acid"),
         ("O=C1CCC(CC1)CC1CCC(=O)CC1", "4,4'-methylenedi(cyclohexan-1-one)"),
+        (
+            "NC(=N)c1ccc(OCCCCCOc2ccc(C(N)=N)cc2)cc1",
+            "4,4'-[pentane-1,5-diylbis(oxy)]di(benzene-1-carboximidamide)",
+        ),
+        (
+            "NC(=N)c1ccc(CC(S(N)(=O)=O)c2ccc(C(N)=N)cc2)cc1",
+            "4,4'-(1-sulfamoylethane-1,2-diyl)di(benzene-1-carboximidamide)",
+        ),
     ],
 )
 def test_functionalized_units(smiles, expected):
