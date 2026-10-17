@@ -7,7 +7,13 @@ from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_su
 from ._chalcogen_imide import ylidene_group_atoms
 from ._hydride_chain import _is_pseudohalide_nitrogen
 from ._phosphonic_acid import CENTER_STEMS
-from ._substituents import centre_nuclides, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import (
+    centre_nuclides,
+    cited_stereo_around,
+    format_mononuclear_prefixes,
+    format_substituent_prefixes,
+    name_branch,
+)
 
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _MULTIPLIER = {1: "", 2: "di"}
@@ -220,11 +226,14 @@ def name_inorganic_acid_derivative(mol) -> str:
         raise UnsupportedStructure("isotopes and radicals are not supported on an acid derivative of this kind")
     found = _nitrogen_amide(mol)
     if found is not None:
-        return _name_nitrogen_amide(mol, found)
+        with cited_stereo_around(mol, found[0].GetIdx()):
+            return _name_nitrogen_amide(mol, found)
     found = _halide_centre(mol)
     if found is not None:
-        return _name_halide(mol, found)
+        with cited_stereo_around(mol, found[0].GetIdx()):
+            return _name_halide(mol, found)
     found = _azinic_centre(mol)
     if found is not None:
-        return _name_azinic(mol, found)
+        with cited_stereo_around(mol, found[0].GetIdx()):
+            return _name_azinic(mol, found)
     raise UnsupportedStructure("no mononuclear inorganic acid derivative")

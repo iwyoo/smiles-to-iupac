@@ -1626,6 +1626,23 @@ def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smi
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-67.1.2.6.3, P-93.4.1, P-14.5: the descriptor of a stereo element of an N-substituent is cited in the substituent prefix of the nitrous or nitric amide
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC[C@H](C)N(C)N=O", "[(2S)-butan-2-yl](methyl)nitrous amide", id="sec_alkyl"),
+        pytest.param("CC[C@@H](C)N(CC)N=O", "[(2R)-butan-2-yl](ethyl)nitrous amide", id="sec_alkyl_before_ethyl"),
+        pytest.param("C[C@H](N(C)N=O)c1ccccc1", "methyl[(1S)-1-phenylethyl]nitrous amide", id="arylalkyl"),
+        pytest.param("C/C=C/N(C)N=O", "methyl[(1E)-prop-1-en-1-yl]nitrous amide", id="double_bond"),
+        pytest.param("CC[C@H](C)N(C)[N+](=O)[O-]", "[(2S)-butan-2-yl](methyl)nitramide", id="nitramide"),
+        pytest.param("CC[C@H](C)N(N)N=O", "N-[(2S)-butan-2-yl]nitrous hydrazide", id="nitrous_hydrazide"),
+        pytest.param("CC[C@H](C)P(C)Cl", "[(2S)-butan-2-yl](methyl)phosphinous chloride", id="phosphinous_chloride"),
+    ],
+)
+def test_stereo_elements_of_substituents_on_a_nitrous_or_nitric_amide_are_cited(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
