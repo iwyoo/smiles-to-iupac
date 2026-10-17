@@ -11,6 +11,7 @@ from ._common import assembly_join, multiplied_word, ring_cycle, superscript_loc
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, numberings
 from ._multiplicative_text import CompositeLocant
+from ._ring_assembly_chain import _hetero_ring_alignments
 from ._substituents import format_substituent_prefixes, name_branch
 
 _LATIN = {3: "ter", 4: "quater", 5: "quinque", 6: "sexi"}
@@ -59,6 +60,32 @@ def _longest_paths(mol, rings):
     return result
 
 
+def _hydro_component_rings(mol, graph, rings):
+    """The rings of an assembly that are the hydro forms of its mancude components, which then take hydro prefixes
+    (P-54.3): benzene beside cyclohexane, cyclohexene or cyclohexadiene, pyridine beside piperidine; empty otherwise."""
+    from ._ring_assembly_chain import ring_kinds_with_hydro
+
+    kinds, hydro = ring_kinds_with_hydro(mol, graph, [tuple(r) for r in rings])
+    if None in kinds or len(set(kinds)) != 1 or not hydro or len(hydro) == len(rings):
+        return []
+    return hydro
+
+
+def _component_hydro(mol, locants, hydro_rings):
+    """The sorted (ring number, position) of the atoms taking hydro prefixes: every position of a saturated or partly
+    saturated six-membered ring, every one but the heteroatom of a five-membered ring (P-31.1.4.2.4)."""
+    from ._ring_assembly_chain import hydrogenated_atoms
+
+    found = []
+    for ring in hydro_rings:
+        for atom in hydrogenated_atoms(mol, ring):
+            ring_number, position = locants[atom]
+            if len(ring) == 5 and position == 1:
+                continue
+            found.append((ring_number, position))
+    return tuple(sorted(found))
+
+
 def _unit_systems(mol, graph, frees, within):
     from ._polyfunctional import _arm_atoms
     from ._system_assembly import _systems
@@ -92,18 +119,25 @@ def chain_assembly(
     if not frees and principal is not None and not occurrences:
         return None
     spec = None
+    hydro_rings = []
     if not any(fused):
-        specs = [_assembly_spec(mol, graph, r) for r in rings]
-        if any(s is None or s.kind == "pyrrole" for s in specs):
-            return None
-        if len({(s.kind, len(r)) for s, r in zip(specs, rings)}) != 1:
-            return None
-        spec = specs[0]
+        hydro_rings = _hydro_component_rings(mol, graph, rings)
+        if hydro_rings:
+            spec = _assembly_spec(mol, graph, next(r for r in rings if frozenset(r) not in hydro_rings))
+            if spec is None or spec.kind == "pyrrole":
+                return None
+        else:
+            specs = [_assembly_spec(mol, graph, r) for r in rings]
+            if any(s is None or s.kind == "pyrrole" for s in specs):
+                return None
+            if len({(s.kind, len(r)) for s, r in zip(specs, rings)}) != 1:
+                return None
+            spec = specs[0]
     elif len(rings) > _MAX_FUSED_UNITS:
         return None
     from ._system_assembly import _skeleton_key
 
-    if len({(_skeleton_key if any(fused) else _bare_key)(mol, set(r)) for r in rings}) != 1:
+    if not hydro_rings and len({(_skeleton_key if any(fused) else _bare_key)(mol, set(r)) for r in rings}) != 1:
         return None
     paths = _longest_paths(mol, rings)
     if not paths:
@@ -144,6 +178,8 @@ def chain_assembly(
                     LINK_ATOMS.reset(links)
                     SUFFIX_ATOMS.reset(token)
             if spec.hetero is not None:
+                if frozenset(ring_atoms) in hydro_rings:
+                    return [(n, None) for n in _hetero_ring_alignments(mol, graph, ring_atoms, spec.parent)]
                 if suffix_atoms & set(ring_atoms) and _hetero_mancude_ring(mol, set(ring_atoms)):
                     token = SUFFIX_ATOMS.set(suffix_atoms & set(ring_atoms))
                     links = LINK_ATOMS.set(frozenset(attach))
@@ -199,6 +235,10 @@ def chain_assembly(
                     full = even and all(info is not None and _fully_hydro(info) for info in infos)
                     added = tuple(sorted((i + 1, p) for i, info in enumerate(infos) if carries[i] for p in info.added_positions))
                     head = (tuple(lit), (stem, hydro, full), added)
+                if hydro_rings:
+                    own = head[1][1] if head[1] else ()
+                    merged = tuple(sorted(set(own) | set(_component_hydro(mol, locants, hydro_rings))))
+                    head = (head[0], (head[1][0] if head[1] else None, merged, False), head[2])
                 junction_text = [(locants[a], locants[b]) for a, b in pairs]
                 flat = [x for pair in junction_text for x in pair]
                 key = (
@@ -254,7 +294,8 @@ def chain_assembly(
         return ih_text + parent(elide)
 
     def bracketed(elide):
-        return f"{ih_text}[{parent(elide)}]"
+        lead = ih_text[:-1] if ih_text.endswith("hydro-") else ih_text
+        return f"{lead}[{parent(elide)}]"
 
     if frees:
         spots = ",".join(_cite(c) for c in sorted(locants[f[0]] for f in frees))

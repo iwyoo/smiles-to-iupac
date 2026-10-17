@@ -4000,7 +4000,21 @@ def _assembly_stereo_prefix(locants, stereo):
     return _branch_stereo_prefix(sorted((PrimedLocant(*locants[a]), code) for a, code in stereo.items() if a in locants))
 
 
-def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None, mol=None, stereo=None):
+def _assembly_hydro_positions(mol, hydro_rings, locants):
+    """The (prime count, position) of the atoms of the hydro rings of a two-ring assembly that take hydro prefixes: every
+    position of a six-membered ring, every one but the heteroatom of a five-membered ring (P-54.3, P-31.1.4.2.4)."""
+    from ._ring_assembly_chain import hydrogenated_atoms
+
+    found = []
+    for ring in hydro_rings:
+        for atom in hydrogenated_atoms(mol, ring):
+            if len(ring) == 5 and locants[atom][1] == 1:
+                continue
+            found.append(locants[atom])
+    return sorted(found, key=_locant_order)
+
+
+def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None, mol=None, stereo=None, hydro_rings=()):
     """Atom -> (prime count, locant) for the best numbering of two directly
     joined identical rings. Benzene and cycloalkane rings number from the
     junction (1 and 1'); heteroaromatic rings keep their fixed numbering and
@@ -4024,7 +4038,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
         ]
 
     best = None
-    unsaturated = bool(specs) and any(sp.kind == "cycloalkene" for sp in specs)
+    unsaturated = bool(specs) and any(sp.kind == "cycloalkene" for sp in specs) and not hydro_rings
     for unprimed in (0, 1):
         for first in orientations(unprimed):
             for second in orientations(1 - unprimed):
@@ -4043,6 +4057,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                     tuple(_locant_order(locants[a]) for a in cite_marked) if cite_marked else (),
                     closing,
                     ene,
+                    tuple(_locant_order(loc) for loc in _assembly_hydro_positions(mol, hydro_rings, locants)) if hydro_rings else (),
                     tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
                     _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),
                     _isotope_key({a: _locant_order(loc) for a, loc in locants.items()}, locants),
@@ -4295,7 +4310,8 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     if len(all_rings) > 2 and any(sp is not None and sp.kind == "cycloalkene" for sp in ring_specs):
         return None
     if not occurrences and not all(
-        _compatible_assembly_rings(mol, (all_rings[0], r), (ring_specs[0], sp)) for r, sp in zip(all_rings, ring_specs)
+        _compatible_assembly_rings(mol, (all_rings[0], r), (ring_specs[0], sp)) or _hydro_pair_rings(mol, graph, [all_rings[0], r])
+        for r, sp in zip(all_rings, ring_specs)
     ):
         return None
     best = None
@@ -4311,6 +4327,19 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
             if best is None or key < best[0]:
                 best = (key, (found[0], found[1]))
     return best[1] if best else None
+
+
+def _hydro_pair_rings(mol, graph, rings):
+    """The hydro ring of two directly joined rings that are the saturated and the mancude form of one ring, pyridine and
+    piperidine (P-54.3); empty for benzene beside cyclohexane, which keeps its substitutive name (cyclohexylbenzene)."""
+    from ._ring_assembly_chain import _has_ring_multiple_bond, ring_kinds_with_hydro
+
+    kinds, hydro = ring_kinds_with_hydro(mol, graph, [tuple(r) for r in rings])
+    if None in kinds or len(set(kinds)) != 1 or len(hydro) != 1:
+        return []
+    if kinds[0] == ("aromatic", 6) and not _has_ring_multiple_bond(mol, next(iter(hydro))):
+        return []
+    return hydro
 
 
 def _joined_pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names):
@@ -4445,12 +4474,17 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     if occurrences and any(o[1] not in set(rings[0]) | set(rings[1]) for o in occurrences):
         return None
     specs = [_assembly_spec(mol, graph, r, True) for r in rings]
-    if not _compatible_assembly_rings(mol, rings, specs):
+    hydro_rings = _hydro_pair_rings(mol, graph, rings) if all(sp is not None for sp in specs) else []
+    name_specs = specs
+    if hydro_rings:
+        mancude = next(sp for sp, r in zip(specs, rings) if frozenset(r) not in hydro_rings)
+        name_specs = [mancude, mancude]
+    elif not _compatible_assembly_rings(mol, rings, specs):
         return None
     joins = [(a, b) for a in rings[0] for b in rings[1] if mol.GetBondBetweenAtoms(a, b) is not None]
-    if len(joins) != 1 or not _replacement_junction_ok(mol, specs, joins[0]):
+    if len(joins) != 1 or not _replacement_junction_ok(mol, name_specs, joins[0]):
         return None
-    ylidene = _junction_is_ylidene(mol, joins[0], specs)
+    ylidene = _junction_is_ylidene(mol, joins[0], name_specs)
     if ylidene is None:
         return None
     owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
@@ -4462,7 +4496,9 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         if n.GetIdx() not in ring_atoms and n.GetIdx() not in owned
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
-    locants = _assembly_numbering(graph, rings, joins[0], [o[1] for o in occurrences], entries, specs, mol=mol)
+    locants = _assembly_numbering(
+        graph, rings, joins[0], [o[1] for o in occurrences], entries, specs, mol=mol, hydro_rings=hydro_rings
+    )
 
     def cite(locant):
         return f"{locant[1]}{chr(39) * locant[0]}"
@@ -4475,17 +4511,22 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     count = len(occurrences)
     grouped = assembly_n_names(grouped, n_names, {a: PrimedLocant(*loc) for a, loc in locants.items()}, count)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    ending = _assembly_unsaturation(specs, locants)
-    replacement = _assembly_replacement(mol, specs, locants, bool(principal) or bool(ending))
+    ending = _assembly_unsaturation(name_specs, locants)
+    replacement = _assembly_replacement(mol, name_specs, locants, bool(principal) or bool(ending))
+    hydro = ""
+    if hydro_rings:
+        spots = [cite(loc) for loc in _assembly_hydro_positions(mol, hydro_rings, locants)]
+        hydro = f"{','.join(spots)}-{multiplied_word(len(spots), 'hydro')}"
     if principal is None:
-        core = _assembly_base(specs, locants, joins[0], elide=False, ylidene=ylidene)
+        core = _assembly_base(name_specs, locants, joins[0], elide=False, ylidene=ylidene)
         core = f"{replacement}[{core}]-{ending}" if ending else replacement + core
+        core = f"{hydro}-{core}" if hydro else core
     else:
         word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
-        base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy" and not ending, ylidene=ylidene)
+        base = _assembly_base(name_specs, locants, joins[0], elide=word[0] in "aeiouy" and not ending, ylidene=ylidene)
         spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _locant_order(locants[o[1]])))
         enes = f"{ending[:-1] if word[0] in 'aeiouy' else ending}-" if ending else ""
-        core = f"{replacement}[{base}]-{enes}{spots}-{word}"
+        core = f"{hydro}{replacement}[{base}]-{enes}{spots}-{word}"
     name = assembly_join(prefix, core)
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core))), joins[0]
 
