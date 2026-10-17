@@ -744,6 +744,11 @@ def _name_isotope_label(mol) -> str:
             return _name_labelled_substituents(mol)
         except UnsupportedStructure:
             pass
+    if has_isotope_acid_hydrogen_shape(mol):
+        try:
+            return name_isotope_acid_hydrogen(mol)
+        except UnsupportedStructure:
+            pass
     try:
         return name_polyfunctional(mol)
     except UnsupportedStructure:
