@@ -328,7 +328,6 @@ from ._ring_imine import has_ring_imine_shape, name_ring_imine
 from ._methanediimine import has_methanediimine_shape, name_methanediimine
 from ._phosphanone import has_phosphanimine_shape, has_phosphanone_shape, name_phosphanimine, name_phosphanone
 from ._mononuclear_oxoacid import has_mononuclear_oxoacid_shape, name_mononuclear_oxoacid
-from ._sulfuric_amide import has_sulfuric_amide_shape, name_sulfuric_amide
 from ._phosphate import has_phosphate_shape, name_phosphate
 from ._phosphorus_thioester import has_phosphorus_thioester_shape, name_boron_peroxy_ester, name_phosphorus_thioester
 from ._dinuclear_oxoacid import has_dinuclear_oxoacid_shape, name_dinuclear_oxoacid
@@ -737,7 +736,6 @@ def _name_isotope_label(mol) -> str:
     if split is not None and (
         has_amino_acid_shape(split[0])
         or has_inorganic_acid_derivative_shape(split[0])
-        or has_sulfuric_amide_shape(split[0])
         or has_noncarbon_oxoacid_shape(split[0])
         or has_functional_replacement_oxoacid_shape(split[0])
     ):
@@ -2118,7 +2116,6 @@ def _name_mol(mol) -> str:
         # `name_phosphanone`'s validation, so this must be routed first, same
         # reason as phosphonic/phosphinic acid above.
         (has_mononuclear_oxoacid_shape, name_mononuclear_oxoacid),
-        (has_sulfuric_amide_shape, name_sulfuric_amide),
         (has_phosphate_shape, name_phosphate),
         # Thio analogues of the phosphate, phosphonate and phosphinate esters carry sulfur on the phosphorus.
         (has_phosphorus_thioester_shape, name_phosphorus_thioester),
