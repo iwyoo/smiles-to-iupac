@@ -550,7 +550,7 @@ def name_noncarbon_oxoacid(mol) -> str:
             parts = next(part for part in _acid_candidates(mol) if part["centre"].GetIdx() == centre)
             names.append((_name_from_parts(mol, parts, _centre_descriptor(mol, centre)), centre))
     name, centre = min(names, key=lambda entry: alphanumerical_name_key(entry[0]))
-    centre_nuclides(centre)
+    centre_nuclides(centre, oxygens=True)
     return name
 
 
@@ -569,7 +569,7 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
     graph, halogens, centre = parts["graph"], parts["halogens"], parts["centre"]
     parts["centre_entries"] = [name_branch(graph, c.GetIdx(), centre.GetIdx(), halogens, mol=mol) for c in parts["organyl"]]
     z = parts["z"]
-    nuclide = centre_nuclides(centre.GetIdx(), consume=False)
+    nuclide = centre_nuclides(centre.GetIdx(), consume=False, oxygens=True)
     singles, ylidenes = parts["singles"], parts["ylidenes"]
     acidic = any(s["H"] or s.get("anion") for s in singles)
     esters = [x for x in singles if x["kind"] == "ester"]

@@ -30,7 +30,7 @@ from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, multiplying_prefix, numerical_term
 
-_NUCLIDE = r"(?:[\d,]+-)?\d+[A-Z][a-z]?\d*"
+_NUCLIDE = r"(?:(?:[\d,]+|[A-Z][a-z]?\d*'*)-)?\d+[A-Z][a-z]?\d*"
 _LEADING_LOCANTS_RE = re.compile(rf"^\x01?(?:[\d,\-]+(?:\((?!{_NUCLIDE}(?:,{_NUCLIDE})*\)[A-Za-z]))?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 _LEADING_ISOTOPE_RE = re.compile(rf"^\x01?\({_NUCLIDE}(?:,{_NUCLIDE})*\)(?=[A-Za-z])")
@@ -1638,10 +1638,19 @@ def genuine_stereo_centres(mol):
     ]
 
 
+ISOTOPIC_CIP = ContextVar("isotopic_cip", default=None)
+
+
 def assign_cip_labels(mol):
     """`rdCIPLabeler.AssignCIPLabels` with the lowercase double-bond labels written as the descriptors of
-    enantiomorphic double bonds, seqCis and seqTrans (P-92.1.1, P-93.5.1.4.2.2)."""
+    enantiomorphic double bonds, seqCis and seqTrans (P-92.1.1, P-93.5.1.4.2.2). The centres made stereogenic only by
+    their nuclides, whose descriptors the unmodified structure cannot give, are read from `ISOTOPIC_CIP` (P-82.4.1)."""
     rdCIPLabeler.AssignCIPLabels(mol)
+    isotopic = ISOTOPIC_CIP.get()
+    if isotopic is not None and mol.GetNumAtoms() == isotopic[0]:
+        for index, code in isotopic[1].items():
+            if not mol.GetAtomWithIdx(index).HasProp("_CIPCode"):
+                mol.GetAtomWithIdx(index).SetProp("_CIPCode", code)
     for bond in mol.GetBonds():
         if bond.HasProp("_CIPCode") and bond.GetProp("_CIPCode") in _ENANTIOMORPHIC_BOND_CODE:
             bond.SetProp("_CIPCode", _ENANTIOMORPHIC_BOND_CODE[bond.GetProp("_CIPCode")])
@@ -1681,6 +1690,13 @@ def match_cip_labels(original, copy, origin=None):
             target.SetStereoAtoms(*target.GetStereoAtoms())
             target.SetStereo(_OPPOSITE_BOND_STEREO[target.GetStereo()])
             Chem.SetDoubleBondNeighborDirections(copy)
+
+
+def refuse_specified_stereo(mol):
+    """For a namer that cites no descriptor: a flat name would silently drop the specified stereo of `mol`, so the chain
+    engine, which cites it, names the structure instead."""
+    if any(e.specified == Chem.StereoSpecified.Specified for e in Chem.FindPotentialStereo(mol)):
+        raise UnsupportedStructure("the descriptors of a specified stereo element are cited by the chain engine")
 
 
 def specified_stereocenters(mol):
@@ -1999,4 +2015,4 @@ def assembly_join(prefix, core):
 def alphanumerical_name_key(name):
     """P-14.5: whole names compare by their letters alone; locants, enclosing marks, italic capitals (N, H) and isotope
     descriptors such as (81Br) are ignored."""
-    return re.sub(r"[^a-z]", "", re.sub(r"\((?:\d+-)?\d+[A-Z][a-z]?\d*(?:,(?:\d+-)?\d+[A-Z][a-z]?\d*)*\)", "", name))
+    return re.sub(r"[^a-z]", "", re.sub(rf"\({_NUCLIDE}(?:,{_NUCLIDE})*\)", "", name))

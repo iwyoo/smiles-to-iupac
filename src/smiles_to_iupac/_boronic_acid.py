@@ -1,40 +1,15 @@
-"""Naming of boronic acids (R-B(OH)2), per the IUPAC 2013 Recommendations
-("the Blue Book"):
+"""Naming of boronic acids R-B(OH)2 (P-68.1.4.1): the organyl group R is cited before the retained name.
 
-- P-68.1.4.1 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
-  'boronic acid' is the preselected retained name for HB(OH)2, and when
-  the hydrogen atom attached to boron is substituted by an organyl group
-  R, the substituent is cited directly as a prefix on the retained name --
-  'methylboronic acid' for CH3-B(OH)2 (PIN), not the substitutive
-  'methaneboronic acid' (see P-67.1.1.2, the same rule `_phosphonic_acid.py`
-  already applies for the phosphorus analogue -- identical shape, boron in
-  place of phosphorus, no P=O).
-  Confirmed against real PubChem structures: 'methylboronic acid'
-  (CID 139377, `CB(O)O`), 'phenylboronic acid' (CID 66827),
-  'butylboronic acid' (CID 20479), 'benzylboronic acid' (CID 11320956) --
-  a ring substituent uses the exact same shape as an acyclic one.
-
-Scope: a single boronic acid group (one boron bonded to exactly one
-non-oxygen substituent R and two hydroxyl oxygens -- boron has no
-double-bonded oxygen here, unlike phosphonic acid's P=O), with no other
-heteroatom anywhere in the molecule except the group's own oxygens and,
-in R, any halogen. R is named via `name_branch`, so it may be any
-substituent shape that helper already supports -- a plain alkyl chain, a
-branched chain, a plain benzene ring, or a halogenated variant of either
-(mirrors `_phosphonic_acid.py`'s own scope exactly). Explicitly out of
-scope (raise `UnsupportedStructure`): a second boronic acid group, borinic
-acid (two substituents on boron -- see `_borinic_acid.py`), coexistence
-with a more senior characteristic group, and any chalcogen-replacement
-analogue (thioboronic acid etc.).
+Any group of a class junior to the acid (P-41, P-42.3) is a prefix on R; a carboxylic, sulfur-group or
+phosphorus acid outranks the boronic acid, which then becomes the borono prefix.
 """
 
 from rdkit import Chem
 
-from ._acid_groups import acid_group_at
-from ._borinic_acid import BORON_ACID_ELEMENTS, _borinic_acid_boron_atoms
+from ._borinic_acid import _borinic_acid_boron_atoms, name_borinic_acid
 from ._multiplicative_text import enclose
-from ._hetero_prefixes import ACIDS_SENIOR_TO_BORON, boron_acid_parent
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 _BORON = 5
@@ -75,22 +50,15 @@ def name_boronic_acid(mol) -> str:
     junior_boron = {a.GetIdx() for a in _borinic_acid_boron_atoms(mol)}
 
     for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
+            raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx() and atom.GetIdx() not in junior_boron:
             raise UnsupportedStructure("more than one boron atom is not supported yet")
-        if atomic_num not in BORON_ACID_ELEMENTS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the boronic acid's own boron/"
-                "oxygens, nitrogen, sulfur and a halogen substituent are not supported yet"
-            )
 
     group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
-    if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON) or any(
-        acid_group_at(mol, a.GetIdx()) is not None for a in mol.GetAtoms()
-    ):
-        raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the boronic acid")
+    if acid_outranks_boron(mol):
+        raise UnsupportedStructure("a carboxylic, sulfur-group or phosphorus acid outranks the boronic acid")
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -103,4 +71,19 @@ def name_boronic_acid(mol) -> str:
     with boron_acid_parent(), cited_stereo_around(mol, boron.GetIdx()):
         name, is_compound = name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol)
     prefix = enclose(name) if is_compound else name
-    return f"{prefix}{centre_nuclides(boron.GetIdx())}boronic acid"
+    return f"{prefix}{centre_nuclides(boron.GetIdx(), oxygens=True)}boronic acid"
+
+
+def boron_acid_is_parent(mol) -> bool:
+    """A boronic or borinic acid whose boron carries only carbon groups (a boron bonded to N, S or Si is an
+    amide, thioester or silyl derivative named elsewhere) and that no senior acid outranks."""
+    groups = _boronic_acid_boron_atoms(mol) or _borinic_acid_boron_atoms(mol)
+    return (
+        bool(groups)
+        and all(n.GetAtomicNum() in (6, 8) for boron in groups for n in boron.GetNeighbors())
+        and not acid_outranks_boron(mol)
+    )
+
+
+def name_boron_acid(mol) -> str:
+    return name_boronic_acid(mol) if has_boronic_acid_shape(mol) else name_borinic_acid(mol)

@@ -173,7 +173,7 @@ def _name_halide(mol, found):
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     ending = "inous" if len(halides) == 1 else "onous"
     halide = _MULTIPLIER[len(halides)] + _HALIDE[halides[0].GetAtomicNum()]
-    return f"{prefix}{centre_nuclides(centre.GetIdx())}{CENTER_STEMS[centre.GetAtomicNum()]}{ending} {halide}"
+    return f"{prefix}{centre_nuclides(centre.GetIdx(), oxygens=True)}{CENTER_STEMS[centre.GetAtomicNum()]}{ending} {halide}"
 
 
 def _azinic_centre(mol):
@@ -202,7 +202,7 @@ def _name_azinic(mol, found):
     prefix = format_mononuclear_prefixes(entries) if len(entries) > 1 else (entries[0][0] if entries else "")
     if len(entries) == 1 and entries[0][1]:
         prefix = f"({prefix})"
-    return f"{prefix}{centre_nuclides(centre.GetIdx())}azinic acid"
+    return f"{prefix}{centre_nuclides(centre.GetIdx(), oxygens=True)}azinic acid"
 
 
 def has_inorganic_acid_derivative_shape(mol) -> bool:

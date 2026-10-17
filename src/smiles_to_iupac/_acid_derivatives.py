@@ -20,6 +20,7 @@ from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._isotope_labels import restore_labels
+from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
@@ -879,12 +880,25 @@ def _acid_rank(mol, atoms, links, entering):
     return bool(ringed), len(parent), substituents
 
 
+_ACID_CLASS_RANK = {"acyl": 0, "carbonic": 0, "cyanic": 0, "inorganic": 1}
+
+
+def _senior_acid_esters(mol, links):
+    """`links` without the esters of the noncarbon acids when an ester of a carbon or sulfur-group acid is present: an ester
+    takes the rank of its acid (P-41 classes 7a, 7b before 7c), and the esters of the junior acid are prefixes of the
+    organyl group."""
+    rank = {id(l): _ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) for l in links if l.kind == "ester"}
+    top = min(rank.values(), default=0)
+    return [l for l in links if l.kind != "ester" or rank[id(l)] == top]
+
+
 def name_ester(mol, links):
     _reject_unsupported(mol)
     if has_acyloxy_amine_group(mol):
         raise UnsupportedStructure("an acyclic nitrogen gives no traditional ester: the group is an acyloxy prefix (P-65.6.3.4.1)")
-    kinds = {_center(mol, l.center)[0] == "inorganic" for l in links}
-    if len(kinds) > 1 or kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
+    links = _senior_acid_esters(mol, links)
+    kinds = {_center(mol, l.center)[0] == "inorganic" for l in links if l.kind == "ester"}
+    if kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
         raise UnsupportedStructure("the seniority of this phosphorus or boron ester among the other groups is not decided here")
     esters = [l for l in links if l.kind == "ester"]
     graph = adjacency(mol)
@@ -937,6 +951,7 @@ def name_ester(mol, links):
     named = {}
     per_link = []
     token = BRANCH_STEREO.set(context)
+    prefixes = EXTENDED_PREFIXES.set(True)
     try:
         for l in chosen:
             name, compound = name_branch(graph, l.far, l.chain[-1], halogens, mol=mol)
@@ -945,6 +960,7 @@ def name_ester(mol, links):
             entry[2].append(_letters(mol, l))
             per_link.append((l, name))
     finally:
+        EXTENDED_PREFIXES.reset(prefixes)
         BRANCH_STEREO.reset(token)
     if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
         ("bond", b) not in context["used"] for b in context["bonds"]
@@ -1223,6 +1239,20 @@ def _alphabetical_acid_words(counts, class_word):
     return f"{' '.join(cited)} {class_word}"
 
 
+def _bridge_nuclide(mol, bridges):
+    """The descriptor of a labelled oxygen that is the only atom of the single bridge, cited in front of the class word
+    that denotes it (P-82.2.1); the oxygens of the acid components carry theirs in the acid words."""
+    context = ISOTOPE_LABELS.get()
+    if not context or context.get("mol") is not mol or len(bridges) != 1:
+        return ""
+    (chain, _, _), = bridges.values()
+    entry = context["labels"].get(chain[0]) if len(chain) == 1 else None
+    if entry is None or entry["H"] or not entry["skeleton"] or mol.GetAtomWithIdx(chain[0]).GetAtomicNum() != 8:
+        return ""
+    context["consumed"].add(chain[0])
+    return f"({entry['skeleton']})"
+
+
 def name_anhydride(mol, links):
     _reject_unsupported(mol)
     links = _senior_bridge_links(mol, links)
@@ -1261,7 +1291,7 @@ def name_anhydride(mol, links):
             _acid_group_count(mol, [a for a in frags[i] if a not in bridge_atoms], centers[i]) > 1 for i in components
         ):
             class_word = "monoanhydride"
-        return f"{text} {class_word}"
+        return f"{text} {_bridge_nuclide(mol, bridges)}{class_word}"
     hubs = [i for i in components if degrees[i] > 2]
     if hubs:
         if len(hubs) != 1:
@@ -1514,7 +1544,7 @@ def has_isotope_acyl_halide_shape(mol):
     if not any(a.GetIsotope() for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) != 1:
         return False
     links, acid = find_links(_without_nuclides(mol))
-    if not links or acid or not all(l.kind == "halide" for l in links):
+    if not links or acid or not all(l.kind in ("halide", "pseudohalide") for l in links):
         return False
     carbonyl_oxygens = {n.GetIdx() for l in links for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetAtomicNum() == 8}
     centres = {l.center for l in links}
@@ -1539,11 +1569,17 @@ def name_isotope_acyl_halide(mol):
 
     links, _ = find_links(_without_nuclides(mol))
     editable = Chem.RWMol(mol)
+    graph = adjacency(mol)
+    dropped = set()
     for l in links:
         atom = editable.GetAtomWithIdx(l.far)
         atom.SetAtomicNum(8)
         atom.SetNumExplicitHs(1)
         atom.SetNoImplicit(True)
+        atom.SetFormalCharge(0)
+        dropped |= _far_side(graph, l.far, l.center) - {l.far}
+    for idx in sorted(dropped, reverse=True):
+        editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
     name = f"{acyl_name(smiles_to_iupac(Chem.MolToSmiles(acid)))} {_class_words(mol, links)}"
@@ -1635,10 +1671,13 @@ def name_acid_derivative(mol):
     if name_appendix3_skeleton(mol) is not None:
         raise UnsupportedStructure("an acid derivative on an Appendix 3 retained parent is named on that parent")
     if acid:
-        if all(_center(mol, c)[0] in ("carbonic", "inorganic") for c in acid) and all(
-            l.kind == "ester" and _center(mol, l.center)[0] in ("carbonic", "inorganic") for l in links
-        ):
+        esters = [l for l in links if l.kind == "ester"]
+        if all(_center(mol, c)[0] in ("carbonic", "inorganic") for c in acid) and esters and all(
+            _center(mol, l.center)[0] in ("carbonic", "inorganic") for l in esters
+        ) and all(l.kind in ("ester", "halide") for l in links):
             return name_ester(mol, links)
+        if all(_center(mol, c)[0] == "carbonic" for c in acid) and all(l.kind == "anhydride" for l in links):
+            return name_anhydride(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
             if any("cyanic" in (_center(mol, l.center)[0], _center(mol, l.far)[0]) for l in links if l.kind == "anhydride"):
                 # P-67.1.2.4.1.3: an -OCN group on the acid is cited by functional replacement, the acid outranking the anhydride
@@ -1657,6 +1696,15 @@ def name_acid_derivative(mol):
     if "ester" in kinds:
         return _stereogenic_phosphorus_ester(mol, name_ester(mol, links))
     return name_acyl_halide(mol, links)
+
+
+def name_labelled_anhydride(mol):
+    """The anhydride name with the nuclides of its acid components and bridge cited, for a labelled structure whose
+    other acid derivatives keep their own part-wise names."""
+    links, _ = find_links(mol)
+    if not any(l.kind == "anhydride" for l in links):
+        raise UnsupportedStructure("no anhydride bridge")
+    return name_acid_derivative(mol)
 
 
 def _stereogenic_phosphorus_ester(mol, name):

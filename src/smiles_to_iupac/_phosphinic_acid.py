@@ -106,5 +106,5 @@ def _name_at(mol, phosphorus):
 
     with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
         entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
-    centre = centre_nuclides(phosphorus.GetIdx())
+    centre = centre_nuclides(phosphorus.GetIdx(), oxygens=True)
     return len(entries), f"{format_mononuclear_prefixes(entries)}{centre}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"

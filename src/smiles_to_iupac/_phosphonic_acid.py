@@ -84,7 +84,7 @@ def acid_centre_rank(mol, atom):
             organyl += 1
         else:
             return None
-    if not oxo and not hydroxyl:
+    if not hydroxyl:
         return _ELEMENT_RANK[atom.GetAtomicNum()], len(_ACID_CLASS_RANK)
     if hydroxyl + organyl != 3 or (oxo, hydroxyl) not in _ACID_CLASS_RANK:
         return None
@@ -175,4 +175,4 @@ def name_phosphonic_acid(mol) -> str:
     with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
         name, is_compound = name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol)
     prefix = enclose(name) if is_compound else name
-    return f"{prefix}{centre_nuclides(phosphorus.GetIdx())}{CENTER_STEMS[phosphorus.GetAtomicNum()]}onic acid"
+    return f"{prefix}{centre_nuclides(phosphorus.GetIdx(), oxygens=True)}{CENTER_STEMS[phosphorus.GetAtomicNum()]}onic acid"

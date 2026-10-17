@@ -60,8 +60,8 @@ def diacylhydrazine_name(mol):
     """The name of a molecule with an acyclic N-N bond whose nitrogens carry two or more acyl groups, else None."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
-    mol, labels = unlabelled_with_labels(mol)
-    if mol is None:
+    mol, labels = unlabelled_with_labels(mol, heteroatoms=True)
+    if mol is None or any(mol.GetAtomWithIdx(a).GetAtomicNum() not in (6, 8) for a in labels):
         return None
     pairs = []
     for a, b in _hydrazine_pair(mol):

@@ -7,7 +7,13 @@ from rdkit import Chem, rdBase
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._adduct import has_adduct_shape, has_bare_inorganic_component, has_inorganic_component, name_adduct
 from ._acyclic import name_acyclic_alkane
-from ._acid_derivatives import has_isotope_acyl_halide_shape, name_acid_derivative, name_isotope_acyl_halide, name_phosphorous_acid
+from ._acid_derivatives import (
+    has_isotope_acyl_halide_shape,
+    name_acid_derivative,
+    name_isotope_acyl_halide,
+    name_labelled_anhydride,
+    name_phosphorous_acid,
+)
 from ._acid_salts import name_acid_salt
 from ._hetero_carboxylic import name_hetero_parent_acid
 from ._polycarbonic import name_polycarbonic
@@ -141,7 +147,7 @@ from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._isotope_acid_hydrogen import has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen
 from ._appendix3_skeletons import name_appendix3_skeleton
 from ._borane import has_simple_borane_shape, name_simple_borane
-from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
+from ._boronic_acid import boron_acid_is_parent, has_boronic_acid_shape, name_boron_acid, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
 from ._metal_pair import has_metal_pair_shape, name_metal_pair
 from ._coordination import has_coordination_shape, name_coordination
@@ -177,7 +183,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -706,6 +712,17 @@ def _has_isotope_label(mol) -> bool:
     return any(a.GetIsotope() for a in mol.GetAtoms())
 
 
+def _name_keeping_labels(mol, namer):
+    """The name of `mol`, or None when `mol` has nuclide labels that this name leaves uncited."""
+    name = namer(mol)
+    if _has_isotope_label(mol):
+        try:
+            _require_isotopes_cited(mol, name)
+        except UnsupportedStructure:
+            return None
+    return name
+
+
 def _name_isotope_label(mol) -> str:
     from ._isotope_labels import split_isotopes
 
@@ -715,7 +732,13 @@ def _name_isotope_label(mol) -> str:
             return name_guanidine(mol)
         except UnsupportedStructure:
             pass
-    if split is not None and (has_amino_acid_shape(split[0]) or has_inorganic_acid_derivative_shape(split[0])):
+    if split is not None and (
+        has_amino_acid_shape(split[0])
+        or has_inorganic_acid_derivative_shape(split[0])
+        or has_sulfuric_amide_shape(split[0])
+        or has_noncarbon_oxoacid_shape(split[0])
+        or has_functional_replacement_oxoacid_shape(split[0])
+    ):
         try:
             return _name_labelled_substituents(mol)
         except UnsupportedStructure:
@@ -761,18 +784,27 @@ def _name_isotope_label(mol) -> str:
 
 def _same_descriptors(mol, clean, index):
     """Whether every stereo element has the same CIP descriptor with and without the nuclides (P-92.1.4)."""
+    return _isotopic_centres(mol, clean, index) is not None
+
+
+def _isotopic_centres(mol, clean, index):
+    """{atom of `clean`: descriptor} of the centres that only their nuclides make stereogenic (P-82.4.1) when every other
+    stereo element has the same descriptor with and without the nuclides; None when a descriptor changes."""
     labelled, plain = Chem.Mol(mol), Chem.Mol(clean)
     assign_cip_labels(labelled)
     assign_cip_labels(plain)
-    atoms = {index[a.GetIdx()]: a.GetProp("_CIPCode") for a in labelled.GetAtoms() if a.HasProp("_CIPCode")}
+    atoms = {index[a.GetIdx()]: a.GetProp("_CIPCode") for a in labelled.GetAtoms() if a.HasProp("_CIPCode") and a.GetIdx() in index}
     bonds = {
         frozenset((index[b.GetBeginAtomIdx()], index[b.GetEndAtomIdx()])): b.GetProp("_CIPCode")
         for b in labelled.GetBonds()
         if b.HasProp("_CIPCode")
     }
-    return atoms == {a.GetIdx(): a.GetProp("_CIPCode") for a in plain.GetAtoms() if a.HasProp("_CIPCode")} and bonds == {
+    known = {a.GetIdx(): a.GetProp("_CIPCode") for a in plain.GetAtoms() if a.HasProp("_CIPCode")}
+    if bonds != {
         frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())): b.GetProp("_CIPCode") for b in plain.GetBonds() if b.HasProp("_CIPCode")
-    }
+    } or any(atoms.get(i) != code for i, code in known.items()):
+        return None
+    return {i: code for i, code in atoms.items() if i not in known}
 
 
 def _name_labelled_substituents(mol):
@@ -784,38 +816,58 @@ def _name_labelled_substituents(mol):
     if split is None:
         raise UnsupportedStructure("this isotopically modified structure is not supported yet")
     clean, labels, index = split
-    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) and not _same_descriptors(
-        mol, clean, index
-    ):
-        raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
+    isotopic = {}
+    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
+        isotopic = _isotopic_centres(mol, clean, index)
+        if isotopic is None:
+            raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
     context = {"labels": labels, "consumed": set(), "mol": clean}
     token = ISOTOPE_LABELS.set(context)
+    cip_token = ISOTOPIC_CIP.set((clean.GetNumAtoms(), isotopic) if isotopic else None)
     try:
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
-            name, partial = None, None
-            for namer in (name_chalcogen_imide, _name_mol, name_polynuclear_oxoacid, name_chalcogen_chain_heterone):
+            name, partial, failure = None, None, None
+            for namer in (_oxoacid_name, name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS, name_carbonic_family, name_labelled_anhydride):
                 context["consumed"].clear()
                 try:
                     candidate = namer(clean)
-                except UnsupportedStructure:
-                    if namer is name_chalcogen_chain_heterone and partial is None:
-                        raise
+                except UnsupportedStructure as error:
+                    failure = error if namer is _name_mol else failure
                     continue
                 if not set(labels) - context["consumed"]:
                     name, partial = candidate, None
                     break
                 partial = partial or (candidate, set(context["consumed"]))
+            if name is None and partial is None:
+                raise failure or UnsupportedStructure("this isotopically modified structure is not supported yet")
             if name is None:
                 name = partial[0]
                 context["consumed"].clear()
                 context["consumed"].update(partial[1])
     finally:
+        ISOTOPIC_CIP.reset(cip_token)
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
         name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"])
+    if isotopic and not _cites_every_stereo_element(mol, name):
+        raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
     _require_isotopes_cited(mol, name)
     return name
+
+
+def _oxoacid_name(clean):
+    """The name of a mononuclear oxoacid or its functional replacement analogue by the dedicated namers, which stand ahead of
+    the phosphinic and phosphonic acid prefixes in the order of the unmodified names."""
+    if _is_nucleoside_derivative(clean) or (carries_only_element_hydride_groups(clean) and has_carbonic_amide_parent(clean)):
+        raise UnsupportedStructure("this structure is not named as a mononuclear oxoacid")
+    for has_shape, namer in (
+        (has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid),
+        (has_functional_replacement_oxoacid_shape, name_functional_replacement_oxoacid),
+    ):
+        if has_shape(clean):
+            return namer(clean)
+    raise UnsupportedStructure("this structure is not named as a mononuclear oxoacid")
 
 
 _PARENT_ATOM_STEM = {
@@ -860,21 +912,28 @@ def _labelled_namer(namer):
         from ._isotope_labels import split_isotopes
 
         clean, labels, index = split_isotopes(mol)
+        only_oxygen = sum(1 for atom in clean.GetAtoms() if atom.GetAtomicNum() == 8) == 1
         if any(
             clean.GetAtomWithIdx(a).GetAtomicNum() not in (6, 5, 14, 15, 16, 33, 34, 51, 52)
+            and not (clean.GetAtomWithIdx(a).GetAtomicNum() == 8 and only_oxygen)
             and not (clean.GetAtomWithIdx(a).GetAtomicNum() in HALOGEN_PREFIXES and clean.GetAtomWithIdx(a).GetDegree() == 1)
             for a in labels
         ):
             raise UnsupportedStructure("a nuclide on a heteroatom is cited with a letter locant, not by the parts of the name")
-        if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()) and not _same_descriptors(
-            mol, clean, index
-        ):
-            raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
+        isotopic = {}
+        if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
+            isotopic = _isotopic_centres(mol, clean, index)
+            if isotopic is None:
+                raise UnsupportedStructure("the nuclides change the stereodescriptors of this structure")
         token = ISOTOPE_LABELS.set({"labels": labels, "consumed": set(), "mol": clean})
+        cip_token = ISOTOPIC_CIP.set((clean.GetNumAtoms(), isotopic) if isotopic else None)
         try:
             result = namer(clean)
         finally:
+            ISOTOPIC_CIP.reset(cip_token)
             ISOTOPE_LABELS.reset(token)
+        if isotopic and not _cites_every_stereo_element(mol, result):
+            raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
         _require_isotopes_cited(mol, result)
         return result
 
@@ -949,6 +1008,11 @@ def _require_isotopes_cited(mol, name):
     if not expected:
         return
     cited = _cited_nuclides(name)
+    forced = FORCED_BRANCH_NAMES.get()
+    for forced_name, _ in forced[1].values() if forced else ():
+        if forced_name in name:
+            for key, count in _cited_nuclides(forced_name).items():
+                cited[key] = cited.get(key, 0) - count
     for key, count in expected.items():
         if key not in name:
             raise UnsupportedStructure(f"the name does not cite the {key} nuclide label")
@@ -1052,9 +1116,13 @@ def _name_unabridged_body(smiles: str) -> str:
             and not _is_nucleoside_derivative(parsed)
             and not (carries_only_element_hydride_groups(parsed) and has_carbonic_amide_parent(parsed))
         ):
-            return name_noncarbon_oxoacid(parsed)
+            name = _name_keeping_labels(parsed, name_noncarbon_oxoacid)
+            if name is not None:
+                return name
         if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
-            return name_functional_replacement_oxoacid(parsed)
+            name = _name_keeping_labels(parsed, name_functional_replacement_oxoacid)
+            if name is not None:
+                return name
         if parsed is not None and parsed.GetNumAtoms() > 4:
             try:
                 return name_polynuclear_oxoacid(parsed, priority=True)
@@ -1092,6 +1160,9 @@ def _name_unabridged_body(smiles: str) -> str:
             parts = lewis_adduct_mol(parsed)
             if parts is not None and has_adduct_shape(parts):
                 return mark(name_adduct(parts, smiles_to_iupac), _NO_PIN_ADDUCT)
+        if parsed is not None and boron_acid_is_parent(parsed):
+            with contextlib.suppress(UnsupportedStructure):
+                return name_boron_acid(parsed)
         if parsed is not None:
             diacylamine = diacylamine_name(parsed)
             if diacylamine is not None:
@@ -1177,6 +1248,7 @@ def _name_unabridged_body(smiles: str) -> str:
             ):
                 try:
                     candidate = namer(parsed)
+                    _require_isotopes_cited(parsed, candidate)
                 except UnsupportedStructure:
                     continue
                 # these namers do not cite stereodescriptors, so a flat name would silently drop the stereo
@@ -1495,6 +1567,35 @@ def _name_hydride_onium(mol):
     return name_hydride_onium(mol)
 
 
+_FALLBACK_NAMERS = (
+    name_chalcogen_aldehyde,
+    name_carbonic_hydrazide,
+    name_chalcogen_hydrazide,
+    name_ring_nitrogen_hydrazide,
+    name_condensed_guanidine,
+    name_ring_heteroatom_nitrile,
+    name_polynuclear_oxoacid,
+    name_halogen_amide,
+    name_halogen_acid_ester,
+    name_halogen_oxo,
+    name_hydrazine_with_heteroatom_groups,
+    name_polyfunctional,
+    name_guanidine,
+    name_urea,
+    name_thiourea,
+    name_selenourea,
+    name_tellurourea,
+    name_carbamate_ester,
+    _name_o_substituted_hydroxylamine,
+    _name_hydride_onium,
+    _name_chain_onium,
+    name_anion,
+    name_carbonic_ester_anion,
+    name_ester_by_parts,
+    name_chalcogen_chain_heterone,
+)
+
+
 def _run_fallbacks(smiles, original):
     mol = _parse_smiles(smiles)
     key = Chem.MolToSmiles(mol)
@@ -1514,33 +1615,7 @@ def _run_fallbacks(smiles, original):
                 continue
             if name is not None:
                 return name
-        for fallback in (
-            name_chalcogen_aldehyde,
-            name_carbonic_hydrazide,
-            name_chalcogen_hydrazide,
-            name_ring_nitrogen_hydrazide,
-            name_condensed_guanidine,
-            name_ring_heteroatom_nitrile,
-            name_polynuclear_oxoacid,
-            name_halogen_amide,
-            name_halogen_acid_ester,
-            name_halogen_oxo,
-            name_hydrazine_with_heteroatom_groups,
-            name_polyfunctional,
-            name_guanidine,
-            name_urea,
-            name_thiourea,
-            name_selenourea,
-            name_tellurourea,
-            name_carbamate_ester,
-            _name_o_substituted_hydroxylamine,
-            _name_hydride_onium,
-            _name_chain_onium,
-            name_anion,
-            name_carbonic_ester_anion,
-            name_ester_by_parts,
-            name_chalcogen_chain_heterone,
-        ):
+        for fallback in _FALLBACK_NAMERS:
             try:
                 name = fallback(mol)
             except UnsupportedStructure:
@@ -1811,7 +1886,8 @@ def _name_mol(mol) -> str:
     # before this shape's own num_rings==3..6 check would run if it stayed
     # down with the other ring modules further below.
     boron_acid = has_boronic_acid_shape(mol) or has_borinic_acid_shape(mol)
-    if 3 <= mol.GetRingInfo().NumRings() <= 6 and not boron_acid:
+    acid_centre = boron_acid or has_phosphonic_acid_shape(mol) or has_phosphinic_acid_shape(mol)
+    if 3 <= mol.GetRingInfo().NumRings() <= 6 and not acid_centre:
         ring_assembly_chain_core = find_ring_assembly_chain_core(mol)
         if ring_assembly_chain_core is not None:
             return name_ring_assembly_chain(mol, ring_assembly_chain_core)
@@ -1824,7 +1900,7 @@ def _name_mol(mol) -> str:
     # 6-membered aromatic carbocycle and doesn't require the rings to be
     # fused, so it would otherwise claim the benzo case too and then fail in
     # name_aromatic_fused's ring-fusion-graph validation).
-    if mol.GetRingInfo().NumRings() == 2 and not boron_acid:
+    if mol.GetRingInfo().NumRings() == 2 and not acid_centre:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)

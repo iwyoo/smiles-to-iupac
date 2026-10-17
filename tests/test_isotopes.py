@@ -3,6 +3,21 @@ from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
+# P-82.2.1, P-82.6.1.2: the carbonyl oxygen, the only oxygen of the molecule, is cited in front of the acyl compound without a locant
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=[18O])NN", "(18O)acetohydrazide", id="hydrazide"),
+        pytest.param("CC(=[18O])N=[N+]=[N-]", "(18O)acetyl azide", id="acyl_azide"),
+        pytest.param("CC(=[18O])SC", "S-methyl (18O)ethanethioate", id="thioester"),
+        pytest.param("CC=[18O]", "(18O)acetaldehyde", id="retained_aldehyde_name"),
+        pytest.param("[18O]=Cc1ccc(Cl)cc1", "4-chloro(18O)benzaldehyde", id="substituted_retained_aldehyde_name"),
+    ],
+)
+def test_carbonyl_oxygen_of_an_acyl_compound(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -292,7 +307,7 @@ def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
     assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
-@pytest.mark.parametrize("smiles", ["C[15N+](C)(C)[O-]", "[2H]I(C)C"])
+@pytest.mark.parametrize("smiles", ["C[N+](C)(C)[18O-]", "[2H]I(C)C"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -457,15 +472,15 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("CCC(=O)[18O]CC", "O-ethyl propan(18O1)oate", id="labelled_ester_oxygen"),
+        pytest.param("CCC(=O)[18O]CC", "18O-ethyl propan(18O1)oate", id="labelled_ester_oxygen"),
         pytest.param("CCC(=[18O])OCC", "O-ethyl propan(18O1)oate", id="labelled_carbonyl_oxygen_of_an_ester"),
         pytest.param("COC(=O)O[2H]", "methyl (2H)hydrogen carbonate", id="labelled_hydrogen_of_a_carbonate_half_ester"),
         pytest.param("COC(=O)[18OH]", "O-methyl hydrogen (18O1)carbonate", id="labelled_hydroxy_oxygen_of_a_carbonate_half_ester"),
-        pytest.param("CC[18O]C(=O)OC", "O-ethyl O-methyl (18O1)carbonate", id="labelled_bridging_oxygen_of_a_carbonate"),
+        pytest.param("CC[18O]C(=O)OC", "18O-ethyl O-methyl (18O1)carbonate", id="labelled_bridging_oxygen_of_a_carbonate"),
         pytest.param("CCOC(=[18O])[18O]C", "O-ethyl 18O-methyl (18O2)carbonate", id="two_labelled_oxygens_of_a_carbonate"),
         pytest.param("CCOC(=[18O])OCC", "O,O-diethyl (18O1)carbonate", id="labelled_carbonyl_oxygen_of_a_symmetric_carbonate"),
         pytest.param("CC(=[18O])OC", "O-methyl acet(18O1)ate", id="labelled_acetate_carbonyl"),
-        pytest.param("O=C([18O]C)c1ccccc1", "O-methyl benz(18O1)oate", id="labelled_benzoate_ester_oxygen"),
+        pytest.param("O=C([18O]C)c1ccccc1", "18O-methyl benz(18O1)oate", id="labelled_benzoate_ester_oxygen"),
         pytest.param("OC(=O)c1ccc(cc1)C(C)(C)[13CH3]", "4-[2-methyl(1-13C)propan-2-yl]benzoic acid", id="modified_tert_butyl_loses_its_retained_name"),
         pytest.param("OC(=O)c1ccc(cc1)[13C](C)(C)C", "4-[2-methyl(2-13C)propan-2-yl]benzoic acid", id="modified_quaternary_carbon_of_tert_butyl"),
         pytest.param("[2H]C([2H])([2H])C", "(1,1,1-2H3)ethane", id="locants_kept_when_isomers_exist"),
@@ -478,6 +493,22 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
     ],
 )
 def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=[18O])OC(=O)C", "(O-18O)acetic acetic anhydride", id="carbonyl_oxygen_of_one_acyl_group"),
+        pytest.param("CC(=O)[18O]C(=O)C", "acetic (18O)anhydride", id="bridging_oxygen_cited_before_the_class_word"),
+        pytest.param("CCC(=O)OC(=[18O])c1ccccc1", "(O-18O)benzoic propanoic anhydride", id="modified_acid_ordered_by_its_letters"),
+        pytest.param("CC(=O)OC(N)=[18O]", "acetic (O-18O)carbamic anhydride", id="carbonyl_oxygen_of_a_carbamic_component"),
+        pytest.param("CC(=O)OC(=[18O])OC", "acetic (O-methyl hydrogen (18O1)carbonate) anhydride", id="carbonyl_oxygen_of_a_carbonic_component"),
+        pytest.param("CC(=O)OC(=O)[18O]C", "acetic (18O-methyl hydrogen (18O1)carbonate) anhydride", id="ester_oxygen_of_a_carbonic_component"),
+        pytest.param("NC(=[18O])O", "(O-18O)carbamic acid", id="labelled_carbamic_acid"),
+    ],
+)
+def test_isotope_on_anhydride_oxygens(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
@@ -700,6 +731,9 @@ def test_nuclide_in_the_organyl_group_of_an_oxoacid_ester_or_acyl_prefix(smiles,
         pytest.param("C[C@@]12[C@@H]([C@H](C)CC[C@@H]([2H])C(C)C)CC[C@H]1[C@@H]1CC[C@H]3CCCC[C@]3(C)[C@H]1CC2", "(24R)-5α-(24-2H1)cholestane", id="side_chain_centre_made_stereogenic_by_deuterium"),
         pytest.param("C[C@@]12[C@@H]([C@H](C)CC[C@H]([2H])C(C)C)CC[C@H]1[C@@H]1CC[C@H]3CCCC[C@]3(C)[C@H]1CC2", "(24S)-5α-(24-2H1)cholestane", id="other_configuration_of_the_same_centre"),
         pytest.param("[2H][C@]1(CC)CC[C@H]2[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3CC[C@@]21C", "5α-(17-2H)pregnane", id="existing_centre_needs_no_descriptor"),
+        pytest.param("C[C@H](CC[C@@H]([2H])C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CC[C@@H](C4)O)C)C", "(24R)-5α-(24-2H1)cholestan-3β-ol", id="hydroxy_suffix_after_the_configuration"),
+        pytest.param("C[C@H](CC[C@@H]([2H])C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC=C4[C@@]3(CC[C@@H](C4)O)C)C", "(24R)-(24-2H1)cholest-5-en-3β-ol", id="unsaturated_parent_with_a_hydroxy_suffix"),
+        pytest.param("C[C@]12CC[C@H]3[C@@H](CCC4=CC(=O)[13CH2]C[C@@]43C)[C@@H]1CC[C@@H]2O", "17β-hydroxy(2-13C)androst-4-en-3-one", id="nuclide_after_a_prefix_of_the_parent"),
     ],
 )
 def test_isotopically_modified_steroid_parent_hydride(smiles, expected):
@@ -773,11 +807,40 @@ def test_hydrogen_nuclides_on_the_nitrogens_of_a_semicarbazide(smiles, expected)
         pytest.param("[13CH3]C(=O)NNC(C)=O", "N'-acetyl(2-13C)acetohydrazide", id="carbon_nuclide"),
         pytest.param("[2H]N(NC(C)=O)C(C)=O", "N'-acetyl(N-2H)acetohydrazide", id="nitrogen_nuclide_takes_the_lower_locant_N"),
         pytest.param("CC(=O)N([2H])N([2H])C(C)=O", "N'-acetyl(N,N'-2H2)acetohydrazide", id="both_nitrogens"),
-        pytest.param("[2H]C([2H])([2H])C(=O)NNC(=O)C([2H])([2H])[2H]", "N'-(2H3)acetyl(2,2,2-2H3)acetohydrazide", id="both_acyl_groups"),
+        pytest.param("[2H]C([2H])([2H])C(=O)NNC(=O)C([2H])([2H])[2H]", "N'-[(2H3)acetyl](2,2,2-2H3)acetohydrazide", id="both_acyl_groups"),
         pytest.param("[2H]CCC(=O)NNC(=O)CC", "N'-propanoyl(3-2H1)propanehydrazide", id="longer_chain"),
     ],
 )
 def test_nuclides_on_a_diacylhydrazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.3.3: the nitrogen of the amide parent takes its nuclide in front of the amide name, the sulfur of the
+# sulfonyl group in front of the hydride name inside its prefix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)[15NH]S(C)(=O)=O", "N-(methanesulfonyl)(15N)acetamide", id="amide_nitrogen_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)N[34S](C)(=O)=O", "N-[(34S)methanesulfonyl]acetamide", id="sulfonyl_sulfur_of_an_acylsulfonamide"),
+        pytest.param("CC(=O)[15NH]C(C)=O", "N-acetyl(15N)acetamide", id="nitrogen_of_a_diacylamine"),
+    ],
+)
+def test_nuclides_on_an_acylsulfonamide_or_diacylamine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.1, P-41: a group that outranks the others is the parent whatever else the chain carries, and the nuclides of a
+# chain that is the parent skeleton of a polyol ester stand in front of that skeleton
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]CC(NC(N)=O)CS(=O)(=O)C", "[1-(methanesulfonyl)(3-2H1)propan-2-yl]urea", id="urea_beside_a_sulfone"),
+        pytest.param("[2H]CC(NC(=N)N)CS(=O)C", "N-[1-(methanesulfinyl)(3-2H1)propan-2-yl]guanidine", id="guanidine_beside_a_sulfoxide"),
+        pytest.param("[2H]CC(OC(=O)C)COC(N)=O", "(3-2H1)propane-1,2-diyl 2-acetate 1-carbamate", id="polyol_skeleton_of_two_esters"),
+        pytest.param("[NH3+]C[13CH2]P(=O)([O-])O", "hydrogen [2-azaniumyl(1-13C)ethyl]phosphonate", id="phosphonate_monoanion"),
+    ],
+)
+def test_nuclide_on_a_chain_beside_a_senior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
@@ -847,6 +910,34 @@ def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expecte
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.4.1, P-92.1.4: a carbon made stereogenic only by its nuclides cites its descriptor in front of the group that holds it
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H][C@@H](C)NC(N)=O", "[(1S)-(1-2H1)ethyl]urea", id="urea"),
+        pytest.param("[2H][C@@H](C)NC(=O)OC", "methyl [(1S)-(1-2H1)ethyl]carbamate", id="carbamate_ester"),
+        pytest.param("[2H][C@H](C)OC(=O)OC", "(1R)-(1-2H1)ethyl methyl carbonate", id="carbonate_ester_cited_in_alphanumerical_order"),
+        pytest.param("[2H][C@H](C)B(O)O", "[(1S)-(1-2H1)ethyl]boronic acid", id="boron_ranks_below_carbon"),
+    ],
+)
+def test_stereocentre_made_by_nuclides_beside_a_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.2: a labelled organyl group of an acid is cited in front of its own name, whichever dedicated namer names the acid
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[13CH3]CNC(=O)O", "(2-13C)ethylcarbamic acid", id="carbamic_acid"),
+        pytest.param("[13CH3]CCB(O)O", "(3-13C)propylboronic acid", id="boronic_acid"),
+        pytest.param("[13CH3]C([N+](=O)[O-])CB(O)O", "[2-nitro(3-13C)propyl]boronic acid", id="boronic_acid_with_a_nitro_prefix"),
+        pytest.param("[13CH3]CP(=O)(O)Cl", "(2-13C)ethylphosphonochloridic acid", id="functional_replacement_phosphonic_acid"),
+    ],
+)
+def test_labelled_organyl_group_of_an_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-82.5.1: a nuclide on an acid centre of a chain takes the chain locant; on a sulfur imide it stands in front of the imino prefix or suffix
 @pytest.mark.parametrize(
     "smiles,expected",
@@ -869,7 +960,57 @@ def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected
         pytest.param("ClC[13C](=O)NC(=O)c1ccccc1", "N-[chloro(1-13C)acetyl]benzamide", id="substituted_acetyl"),
         pytest.param("NC[13C](=O)NC(=O)c1ccccc1", "N-[amino(1-13C)acetyl]benzamide", id="amino_acid_acyl_without_its_retained_name"),
         pytest.param("C[13C](=O)N(C(C)=O)C(=O)c1ccccc1", "N-[(1-13C)acetyl]-N-acetylbenzamide", id="labelled_acyl_beside_an_identical_unlabelled_one"),
+        pytest.param("CC[13C](=O)NC(=O)c1ccccc1", "N-[(1-13C)propanoyl]benzamide", id="acyl_group_other_than_acetyl"),
+        pytest.param("C[13C](=[18O])NNC(=O)c1ccccc1", "N'-[(1-13C,18O)acetyl]benzohydrazide", id="carbonyl_oxygen_with_the_carbon_on_a_hydrazide"),
+        pytest.param("CC(=[18O])NC(=O)c1ccccc1", "N-(18O)acetylbenzamide", id="carbonyl_oxygen_of_the_acyl_prefix"),
+        pytest.param("C[13C](=O)NC(=O)NC(C)=O", "N-(acetylcarbamoyl)(1-13C)acetamide", id="acyl_inside_a_carbamoyl_prefix"),
+        pytest.param("C[13C](=O)NC(=O)NC(=O)c1ccccc1", "N-{[(1-13C)acetyl]carbamoyl}benzamide", id="labelled_acyl_inside_the_carbamoyl_prefix_of_a_senior_amide"),
+        pytest.param("C[13C](=O)NNC(=O)[13c]1ccccc1", "N'-[(1-13C)acetyl](1-13C)benzohydrazide", id="labelled_parent_and_labelled_acyl_prefix"),
     ],
 )
 def test_nuclide_on_the_carbonyl_carbon_of_an_n_acyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.5.1, P-62.5: the nuclide of the oxidized nitrogen stands in front of the amine name as for the neutral amine, the class word follows
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[15N+](C)(C)[O-]", "N,N-dimethyl(15N)methanamine N-oxide", id="acyclic_amine_oxide"),
+        pytest.param("C[15N+]1([O-])CCCCC1", "1-methyl(15N)piperidine 1-oxide", id="ring_amine_oxide"),
+        pytest.param("[O-][15n+]1ccncc1", "(1-15N)pyrazine 1-oxide", id="oxidized_nitrogen_of_a_diazine"),
+        pytest.param("[O-][n+]1cc[15n]cc1", "(4-15N)pyrazine 1-oxide", id="other_nitrogen_of_a_diazine_oxide"),
+    ],
+)
+def test_nuclide_on_the_nitrogen_of_an_n_oxide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-74.1.3: the descriptor of a zwitterion whose anion is the parent stands in front of the parent hydride, a nuclide of the cationic nitrogen in front of its prefix stem
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]C([NH3+])C[O-]", "2-azaniumyl(2-2H1)ethan-1-olate", id="chain_of_an_ammonium_olate"),
+        pytest.param("[2H]C([N+](C)(C)C)C[O-]", "2-(trimethylazaniumyl)(2-2H1)ethan-1-olate", id="chain_of_a_quaternary_ammonium_olate"),
+        pytest.param("C[15N+](C)(C)CC[O-]", "2-[trimethyl(15N)azaniumyl]ethan-1-olate", id="cationic_nitrogen_of_the_prefix"),
+    ],
+)
+def test_nuclide_in_a_zwitterion_with_an_olate_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.2: a nuclide on an oxygen of an acid group takes the letter locant O and, with the nuclide of the centre, shares its descriptor
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CP(=O)(O)[18OH]", "methyl(O-18O)phosphonic acid", id="phosphonic_acid"),
+        pytest.param("O=[31P](O)(O)[18OH]", "(O-18O,31P)phosphoric acid", id="oxygen_and_centre_in_one_descriptor"),
+        pytest.param("OB([18OH])c1ccccc1", "phenyl(O-18O)boronic acid", id="boronic_acid"),
+        pytest.param("CP(=[18O])(Cl)Cl", "methyl(O-18O)phosphonic dichloride", id="acid_halide"),
+        pytest.param("O=C(O)CP(O)(O)=[18O]", "(O-18O)phosphonoacetic acid", id="phosphono_prefix"),
+        pytest.param("CS(N)(=O)=[18O]", "(O-18O)methanesulfonamide", id="sulfonamide"),
+        pytest.param("NS(=O)(=O)[18OH]", "(O-18O)sulfamic acid", id="sulfamic_acid"),
+    ],
+)
+def test_nuclide_on_an_oxygen_of_an_acid_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

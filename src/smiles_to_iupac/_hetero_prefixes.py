@@ -108,6 +108,7 @@ def _has_senior_principal_group(mol):
     present, so that connection is expressed as a prefix (P-41, P-29.4.1); a cationic parent outranks every group."""
     return (
         CATION_PARENT.get()
+        or BORON_ACID_PARENT.get()
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_SULFONYL)
         or mol.HasSubstructMatch(_HEAVY_CHALCOGENOL)
@@ -491,8 +492,8 @@ def _mark_stereo_used(mol, graph, carbon, from_atom):
         )
 
 
-def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
-    from ._substituents import name_branch
+def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms, label_acyl=False):
+    from ._substituents import label_functional_branch, name_branch
 
     out = []
     for a in atoms:
@@ -500,7 +501,8 @@ def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
             mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() == 2.0
             for n in graph[a]
         ):
-            out.append(_functional_carbon(graph, a, parent, halogens, aromatic_atoms, mol))
+            acyl = _functional_carbon(graph, a, parent, halogens, aromatic_atoms, mol)
+            out.append(label_functional_branch(acyl, graph, a, parent, halogens, mol) if label_acyl else acyl)
         else:
             out.append(name_branch(graph, a, parent, halogens, aromatic_atoms, mol=mol))
     return out
@@ -1593,7 +1595,7 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if len(tail) == 1 and mol.GetAtomWithIdx(tail[0]).GetAtomicNum() == 6:
                 rname, rcomp = name_branch(graph, tail[0], subs[0], halogens, aromatic_atoms, mol=mol)
                 return f"2-{_enclose(rname, rcomp)}diazene-1-carbonyl", True
-        name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
+        name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms, label_acyl=True))
         return _amino_stem(name) + "carbamoyl", True
     if z == 6:
         try:
@@ -2117,15 +2119,28 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
 def boron_acid_parent():
     """A boronic or borinic acid is the parent, so a junior boron acid group is cited as a boranyl prefix (P-42.3)."""
     token = BORON_ACID_PARENT.set(True)
+    extended = EXTENDED_PREFIXES.set(True)
     try:
         yield
     finally:
+        EXTENDED_PREFIXES.reset(extended)
         BORON_ACID_PARENT.reset(token)
 
 
 ACIDS_SENIOR_TO_BORON = [
-    Chem.MolFromSmarts(smarts) for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)[OX2H1]")
+    Chem.MolFromSmarts(smarts)
+    for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)[OX2H1]", "[#15,#33,#51;X3,X4]-[OX2H1]")
 ]
+
+
+def acid_outranks_boron(mol):
+    """An acid of class 7a, 7b or a phosphorus, arsenic or antimony acid of class 7c is present (P-41, P-42), so the
+    boron acid group is cited as the borono or boranyl prefix."""
+    from ._acid_groups import acid_group_at
+
+    return any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON) or any(
+        acid_group_at(mol, atom.GetIdx()) is not None for atom in mol.GetAtoms()
+    )
 
 
 def _aci_nitro_ligands(mol, nitrogen, others, order):

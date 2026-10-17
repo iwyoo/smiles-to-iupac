@@ -158,6 +158,6 @@ def name_sulfite(mol) -> str:
     # P-67.1.3.2: mirrors `_sulfate.py`'s own partial-ester citation,
     # confirmed worked example "methyl hydrogen sulfite" (PubChem CID
     # 358915).
-    nuclide = centre_nuclides(sulfur.GetIdx())
+    nuclide = centre_nuclides(sulfur.GetIdx(), oxygens=True)
     anion_name = f"{ester_words} hydrogen {nuclide}sulfite" if has_hydroxyl else f"{ester_words} {nuclide}sulfite"
     return f"{cation_name} {anion_name}" if cation_name else anion_name

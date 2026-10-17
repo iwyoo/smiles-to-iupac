@@ -7,7 +7,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._noncarbon_oxoacid import _senior_carbonyl
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import centre_nuclides, format_substituent_prefixes, name_branch
 
 
 def _centre(mol):
@@ -74,8 +74,9 @@ def name_sulfuric_amide(mol) -> str:
             entries.setdefault(locant, []).append(item)
     grouped = group_substituents(entries)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
+    nuclide = centre_nuclides(centre, oxygens=True)
     if len(nitrogens) == 2:
         word = "sulfuric diamide" if oxo == 2 else "sulfurous diamide"
-        return prefix + word
+        return prefix + nuclide + word
     anionic = any(n.GetFormalCharge() == -1 for kind, n in ligands if kind == "O")
-    return prefix + ("sulfamate" if anionic else "sulfamic acid")
+    return prefix + nuclide + ("sulfamate" if anionic else "sulfamic acid")

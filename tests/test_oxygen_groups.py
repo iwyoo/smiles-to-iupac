@@ -229,6 +229,8 @@ def test_symmetric_anhydride(smiles, expected):
     [
         pytest.param("NCC(=O)OC(=O)CC", "aminoacetic propanoic anhydride", id="retained_amino_acid_name_is_not_cited"),
         pytest.param("CC(=O)OC(=O)[C@@H](N)C", "acetic (2S)-2-aminopropanoic anhydride", id="descriptor_of_the_amino_acid_part"),
+        pytest.param("CC(=O)OC(=O)C1CCCN1", "acetic pyrrolidine-2-carboxylic anhydride", id="proline_part_is_cited_by_its_systematic_acid_name"),
+        pytest.param("CCC(=O)OC(=O)O", "carbonic propanoic monoanhydride", id="carbonic_acid_part_keeps_its_hydroxy"),
     ],
 )
 def test_mixed_anhydride_with_an_amino_acid_component(smiles, expected):
@@ -1503,3 +1505,18 @@ def test_locants_are_omitted_when_no_isomer_can_be_generated(smiles, expected):
 def test_functional_modifier_names_of_acetals(smiles, expected):
     # P-66.6.5.1 to P-66.6.5.4
     assert [a.name for a in smiles_to_alternative_names(smiles) if a.kind == "functional-modifier"] == [expected]
+
+
+# P-41 (acids and esters outrank acid halides), P-65.5.4, P-65.6.3: a sulfonyl halide or sulfonate ester beside an ester-type group is a prefix of its organyl group
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C(OC(=O)C)CCS(=O)(=O)Cl", "3-(chlorosulfonyl)propyl acetate", id="carboxylic_ester"),
+        pytest.param("C(OC(=O)OC)CCS(=O)(=O)Cl", "3-(chlorosulfonyl)propyl methyl carbonate", id="carbonic_ester"),
+        pytest.param("C(S(=O)(=O)Cl)CCSC#N", "3-(chlorosulfonyl)propyl thiocyanate", id="thiocyanate"),
+        pytest.param("C(OP(=O)(O)O)CCS(=O)(=O)Cl", "3-(chlorosulfonyl)propyl dihydrogen phosphate", id="phosphate_beside_the_halide"),
+        pytest.param("C(OC(=O)C)CCS(=O)(=O)OC", "3-(methoxysulfonyl)propyl acetate", id="carboxylic_ester_outranks_a_sulfonate_ester"),
+    ],
+)
+def test_sulfonyl_group_beside_an_ester_type_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

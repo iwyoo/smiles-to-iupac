@@ -20,6 +20,8 @@ _HYDROGEN_WORDS = {1: "hydrogen", 2: "dihydrogen", 3: "trihydrogen"}
 
 
 def _carbonyl_with_heteroatom(mol, idx):
+    """A carbonyl carbon bonded through a single bond to oxygen, sulfur, selenium or tellurium: an acid, ester or anhydride,
+    which ranks above an ester; an amide or an acid halide (classes 11 and 10, P-41) is a prefix of the alkyl part."""
     atom = mol.GetAtomWithIdx(idx)
     if atom.GetAtomicNum() != 6:
         return False
@@ -28,7 +30,7 @@ def _carbonyl_with_heteroatom(mol, idx):
         for n in atom.GetNeighbors()
     )
     return has_double_o and any(
-        n.GetAtomicNum() in (7, 8, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        n.GetAtomicNum() in (8, 16, 34, 52) and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 1.0
         for n in atom.GetNeighbors()
     )
 
@@ -283,7 +285,7 @@ def _name_ester_parts(mol, labels, original=None) -> str:
     try:
         for arm, (acyl_carbon, _, ester_oxygen, alkyl_carbon) in enumerate(matches):
             name, compound = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
-            locant = (f"{arm_label[arm][:-1]}O" if arm in arm_label and len(ester_labels) > 1 else "O") if ester_labels else ""
+            locant = (f"{arm_label[arm][:-1]}O" if arm in arm_label else "O") if ester_labels else ""
             entry = named.setdefault((name, locant), [0, compound, []])
             entry[0] += 1
             named_by_arm[arm] = name
