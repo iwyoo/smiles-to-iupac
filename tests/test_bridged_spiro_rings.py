@@ -179,6 +179,18 @@ def test_bridgehead_descriptors_of_a_bicyclo_n_1_0_alkane_with_one_substituent(s
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O[C@H]1[C@@H]2C[C@H]3C[C@@H](C2)C[C@@H]1C3", "(1R,3S,5r,7r)-adamantan-2-ol", id="two_substituents_on_C2_leave_it_without_descriptor"),
+        pytest.param("C[C@]1(O)[C@H]2C[C@@H]3C[C@H](C2)C[C@H]1C3", "(1R,3S,5r,7r)-2-methyladamantan-2-ol", id="geminal_substituents_on_C2"),
+        pytest.param("CC(=O)N[C@H]1[C@@H]2C[C@H]3C[C@@H](C2)C[C@@H]1C3", "N-[(1R,3S,5r,7r)-adamantan-2-yl]acetamide", id="cage_as_substituent_group"),
+    ],
+)
+def test_cage_descriptors_of_a_2_substituted_adamantane(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_ring_stereocenter_with_two_substituents():
     assert smiles_to_iupac("CC[C@H](C)[C@H]1CC(C)C=CC1") == "(5R)-5-[(2S)-butan-2-yl]-3-methylcyclohex-1-ene"
 
