@@ -80,6 +80,11 @@ def _is_linker_atom(mol, atom, acyl_prefixes=frozenset()):
             atom.GetAtomicNum() == 16
             and bond.GetBondTypeAsDouble() == 2.0
             and (terminal_ligand(other, atom) or (None,))[0] in ("O", "NH")
+        ) or (
+            atom.GetAtomicNum() in (15, 33, 51)
+            and bond.GetBondTypeAsDouble() == 2.0
+            and sum(n.GetAtomicNum() == 6 for n in atom.GetNeighbors()) >= 2
+            and (terminal_ligand(other, atom) or (None,))[0] in ("O", "S", "Se", "Te")
         )
         if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen and not sulfonyl_oxygen:
             return False
@@ -395,7 +400,20 @@ def _context_element(mol, element):
     return element
 
 
-def _make_context(mol, graph, stereo=()):
+def _unit_group_name(mol, principal, heads):
+    """The name of the principal group of the multiplied chains in the vocabulary of the linker namer: an ester when no
+    carboxyl group of the chains keeps its hydroxy group."""
+    if principal != "acid":
+        return principal
+    free = any(
+        n.GetAtomicNum() in (8, 16, 34, 52) and n.GetDegree() == 1 and (n.GetTotalNumHs() or n.GetFormalCharge() == -1)
+        for h in heads
+        for n in mol.GetAtomWithIdx(h).GetNeighbors()
+    )
+    return "acid" if free else "ester"
+
+
+def _make_context(mol, graph, stereo=(), unit_group=None):
     halogens = halogen_substituents(mol)
     aromatic = frozenset()
 
@@ -405,7 +423,7 @@ def _make_context(mol, graph, stereo=()):
             return f"({name})", False
         return name, compound
 
-    return _Context([], None, None, list(stereo), set(), {}, entry)
+    return _Context([], None, None, list(stereo), set(), {}, entry, unit_group=unit_group)
 
 
 _MULTIPLIED_HETERO_HYDRIDE = re.compile(
@@ -460,7 +478,7 @@ def _bare_groups_on_one_ring_atom(mol, kind, edges, arms):
     )
 
 
-def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
+def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None):
     from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
     count = len(arms)
@@ -524,7 +542,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         branch_stereo[holders[0]].append(element)
     if len({tuple(sorted(code for _, _, code in found)) for found in branch_stereo}) != 1:
         return None
-    ctx = _make_context(mol, graph, [_context_element(mol, e) for e in branch_stereo[0]])
+    ctx = _make_context(mol, graph, [_context_element(mol, e) for e in branch_stereo[0]], unit_group)
     # P-15.6.1.5, P-51.5: a ring bearing a side chain with a further principal group is a substituent of the chain
     # parent that carries them, not a multiplicative centre
     found = _principal_atoms(mol) if unit_kind == "chain" else None
@@ -1420,11 +1438,11 @@ def _chain_multiplicative_name(mol, stereo):
     for arms in _rank_candidates(candidates, anchors, heads, mol):
         if principal == "ketone" and heterone_oxygens > max(len(heads & atoms) for _, _, atoms in arms):
             continue
-        name = _attempt(mol, graph, stereo, arms)
+        name = _attempt(mol, graph, stereo, arms, unit_group=_unit_group_name(mol, principal, heads))
         if name is not None:
             return name
     for arms in _rank_candidates(nitrogen, anchors, heads, mol):
-        name = _attempt(mol, graph, stereo, arms, "imine" if principal == "imine" else "amide")
+        name = _attempt(mol, graph, stereo, arms, "imine" if principal == "imine" else "amide", _unit_group_name(mol, principal, heads))
         if name is not None:
             return name
     for arms in _rank_candidates(amine_nitrogen, anchors, heads, mol, strict=True):

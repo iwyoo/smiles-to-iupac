@@ -48,6 +48,7 @@ class _Context:
     entry_cache: dict
     entry: object = None
     soft: bool = False
+    unit_group: object = None
 
 
 @dataclass
@@ -472,7 +473,7 @@ def _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=
     ):
         return None
     soft = any(mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1 for u in selected)
-    ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft)
+    ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft, unit_group=principal_group)
     stereo = ctx.stereo
 
     unit = _unit_text(mol, selected[0], groups, name_function)
