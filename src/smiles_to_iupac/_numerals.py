@@ -66,6 +66,12 @@ def alkyl_name(n: int) -> str:
 _KIS_IRREGULAR = {2: "bis", 3: "tris"}
 
 
+def multiplied_ester_word(n: int, name: str, compound: bool = False) -> str:
+    """The word that cites the organyl group `name` n times in front of an ester anion; 'tert-butyl' takes a hyphen after
+    the multiplying prefix: 'di-tert-butyl' (P-16.3.4)."""
+    return multiplying_prefix(n, compound=compound) + ("-" if name == "tert-butyl" else "")
+
+
 def multiplying_prefix(n: int, compound: bool = False) -> str:
     """Multiplying prefix for n identical substituent prefixes: the basic
     numerical term (P-14.2.1) for simple substituents, or the irregular

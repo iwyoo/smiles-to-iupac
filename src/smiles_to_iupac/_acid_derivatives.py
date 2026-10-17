@@ -18,7 +18,7 @@ from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, citation_order_key, halogen_substituents, is_halide_ligand
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
-from ._numerals import multiplying_prefix
+from ._numerals import multiplied_ester_word, multiplying_prefix
 from ._isotope_labels import restore_labels
 from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch
@@ -524,7 +524,7 @@ def _multiplied(entries):
     parts = []
     for name, compound, count, letters in sorted(entries, key=lambda e: citation_order_key(e[0])):
         if count > 1:
-            multiplier = multiplying_prefix(count, compound=compound and not _plain(name))
+            multiplier = multiplied_ester_word(count, name, compound=compound and not _plain(name))
             text = f"{multiplier}{enclose(name)}" if compound else f"{multiplier}{name}"
         else:
             text = enclose(name) if compound and any(letters) else name
