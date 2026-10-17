@@ -8,6 +8,7 @@ from ._chalcogenourea import _UREA_SUBSTITUENT_ELEMENTS, has_group_senior_to_ure
 from ._cited_group import cited_group
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_nitro_nitrogen
 from ._numerals import numerical_term
+from ._polycarbonic_nuclides import chain_nuclide_key, chain_nuclides_text
 from ._substituents import cited_whole_stereo, format_substituent_prefixes, name_branch
 
 _CHALCOGEN = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
@@ -280,6 +281,13 @@ def _terminal_nitrogen(mol, carbon, chalcogen, used):
     return ends[0] if len(ends) == 1 else None
 
 
+def name_polycarbonic_amide(mol):
+    name = polycarbonic_amide_name(mol)
+    if name is None:
+        raise UnsupportedStructure("no polycarbonic diamide or dihydrazide")
+    return name
+
+
 def polycarbonic_amide_name(mol):
     if not _plain(mol):
         return None
@@ -377,21 +385,27 @@ def _assemble(mol, graph, chain):
             if index in (0, len(carbons) - 1):
                 for prime, names in arms[0 if index == 0 else 1].items():
                     substituents.extend((f"N{prime}{positions[rank]}", name, compound) for name, compound in names)
+        chain_order = [carbons[i].GetIdx() for i in order]
+        chain_bridges = {
+            frozenset(chain_order[r - 1 : r + 1]): linkers[min(order[r - 1], order[r])][0].GetIdx() for r in range(1, len(order))
+        }
         key = (
             tuple(sorted(p for p, _, _ in replacements)),
             tuple(sorted(_locant_number(loc) for loc, _, _ in substituents)),
             tuple(sorted((name, loc) for loc, name, _ in substituents)),
+            chain_nuclide_key(mol, chain_order, chain_bridges),
         )
         if best is None or key < best[0]:
-            best = (key, replacements, substituents)
-    _, replacements, substituents = best
+            best = (key, replacements, substituents, chain_order, chain_bridges)
+    _, replacements, substituents, chain_order, chain_bridges = best
     prefixes = {}
     for locant, name, compound in substituents:
         prefixes.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     head = "-".join(
         part for part in (format_substituent_prefixes(prefixes) if prefixes else "", _replacement_text(replacements)) if part
     )
-    return f"{head}{numerical_term(len(carbons))}carbonic {'dihydrazide' if hydrazide[0] else 'diamide'}"
+    nuclides = chain_nuclides_text(mol, chain_order, chain_bridges)
+    return f"{head}{nuclides}{numerical_term(len(carbons))}carbonic {'dihydrazide' if hydrazide[0] else 'diamide'}"
 
 
 def _locant_number(locant):

@@ -50,6 +50,7 @@ from ._carbonic_amide import (
     cyanamide_name,
     diazenecarbohydrazide_name,
     hydrazine_dicarboxamide_name,
+    name_polycarbonic_amide,
     polycarbonic_amide_name,
 )
 from ._carbonic_hydrazide import carbonic_hydrazide_name, name_carbonic_hydrazide
@@ -828,7 +829,7 @@ def _name_labelled_substituents(mol):
         name = name_polychalcogen_hydride(clean)
         if name is None or set(labels) - context["consumed"]:
             name, partial, failure = None, None, None
-            for namer in (_oxoacid_name, name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS, name_carbonic_family, name_labelled_anhydride):
+            for namer in (_oxoacid_name, name_chalcogen_imide, _name_mol, *_FALLBACK_NAMERS, name_carbonic_family, name_labelled_anhydride, name_polycarbonic_amide):
                 context["consumed"].clear()
                 try:
                     candidate = namer(clean)
@@ -904,7 +905,7 @@ def _cite_parent_atom_nuclide(name, clean, labels, open_atoms):
     return name[:at] + descriptor({atom: entry}, {atom: 1}, True) + name[at:]
 
 
-def _labelled_namer(namer):
+def _labelled_namer(namer, oxygens=False):
     """`namer` applied to the unlabelled structure, its organyl groups citing their nuclides and its acid parts named
     with theirs (P-82.2.4); raises unless every nuclide appears in the name."""
 
@@ -915,7 +916,7 @@ def _labelled_namer(namer):
         only_oxygen = sum(1 for atom in clean.GetAtoms() if atom.GetAtomicNum() == 8) == 1
         if any(
             clean.GetAtomWithIdx(a).GetAtomicNum() not in (6, 5, 14, 15, 16, 33, 34, 51, 52)
-            and not (clean.GetAtomWithIdx(a).GetAtomicNum() == 8 and only_oxygen)
+            and not (clean.GetAtomWithIdx(a).GetAtomicNum() == 8 and (only_oxygen or oxygens))
             and not (clean.GetAtomWithIdx(a).GetAtomicNum() in HALOGEN_PREFIXES and clean.GetAtomWithIdx(a).GetDegree() == 1)
             for a in labels
         ):
@@ -1243,7 +1244,7 @@ def _name_unabridged_body(smiles: str) -> str:
                 name_hetero_parent_acid,
                 name_phosphorous_acid,
                 *(
-                    (_labelled_namer(name_polycarbonic), _labelled_namer(name_carbonic_family), _labelled_namer(name_acid_derivative))
+                    (_labelled_namer(name_polycarbonic, oxygens=True), _labelled_namer(name_carbonic_family), _labelled_namer(name_acid_derivative))
                     if _has_isotope_label(parsed)
                     else ()
                 ),
