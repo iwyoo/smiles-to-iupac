@@ -1375,6 +1375,8 @@ def test_peroxy_prefixes_without_a_principal_group(smiles, expected):
         ("N#CN1C(=O)NCC1", "2-oxoimidazolidine-1-carbonitrile"),
         ("N#Cn1cccc1", "1H-pyrrole-1-carbonitrile"),
         ("N#CN1CCCCC1C", "2-methylpiperidine-1-carbonitrile"),
+        ("N#CN1CCN(CC1)C#N", "piperazine-1,4-dicarbonitrile"),
+        ("N#CN1CCC(CC1)C#N", "piperidine-1,4-dicarbonitrile"),
         ("N#CN1CCCCC1C(=O)O", "1-cyanopiperidine-2-carboxylic acid"),
         ("N#CN1CCCC(C(N)=O)C1", "1-cyanopiperidine-3-carboxamide"),
         ("N#CN1CCCCC1CS(=O)(=O)O", "(1-cyanopiperidin-2-yl)methanesulfonic acid"),
