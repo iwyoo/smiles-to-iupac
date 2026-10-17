@@ -4944,6 +4944,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             mol.GetAtomWithIdx(c).GetAtomicNum() == 6
             and (_double_oxygens(mol, c) or (is_functional_carbon(mol, c) and not mol.GetAtomWithIdx(c).IsInRing()))
         )
+        or (mol.GetAtomWithIdx(c).GetAtomicNum() in (16, 34, 52) and _double_oxygens(mol, c))
         for c in neighbors
     ):
         raise UnsupportedStructure("this nitrogen is not a plain amine nitrogen")

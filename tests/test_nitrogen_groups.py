@@ -1650,6 +1650,23 @@ def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smi
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-61.5.2, P-41, P-67.1.2.6.3: nitroso or nitro on the nitrogen of a group that outranks the amide of nitrous acid is a prefix of it
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CCOC(=O)N(C)N=O", "ethyl methyl(nitroso)carbamate", id="carbamate"),
+        pytest.param("CN(N=O)C(=O)SC", "S-methyl methyl(nitroso)carbamothioate", id="carbamothioate"),
+        pytest.param("CN(N=O)C(=O)O", "methyl(nitroso)carbamic acid", id="carbamic_acid"),
+        pytest.param("CN(N=O)S(=O)(=O)c1ccc(C)cc1", "N,4-dimethyl-N-nitrosobenzene-1-sulfonamide", id="sulfonamide"),
+        pytest.param("CN(S(=O)(=O)C)[N+](=O)[O-]", "N-methyl-N-nitromethanesulfonamide", id="nitro_beside_a_sulfonamide"),
+        pytest.param("CN(N=O)C(=N)N", "N-methyl-N-nitrosoguanidine", id="guanidine"),
+        pytest.param("CN(N=O)C(C)=N", "N-methyl-N-nitrosoethanimidamide", id="carboximidamide"),
+    ],
+)
+def test_nitroso_beside_a_group_that_outranks_the_nitrous_amide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-67.1.2.6.3, P-93.4.1, P-14.5: the descriptor of a stereo element of an N-substituent is cited in the substituent prefix of the nitrous or nitric amide
 @pytest.mark.parametrize(
     "smiles,expected",
