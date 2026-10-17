@@ -1609,20 +1609,45 @@ def has_acyloxy_amine_group(mol):
 
 
 def is_nonstereogenic_centre(mol, idx):
-    """Whether a tetrahedral atom of `mol` (CIP labels assigned) has two ligands of one constitution and one CIP
-    descriptor, so that it is no stereogenic centre: the cyclopropane carbon of a trans-fused bicyclo[n.1.0]alkane
-    (P-93.5.1.1)."""
+    """Whether a tetrahedral atom of `mol` (CIP labels assigned) is no stereogenic centre: it has two ligands of one
+    constitution and one CIP descriptor, the cyclopropane carbon of a trans-fused bicyclo[n.1.0]alkane (P-93.5.1.1), or
+    it has no CIP descriptor and inverting it gives the same molecule, the C-2 of a 2-substituted adamantane."""
     ranks = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=False)
-    around = list(mol.GetAtomWithIdx(idx).GetNeighbors())
+    center = mol.GetAtomWithIdx(idx)
+    around = list(center.GetNeighbors())
 
     def descriptor(atom):
         return atom.GetProp("_CIPCode") if atom.HasProp("_CIPCode") else None
 
-    return any(
+    if any(
         ranks[a.GetIdx()] == ranks[b.GetIdx()] and descriptor(a) == descriptor(b)
         for i, a in enumerate(around)
         for b in around[i + 1 :]
-    )
+    ):
+        return True
+    if descriptor(center) is not None:
+        return False
+    return _inversion_changes_nothing(mol, idx)
+
+
+def _inversion_changes_nothing(mol, idx):
+    """Whether inverting the tetrahedral tag of atom `idx` gives the same molecule once its stereo is perceived afresh
+    from the SMILES: the legacy perception drops the tag of a centre whose two ligands are constitutionally equal."""
+    text = Chem.MolToSmiles(mol)
+    position = list(mol.GetProp("_smilesAtomOutputOrder", autoConvert=True)).index(idx)
+    params = Chem.SmilesParserParams()
+    params.removeHs = False
+    legacy = Chem.GetUseLegacyStereoPerception()
+    Chem.SetUseLegacyStereoPerception(True)
+    try:
+        kept = Chem.MolFromSmiles(text, params)
+        inverted = Chem.MolFromSmiles(text, params)
+        inverted.GetAtomWithIdx(position).InvertChirality()
+        for copy in (kept, inverted):
+            Chem.AssignStereochemistry(copy, cleanIt=True, force=True)
+        return Chem.MolToSmiles(inverted) == Chem.MolToSmiles(kept)
+    finally:
+        Chem.SetUseLegacyStereoPerception(legacy)
 
 
 def genuine_stereo_centres(mol):
