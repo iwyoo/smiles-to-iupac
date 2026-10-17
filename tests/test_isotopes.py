@@ -815,6 +815,25 @@ def test_hydrogen_nuclides_on_the_nitrogens_of_a_semicarbazide(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-82.2.1, P-82.2.2.1, P-82.2.4: the acid hydrogen of a partial ester of a noncarbon oxoacid is the word 'hydrogen' that carries the nuclide,
+# the modified one cited first; nuclides elsewhere stay on their groups
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]OS(=O)(=O)OC", "methyl (2H)hydrogen sulfate", id="sulfate"),
+        pytest.param("[2H]OP(=O)(OC)OC", "dimethyl (2H)hydrogen phosphate", id="phosphate_diester"),
+        pytest.param("[2H]OP(=O)(O)OC[C@H](C)O", "(2S)-2-hydroxypropyl (2H)hydrogen hydrogen phosphate", id="phosphate_monoester_beside_an_alcohol"),
+        pytest.param("[2H]OP(=O)(O[2H])OC", "methyl (2H2)dihydrogen phosphate", id="both_hydrogens_of_a_monoester"),
+        pytest.param("[2H]OP(=O)(OC)c1ccccc1", "methyl (2H)hydrogen phenylphosphonate", id="phosphonate"),
+        pytest.param("[2H]OP(=O)(OC([2H])([2H])[2H])OC", "(2H3)methyl methyl (2H)hydrogen phosphate", id="nuclides_on_an_alkyl_group_too"),
+        pytest.param("[2H]OS(=O)(=O)Cl", "(O-2H)sulfurochloridic acid", id="sulfurochloridic_acid"),
+        pytest.param("[2H]OP(=O)(O)N", "(O-2H)phosphoramidic acid", id="phosphoramidic_acid"),
+    ],
+)
+def test_acid_hydrogen_nuclide_of_a_noncarbon_oxoacid_ester(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-82.6.1.1, P-82.6.2, P-44.4.1.11: the carbon of the carboxamide or carbohydrazide suffix stands in front of the suffix (with
 # the chalcogen when both are modified), a lone chalcogen in front of 'hydrazine'; the hydrazine unit that is modified is the parent
 @pytest.mark.parametrize(
