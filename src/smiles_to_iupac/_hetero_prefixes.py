@@ -2102,6 +2102,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         and not RADICAL_PARENT.get()
         and not BORON_ACID_PARENT.get()
         and not any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON)
+        and not any(a.HasProp("_anion") for a in mol.GetAtoms())
     ):
         raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
     if atom.GetAtomicNum() == 5 and mol.GetAtomWithIdx(coming_from).GetAtomicNum() != 1:
