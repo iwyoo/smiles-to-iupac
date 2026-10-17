@@ -1658,6 +1658,21 @@ def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smi
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-15.3.1.1, P-67.1.2.6.3, P-68.5.3: identical amides of nitrous, nitric or a hypohalous acid joined by a divalent group are multiplied
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=NN(C)CCN(C)N=O", "ethane-1,2-diylbis(methylnitrous amide)", id="nitrous_amide_units_on_a_chain"),
+        pytest.param("[O-][N+](=O)NCCOCCN[N+](=O)[O-]", "oxydi(ethane-2,1-diyl)bis(nitramide)", id="nitramide_units_on_a_concatenated_linker"),
+        pytest.param("ClN(C)c1ccc(cc1)N(C)Cl", "1,4-phenylenebis(methylhypochlorous amide)", id="hypochlorous_amide_units_on_a_ring"),
+        pytest.param("O=NN(CCO)CCN(CCO)N=O", "ethane-1,2-diylbis[(2-hydroxyethyl)nitrous amide]", id="prefix_of_the_unit_nests_the_marks"),
+        pytest.param("O=NN(CC(=O)O)CCN(CC(=O)O)N=O", "2,2'-[ethane-1,2-diylbis(nitrosoazanediyl)]diacetic acid", id="senior_acid_keeps_the_amide_a_prefix"),
+    ],
+)
+def test_identical_amides_of_inorganic_acids_are_multiplied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-61.5.2, P-41, P-67.1.2.6.3: nitroso or nitro on the nitrogen of a group that outranks the amide of nitrous acid is a prefix of it
 @pytest.mark.parametrize(
     "smiles,expected",
