@@ -266,6 +266,26 @@ def _star_group(mol, graph, matches):
     return f"{found[1]}{arm_text} {cite_anions(chosen_anions, [0] * count, False)}"
 
 
+def _assembly_diyl_esters(mol, graph, matches):
+    from ._chain_assembly import assembly_diyl
+
+    systems = [_system_of(mol, m[3].GetIdx()) for m in matches]
+    if any(s is None for s in systems):
+        return None
+    atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    if len(systems) < 2 or not set().union(*(s[1] for s in systems)) <= atoms:
+        return None
+    frees = [(m[3].GetIdx(), m[2].GetIdx()) for m in matches]
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    try:
+        diyl = assembly_diyl(mol, graph, halogen_substituents(mol), aromatic, atoms, frees)
+    except UnsupportedStructure:
+        return None
+    if diyl is None:
+        return None
+    return f"{diyl} {cite_anions(acid_anions(mol, matches), [0] * len(matches), False)}"
+
+
 def name_diester_ring_diyl(mol, matches):
     graph = adjacency(mol)
     nitro = nitro_atoms(mol)
@@ -275,7 +295,7 @@ def name_diester_ring_diyl(mol, matches):
     try:
         selection = select_skeleton(mol, graph, matches)
     except UnsupportedStructure:
-        star = _star_group(mol, graph, matches)
+        star = _assembly_diyl_esters(mol, graph, matches) or _star_group(mol, graph, matches)
         if star is None:
             raise
         return star
