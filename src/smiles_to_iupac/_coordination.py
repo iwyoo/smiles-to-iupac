@@ -13,11 +13,13 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     alpha_sort_key,
+    halogen_substituents,
     non_single_bonds,
+    specified_stereo_elements,
 )
 from ._metal_pair import _STEMS as _CLASS2_STEMS, _brackets, _metal_group_name, substituted_aryl_name
 from ._numerals import multiplying_prefix
-from ._substituents import name_branch
+from ._substituents import cited_branch_stereo, name_branch
 
 _METAL_NAMES = {
     21: "scandium", 22: "titanium", 23: "vanadium", 24: "chromium",
@@ -343,12 +345,21 @@ def _carbon_ligand_name(mol, graph, metal, donor, atoms):
         if seen != atoms:
             raise UnsupportedStructure("this aryl ligand is not supported yet")
         return label
-    for i in atoms:
-        if mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).IsInRing():
-            raise UnsupportedStructure("only acyclic alkyl and aryl carbon ligands are supported here")
-    if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
-        raise UnsupportedStructure("an unsaturated ligand is out of scope here")
-    return name_branch(graph, donor.GetIdx(), metal.GetIdx(), {}, mol=mol)[0]
+    if not _has_stereo_element(mol, atoms):
+        for i in atoms:
+            if mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).IsInRing():
+                raise UnsupportedStructure("only acyclic alkyl and aryl carbon ligands are supported here")
+    with cited_branch_stereo(mol, graph, {metal.GetIdx()}, [donor.GetIdx()]):
+        return name_branch(graph, donor.GetIdx(), metal.GetIdx(), halogen_substituents(mol), mol=mol)[0]
+
+
+def _has_stereo_element(mol, atoms):
+    for kind, idx, _ in specified_stereo_elements(mol) or ():
+        if kind == "atom" and idx in atoms:
+            return True
+        if kind == "bond" and mol.GetBondWithIdx(idx).GetBeginAtomIdx() in atoms:
+            return True
+    return False
 
 
 def _ylidene_name(mol, metal, donor, atoms, graph):
