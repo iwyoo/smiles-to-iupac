@@ -1522,3 +1522,20 @@ def test_functional_modifier_names_of_acetals(smiles, expected):
 )
 def test_sulfonyl_group_beside_an_ester_type_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)OCC[Si](C)(C)CCOC(C)=O", "(dimethylsilanediyl)di(ethane-2,1-diyl) diacetate", id="silanediyl_between_alkyl_esters"),
+        pytest.param("CC(=O)Oc1ccc(cc1)[Si](C)(C)c1ccc(OC(C)=O)cc1", "(dimethylsilanediyl)di(4,1-phenylene) diacetate", id="silanediyl_between_aryl_esters"),
+        pytest.param("CC(=O)OCCB(C)CCOC(C)=O", "(methylboranediyl)di(ethane-2,1-diyl) diacetate", id="boranediyl"),
+        pytest.param("CC(=O)OCC[As](C)CCOC(C)=O", "(methylarsanediyl)di(ethane-2,1-diyl) diacetate", id="arsanediyl"),
+        pytest.param("CNC(=O)OCC[Si](C)(C)CCOC(=O)NC", "(dimethylsilanediyl)di(ethane-2,1-diyl) bis(methylcarbamate)", id="substituted_carbamate_anion_takes_bis"),
+        pytest.param("CNC(=O)OCCCCOC(=O)NC", "butane-1,4-diyl bis(methylcarbamate)", id="n_substituted_carbamates_are_esters_not_a_skeletal_chain"),
+        pytest.param("CC(=O)OCCP(=S)(C)CCOC(C)=O", "(methylphosphonothioyl)di(ethane-2,1-diyl) diacetate", id="thio_analogue_of_phosphonoyl"),
+        pytest.param("CCC(=O)O[Sn](C)(C)O[Sn](C)(C)OC(=O)CC", "1,1,3,3-tetramethyldistannoxane-1,3-diyl dipropanoate", id="metal_bonded_ester_oxygen_keeps_the_skeletal_name"),
+    ],
+)
+def test_identical_esters_joined_through_a_metalloid_or_heteroatom_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
