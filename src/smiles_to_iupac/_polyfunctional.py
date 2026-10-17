@@ -4873,6 +4873,17 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
         if named is not None:
             return named
+    if (
+        len(amine_nitrogens) > 1
+        and AMINIUM.get() is True
+        and not primaries
+        and not ISOTOPE_LABELS.get()
+        and not SUBSTITUTED_AMINE_PREFIX.get()
+        and all(a.GetFormalCharge() == 1 or a.HasProp("_cationic_amine") for a in amine_nitrogens)
+    ):
+        named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
+        if named is not None:
+            return named
     primary_nitrogens = [
         mol.GetAtomWithIdx(n) for owned in (*groups.get("amine", {}).values(), *(o for c, _, o in ring_groups if c == "amine"))
         for n in owned if mol.GetAtomWithIdx(n).GetAtomicNum() == 7
@@ -5070,7 +5081,8 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
     from ._substituents import ISOTOPE_LABELS
 
     if any(
-        n.IsInRing() or n.GetFormalCharge() or n.GetTotalNumHs() > 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
+        n.IsInRing() or (n.GetFormalCharge() and not (AMINIUM.get() is True and n.GetFormalCharge() == 1))
+        or n.GetTotalNumHs() > 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
         or any(
             not _hydroxy_or_alkoxy_on_nitrogen(x)
             and not _ring_nitrogen_parent(x)
@@ -5122,6 +5134,7 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
         parent = editable.GetMol()
         for a in parent.GetAtoms():
             if a.HasProp("_cut_amine_n"):
+                a.SetFormalCharge(0)
                 a.SetIntProp("_capacity", 2)
                 a.SetNumExplicitHs(2)
                 a.SetNoImplicit(True)

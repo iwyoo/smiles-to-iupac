@@ -1311,6 +1311,10 @@ def test_iminium_and_mixed_ionic_centres(smiles, expected):
         pytest.param("C[N+](C)(C)C1CCC([NH3+])CC1", "N1,N1,N1-trimethylcyclohexane-1,4-bis(aminium)", id="quaternary_and_primary_aminium_on_a_ring"),
         pytest.param("C[N+](C)(C)c1ccc([NH3+])cc1C", "N1,N1,N1,2-tetramethylbenzene-1,4-bis(aminium)", id="quaternary_and_primary_aminium_on_a_substituted_benzene"),
         pytest.param("[NH3+]CC(C(=O)O)C[NH3+]", "2-carboxypropane-1,3-bis(aminium)", id="bis_aminium_with_a_prefix_group"),
+        pytest.param("C[N+](C)(C)c1ccc(cc1)[NH+](C)C", "N1,N1,N1,N4,N4-pentamethylbenzene-1,4-bis(aminium)", id="substituted_aminium_pair_on_a_benzene"),
+        pytest.param("C[N+](C)(C)C1CCC(CC1)[N+](C)(C)C", "N1,N1,N1,N4,N4,N4-hexamethylcyclohexane-1,4-bis(aminium)", id="substituted_aminium_pair_on_a_cycloalkane"),
+        pytest.param("C[N+](C)(C)CC(O)C[NH+](C)C", "2-hydroxy-N1,N1,N1,N3,N3-pentamethylpropane-1,3-bis(aminium)", id="substituted_aminium_pair_on_a_chain_with_a_hydroxy_group"),
+        pytest.param("CC[N+](C)(C)c1cc(Cl)cc(c1)[N+](C)(C)C", "5-chloro-N1-ethyl-N1,N1,N3,N3,N3-pentamethylbenzene-1,3-bis(aminium)", id="prefixes_in_alphanumerical_order"),
         pytest.param("C[Si](C)(C)[NH3+]", "1,1,1-trimethylsilanaminium", id="aminium_on_a_silane_parent"),
         pytest.param(
             "C[Si](C)(C)[NH2+][SiH2][NH2+][Si](C)(C)C",
