@@ -6,7 +6,7 @@ from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._hetero_prefixes import pentavalent_nitrogen_oxo
-from ._phosphonic_acid import _SENIOR_ACIDS, acid_prefixes
+from ._phosphonic_acid import acid_prefixes, senior_acid_present
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
@@ -50,7 +50,7 @@ def name_azonic_acid(mol) -> str:
         raise UnsupportedStructure("no azonic or azinic acid shape")
     if any(a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified structures are not supported yet")
-    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+    if senior_acid_present(mol):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the azonic acid")
     nitrogen, carbons, ligands, kind = found
     graph = adjacency(mol)

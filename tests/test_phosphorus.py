@@ -621,6 +621,20 @@ def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, e
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-67.1.4.1.1.3, P-67.1.4.1.1.5, P-41, P-44.3.2: a second carboxylic or sulfonic acid chain stays a carboxy or sulfo prefix of the organyl group of the phosphonoyl prefix
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)CCP(=O)(O)CCCC(=O)O", "4-{hydroxy[(2-carboxyethyl)phosphonoyl]}butanoic acid", id="longer_chain_is_the_parent"),
+        pytest.param("OC(=O)CP(=O)(O)CCC(=O)O", "3-{hydroxy[(carboxymethyl)phosphonoyl]}propanoic acid", id="carboxymethyl_on_phosphorus"),
+        pytest.param("OC(=O)CCCP(=O)(OC)CCCCC(=O)O", "5-{methoxy[(3-carboxypropyl)phosphonoyl]}pentanoic acid", id="alkoxy_in_place_of_hydroxy"),
+        pytest.param("OC(=O)c1ccc(cc1)P(=O)(O)CCS(=O)(=O)O", "4-{hydroxy[(2-sulfoethyl)phosphonoyl]}benzoic acid", id="sulfo_on_the_organyl_group_under_a_ring_parent"),
+    ],
+)
+def test_phosphonoyl_prefix_beside_a_senior_acid_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

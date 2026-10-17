@@ -132,6 +132,7 @@ def _retained_thio_group(mol, centre, oxo, ligands):
 def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
     """(name, compound) of the acyl group of the P, As or Sb `centre` attached through `attach` when functional replacement
     modifies the acid, else None."""
+    from ._phosphonic_acid import phosphorus_acid_parent
     from ._substituents import format_mononuclear_prefixes, name_branch
     from .core import smiles_to_iupac
 
@@ -174,7 +175,8 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
     acid = editable.GetMol()
     try:
         Chem.SanitizeMol(acid)
-        name = smiles_to_iupac(Chem.MolToSmiles(acid))
+        with phosphorus_acid_parent():
+            name = smiles_to_iupac(Chem.MolToSmiles(acid))
     except (UnsupportedStructure, ValueError, Chem.rdchem.KekulizeException, Chem.rdchem.AtomValenceException):
         return None
     stem = _ACID_TAIL.sub("", name)

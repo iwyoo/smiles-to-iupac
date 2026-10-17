@@ -37,6 +37,7 @@ functional-replacement/infix variant (phosphonous, phosphoric, etc.).
 """
 
 import contextlib
+import contextvars
 
 from rdkit import Chem
 
@@ -52,6 +53,25 @@ _SENIOR_ACIDS = [
     Chem.MolFromSmarts(smarts)
     for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)([#6])[OX2H1]")
 ]
+
+
+PHOSPHORUS_ACID_PARENT = contextvars.ContextVar("phosphorus_acid_parent", default=False)
+
+
+def senior_acid_present(mol):
+    """Whether a carboxylic or sulfur-group acid outranks the phosphorus acid (P-41); not within `phosphorus_acid_parent`."""
+    return not PHOSPHORUS_ACID_PARENT.get() and any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS)
+
+
+@contextlib.contextmanager
+def phosphorus_acid_parent():
+    """The phosphorus acid is named as the parent although the structure holds a senior acid: the name of an acyl group
+    derived from it, whose organyl groups keep their carboxy prefixes (P-67.1.4.1.1.3, P-67.1.4.1.1.5)."""
+    token = PHOSPHORUS_ACID_PARENT.set(True)
+    try:
+        yield
+    finally:
+        PHOSPHORUS_ACID_PARENT.reset(token)
 
 
 @contextlib.contextmanager
@@ -116,7 +136,7 @@ def require_phosphorus_acid_scope(mol, phosphorus):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
     if not senior_acid_centres(mol, [phosphorus]) and sum(a.GetAtomicNum() in CENTER_STEMS for a in mol.GetAtoms()) > 1:
         raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
-    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+    if senior_acid_present(mol):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus acid")
 
 

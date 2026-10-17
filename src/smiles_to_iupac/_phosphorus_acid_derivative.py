@@ -9,7 +9,7 @@ from rdkit import Chem
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._carbonic_family import pseudohalide_at
 from ._oxoacid_acyl import is_senior_centre
-from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
+from ._phosphonic_acid import CENTER_STEMS, senior_acid_present
 from ._substituents import (
     alpha_sort_key,
     centre_nuclides,
@@ -107,7 +107,7 @@ def _name_derivative(mol, found) -> str:
     center, chalcogen, carbons, rest, kind = found
     if len(Chem.GetMolFrags(mol)) > 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("multi-fragment or isotopically modified structures are not supported yet")
-    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+    if senior_acid_present(mol):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus derivative")
     sulfur = chalcogen.GetAtomicNum() == 16
     if sulfur and not carbons:

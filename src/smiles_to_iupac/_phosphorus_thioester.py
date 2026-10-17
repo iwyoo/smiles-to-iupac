@@ -13,7 +13,7 @@ from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_su
 from ._acid_lexicon import _peroxo_word
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
-from ._phosphonic_acid import _SENIOR_ACIDS
+from ._phosphonic_acid import senior_acid_present
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _PHOSPHORUS = 15
@@ -94,7 +94,7 @@ def _name_linked_pair(mol, groups, found):
 
     if len(Chem.GetMolFrags(mol)) > 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("a multi-fragment or isotopically modified structure is not supported yet")
-    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+    if senior_acid_present(mol):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus ester")
     sulfur_counts = {
         sum(1 for c in (*(() if double is None else (double,)), *(c for c, _, _ in esters)) if c.GetAtomicNum() == 16)
@@ -143,7 +143,7 @@ def name_phosphorus_thioester(mol) -> str:
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
     if sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() in (_PHOSPHORUS, _BORON)) != 1:
         raise UnsupportedStructure("more than one phosphorus or boron atom is not supported yet")
-    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+    if senior_acid_present(mol):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus ester")
     carbons, double, esters = _group(mol, phosphorus)
     graph = adjacency(mol)
