@@ -1552,3 +1552,15 @@ def test_identical_esters_joined_through_a_metalloid_or_heteroatom_group(smiles,
 )
 def test_identical_n_substituted_carbamates_on_one_diyl_group_are_esters_not_a_skeletal_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-16.3.4: the multiplying prefix of tert-butyl takes a hyphen
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)(C)OC(=O)OC(=O)OC(C)(C)C", "di-tert-butyl dicarbonate", id="tert_butyl_ester_words"),
+        pytest.param("CC(C)(C)OC(=O)NCCNC(=O)OC(C)(C)C", "di-tert-butyl (ethane-1,2-diyl)bis(carbamate)", id="tert_butyl_beside_a_nitrogen_linked_carbamate"),
+    ],
+)
+def test_multiplied_ester_words(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
