@@ -962,6 +962,9 @@ def test_nuclide_on_a_polynuclear_acid_centre_or_a_sulfur_imide(smiles, expected
         pytest.param("C[15N+]1([O-])CCCCC1", "1-methyl(15N)piperidine 1-oxide", id="ring_amine_oxide"),
         pytest.param("[O-][15n+]1ccncc1", "(1-15N)pyrazine 1-oxide", id="oxidized_nitrogen_of_a_diazine"),
         pytest.param("[O-][n+]1cc[15n]cc1", "(4-15N)pyrazine 1-oxide", id="other_nitrogen_of_a_diazine_oxide"),
+        pytest.param("C[N+](C)([O-])C[N+](C)([13CH3])[O-]", "N-{[dimethyl(oxo)-λ5-azanyl]methyl}-N-methyl(13C)methanamine N-oxide", id="more_modified_oxide_is_the_parent"),
+        pytest.param("C[N+](C)([O-])C[15N+](C)(C)[O-]", "1-[dimethyl(oxo)-λ5-azanyl]-N,N-dimethyl(15N)methanamine N-oxide", id="oxidized_nitrogen_of_the_parent_of_a_dioxide"),
+        pytest.param("[O-][N+](C)(C)[13CH2]CN(C)C", "2-(dimethylamino)-N,N-dimethyl(1-13C)ethan-1-amine N-oxide", id="backbone_carbon_beside_an_amino_prefix"),
     ],
 )
 def test_nuclide_on_the_nitrogen_of_an_n_oxide(smiles, expected):
