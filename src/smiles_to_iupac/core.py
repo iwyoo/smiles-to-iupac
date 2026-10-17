@@ -400,7 +400,7 @@ from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._hetero_chain import contract_hetero_groups_candidates, name_hetero_macrocycle, name_skeletal_chain
 from ._nitro_group import contract_nitro_groups
-from ._phosphanyl_group import contract_phosphanyl_groups
+from ._phosphanyl_group import PREFIX_PROP, contract_phosphanyl_groups
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 from ._von_baeyer_heteroatom import (
@@ -1009,9 +1009,11 @@ def _require_isotopes_cited(mol, name):
         return
     cited = _cited_nuclides(name)
     forced = FORCED_BRANCH_NAMES.get()
-    for forced_name, _ in forced[1].values() if forced else ():
-        if forced_name in name:
-            for key, count in _cited_nuclides(forced_name).items():
+    given_names = [a.GetProp(PREFIX_PROP) for a in mol.GetAtoms() if a.HasProp(PREFIX_PROP)]
+    given_names += [forced_name for forced_name, _ in forced[1].values()] if forced else []
+    for given in given_names:
+        if given in name:
+            for key, count in _cited_nuclides(given).items():
                 cited[key] = cited.get(key, 0) - count
     for key, count in expected.items():
         if key not in name:

@@ -70,7 +70,11 @@ def name_amine_oxide(mol) -> str:
     if len(amine_nitrogens) > 1:
         if nitrogen.IsInRing():
             raise UnsupportedStructure("the ring of an oxidized ring nitrogen is the parent of its N-oxide (P-62.5)")
-        return f"{_name_with_oxidized_parent(reduced_mol, nitrogen.GetIdx(), oxide_oxygen.GetIdx())} N-{class_word}"
+        oxide_idx = oxide_oxygen.GetIdx()
+        named = _in_reduced_molecule(
+            mol, reduced_mol, oxide_idx, lambda reduced: _name_with_oxidized_parent(reduced, nitrogen.GetIdx(), oxide_idx)
+        )
+        return f"{named} N-{class_word}"
     from ._common import match_cip_labels, specified_stereo_elements
 
     nitrogen_code = next(
@@ -92,6 +96,31 @@ def name_amine_oxide(mol) -> str:
             raise
         base_name = _name_with_nitrile_prefix(reduced_mol)
     return f"{with_unlocated_descriptor(base_name, nitrogen_code)} N-{class_word}"
+
+
+def _in_reduced_molecule(mol, reduced_mol, oxide_idx, name_it):
+    """`name_it(reduced_mol)` with the nuclide labels of `mol` moved to the atoms of `reduced_mol`, which lacks the oxide
+    atom, and the atoms it cites marked in the labels of `mol`."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if not context or not context["labels"] or context["mol"] is not mol:
+        return name_it(reduced_mol)
+    if oxide_idx in context["labels"]:
+        raise UnsupportedStructure("a nuclide on the oxide group of an amine oxide is not supported yet")
+
+    def shifted(idx):
+        return idx - (idx > oxide_idx)
+
+    inner = {"labels": {shifted(i): entry for i, entry in context["labels"].items()}, "consumed": set(), "mol": reduced_mol}
+    token = ISOTOPE_LABELS.set(inner)
+    try:
+        name = name_it(reduced_mol)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    original = {shifted(i): i for i in context["labels"]}
+    context["consumed"].update(original[i] for i in inner["consumed"] if i in original)
+    return name
 
 
 def _labelled_oxide_name(mol, nitrogen, oxide_oxygen, class_word):
@@ -146,7 +175,8 @@ def _name_with_nitrile_prefix(reduced_mol):
     finally:
         FORCED_PRINCIPAL.reset(token)
     # P-14.3.4.4: the oxidized nitrogen carries no hydrogen, so the only position left for the prefix is carbon 1
-    return re.sub(r"^1-(?=[a-z(\[{])", "", name) if name.endswith("methanamine") else name
+    cited_prefix = any(a.HasProp(PREFIX_PROP) for a in reduced_mol.GetAtoms())
+    return re.sub(r"^1-(?=[a-z(\[{])", "", name) if name.endswith("methanamine") and not cited_prefix else name
 
 
 def _reduce(mol, nitrogen, oxide_oxygen):
@@ -164,34 +194,58 @@ def _reduced_position(nitrogen_idx, oxide_idx):
 
 def _name_among_oxides(mol, nitrogens):
     """P-62.5: one oxide gives the class term, each further one is an '(oxo-λ5-azanyl)' prefix; the parent amine is the
-    one whose carbon skeleton is senior (ring before chain, then the larger acyclic carbon set, then the senior chalcogen)."""
+    one whose carbon skeleton is senior (ring before chain, then the larger acyclic carbon set, then the senior chalcogen),
+    of equal ones the more modified (P-44.4.1.11.1)."""
     from ._polyfunctional import name_polyfunctional
+    from ._substituents import ISOTOPE_LABELS
     from .core import _name_mol
 
     graph = adjacency(mol)
+    outer = ISOTOPE_LABELS.get()
+    labels = outer["labels"] if outer and outer["mol"] is mol else {}
+    start = set(outer["consumed"]) if labels else set()
     ranked = []
     for parent in nitrogens:
-        contracted = _cite_other_oxides(mol, graph, parent, nitrogens)
-        if contracted is None:
+        if labels:
+            outer["consumed"].clear()
+            outer["consumed"].update(start)
+        found = _cite_other_oxides(mol, graph, parent, nitrogens)
+        if found is None:
             continue
+        contracted, removed = found
+        kept = {i: entry for i, entry in labels.items() if i not in removed}
+        if labels and any(i not in outer["consumed"] for i in labels if i in removed):
+            continue
+        shift = {i: i - sum(1 for r in removed if r < i) for i in kept}
+        inner = {"labels": {shift[i]: entry for i, entry in kept.items()}, "consumed": set(), "mol": contracted}
+        token = ISOTOPE_LABELS.set(inner if kept else None)
         try:
             name = _name_mol(contracted)
         except UnsupportedStructure:
-            if not parent.IsInRing():
-                continue
-            try:
-                name = name_polyfunctional(contracted)
-            except UnsupportedStructure:
-                continue
-        ranked.append((_skeleton_rank(mol, graph, parent), name))
+            name = None
+            if parent.IsInRing():
+                try:
+                    name = name_polyfunctional(contracted)
+                except UnsupportedStructure:
+                    pass
+        finally:
+            ISOTOPE_LABELS.reset(token)
+        if name is None or set(inner["labels"]) - inner["consumed"]:
+            continue
+        ranked.append(((*_skeleton_rank(mol, graph, parent), len(kept)), name, set(outer["consumed"]) | set(kept) if labels else set()))
     if not ranked:
         raise UnsupportedStructure("no amine parent carries one of the oxidized nitrogens of this polyamine oxide")
-    best = max(rank for rank, _ in ranked)
-    return min(name for rank, name in ranked if rank == best)
+    best = max(rank for rank, _, _ in ranked)
+    name, consumed = min((name, consumed) for rank, name, consumed in ranked if rank == best)
+    if labels:
+        outer["consumed"].clear()
+        outer["consumed"].update(consumed)
+    return name
 
 
 def _cite_other_oxides(mol, graph, parent, nitrogens):
-    """`mol` with every oxidized nitrogen but `parent` collapsed to a placeholder carrying its prefix, or None."""
+    """(`mol` with every oxidized nitrogen but `parent` collapsed to a placeholder carrying its prefix, the atoms removed
+    for them), or None."""
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     groups, removed = [], set()
@@ -220,7 +274,7 @@ def _cite_other_oxides(mol, graph, parent, nitrogens):
         rw.RemoveAtom(idx)
     out = rw.GetMol()
     Chem.SanitizeMol(out)
-    return out
+    return out, removed
 
 
 def _reachable(graph, start, blocked):
@@ -248,21 +302,52 @@ def _skeleton_rank(mol, graph, parent):
 def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
     """P-62.5: the oxidized nitrogen is the amine suffix nitrogen of the parent, so every other amino group is cited
     as a prefix ('5-(dimethylamino)-N,N-dimethylpentan-1-amine N-oxide')."""
-    from .core import _name_mol
-    from ._hetero_chain import contract_hetero_groups_candidates
+    from .core import _name_mol, _require_isotopes_cited
+    from ._hetero_chain import KEPT_ATOMS_PROP, contract_hetero_groups_candidates
+    from ._isotope_labels import restore_labels
     from ._polyfunctional import name_polyfunctional
+    from ._substituents import ISOTOPE_LABELS
 
     position = _reduced_position(nitrogen_idx, oxide_idx)
+    outer = ISOTOPE_LABELS.get()
+    labels = outer["labels"] if outer and outer["mol"] is reduced_mol else {}
+    start = set(outer["consumed"]) if labels else set()
     names = []
     for contracted in contract_hetero_groups_candidates(reduced_mol, {position}):
+        if not labels:
+            try:
+                names.append((_name_mol(contracted), set()))
+            except UnsupportedStructure:
+                pass
+            continue
+        kept = [int(i) for i in contracted.GetProp(KEPT_ATOMS_PROP).split(",")]
+        new_of = {old: new for new, old in enumerate(kept)}
+        carried = {i: entry for i, entry in labels.items() if i in new_of}
+        if any(i not in outer["consumed"] for i in labels if i not in new_of):
+            continue
+        editable = Chem.RWMol(contracted)
+        restore_labels(editable, contracted, {new_of[i]: entry for i, entry in carried.items()})
+        labelled = editable.GetMol()
+        Chem.SanitizeMol(labelled)
+        token = ISOTOPE_LABELS.set(None)
         try:
-            names.append(_name_mol(contracted))
+            name = _name_mol(labelled)
+            _require_isotopes_cited(labelled, name)
         except UnsupportedStructure:
             continue
+        finally:
+            ISOTOPE_LABELS.reset(token)
+        names.append((name, set(outer["consumed"]) | set(carried)))
+    if labels:
+        outer["consumed"].clear()
+        outer["consumed"].update(start)
     if not names:
         reduced_mol.GetAtomWithIdx(position).SetBoolProp("_oxidized_amine", True)
         try:
             return name_polyfunctional(reduced_mol)
         except UnsupportedStructure:
             raise UnsupportedStructure("no amine parent carries the oxidized nitrogen of this polyamine N-oxide")
-    return min(names)
+    name, consumed = min(names)
+    if labels:
+        outer["consumed"].update(consumed)
+    return name
