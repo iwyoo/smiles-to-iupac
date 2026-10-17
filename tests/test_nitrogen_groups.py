@@ -660,6 +660,20 @@ def test_hydrazide_nitrogen_substituent_keeps_its_own_hydrazine(smiles, expected
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-44.3, P-66.3.1, P-68.3.1.2.4: the nitrogens of a hydrazinyl prefix are never chain atoms, also beside a phenyl-bearing branch
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NNCC(C(=O)NN)Cc1ccccc1", "2-benzyl-3-hydrazinylpropanehydrazide", id="benzyl_branch"),
+        pytest.param("NNC(C(=O)NN)c1ccccc1", "2-hydrazinyl-2-phenylacetohydrazide", id="phenyl_on_the_acetohydrazide_carbon"),
+        pytest.param("NNCC(C(=S)NN)Cc1ccccc1", "2-benzyl-3-hydrazinylpropanethiohydrazide", id="thiohydrazide"),
+        pytest.param("CNNCC(C(=O)NN)Cc1ccccc1", "2-benzyl-3-(2-methylhydrazin-1-yl)propanehydrazide", id="substituted_hydrazinyl"),
+    ],
+)
+def test_hydrazinyl_prefix_beside_a_phenyl_branch_of_a_hydrazide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_diacyl_hydrazide_formyl():
     # Mononuclear retained name on both sides.
     assert smiles_to_iupac("O=CNNC=O") == "N'-formylformohydrazide"
