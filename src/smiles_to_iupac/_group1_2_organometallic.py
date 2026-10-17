@@ -75,8 +75,9 @@ from ._common import (
     non_single_bonds,
     plain_phenyl_substituent_atoms,
 )
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
-from ._substituents import name_branch
+from ._substituents import cited_branch_stereo, name_branch
 
 _GROUP1_ELEMENTS = {3: "lithium", 11: "sodium", 19: "potassium"}
 _GROUP2_ELEMENTS = {12: "magnesium", 20: "calcium"}
@@ -161,9 +162,12 @@ def name_group1_2_organometallic(mol) -> str:
         if root in phenyl_atoms:
             names.append("phenyl")
             continue
-        names.append(name_branch(graph, root, metal.GetIdx(), {}, mol=mol)[0])
+        with cited_branch_stereo(mol, graph, {metal.GetIdx()}, [root]):
+            names.append(name_branch(graph, root, metal.GetIdx(), {}, mol=mol)[0])
 
     (first_name, *rest) = names
+    if first_name.startswith("("):
+        first_name = enclose(first_name)
     if any(name != first_name for name in rest):
         raise UnsupportedStructure(
             "two different substituents on the same Group 2 metal is not "
@@ -188,6 +192,6 @@ def name_group1_2_organometallic(mol) -> str:
     # multiplying prefix concatenated directly, enclosing marks only when
     # the substituent's own name starts with a locant digit.
     needs_enclosure = first_name[0].isdigit()
-    prefix = multiplying_prefix(len(names), compound=needs_enclosure)
+    prefix = multiplying_prefix(len(names), compound=needs_enclosure or first_name[0] in "([{")
     group = f"({first_name})" if needs_enclosure else first_name
     return f"{prefix}{group}{element_name}"
