@@ -200,6 +200,14 @@ def _carbamoyl_carbons(mol, chalcogen=8):
     return found
 
 
+def _carbamate_ester_oxygen(carbon):
+    """The carbon of a carbamate ester, bonded to an oxygen that carries a carbon: the ester outranks the skeletal chain (P-41)."""
+    return any(
+        n.GetAtomicNum() == 8 and any(m.GetAtomicNum() == 6 for m in n.GetNeighbors() if m.GetIdx() != carbon.GetIdx())
+        for n in carbon.GetNeighbors()
+    )
+
+
 def has_carbonless_acyl(mol):
     """A carbonyl-type carbon bonded to nitrogen and to no carbon (a carbamoyl or amidine centre): such a carbon only
     belongs to a skeletal replacement chain, so that route must run before the acid-derivative namers."""
@@ -207,6 +215,8 @@ def has_carbonless_acyl(mol):
         if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
             continue
         if any(n.GetAtomicNum() == 6 for n in atom.GetNeighbors()) or not any(n.GetAtomicNum() == 7 for n in atom.GetNeighbors()):
+            continue
+        if _carbamate_ester_oxygen(atom):
             continue
         if any(
             n.GetDegree() == 1

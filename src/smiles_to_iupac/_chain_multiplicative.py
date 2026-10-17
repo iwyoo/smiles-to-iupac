@@ -606,8 +606,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             from ._hetero_prefixes import _without_enclosing_marks
 
             linker = _without_enclosing_marks(_linker_text(branches, central, arm_parts))
-            compound = not text.isalpha()
-            return f"{linker} {multiplier_word(count, compound)}{enclose(text) if compound else text}"
+            from ._diester_anions import multiplied_anion
+
+            return f"{linker} {multiplied_anion(text, not text.isalpha() or not _unsubstituted_anion(units[0][0]), count)}"
         if unit_kind == "polyamine":
             lead = _polyamine_lead(units[0][0], count)
             if lead is None:
@@ -699,6 +700,32 @@ def _amine_arm(unit, attach_atom):
     except Chem.rdchem.MolSanitizeException:
         return None
     return amine_unit_name(mol, attach)
+
+
+def _unsubstituted_anion(unit):
+    """Whether the acyl group of an ester unit has no substituent prefix, so that 'di' multiplies its anion: an unbranched
+    carbon chain, a bare ring or the carbamate nitrogen (P-16.3.6)."""
+    attach = next(a for a in unit.GetAtoms() if a.GetAtomMapNum() and not is_prefix_placeholder(a))
+    acyl = next((n for n in attach.GetNeighbors() if n.GetAtomicNum() == 6), None)
+    if acyl is None:
+        return True
+    oxygens = {attach.GetIdx()} | {
+        n.GetIdx()
+        for n in acyl.GetNeighbors()
+        if n.GetAtomicNum() == 8 and unit.GetBondBetweenAtoms(acyl.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    }
+    rest = [a for a in unit.GetAtoms() if a.GetIdx() not in oxygens and not is_prefix_placeholder(a)]
+    inside = {a.GetIdx() for a in rest}
+    if any(a.IsInRing() for a in rest):
+        return all(a.IsInRing() or a.GetIdx() == acyl.GetIdx() for a in rest)
+    neighbours = {a.GetIdx(): [n.GetIdx() for n in a.GetNeighbors() if n.GetIdx() in inside] for a in rest}
+    if len(neighbours[acyl.GetIdx()]) > 1:
+        return False
+    if all(a.GetAtomicNum() == 6 for a in rest):
+        return all(len(n) <= 2 for n in neighbours.values())
+    return len(rest) == 2 and all(a.GetAtomicNum() in (6, 7) for a in rest) and sum(a.GetAtomicNum() == 7 for a in rest) == 1 and all(
+        a.GetTotalNumHs() == 2 for a in rest if a.GetAtomicNum() == 7
+    )
 
 
 def _unit_name_by_pipeline(unit, unit_kind):

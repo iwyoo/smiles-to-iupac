@@ -698,6 +698,16 @@ def _suffixed_links(mol, frags, acid_pieces):
 
 
 _ORGANIC_ELEMENTS_OF_LINKERS = frozenset({1, 6, 7, 8, 9, 15, 16, 17, 34, 35, 52, 53})
+_METALLOID_ELEMENTS_OF_LINKERS = frozenset({5, 14, 32, 33, 50, 51, 82, 83})
+
+
+def _linker_elements_allowed(mol, esters):
+    """Boron and the metalloids of groups 14 and 15 may join the organyl groups of the esters; bonded to an ester oxygen
+    they make an organometallic ester that is named otherwise."""
+    allowed = _ORGANIC_ELEMENTS_OF_LINKERS
+    if all(mol.GetAtomWithIdx(l.far).GetAtomicNum() == 6 for l in esters):
+        allowed = allowed | _METALLOID_ELEMENTS_OF_LINKERS
+    return all(a.GetAtomicNum() in allowed for a in mol.GetAtoms())
 
 
 def _chalcogen_modified(mol, link):
@@ -918,9 +928,7 @@ def name_ester(mol, links):
                 try:
                     return name_diester_acyloxy(mol)
                 except UnsupportedStructure:
-                    if all(_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) == 0 for l in esters) and all(
-                        a.GetAtomicNum() in _ORGANIC_ELEMENTS_OF_LINKERS for a in mol.GetAtoms()
-                    ):
+                    if all(_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) == 0 for l in esters) and _linker_elements_allowed(mol, esters):
                         from ._chain_multiplicative import ester_multiplicative_name
 
                         multiplicative = ester_multiplicative_name(mol, [l.chain[-1] for l in esters])
