@@ -495,6 +495,25 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None, first=None
             raise UnsupportedStructure("this ring is not supported as a multiplicative linker component")
         text, has_prefix = result
         return Part(text, has_prefix, True)
+    if kind == "assembly":
+        from ._chain_assembly import assembly_diyl
+        from ._common import adjacency, halogen_substituents
+
+        if directed is not None or first is not None or ring_stereo or any(order != 1 for _, _, order in attachments):
+            raise DecompositionRejected
+        inside, frees = set(atoms), {(a, b) for a, b, _ in attachments}
+        if any(
+            n.IsInRing() and (a, n.GetIdx()) not in frees
+            for a in atoms
+            for n in mol.GetAtomWithIdx(a).GetNeighbors()
+            if n.GetIdx() not in inside and mol.GetAtomWithIdx(a).IsInRing()
+        ):
+            raise DecompositionRejected
+        aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+        name = assembly_diyl(mol, adjacency(mol), halogen_substituents(mol), aromatic, atoms, [(a, b) for a, b, _ in attachments])
+        if name is None:
+            raise DecompositionRejected
+        return Part(name, False, True)
     if kind == "carbon":
         return _carbon_part(mol, list(atoms), attachments, directed, ctx)
     if any(order != 1 for _, _, order in attachments):

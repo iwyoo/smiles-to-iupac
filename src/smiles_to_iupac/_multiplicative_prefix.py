@@ -8,6 +8,7 @@ the carrier from the resulting name.
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix, halogen_substituents
+from ._multiplicative_groups import KETONE_LIKE
 
 SUFFIX_CARRIERS = {
     "carboxylic_acid": ("C(=O)O", "benzoic acid"),
@@ -147,6 +148,8 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
         from ._substituents import name_branch
 
         return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol)
+    if suffix_group in KETONE_LIKE:
+        suffix_group = None
     if suffix_group is not None and suffix_group not in SUFFIX_CARRIERS:
         raise UnsupportedStructure(f"substituents of a {suffix_group} parent are not supported yet")
     if suffix_group is None and _has_ring(mol, root, from_atom):
