@@ -678,6 +678,8 @@ def test_nuclides_on_nitrogens_of_double_bonded_groups(smiles, expected):
         pytest.param("[2H]C([2H])([2H])C(=O)Cl", "(2H3)acetyl chloride", id="deuterium_on_the_only_hydrogen_bearing_atom_needs_no_locant"),
         pytest.param("[2H]C([2H])CC(=O)Cl", "(3,3-2H2)propanoyl chloride", id="deuterium_beside_another_hydrogen_bearing_atom_keeps_its_locants"),
         pytest.param("O=C(Cl)[13CH2]C(=O)Cl", "(2-13C)propanedioyl dichloride", id="several_halide_groups"),
+        pytest.param("[2H][C@H](C(=O)Cl)CCl", "(2S)-3-chloro(2-2H1)propanoyl chloride", id="descriptor_ranks_the_acyl_halide_carbon_not_the_acid"),
+        pytest.param("[2H][C@H](C(=O)F)CCl", "(2R)-3-chloro(2-2H1)propanoyl fluoride", id="halogen_of_the_acyl_halide_changes_the_rank"),
         pytest.param("[13CH3]S(=O)(=O)Cl", "(13C)methanesulfonyl chloride", id="sulfonyl_halide"),
         pytest.param("ClC(=O)c1ccccc1[2H]", "(2-2H)benzoyl chloride", id="aroyl_halide"),
     ],
