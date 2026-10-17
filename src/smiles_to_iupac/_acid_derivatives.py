@@ -18,7 +18,7 @@ from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, citation_order_key, halogen_substituents, is_halide_ligand
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
-from ._numerals import multiplying_prefix
+from ._numerals import multiplied_ester_word, multiplying_prefix
 from ._isotope_labels import restore_labels
 from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch
@@ -524,7 +524,7 @@ def _multiplied(entries):
     parts = []
     for name, compound, count, letters in sorted(entries, key=lambda e: citation_order_key(e[0])):
         if count > 1:
-            multiplier = multiplying_prefix(count, compound=compound and not _plain(name))
+            multiplier = multiplied_ester_word(count, name, compound=compound and not _plain(name))
             text = f"{multiplier}{enclose(name)}" if compound else f"{multiplier}{name}"
         else:
             text = enclose(name) if compound and any(letters) else name
@@ -601,6 +601,9 @@ def _pendant_text(mol, graph, links):
     return _multiplied([(n, not n.isalpha(), k, []) for n, k in counts.items()])
 
 
+_N_SUBSTITUTED_CARBAMOYL = re.compile(r"(?!carbam)[a-z]+carbam")
+
+
 def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces, suffixed):
     """'dimethyl ethane-1,2-diyl dibutanedioate' (P-65.6.3.3.4.1): one organyl piece joining identical acid pieces
     whose remaining ester groups carry organyl groups; None when the molecule is not of that shape."""
@@ -643,8 +646,9 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     diyl = _diyl_name(mol, frags[hub], [l.far for l in hub_links])
     if diyl is None:
         return None
-    multiplier = multiplying_prefix(len(centers), compound=not anion.isalpha())
-    anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
+    plain = anion.isalpha() and not _N_SUBSTITUTED_CARBAMOYL.match(anion)
+    multiplier = multiplying_prefix(len(centers), compound=not plain)
+    anion_text = multiplier + anion if plain else f"{multiplier}{enclose(anion)}"
     if modified:
         symbols = ["".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in l.chain) for l in hub_links]
         diyl = ",".join(f"{symbol}{_PRIMES[i]}" for i, symbol in enumerate(sorted(symbols))) + "-" + diyl

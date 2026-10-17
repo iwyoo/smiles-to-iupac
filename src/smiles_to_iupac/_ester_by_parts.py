@@ -13,7 +13,7 @@ from ._carbonic_amide import _carbonic_carbon
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._isotope_labels import restore_labels
-from ._numerals import multiplying_prefix
+from ._numerals import multiplied_ester_word, multiplying_prefix
 from ._polycarbonic import chain_numbering
 from ._substituents import BRANCH_STEREO, name_branch
 
@@ -360,7 +360,7 @@ def _name_ester_parts(mol, labels, original=None) -> str:
             continue
         for locant, count, compound in sorted(grouped[name]):
             text = name if count == 1 else (
-                f"{multiplying_prefix(count, compound=compound)}({name})" if compound else f"{multiplying_prefix(count, compound=compound)}{name}"
+                f"{multiplied_ester_word(count, name, compound=compound)}({name})" if compound else f"{multiplied_ester_word(count, name, compound=compound)}{name}"
             )
             if locant:
                 text = f"{','.join([locant] * count)}-{text}"
