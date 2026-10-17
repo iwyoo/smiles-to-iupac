@@ -800,6 +800,12 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
             "hydrazide chain is not supported yet"
         )
     excluded = {hydrazide_oxygen, n1, n2}
+    if any(
+        a.GetAtomicNum() not in (6, *HALOGEN_PREFIXES) and a.GetIdx() not in excluded for a in mol.GetAtoms()
+    ):
+        raise UnsupportedStructure(
+            "a heteroatom group other than the hydrazide on the chain is cited as a prefix by the general engine"
+        )
     non_ring_unsaturation = [
         b
         for b in non_single_bonds(mol)
