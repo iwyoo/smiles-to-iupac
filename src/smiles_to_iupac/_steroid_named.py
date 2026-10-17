@@ -12,6 +12,7 @@ from rdkit.Chem import AllChem
 
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
+from ._np_name import principal_groups_left_outside
 from ._numerals import multiplying_prefix
 from ._substituents import ISOTOPE_LABELS, cited_branch_stereo, format_substituent_prefixes, name_branch, skeleton_nuclides
 
@@ -276,17 +277,22 @@ def _carboxyl(mol, carbon, parent, mapped):
 def _acyl_oxygen(mol, oxygen, parent, mapped):
     """The acyl carbon of an O-acyl group (R-C(=O)-O-) on `parent`, else None."""
     acyl = next((n for n in mol.GetAtomWithIdx(oxygen).GetNeighbors() if n.GetIdx() != parent), None)
-    if acyl is None or acyl.GetAtomicNum() != 6 or acyl.GetIdx() in mapped:
+    if acyl is None or acyl.GetIdx() in mapped:
         return None
     oxo = [
         n for n in acyl.GetNeighbors()
         if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(acyl.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
     ]
-    if len(oxo) != 1 or acyl.GetDegree() > 3:
+    if not oxo:
         return None
-    if any(n.GetIdx() not in (oxygen, oxo[0].GetIdx()) and n.GetAtomicNum() != 6 for n in acyl.GetNeighbors()):
+    others = [n for n in acyl.GetNeighbors() if n.GetIdx() not in (oxygen, oxo[0].GetIdx())]
+    if acyl.GetAtomicNum() == 6 and len(oxo) == 1 and acyl.GetDegree() <= 3 and all(n.GetAtomicNum() == 6 for n in others):
+        return acyl.GetIdx()
+    if acyl.GetAtomicNum() == 6 and any(
+        n.GetAtomicNum() == 8 and all(m.GetIdx() in mapped or m.GetIdx() == acyl.GetIdx() for m in n.GetNeighbors()) for n in others
+    ):
         return None
-    return acyl.GetIdx()
+    raise UnsupportedStructure("an ester of an acid other than a carboxylic acid is named by its class, not as a prefix")
 
 
 def _groups(mol, mapping, terminals, parent_of):
@@ -408,6 +414,8 @@ def _assemble(mol, stem, mappings, ring_atoms):
         if best is None or key < best[0]:
             best = (key, mapping, classes, branches, principal)
     _, mapping, classes, branches, principal = best
+    if principal not in ("ester_o",) and principal_groups_left_outside(mol, classes, principal, set(mapping.values())):
+        raise UnsupportedStructure("a principal characteristic group outside the parent needs a multiplicative or other parent")
     if "ester" in classes and "ester_o" in classes:
         raise UnsupportedStructure("esters of both a steroid acid and a steroid alcohol are not supported")
     for cls in _ACYL_CLASSES:

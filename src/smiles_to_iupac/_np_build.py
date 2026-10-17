@@ -19,6 +19,7 @@ from ._np_name import (
     _SENIORITY,
     _SUFFIX,
     Loc,
+    Outranked,
     _acid_anion,
     alkyl_count,
     classify,
@@ -113,8 +114,8 @@ def build(cand, view):
             groups.branches = [b for b in groups.branches if b[1] != chain[1]]
             classes["yl"] = [(chain[0], {chain[1]}, {"anchor": chain[1], "root": chain[1]})]
             principal = "yl"
-    if principal not in ("yl", "diyl", "ester_o") and principal_groups_left_outside(view, classes, principal, set(cand.mapping.values())):
-        raise UnsupportedStructure("a principal characteristic group outside the parent needs a multiplicative or other parent")
+    if principal not in ("yl", "diyl", "ester_o") and principal_groups_left_outside(view.mol, classes, principal, set(cand.mapping.values())):
+        raise Outranked("a principal characteristic group outside the parent needs a multiplicative or other parent")
     if "ester" in classes and "ester_o" in classes:
         raise UnsupportedStructure("esters of both an acid and an alcohol of the parent are not supported")
     branches = list(groups.branches)

@@ -5,17 +5,18 @@ from functools import lru_cache
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, assign_cip_labels
 from ._pin import mark
 from ._np_build import _homo_position, build
 from ._np_core import PARENTS, get_parent, loc_key
 from ._np_diff import MAX_MODIFICATIONS, MIN_RINGS_AFTER_SECO, WORK_LIMIT, lower_bound, read_operations
 from ._np_match import View, embeddings, skeleton_has_stereo
-from ._np_name import _SENIORITY, classify
+from ._np_name import _SENIORITY, FREE_VALENCE, Outranked, classify
 from ._np_region import regions
 from ._np_rings import components
 from ._np_skel import Skel, apo_ops, de_ops, des_ops, variants
 from ._np_text import stem_info
+from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS
 
 PREFERRED_OPERATIONS = 2
 _NO_PIN = "P-101 identifies no preferred IUPAC names for natural-product parent structures"
@@ -220,7 +221,8 @@ def _best_per_skeleton(cands, view):
         key = (cand.parent.name, tuple(sorted(map(str, (op[:2] for op in cand.skel.ops)))), frozenset(cand.mapping.values()))
         try:
             rank = _rank(cand, view)
-        except UnsupportedStructure:
+        except UnsupportedStructure as error:
+            view.outranked |= isinstance(error, Outranked)
             continue
         order = sorted(cand.mapping, key=loc_key)
         inserted = tuple(sorted((-_homo_position(op) for op in cand.skel.ops if op[0] == "homo")))
@@ -293,6 +295,7 @@ def _view(mol):
     )
     view.aromatic_atoms = len({i for bond in view.aromatic_bonds for i in bond})
     view.work = WORK_LIMIT
+    view.outranked = False
     return view
 
 
@@ -331,6 +334,7 @@ def _name_once(mol):
             try:
                 built = build(cand, view)
             except UnsupportedStructure as error:
+                view.outranked |= isinstance(error, Outranked)
                 if "acyclic part" in str(error):
                     blocked.add(cand.parent.name)
                 continue
@@ -339,6 +343,8 @@ def _name_once(mol):
                 best = built
         if cost == 0:
             exact = embedded - (blocked - built_names)
+        if best is None and view.outranked:
+            break
     return best
 
 
@@ -405,3 +411,75 @@ def _name_with_groups(mol, groups):
         if other is not None and other.first_face == "α":
             built = other
     return f"{word}-{built.name}", built.skeletal
+
+
+_MIN_RINGS_IN_GROUP = 3
+
+
+def _valence_fragment(mol, branch, links):
+    """The branch with each `links` atom kept as a bare marker of a free valence, so that the centres keep their tags."""
+    keep = sorted(branch | set(links))
+    editable = Chem.RWMol(mol)
+    for index in sorted((a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in keep), reverse=True):
+        editable.RemoveAtom(index)
+    fragment = editable.GetMol()
+    for link in links:
+        marker = fragment.GetAtomWithIdx(keep.index(link))
+        marker.SetFormalCharge(0)
+        marker.SetIsotope(0)
+        marker.SetNumRadicalElectrons(0)
+        marker.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+        marker.SetIsAromatic(False)
+        marker.SetNumExplicitHs(0)
+        marker.SetNoImplicit(False)
+        marker.SetAtomMapNum(FREE_VALENCE)
+    try:
+        Chem.SanitizeMol(fragment)
+    except Exception:
+        return None
+    return fragment, keep
+
+
+@lru_cache(maxsize=256)
+def _group_of(smiles):
+    # the fragment's atom indices are not those of the molecule the enclosing contexts refer to
+    tokens = (ISOTOPE_LABELS.set(None), FORCED_BRANCH_NAMES.set(None))
+    try:
+        name, operations = _natural_product_name(Chem.MolFromSmiles(smiles))
+    except UnsupportedStructure:
+        return None
+    finally:
+        FORCED_BRANCH_NAMES.reset(tokens[1])
+        ISOTOPE_LABELS.reset(tokens[0])
+    return (name, operations) if name and operations <= PREFERRED_OPERATIONS and name.endswith("yl") else None
+
+
+def semisystematic_groups(mol, graph, attachments):
+    """(name, True) of the substituent group of a semisystematic parent that holds the atoms `root` of the pairs
+    (root, link) and hangs from the atoms `link` (P-101.7.3, P-15.3), or None. The CIP labels of its centres must be
+    those of the whole molecule."""
+    from ._appendix3_skeletons import _branch_of, _cite_stereo
+
+    links = {link for _, link in attachments}
+    branch = _branch_of(graph, [root for root, _ in attachments], links)
+    if len(branch) < _MIN_HEAVY_ATOMS or any(n in branch for root, link in attachments for n in graph[link] if n != root):
+        return None
+    if sum(1 for ring in mol.GetRingInfo().AtomRings() if branch.issuperset(ring)) < _MIN_RINGS_IN_GROUP:
+        return None
+    built = _valence_fragment(mol, branch, links)
+    if built is None:
+        return None
+    fragment, keep = built
+    found = _group_of(Chem.MolToSmiles(fragment))
+    if found is None:
+        return None
+    whole, part = Chem.Mol(mol), Chem.Mol(fragment)
+    assign_cip_labels(whole)
+    assign_cip_labels(part)
+    for position, atom in enumerate(keep):
+        if atom in branch and whole.GetAtomWithIdx(atom).HasProp("_CIPCode") != part.GetAtomWithIdx(position).HasProp("_CIPCode"):
+            return None
+        if atom in branch and part.GetAtomWithIdx(position).HasProp("_CIPCode") and part.GetAtomWithIdx(position).GetProp("_CIPCode") != whole.GetAtomWithIdx(atom).GetProp("_CIPCode"):
+            return None
+    _cite_stereo(mol, branch)
+    return mark(found[0], _NO_PIN), True

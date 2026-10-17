@@ -1251,6 +1251,13 @@ def _name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, m
         if natural_product is not None:
             return natural_product
 
+    if mol is not None and attach_order == 1.0 and mol.GetRingInfo().NumRings() >= 3:
+        from ._np import semisystematic_groups
+
+        semisystematic = semisystematic_groups(mol, graph, [(root, coming_from)])
+        if semisystematic is not None:
+            return semisystematic
+
     if mol is not None and mol.GetRingInfo().NumRings() >= 3 and attach_order in (1.0, 2.0):
         from ._phane_general import phane_substituent
 
