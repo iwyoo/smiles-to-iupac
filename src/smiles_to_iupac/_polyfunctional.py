@@ -3654,16 +3654,29 @@ def _joins_two_rings(bond):
 
 
 def _plain_diazene(bond):
-    """An acyclic N=N bond whose nitrogens carry only a carbon group or hydrogen: a ring that contains nitrogen is the
-    parent beside it, the diazene being the prefix 'phenyldiazenyl' (P-44.1.2.2, P-68.3.1.3)."""
+    """An acyclic N=N bond whose nitrogens carry only a carbon group or hydrogen, or one of them an amino nitrogen that
+    carries only carbon groups (a triaz-1-ene): a ring that contains nitrogen is the parent beside it, the chain being
+    the prefix 'phenyldiazenyl' or '(dimethylamino)diazenyl' (P-44.1.2.2, P-68.3.1.3)."""
     atoms = (bond.GetBeginAtom(), bond.GetEndAtom())
-    return bond.GetBondTypeAsDouble() == 2.0 and all(
-        not a.IsInRing()
-        and not a.GetFormalCharge()
-        and a.GetDegree() <= 2
-        and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors() if n.GetIdx() not in {x.GetIdx() for x in atoms})
-        for a in atoms
-    )
+    inner = {x.GetIdx() for x in atoms}
+    if bond.GetBondTypeAsDouble() != 2.0:
+        return False
+    amino = 0
+    for a in atoms:
+        if a.IsInRing() or a.GetFormalCharge() or a.GetDegree() > 2:
+            return False
+        for n in a.GetNeighbors():
+            if n.GetIdx() in inner or n.GetAtomicNum() == 6:
+                continue
+            if not (
+                n.GetAtomicNum() == 7
+                and not n.IsInRing()
+                and not n.GetFormalCharge()
+                and all(m.GetAtomicNum() == 6 for m in n.GetNeighbors() if m.GetIdx() != a.GetIdx())
+            ):
+                return False
+            amino += 1
+    return amino <= 1
 
 
 def _only_plain_hydrazines(mol):

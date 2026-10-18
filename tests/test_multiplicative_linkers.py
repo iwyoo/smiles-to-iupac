@@ -676,6 +676,8 @@ def test_double_bond_descriptor_and_hydroxy_suffix_of_a_diazene_or_chain_hydride
         pytest.param("c1ccc(N=Nc2ccccn2)cc1C(=O)O", "3-[(pyridin-2-yl)diazenyl]benzoic acid", id="acid_outranks_the_ring"),
         pytest.param("c1ccc(N=Nc2ccccc2)cc1", "diphenyldiazene", id="carbocycles_lose_to_the_diazene"),
         pytest.param("c1ccc(N=Nc2ccco2)cc1", "(furan-2-yl)(phenyl)diazene", id="oxygen_ring_loses_to_the_diazene"),
+        pytest.param("CN(C)N=Nc1cccnc1", "3-[(dimethylamino)diazenyl]pyridine", id="amino_on_the_far_nitrogen_of_a_triazene"),
+        pytest.param("CN(C)N=Nc1ccoc1", "1-(furan-3-yl)-3,3-dimethyltriaz-1-ene", id="oxygen_ring_loses_to_the_triazene"),
     ],
 )
 def test_diazene_beside_a_nitrogen_ring_is_a_prefix_of_the_ring(smiles, expected):
