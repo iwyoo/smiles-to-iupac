@@ -60,6 +60,20 @@ def _acylamino_nitrogen(mol, root, parent):
     return len(acyl) in (1, 2) and len(kids) <= 2 and all(n in acyl or n.GetAtomicNum() == 6 for n in kids)
 
 
+def _nitrogen_on_ring_nitrogen(mol, root, parent):
+    """A neutral acyclic nitrogen joined singly to a ring nitrogen: its group (diazenyl, hydrazinyl, ...) is one prefix of
+    the ring (P-68.3.1.2, P-68.3.1.3)."""
+    atom = mol.GetAtomWithIdx(root)
+    return (
+        atom.GetAtomicNum() == 7
+        and not atom.GetFormalCharge()
+        and not atom.IsInRing()
+        and mol.GetAtomWithIdx(parent).GetAtomicNum() == 7
+        and mol.GetAtomWithIdx(parent).IsInRing()
+        and mol.GetBondBetweenAtoms(root, parent).GetBondTypeAsDouble() == 1.0
+    )
+
+
 def _acyl_hydrazine_sulfur(mol, root):
     """A sulfonyl-type S, Se or Te group whose singly bonded nitrogen carries a second nitrogen (hydrazinesulfinyl)."""
     atom = mol.GetAtomWithIdx(root)
@@ -335,6 +349,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 or _anionic_branch(mol, root, subtree(root))
                 or _acyl_hydrazine_sulfur(mol, root)
                 or _acylamino_nitrogen(mol, root, parent_of[root])
+                or _nitrogen_on_ring_nitrogen(mol, root, parent_of[root])
             )
         ):
             try:
