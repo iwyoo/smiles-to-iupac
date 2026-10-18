@@ -4,9 +4,12 @@ the acid stem follows the number of chalcogen ligands on the centre (one 'phosph
 prefixes, the replacing S, Se, Te and NH2 are infixes ('phosphinothious acid', 'boronamidic acid'), and the
 hydrogen-bearing elements are cited when the ligands differ ('phosphorothioic O,O,O-acid')."""
 
+import contextlib
+
 from rdkit import Chem
 
-from ._hetero_prefixes import pentavalent_nitrogen_oxo
+from ._borinic_acid import boronic_type_group_outranks
+from ._hetero_prefixes import boron_acid_parent, pentavalent_nitrogen_oxo
 from ._common import HALOGEN_PREFIXES, RuleUndefinedStructure, UnsupportedStructure, adjacency, group_substituents, halogen_substituents, is_halide_ligand
 from ._numerals import numerical_term
 from ._substituents import centre_nuclides, cited_stereo_around, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
@@ -114,9 +117,26 @@ def _ligands(mol, center):
 def _acid_parts(mol):
     centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _STEMS and a.GetAtomicNum() != 7]
     centers = centers or [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7]
-    if len(centers) != 1 or len(Chem.GetMolFrags(mol)) != 1:
+    if len(Chem.GetMolFrags(mol)) != 1 or not centers:
         return None
-    center = centers[0]
+    if len(centers) > 1 and any(a.GetAtomicNum() != 5 for a in centers):
+        return None
+    found = [parts for parts in (_acid_parts_at(mol, c, centers) for c in centers) if parts is not None]
+    found.sort(key=_boron_acid_rank)
+    if len(found) > 1 and _boron_acid_rank(found[0]) == _boron_acid_rank(found[1]):
+        return None
+    return found[0] if found else None
+
+
+def _boron_acid_rank(parts):
+    """Boronic-type acids (two ligands besides carbon) before borinic-type acids (P-42.3), the acid itself before its
+    derivatives by replacement, then the one with more hydroxy groups."""
+    _, _, hydroxy, _, _, replacers, amides = parts
+    return -(len(hydroxy) + len(replacers) + len(amides)), len(replacers) + len(amides), -len(hydroxy)
+
+
+def _acid_parts_at(mol, center, centers):
+    others = [c for c in centers if c.GetIdx() != center.GetIdx()]
     if (center.GetFormalCharge() and center.GetAtomicNum() != 7) or center.GetIsotope() or center.IsInRing():
         return None
     ligands = _ligands(mol, center)
@@ -124,6 +144,8 @@ def _acid_parts(mol):
         return None
     oxo, hydroxy, carbon, replacers, amides = ligands
     z = center.GetAtomicNum()
+    if others and boronic_type_group_outranks(mol, center.GetIdx(), len(hydroxy) + len(replacers) + len(amides) == 2):
+        return None
     pentavalent = z in _PENTAVALENT and len(oxo) == 1
     if len(oxo) > 1 or (len(oxo) == 1 and not pentavalent) or not 1 <= len(hydroxy) <= 3:
         return None
@@ -138,6 +160,7 @@ def _acid_parts(mol):
     for neighbor in replacers:
         ligand_atoms |= _replacer(mol, center, neighbor)[1]
     ring_hetero = set().union(*(_ring_system(mol, n.GetIdx()) for n in carbon if n.GetAtomicNum() == 7))
+    ligand_atoms |= {o.GetIdx() for o in others} | {n.GetIdx() for o in others for n in o.GetNeighbors() if n.GetAtomicNum() in (7, 8)}
     if any(
         a.GetAtomicNum() not in (6, *HALOGEN_PREFIXES) and a.GetIdx() not in ring_hetero
         for a in mol.GetAtoms()
@@ -158,7 +181,8 @@ def name_functional_replacement_oxoacid(mol) -> str:
     center, oxo, hydroxy, carbon, pentavalent, replacers, amides = parts
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    with cited_stereo_around(mol, center.GetIdx()):
+    junior_boron = boron_acid_parent() if center.GetAtomicNum() == 5 else contextlib.nullcontext()
+    with junior_boron, cited_stereo_around(mol, center.GetIdx()):
         entries = [name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, mol=mol) for c in carbon]
         arms = sorted(
             (
