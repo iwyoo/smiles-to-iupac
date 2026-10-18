@@ -338,6 +338,8 @@ def _name_once(mol):
                 if "acyclic part" in str(error):
                     blocked.add(cand.parent.name)
                 continue
+            if built is None:
+                continue
             built_names.add(cand.parent.name)
             if best is None or built.key < best.key or (built.key == best.key and built.name < best.name):
                 best = built

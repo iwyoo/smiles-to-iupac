@@ -7,7 +7,21 @@ from rdkit import Chem
 from ._common import UnsupportedStructure
 from ._np_core import FACES, is_numbered, loc_key
 
-_SUFFIX = {"ketone": "one", "alcohol": "ol", "amine": "amine", "ester_o": "yl", "aldehyde": "al", "diyl": "diyl", "yl": "yl"}
+_SUFFIX = {
+    "ketone": "one",
+    "thione": "thione",
+    "selone": "selone",
+    "tellone": "tellone",
+    "alcohol": "ol",
+    "amine": "amine",
+    "imine": "imine",
+    "ester_o": "yl",
+    "aldehyde": "al",
+    "diyl": "diyl",
+    "yl": "yl",
+}
+_HETONES = {"S": "thione", "Se": "selone", "Te": "tellone"}
+_YLIDENE_CLASSES = ("imine", *_HETONES.values())
 _ACYL_SUFFIX = {
     ("acid", "c"): "carboxylic acid",
     ("acid", "o"): "oic acid",
@@ -18,7 +32,9 @@ _ACYL_SUFFIX = {
     ("nitrile", "c"): "carbonitrile",
 }
 _PREFIX = {"alcohol": "hydroxy", "ketone": "oxo", "amine": "amino", "aldehyde": "oxo"}
-_SENIORITY = ["yl", "acid", "ester", "ester_o", "diyl", "amide", "nitrile", "aldehyde", "ketone", "alcohol", "amine"]
+_SENIORITY = [
+    "yl", "acid", "ester", "ester_o", "diyl", "amide", "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "amine", "imine",
+]
 FREE_VALENCE = 7777
 
 
@@ -30,7 +46,11 @@ _COUNTED = {
     "nitrile": "[CX2]#[NX1]",
     "aldehyde": "[CX3H1](=O)[#6]",
     "ketone": "[#6][CX3](=O)[#6]",
+    "thione": "[#6][CX3](=[SX1])[#6]",
+    "selone": "[#6][CX3](=[SeX1])[#6]",
+    "tellone": "[#6][CX3](=[TeX1])[#6]",
     "alcohol": "[OX2H][#6]",
+    "imine": "[CX3;!$(C(=N)[N,O,S])]=!@[NX2+0]",
 }
 _ACYL_CLASSES = ("acid", "ester", "ester_o", "amide", "nitrile", "diyl")
 _LETTERS = "abcdefghij"
@@ -180,6 +200,35 @@ def _acid_anion(view, oxygen, acyl, mapped):
     return name[: -len("ic acid")] + "ate"
 
 
+def _ylidene_class(view, atom, partner):
+    """The class of the group a skeleton atom forms with `partner` by a double bond: an imine (P-62.3.1.1) or a chalcogen
+    analogue of a ketone (P-64.6.1), else None for a ylidene prefix."""
+    if view.order[frozenset((atom, partner))] != 2 or view.mol.GetAtomWithIdx(partner).GetFormalCharge():
+        return None
+    if view.elem[partner] == "N":
+        return "imine"
+    return _HETONES.get(view.elem[partner]) if len(view.adj[partner]) == 1 else None
+
+
+def imine_substituents(view, nitrogen, mapped):
+    return [n for n in view.adj[nitrogen] if n not in mapped]
+
+
+def _plain_carbon(view, atom, origin):
+    """A carbon that bears no double or triple bond to a heteroatom, so that it is not a carbonyl, imidoyl or cyano carbon."""
+    return view.elem[atom] == "C" and all(
+        view.order[frozenset((atom, n))] == 1 or view.elem[n] == "C" for n in view.adj[atom] if n != origin
+    )
+
+
+def plain_imine_substituent(view, atom, nitrogen):
+    """Whether the group on an imine nitrogen is a hydrocarbon group, a hydroxy group or an alkoxy group: any other group
+    on the nitrogen ranks the amide, ester, hydrazine or similar class above the imine (P-41, P-44.1.2.2)."""
+    if view.elem[atom] == "O":
+        return len(view.adj[atom]) == 1 or all(_plain_carbon(view, n, atom) for n in view.adj[atom] if n != nitrogen)
+    return _plain_carbon(view, atom, nitrogen)
+
+
 class Groups:
     def __init__(self):
         self.classes = {}
@@ -214,8 +263,6 @@ def classify(cand, view, ignored=frozenset()):
         oxo = [n for n in outside if view.elem[n] == "O" and len(view.adj[n]) == 1 and view.order[frozenset((atom, n))] == 2]
         hydroxyl = [n for n in outside if view.elem[n] == "O" and len(view.adj[n]) == 1 and mol.GetAtomWithIdx(n).GetTotalNumHs() == 1]
         amino = [n for n in outside if view.elem[n] == "N" and len(view.adj[n]) == 1 and mol.GetAtomWithIdx(n).GetTotalNumHs() == 2]
-        if any(view.order[frozenset((atom, n))] != 1 for n in outside if n not in oxo):
-            raise UnsupportedStructure("an exocyclic multiple bond on a natural-product skeleton is not supported")
         if oxo:
             if len(outside) != 1:
                 raise UnsupportedStructure("an acyl group on a natural-product skeleton is not supported")
@@ -225,7 +272,15 @@ def classify(cand, view, ignored=frozenset()):
                 groups.add("ketone", loc, {oxo[0]})
             continue
         for n in outside:
-            if n in hydroxyl:
+            if view.order[frozenset((atom, n))] != 1:
+                cls = _ylidene_class(view, atom, n)
+                if cls in _HETONES.values() and mol.GetAtomWithIdx(atom).GetTotalNumHs() > 0:
+                    raise Outranked("a chalcogen analogue of an aldehyde on the skeleton is named by its own class (P-64.6.1)")
+                if cls is None:
+                    groups.branches.append((loc, n))
+                else:
+                    groups.add(cls, loc, {n}, {"anchor": n, "root": n})
+            elif n in hydroxyl:
                 groups.add("alcohol", loc, {n})
             elif n in amino:
                 groups.add("amine", loc, {n})

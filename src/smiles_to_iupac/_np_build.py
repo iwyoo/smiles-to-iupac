@@ -18,12 +18,15 @@ from ._np_name import (
     _PREFIX,
     _SENIORITY,
     _SUFFIX,
+    _YLIDENE_CLASSES,
     Loc,
     Outranked,
     _acid_anion,
     alkyl_count,
     classify,
     final_labels,
+    imine_substituents,
+    plain_imine_substituent,
     principal_groups_left_outside,
 )
 from ._np_fusion import assign_primes, fusion_text, hydro_texts, indicated_texts, name_fused
@@ -115,10 +118,18 @@ def build(cand, view):
             classes["yl"] = [(chain[0], {chain[1]}, {"anchor": chain[1], "root": chain[1]})]
             principal = "yl"
     if principal not in ("yl", "diyl", "ester_o") and principal_groups_left_outside(view.mol, classes, principal, set(cand.mapping.values())):
+        if any(view.order[frozenset((root, mapping[loc]))] != 1 for loc, root in groups.branches):
+            return None
         raise Outranked("a principal characteristic group outside the parent needs a multiplicative or other parent")
     if "ester" in classes and "ester_o" in classes:
         raise UnsupportedStructure("esters of both an acid and an alcohol of the parent are not supported")
     branches = list(groups.branches)
+    for cls in _YLIDENE_CLASSES:
+        if cls in classes and cls != principal:
+            branches += [(loc, extra["root"]) for loc, _, extra in classes.pop(cls)]
+    imines = classes["imine"] if principal == "imine" else []
+    if any(not plain_imine_substituent(view, n, extra["root"]) for _, _, extra in imines for n in imine_substituents(view, extra["root"], mapped)):
+        raise Outranked("a group on the imine nitrogen that is not a hydrocarbon, hydroxy or alkoxy group ranks above the imine")
     if principal != "aldehyde" and "aldehyde" in classes:
         formyls = [m for m in classes["aldehyde"] if m[2].get("kind") == "c"]
         branches += [(loc, extra["root"]) for loc, _, extra in formyls]
@@ -182,15 +193,26 @@ def build(cand, view):
             prefix_groups.setdefault(_PREFIX[cls], {"locants": [], "compound": False})["locants"].append(
                 Loc(final(loc), config.faces.get(atom, ""))
             )
-    with cited_branch_stereo(view.mol, graph, set(mapping.values()), [root for _, root in branches]):
+    n_roots = [
+        (extra["root"], f"N{final(loc)}" if len(imines) > 1 else "N", substituent)
+        for loc, _, extra in imines
+        for substituent in imine_substituents(view, extra["root"], mapped)
+    ]
+    with cited_branch_stereo(view.mol, graph, set(mapping.values()), [root for _, root in branches] + [root for _, _, root in n_roots]):
         named = [
             (loc, root, *name_branch(graph, root, mapping[loc], halogens, frozenset(), mol=view.mol, unsaturated=True))
             for loc, root in branches
+        ]
+        n_named = [
+            (locant, *name_branch(graph, root, nitrogen, halogens, frozenset(), mol=view.mol, unsaturated=True))
+            for nitrogen, locant, root in n_roots
         ]
     repeats = Counter((loc, name) for loc, _, name, _ in named)
     for loc, root, name, compound in named:
         face = "" if repeats[(loc, name)] > 1 else config.faces.get(root, "")
         prefix_groups.setdefault(name, {"locants": [], "compound": compound})["locants"].append(Loc(final(loc), face))
+    for locant, name, compound in n_named:
+        prefix_groups.setdefault(name, {"locants": [], "compound": compound})["locants"].append(Loc(locant))
     for entry in prefix_groups.values():
         entry["locants"].sort(key=lambda t: loc_key(t.base))
     if spiro:

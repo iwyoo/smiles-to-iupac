@@ -79,18 +79,19 @@ def configuration(cand, view):
     bond_stereo = [
         b for b in mol.GetBonds()
         if b.GetBondTypeAsDouble() == 2.0 and not b.IsInRing()
-        and b.GetBeginAtomIdx() in mapped and b.GetEndAtomIdx() in mapped
+        and (b.GetBeginAtomIdx() in mapped or b.GetEndAtomIdx() in mapped)
         and b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)
     ]
     if not (specified & mapped) and not bond_stereo:
         return config
     assign_cip_labels(mol)
     for bond in bond_stereo:
-        if _implied_bond(cand, view, bond, image):
+        ends = [image[a] for a in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()) if a in image]
+        if len(ends) == 2 and _implied_bond(cand, view, bond, image):
             continue
         if not bond.HasProp("_CIPCode"):
             raise UnsupportedStructure("a chain double bond has no E/Z label")
-        low = min((image[bond.GetBeginAtomIdx()], image[bond.GetEndAtomIdx()]), key=loc_key)
+        low = min(ends, key=loc_key)
         config.side.append((loc_key(low), f"{low}{bond.GetProp('_CIPCode')}"))
     if not (specified & mapped):
         return config
