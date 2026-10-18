@@ -309,7 +309,11 @@ def _free_acid_name(acid):
     heavy = [
         a
         for a in acid.GetAtoms()
-        if a.GetAtomicNum() in _HEAVY_PNICTOGEN_STEMS and any(n.GetAtomicNum() in (8, 16, 34, 52) for n in a.GetNeighbors())
+        if a.GetAtomicNum() in _HEAVY_PNICTOGEN_STEMS
+        and any(
+            n.GetAtomicNum() in (8, 16, 34, 52) and n.GetDegree() == 1 and acid.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            for n in a.GetNeighbors()
+        )
     ]
     if heavy:
         return _heavy_pnictogen_acid_name(acid, heavy)

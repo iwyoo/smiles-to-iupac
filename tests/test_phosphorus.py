@@ -451,6 +451,8 @@ def test_lone_pair_on_the_axis_is_not_a_t_shape():
         ("CP(=O)(C)CC(O)=O", "(dimethylphosphinoyl)acetic acid"),
         ("OC(=O)c1ccc(cc1)P(=O)(O)c1ccc(cc1)C(O)=O", "4,4'-(hydroxyphosphoryl)dibenzoic acid"),
         ("OC(=O)c1ccc(cc1)P(=O)(C)c1ccc(cc1)C(O)=O", "4,4'-(methylphosphonoyl)dibenzoic acid"),
+        ("CC(=O)OC(=O)CC[As](C)(C)=O", "acetic 3-(dimethylarsinoyl)propanoic anhydride"),
+        ("O=C(CC[Sb](C)(C)=O)OC(=O)CC[Sb](C)(C)=O", "3-(dimethylstibinoyl)propanoic anhydride"),
     ],
 )
 def test_phosphorus_acid_groups_cited_as_prefixes_under_a_carboxylic_acid(smiles, expected):
