@@ -165,30 +165,37 @@ def _dichalcogenide_only(mol):
 
 
 def _chain_prefix_allowed(mol):
-    return EXTENDED_PREFIXES.get() or _has_senior_principal_group(mol) or _dichalcogenide_only(mol)
+    return EXTENDED_PREFIXES.get() or RADICAL_PARENT.get() or _has_senior_principal_group(mol) or _dichalcogenide_only(mol)
 
 
 def chalcogen_link_is_parent(mol):
     """With no principal group a chalcogen bonded to another heteroatom that is not cited as a prefix (three or more
-    identical atoms in a row, P-68.4.1.1; a link to nitrogen) makes that heteroatom chain the parent hydride (P-44.1.2.2)."""
+    identical atoms in a row, P-68.4.1.1; a link to nitrogen) makes that heteroatom chain the parent hydride (P-44.1.2.2);
+    a ring heteroatom does not, for the ring is the senior parent."""
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in CHALCOGEN_PREFIXES or atom.IsInRing() or atom.GetDegree() != 2:
+        if atom.GetAtomicNum() not in _CHAIN_ELEMENTS or atom.IsInRing() or atom.GetDegree() != 2:
             continue
         neighbors = list(atom.GetNeighbors())
         if not any(n.GetAtomicNum() == 6 for n in neighbors):
             continue
         for other in neighbors:
             z = other.GetAtomicNum()
-            if z in (1, 6) or z in MONONUCLEAR_HYDRIDES or (z in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other.GetIdx(), atom.GetIdx())):
+            if (
+                z in (1, 6)
+                or other.IsInRing()
+                or z in MONONUCLEAR_HYDRIDES
+                or (z in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other.GetIdx(), atom.GetIdx()))
+            ):
                 continue
-            if not (_chain_prefix_allowed(mol) if z in _CHAIN_ELEMENTS else _hetero_connection_is_prefix(mol)):
+            if z in _CHAIN_ELEMENTS:
+                linked = _chain_prefix_allowed(mol)
+            else:
+                linked = _hetero_connection_is_prefix(mol) or (
+                    atom.GetAtomicNum() == 8 and _carbon_nitrogen_group(mol, other.GetIdx(), atom.GetIdx())
+                )
+            if not linked:
                 return True
     return False
-
-
-def _on_senior_hydride(mol, atom):
-    """A chalcogen chain hanging on a Group 13-15 atom is a prefix, for that atom is senior to every chalcogen (P-44.1.2.1)."""
-    return atom is not None and mol.GetAtomWithIdx(atom).GetAtomicNum() in MONONUCLEAR_HYDRIDES
 
 
 def require_senior_group(mol, z, parent=None):
@@ -730,9 +737,6 @@ def _imidoyl_centre(mol, idx):
     return imines + hydrazones >= 1 and 1 <= imines + hydrazones + chalcogens <= 2
 
 
-PEROXY_PREFIXES = contextvars.ContextVar("peroxy_prefixes", default=False)
-
-
 def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """(name, is_compound) of a heteroatom- or functional-carbon-rooted
     substituent, or None when `root` is an ordinary carbon."""
@@ -866,32 +870,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
             acyl, acyl_compound = _sulfur_oxo_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(acyl, acyl_compound) + "oxy", True
-        if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS and (
-            _chain_prefix_allowed(mol)
-            or (mol.GetAtomWithIdx(other).GetAtomicNum() != 8 and _on_senior_hydride(mol, coming_from))
-        ):
+        if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS:
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
-        if (
-            mol.GetAtomWithIdx(other).GetAtomicNum() == 8
-            and order == 1.0
-            and not mol.GetAtomWithIdx(other).GetFormalCharge()
-            and mol.GetBondBetweenAtoms(root, other).GetBondTypeAsDouble() == 1.0
-            and mol.GetAtomWithIdx(other).GetDegree() <= 2
-            and PEROXY_PREFIXES.get()
-        ):
-            onward = [n for n in graph[other] if n != root]
-            if not onward:
-                return "hydroperoxy", False
-            if mol.GetAtomWithIdx(onward[0]).GetAtomicNum() == 6:
-                from ._substituents import name_branch
-
-                rname, rcomp = name_branch(graph, onward[0], other, halogens, aromatic_atoms, mol=mol)
-                return _enclose(rname, rcomp) + "peroxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
-            if mol.GetAtomWithIdx(other).GetAtomicNum() == 8 or (
-                not _carbon_nitrogen_group(mol, other, root) and not _hetero_connection_is_prefix(mol)
-            ):
-                raise UnsupportedStructure("this oxygen-linked group is not supported yet")
             from ._substituents import name_branch
 
             rname, rcomp = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)

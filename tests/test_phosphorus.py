@@ -127,6 +127,23 @@ def test_ring_assembly_group_on_a_group_15_heterone_or_imide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CP(C)CCOOC", "dimethyl[2-(methylperoxy)ethyl]phosphane", id="peroxy_prefix_on_a_phosphane"),
+        pytest.param("C[As](C)CCOOC", "dimethyl[2-(methylperoxy)ethyl]arsane", id="peroxy_prefix_on_an_arsane"),
+        pytest.param("C[Sb](C)CCSSC", "dimethyl[2-(methyldisulfanyl)ethyl]stibane", id="disulfanyl_prefix_on_a_stibane"),
+        pytest.param("CP(C)CCOSC", "dimethyl{2-[(methylsulfanyl)oxy]ethyl}phosphane", id="mixed_oxygen_sulfur_pair_on_a_phosphane"),
+        pytest.param("CP(=O)(C)CCOOC", "dimethyl[2-(methylperoxy)ethyl]-λ5-phosphanone", id="peroxy_prefix_on_a_phosphanone"),
+        pytest.param("C[As](C)CCC(=O)SC", "S-methyl 3-(dimethylarsanyl)propanethioate", id="arsanyl_on_a_thioate"),
+        pytest.param("C[Sb](C)CCS(=O)(=O)OC", "methyl 2-(dimethylstibanyl)ethane-1-sulfonate", id="stibanyl_on_a_sulfonate"),
+    ],
+)
+def test_group_15_hydride_with_a_substituent_that_has_no_senior_group_or_is_an_acid_derivative(smiles, expected):
+    # P-44.1.2.1, P-63.4.2.2, P-41, P-65
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_ring_phosphorus_oxide_is_a_lambda5_heterone():
     assert smiles_to_iupac("O=P1CCCCC1") == "1λ5-phosphinan-1-one"
 

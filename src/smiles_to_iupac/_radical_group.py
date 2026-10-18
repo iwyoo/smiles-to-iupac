@@ -11,7 +11,6 @@ from ._hetero_prefixes import (
     DIPOLAR_GROUPS,
     EXTENDED_PREFIXES,
     MONONUCLEAR_HYDRIDES,
-    PEROXY_PREFIXES,
     RADICAL_PARENT,
     is_functional_carbon,
 )
@@ -201,7 +200,6 @@ def _name_radical_group(mol) -> str:
     aromatic = frozenset(a.GetIdx() for a in hydride.GetAtoms() if a.GetIsAromatic())
     context = {"labels": labels, "consumed": set(), "mol": hydride}
     token = ISOTOPE_LABELS.set(context if labels else None)
-    peroxy = PEROXY_PREFIXES.set(True)
     extended = EXTENDED_PREFIXES.set(centre.GetAtomicNum() in (16, 34, 52) or mol.HasSubstructMatch(_IMINE))
     try:
         hydryl = None if labels else hydryl_radical_name(mol, centre)
@@ -211,7 +209,6 @@ def _name_radical_group(mol) -> str:
             graph, centre.GetIdx(), hydrogen, halogen_substituents(hydride), aromatic, mol=hydride, unsaturated=True
         )
     finally:
-        PEROXY_PREFIXES.reset(peroxy)
         EXTENDED_PREFIXES.reset(extended)
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:

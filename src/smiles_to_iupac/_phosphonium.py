@@ -1,65 +1,14 @@
-"""Naming of simple phosphonium cations (the '-phosphanium' suffix,
-P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
-
-- P-73.1.1.2 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/PDF/P7.pdf):
-  a cation formed by adding a hydron to a parent hydride is named by
-  changing the parent hydride name's terminal 'e' to the suffix 'ium' --
-  the same rule `_ammonium.py` already applies to amines, just for
-  phosphorus's own parent hydride 'phosphane' (PH3) instead of nitrogen's
-  'azane'. Since `_phosphane.py`'s own substitutive naming already covers
-  0-3 plain alkyl substituents on phosphorus (unlike `_amine.py`, which
-  only covers a single primary substituent), this module reuses that
-  scope wholesale: a phosphonium cation is neutralized to the equivalent
-  phosphane (formal charge 0, one fewer hydrogen), named via
-  `name_simple_phosphane`, and the resulting name's terminal 'e' is
-  replaced with 'ium'.
-- Confirmed via PubChem structure match: `[PH4+]` -> "phosphanium",
-  `C[PH3+]` -> "methylphosphanium", `C[PH2+]C` -> "dimethylphosphanium",
-  `C[PH+](C)C` -> "trimethylphosphanium". A fourth substituent
-  (`C[P+](C)(C)C` -> "tetramethylphosphanium", a genuine quaternary
-  phosphonium salt) is NOT reachable by the neutralize-then-rename
-  approach above -- a neutral phosphorus atom cannot carry four
-  substituents at all, so there is no phosphane name to derive it from.
-  Instead, mirroring `_sulfonium.py`'s own direct-substituent-construction
-  approach (used there for the same "no neutral counterpart" reason), a
-  quaternary phosphonium's name is built directly from its four carbon
-  substituents via `format_mononuclear_prefixes` + the '-phosphanium'
-  suffix. Confirmed via PubChem structure match for
-  `C[P+](C)(C)C` -> "tetramethylphosphanium"; `CC[P+](C)(C)C`'s structure
-  is named "ethyltri(methyl)phosphanium" here (the multiplying prefix
-  sits outside the parentheses, per P-16.5.1.3.1's own text and the Blue
-  Book's "chlorodi(methyl)borane (PIN)"/"ethyldi(methyl)phosphane (PIN)"
-  worked examples, the Blue Book -- see
-  `_phosphane.py`'s docstring for the full derivation), not PubChem's own
-  raw "ethyl(trimethyl)phosphanium".
-- A plain, unsubstituted benzene ring bonded directly to phosphorus is
-  cited as a 'phenyl' substituent here too. The degree 0-3 case already
-  gets this for free via `_phosphane.py`'s own identical extension (PR
-  #397) through the neutralize-then-rename path above; the quaternary
-  degree-4 case needs its own copy of that same detection (mirroring
-  `_phosphane.py`'s `plain_phenyl_substituent_atoms`) since it's built
-  directly rather than reusing `name_simple_phosphane`. Confirmed via
-  PubChem PUG REST: `c1ccccc1[P+](c1ccccc1)(c1ccccc1)c1ccccc1` ->
-  "tetraphenylphosphanium" (CID 164912).
-
-Explicitly out of scope (raise `UnsupportedStructure`):
-- Any phosphonium phosphorus not shaped like PH4+, a phosphorus bonded to
-  1-3 carbons (with the remaining valence as hydrogens), or a phosphorus
-  bonded to exactly 4 carbons -- e.g. formal charge other than +1, more
-  than one charged atom, isotopic modification, a halogen or other
-  heteroatom substituent, a branched/unsaturated substituent, or an
-  aromatic substituent other than a plain, unsubstituted phenyl, or a
-  ring other than a plain phenyl substituent (inherited unchanged from
-  `_phosphane.py`'s own scope for the degree 0-3 case via neutralization;
-  independently verified for the quaternary degree-4 case above).
-- P-93.2.2: a phosphorus with four different ligands is a stereogenic centre; its R or S leads the name without a locant.
+"""Naming of simple phosphonium cations (the '-phosphanium' suffix, P-73.1.1.2): the groups on phosphorus are cited as
+prefixes of 'phosphanium', the cation of the parent hydride 'phosphane' (PH3), by `onium_name` (as for `_sulfonium.py`).
+P-93.2.2: a phosphorus with four different ligands is a stereogenic centre; its R or S leads the name without a locant.
+Out of scope (UnsupportedStructure): a charge other than +1, more than one charged atom, isotopic modification, and a
+phosphorus substituent other than carbon.
 """
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._onium_prefixes import centre_descriptor, centre_is_specified_stereocentre, only_nitro_charges_besides, onium_name
-from ._phosphane import name_simple_phosphane
 
 
 def has_phosphonium_shape(mol) -> bool:
@@ -101,7 +50,6 @@ def name_phosphonium(mol) -> str:
     descriptor = centre_descriptor(mol, phosphorus)
     if centre_is_specified_stereocentre(mol, phosphorus) and not descriptor:
         raise UnsupportedStructure("the phosphonium phosphorus has no CIP descriptor")
-    degree = phosphorus.GetDegree()
     if any(n.GetAtomicNum() != 6 for n in phosphorus.GetNeighbors()):
         raise UnsupportedStructure(
             "a phosphonium substituent other than carbon is out of scope "
@@ -113,19 +61,4 @@ def name_phosphonium(mol) -> str:
     ):
         raise UnsupportedStructure("the phosphonium phosphorus must be singly bonded to each substituent")
 
-    if degree == 4:
-        return descriptor + onium_name(mol, phosphorus, "phosphanium")
-
-    neutral_rw = Chem.RWMol(mol)
-    neutral_phosphorus = neutral_rw.GetAtomWithIdx(phosphorus.GetIdx())
-    neutral_phosphorus.SetFormalCharge(0)
-    neutral_phosphorus.SetNoImplicit(True)
-    neutral_phosphorus.SetNumExplicitHs(3 - degree)
-    neutral_mol = neutral_rw.GetMol()
-    Chem.SanitizeMol(neutral_mol)
-
-    try:
-        phosphane_name = name_simple_phosphane(neutral_mol)
-    except UnsupportedStructure:
-        return descriptor + onium_name(mol, phosphorus, "phosphanium")
-    return descriptor + phosphane_name[:-1] + "ium"
+    return descriptor + onium_name(mol, phosphorus, "phosphanium")
