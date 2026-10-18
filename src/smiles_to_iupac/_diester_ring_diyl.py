@@ -250,7 +250,12 @@ def _star_group(mol, graph, matches):
     rings, atoms = _system_of(mol, joints[0])
     if any(joint not in atoms for joint in joints):
         return None
-    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, joints, {arm[-1] for arm, _ in arms}, "yl")
+    grown = _grown_assembly(mol, graph, atoms)
+    if grown != atoms:
+        diyl = _assembly_diyl(mol, graph, grown, [(joint, arm[-1]) for arm, joint in arms])
+        found = None if diyl is None else (None, diyl)
+    else:
+        found = evaluate_skeleton(mol, graph, "ring", rings, atoms, joints, {arm[-1] for arm, _ in arms}, "yl")
     if found is None:
         return None
     from ._common import alkane_name
@@ -266,21 +271,30 @@ def _star_group(mol, graph, matches):
     return f"{found[1]}{arm_text} {cite_anions(chosen_anions, [0] * count, False)}"
 
 
-def _assembly_diyl_esters(mol, graph, matches):
+def _grown_assembly(mol, graph, atoms):
+    from ._chain_multiplicative import _grow_assembly
+
+    return _grow_assembly(mol, graph, set(atoms))
+
+
+def _assembly_diyl(mol, graph, atoms, frees):
     from ._chain_assembly import assembly_diyl
 
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    try:
+        return assembly_diyl(mol, graph, halogen_substituents(mol), aromatic, atoms, frees)
+    except UnsupportedStructure:
+        return None
+
+
+def _assembly_diyl_esters(mol, graph, matches, atoms=None):
     systems = [_system_of(mol, m[3].GetIdx()) for m in matches]
     if any(s is None for s in systems):
         return None
-    atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    atoms = atoms or {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
     if len(systems) < 2 or not set().union(*(s[1] for s in systems)) <= atoms:
         return None
-    frees = [(m[3].GetIdx(), m[2].GetIdx()) for m in matches]
-    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    try:
-        diyl = assembly_diyl(mol, graph, halogen_substituents(mol), aromatic, atoms, frees)
-    except UnsupportedStructure:
-        return None
+    diyl = _assembly_diyl(mol, graph, atoms, [(m[3].GetIdx(), m[2].GetIdx()) for m in matches])
     if diyl is None:
         return None
     return f"{diyl} {cite_anions(acid_anions(mol, matches), [0] * len(matches), False)}"
@@ -303,6 +317,11 @@ def name_diester_ring_diyl(mol, matches):
         raise UnsupportedStructure("no ring system or chain carries the ester oxygens")
     kind, body, pool = selection
     if kind == "ring":
+        grown = _grown_assembly(mol, graph, pool)
+        if grown != pool:
+            assembled = _assembly_diyl_esters(mol, graph, matches, grown)
+            if assembled is not None:
+                return assembled
         natural = _semisystematic_diyl_esters(mol, graph, matches, pool)
         if natural is not None:
             return natural

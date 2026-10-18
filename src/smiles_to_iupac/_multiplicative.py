@@ -423,11 +423,23 @@ def _amino_nitrogens_on_carbon_skeleton(mol, selected):
     )
 
 
+def _pendant_assembly_rings(mol, systems, node_of, selected_nodes, span):
+    """Ring systems of the same assembly (P-28.2) as the linking rings that hang off the path between the multiplied units."""
+    from ._chain_multiplicative import _grow_assembly
+    from ._common import adjacency
+
+    linker = set().union(*(systems[n[1]] for n in span if n[0] == "R" and n not in selected_nodes))
+    grown = _grow_assembly(mol, adjacency(mol), set(linker)) if linker else linker
+    return [n for n in {node_of[a] for a in grown - linker} if n not in selected_nodes]
+
+
 def _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=False):
     systems, node_of, adj = tree
     selected_nodes = {u.node for u in selected}
     span = _prune(core, selected_nodes)
     linker_nodes = [n for n in span if n not in selected_nodes]
+    if merge_assemblies:
+        linker_nodes += _pendant_assembly_rings(mol, systems, node_of, selected_nodes, span)
     if not linker_nodes or not _class_gate(mol, groups, selected, systems, node_of):
         return None
     components = _components(mol, linker_nodes, systems, merge_assemblies)
@@ -575,8 +587,9 @@ def _attempt_with_assemblies(mol, groups, selected, tree, core, name_function):
     """The name with directly joined linking rings named as one ring assembly, else with the rings as separate components."""
     systems, node_of, adj = tree
     selected_nodes = {u.node for u in selected}
-    linker_rings = [n for n in _prune(core, selected_nodes) if n[0] == "R" and n not in selected_nodes]
-    if len(linker_rings) > 1:
+    span = _prune(core, selected_nodes)
+    linker_rings = [n for n in span if n[0] == "R" and n not in selected_nodes]
+    if linker_rings and (len(linker_rings) > 1 or _pendant_assembly_rings(mol, systems, node_of, selected_nodes, span)):
         try:
             name = _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=True)
         except UnsupportedStructure:

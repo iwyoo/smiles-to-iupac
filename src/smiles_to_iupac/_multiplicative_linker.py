@@ -534,15 +534,7 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None, first=None
 
         if directed is not None or first is not None or ring_stereo or any(order != 1 for _, _, order in attachments):
             raise DecompositionRejected
-        inside, frees = set(atoms), {(a, b) for a, b, _ in attachments}
-        if any(
-            n.IsInRing() and (a, n.GetIdx()) not in frees
-            for a in atoms
-            for n in mol.GetAtomWithIdx(a).GetNeighbors()
-            if n.GetIdx() not in inside and mol.GetAtomWithIdx(a).IsInRing()
-        ):
-            raise DecompositionRejected
-        aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+        aromatic =frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
         name = assembly_diyl(mol, adjacency(mol), halogen_substituents(mol), aromatic, atoms, [(a, b) for a, b, _ in attachments])
         if name is None:
             raise DecompositionRejected
