@@ -253,11 +253,14 @@ def _has_acid_ligand(mol, idx):
 
 
 def _is_acid_centre(mol, idx):
-    return _has_hydroxy(mol, idx) and not any(n.GetAtomicNum() == 6 for n in mol.GetAtomWithIdx(idx).GetNeighbors())
+    return _has_acid_hydrogen(mol, idx) and not any(n.GetAtomicNum() == 6 for n in mol.GetAtomWithIdx(idx).GetNeighbors())
 
 
-def _has_hydroxy(mol, idx):
-    return any(n.GetAtomicNum() == 8 and n.GetTotalNumHs() == 1 and n.GetDegree() == 1 for n in mol.GetAtomWithIdx(idx).GetNeighbors())
+def _has_acid_hydrogen(mol, idx):
+    """An -OH, -SH, -SeH or -TeH on the carbonic centre (P-65.2.1.2)."""
+    return any(
+        n.GetAtomicNum() in _SYMBOL and n.GetTotalNumHs() == 1 and n.GetDegree() == 1 for n in mol.GetAtomWithIdx(idx).GetNeighbors()
+    )
 
 
 def _cyano_carbon(mol, atom, nitrogen):
@@ -299,7 +302,10 @@ def _imine_slot(mol, center, n):
     raise UnsupportedStructure("this imine nitrogen is not supported on a carbonic acid")
 
 
-_CARBOXYLIC_ACID = [Chem.MolFromSmarts("[CX3](=O)([OX2H1])[#6]"), Chem.MolFromSmarts("[CX3H1](=O)[OX2H1]")]
+_CARBOXYLIC_ACID = [
+    Chem.MolFromSmarts("[CX3](=[O,S,Se,Te])([OX2H1,SX2H1,SeX2H1,TeX2H1])[#6]"),
+    Chem.MolFromSmarts("[CX3H1](=[O,S,Se,Te])[OX2H1,SX2H1,SeX2H1,TeX2H1]"),
+]
 
 
 def _class_rank(mol, idx):

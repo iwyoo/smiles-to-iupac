@@ -1490,6 +1490,10 @@ def test_substituted_hydrazinecarbohydrazides(smiles, expected):
         pytest.param("CC(=O)NC(=O)OC", "methyl acetylcarbamate", id="n_acyl_carbamate"),
         pytest.param("O=C(NC(=O)c1ccccc1)OC", "methyl benzoylcarbamate", id="n_aroyl_carbamate"),
         pytest.param("CC(=O)N(C)C(=O)OC", "methyl acetyl(methyl)carbamate", id="n_acyl_n_alkyl_carbamate"),
+        pytest.param("CC(=O)NC(=O)SC", "S-methyl acetylcarbamothioate", id="s_ester_of_an_n_acyl_carbamic_acid"),
+        pytest.param("CC(=O)NC(=O)S", "acetylcarbamothioic S-acid", id="s_acid_of_an_n_acyl_carbamic_acid"),
+        pytest.param("CC(=O)NC(=S)SC", "methyl acetylcarbamodithioate", id="dithio_ester_of_an_n_acyl_carbamic_acid"),
+        pytest.param("OC(=O)NCC(=S)S", "(carboxyamino)ethane(dithioic acid)", id="chalcogen_analogue_of_a_carboxylic_acid_outranks_carbamic_acid"),
     ],
 )
 def test_n_acyl_carbamates(smiles, expected):
