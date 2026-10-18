@@ -4963,6 +4963,16 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         if named is not None:
             return named
         return _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens)
+    if (
+        len(amine_nitrogens) > 2
+        and not primaries
+        and not ISOTOPE_LABELS.get()
+        and not SUBSTITUTED_AMINE_PREFIX.get()
+        and not any(a.GetFormalCharge() for a in amine_nitrogens)
+    ):
+        named = _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
+        if named is not None:
+            return named
     if len(amine_nitrogens) > 1 and not SUBSTITUTED_AMINE_PREFIX.get() and (
         _labels_on_backbone_only(mol, graph, amine_nitrogens) or _labels_on_alike_nitrogens(mol, graph, amine_nitrogens)
     ):
@@ -5269,20 +5279,63 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
     return named
 
 
-def _share_chain_backbone(mol, graph, nitrogens):
-    """Two of `nitrogens` joined through acyclic carbons only: they are amino groups of one chain (P-62.2.4.1.2)."""
+def _chain_backbone_groups(mol, graph, nitrogens):
+    """`nitrogens` split into the sets joined through acyclic carbons only: each set holds the amino groups of one chain
+    (P-62.2.4.1.2)."""
     chain = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
-    for i, first in enumerate(nitrogens):
-        reached, stack = {first.GetIdx()}, [first.GetIdx()]
+    by_index = {n.GetIdx(): n for n in nitrogens}
+    joined = {first: set() for first in by_index}
+    for first in by_index:
+        reached, stack = {first}, [first]
         while stack:
             for nxt in graph[stack.pop()]:
                 if nxt in chain and nxt not in reached:
                     reached.add(nxt)
                     stack.append(nxt)
-        reached_nitrogens = {n for atom in reached for n in graph[atom]}
-        if any(second.GetIdx() in reached_nitrogens for second in nitrogens[i + 1 :]):
-            return True
-    return False
+        for atom in reached:
+            for other in graph[atom]:
+                if other in by_index and other != first:
+                    joined[first].add(other)
+                    joined[other].add(first)
+    groups, seen = [], set()
+    for start in by_index:
+        if start in seen:
+            continue
+        group, stack = set(), [start]
+        while stack:
+            i = stack.pop()
+            if i not in group:
+                group.add(i)
+                stack.extend(joined[i])
+        seen |= group
+        groups.append([by_index[i] for i in by_index if i in group])
+    return groups
+
+
+def _share_chain_backbone(mol, graph, nitrogens):
+    return any(len(group) > 1 for group in _chain_backbone_groups(mol, graph, nitrogens))
+
+
+def _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens):
+    """Amines on several backbones: the backbone with the most amine groups gives the polyamine parent (P-44.1.1) and the
+    amines on the others are amino prefixes of the N-substituents (P-62.2.2); of equally large backbones the senior
+    parent is chosen (P-62.2.4.1.3). None unless a single backbone holds a part of the amines."""
+    groups = _chain_backbone_groups(mol, graph, amine_nitrogens)
+    most = max(len(group) for group in groups)
+    if most < 2 or most == len(amine_nitrogens):
+        return None
+    named = [
+        _backbone_polyamine(mol, graph, halogens, aromatic_atoms, group) for group in groups if len(group) == most
+    ]
+    named = [result for result in named if result is not None]
+    return min(named, key=_by_parent_then_prefix_count) if named else None
+
+
+def _by_parent_then_prefix_count(result):
+    """Rank of a chain parent among others: the chain key puts locants before the number of prefixes, which suits the
+    numbering of one parent, but between parents the substituent count comes first (P-45.2.1, then P-45.2.2)."""
+    key = result[0]
+    return (*key[:7], key[13], *key[7:13], *key[14:], result[1])
 
 
 def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens):
@@ -6894,14 +6947,16 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
         if locant and isinstance(locant[0], tuple) and len(locant[0]) > 2:
             entry = groups.setdefault(locant[0][2], [0, name, locant[0]])
             entry[0] += 1
-            entry[1] = min(entry[1], name)
+            entry[1] = min(entry[1], name, key=lambda text: (alphanumerical_name_key(text), text))
     primes = {}
     if group_count > 1:
         by_position = {}
         for group, (count, first, located) in groups.items():
-            by_position.setdefault(_n_position(located, position_of), []).append((-count, first, group))
+            by_position.setdefault(_n_position(located, position_of), []).append(
+                (-count, alphanumerical_name_key(first), first, group)
+            )
         for members in by_position.values():
-            for prime, (_, _, group) in enumerate(sorted(members)):
+            for prime, (*_, group) in enumerate(sorted(members)):
                 primes[group] = prime
     stereo_context = BRANCH_STEREO.get()
     for name, compound, *locant in n_names:

@@ -122,6 +122,26 @@ def test_phenyl_chain_amidine_ring_halogen():
         pytest.param("CNc1cccnc1N", "N3-methylpyridine-2,3-diamine", id="secondary_amine_nitrogen_on_the_ring_is_a_principal_group"),
         pytest.param("NCCNCc1ccccn1", "N1-[(pyridin-2-yl)methyl]ethane-1,2-diamine", id="chain_diamine_beats_a_ring_with_one_amine"),
         pytest.param("Nc1ccc2ccccc2c1CNC", "1-[(methylamino)methyl]naphthalen-2-amine", id="fused_ring_amine_with_a_secondary_amine_prefix"),
+        pytest.param(
+            "CNC(=C[N+](=O)[O-])NCCSCc1ccc(CN(C)C)o1",
+            "N1-{2-[({5-[(dimethylamino)methyl]furan-2-yl}methyl)sulfanyl]ethyl}-N'1-methyl-2-nitroethene-1,1-diamine",
+            id="diamine_on_one_backbone_and_an_amino_prefix_in_a_substituent",
+        ),
+        pytest.param(
+            "CNC(=C[N+](=O)[O-])NCCSCc1ccc(CNC)o1",
+            "N1-methyl-N'1-{2-[({5-[(methylamino)methyl]furan-2-yl}methyl)sulfanyl]ethyl}-2-nitroethene-1,1-diamine",
+            id="geminal_unprimed_nitrogen_has_the_alphanumerically_first_prefix",
+        ),
+        pytest.param(
+            "CN/C(=C\\[N+](=O)[O-])NCCSCc1csc(CN(C)C)n1",
+            "(1E)-N1-{2-[({2-[(dimethylamino)methyl]-1,3-thiazol-4-yl}methyl)sulfanyl]ethyl}-N'1-methyl-2-nitroethene-1,1-diamine",
+            id="descriptor_of_the_enediamine_beside_an_amino_prefix_in_a_substituent",
+        ),
+        pytest.param(
+            "CNC(C)NCCSCCN(C)CCN(C)C",
+            "N1,N1,N2-trimethyl-N2-{2-[(2-{[1-(methylamino)ethyl]amino}ethyl)sulfanyl]ethyl}ethane-1,2-diamine",
+            id="equal_diamine_backbones_the_one_with_more_prefixes_is_the_parent",
+        ),
     ],
 )
 def test_polyamines_of_a_ring_and_acyclic_amine_nitrogens(smiles, expected):
