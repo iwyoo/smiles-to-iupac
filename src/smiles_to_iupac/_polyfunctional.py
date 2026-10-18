@@ -3800,6 +3800,9 @@ def _fused_plain_parent(mol, graph, rings):
         system_rings, system_atoms = _system_of(mol, ring[0])
         if not any(set(system_atoms) == set(seen[1]) for seen in systems):
             systems.append((system_rings, system_atoms))
+    cationic = CATION_RING_ATOM.get()
+    if cationic is not None and any(cationic in atoms for _, atoms in systems):
+        systems = [system for system in systems if cationic in system[1]]
     from ._substituents import ISOTOPE_LABELS
 
     labels = (ISOTOPE_LABELS.get() or {}).get("labels", {})

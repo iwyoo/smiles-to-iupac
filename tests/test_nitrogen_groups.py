@@ -315,6 +315,18 @@ def test_amine_oxide_ring_nitrogen():
     assert smiles_to_iupac("C[N+]1([O-])CCCCC1") == "1-methylpiperidine 1-oxide"
 
 
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("C[N+]1([O-])CCCC1c1cccnc1", "1-methyl-2-(pyridin-3-yl)pyrrolidine 1-oxide"),
+        ("[O-][N+]1(C)CCCC1c1c[nH]c2ccccc12", "2-(1H-indol-3-yl)-1-methylpyrrolidine 1-oxide"),
+        ("[O-][N+]1(C)CCc2c(C1)cccn2", "6-methyl-5,6,7,8-tetrahydro-1,6-naphthyridine 6-oxide"),
+    ],
+)
+def test_ring_amine_oxide_is_the_parent_beside_a_heteroaromatic_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_amine_oxide_stereocenter():
     assert smiles_to_iupac("CC[C@@H](C)[N+](C)(C)[O-]") == "(2R)-N,N-dimethylbutan-2-amine N-oxide"
     assert smiles_to_iupac("CC[C@H](C)[N+](C)(C)[O-]") == "(2S)-N,N-dimethylbutan-2-amine N-oxide"
