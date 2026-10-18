@@ -163,7 +163,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._amide import has_amide_shape, name_amide
-from ._amine import name_amine
+from ._amine import amines_in_suffix, name_amine
 from ._bicyclic import find_bicyclic_core
 from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
 from ._common import (
@@ -386,7 +386,8 @@ def _characteristic_group_radical_name(mol):
         neutral_name = name_amide(neutral_mol)
     else:
         try:
-            neutral_name = name_amine(neutral_mol)
+            with amines_in_suffix():
+                neutral_name = name_amine(neutral_mol)
         except UnsupportedStructure:
             return None
     return neutral_name[:-1] + "yl"
