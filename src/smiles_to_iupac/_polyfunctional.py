@@ -2189,7 +2189,6 @@ def _name_isotopic(original, clean, labels, index_map, build=None):
 def _with_labels(mol, labels, consumed, name, parts, reselect):
     """`name` with the isotopic descriptor of the labelled atoms of `mol`: parent atoms cite their locants, atoms of
     the principal group take letter locants or go before the suffix (P-82.2, P-82.6)."""
-    from ._isotope_labels import descriptor
     from ._substituents import ISOTOPE_LABELS
 
     cited = (ISOTOPE_LABELS.get() or {}).get("cited", ())
@@ -2896,9 +2895,7 @@ def _nuclide_precedence(marked, position_of):
 def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset(), suffix=frozenset()):
     if not stereo:
         return ""
-    entries, complete = _stereo_entries(stereo, position_of, ring_parent, used, suffix)
-    if not complete:
-        raise UnsupportedStructure("stereodescriptors outside the parent are not supported by the chain engine yet")
+    entries, _ = _stereo_entries(stereo, position_of, ring_parent, used, suffix)
     if not entries:
         return ""
     if len(entries) == 1 and entries[0][1].startswith("("):

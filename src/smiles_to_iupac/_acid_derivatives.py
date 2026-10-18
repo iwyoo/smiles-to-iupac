@@ -1853,7 +1853,7 @@ def _stereogenic_phosphorus_ester(mol, name):
     centres = [
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in (15, 16) and a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
     ]
-    if len(centres) != 1:
+    if len(centres) != 1 or centres[0] not in {l.center for l in find_links(mol)[0]}:
         return name
     code = next((c for kind, idx, c in specified_stereo_elements(mol) or () if kind == "atom" and idx == centres[0]), None)
     if code is None:

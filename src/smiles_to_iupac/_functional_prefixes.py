@@ -154,8 +154,10 @@ def _acyl_prefix(mol, subtree, root, parent):
     token = SYSTEMATIC_ACID_PROBE.set(True)
     labels_token = ISOTOPE_LABELS.set(None)
     centre_token = RING_CENTER.set(False)
+    acid = Chem.Mol(sub)
+    acid.GetAtomWithIdx(sorted(subtree).index(root)).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     try:
-        probe = smiles_to_iupac(Chem.MolToSmiles(sub)) if own_acid is None else _name_with_principal(sub, own_acid)
+        probe = smiles_to_iupac(Chem.MolToSmiles(acid)) if own_acid is None else _name_with_principal(acid, own_acid)
     finally:
         RING_CENTER.reset(centre_token)
         ISOTOPE_LABELS.reset(labels_token)
