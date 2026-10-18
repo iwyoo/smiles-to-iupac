@@ -11,6 +11,8 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._acid_lexicon import _peroxo_word
+from ._borinic_acid import boron_acid_scope_problem
+from ._hetero_prefixes import ESTERS_SENIOR_TO_BORON
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._phosphonic_acid import _SENIOR_ACIDS
@@ -37,15 +39,16 @@ def _group(mol, atom):
     z = atom.GetAtomicNum()
     if z not in (_PHOSPHORUS, _BORON) or atom.GetFormalCharge() or atom.IsInRing():
         return None
-    if atom.GetDegree() != (4 if z == _PHOSPHORUS else 3):
+    hydrogens = atom.GetTotalNumHs() if z == _BORON else 0
+    if atom.GetDegree() + hydrogens != (4 if z == _PHOSPHORUS else 3):
         return None
     carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
     chalcogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in (8, 16)]
-    if len(carbons) + len(chalcogens) != atom.GetDegree() or len(carbons) > 2:
+    if len(carbons) + len(chalcogens) != atom.GetDegree() or len(carbons) + hydrogens > 2:
         return None
     double = [c for c in chalcogens if mol.GetBondBetweenAtoms(atom.GetIdx(), c.GetIdx()).GetBondTypeAsDouble() == 2.0]
     single = [c for c in chalcogens if c not in double]
-    if len(double) != (1 if z == _PHOSPHORUS else 0) or (double and double[0].GetDegree() != 1) or len(single) != 3 - len(carbons):
+    if len(double) != (1 if z == _PHOSPHORUS else 0) or (double and double[0].GetDegree() != 1) or len(single) != 3 - len(carbons) - hydrogens:
         return None
     esters = []
     for chalcogen in single:
@@ -145,6 +148,10 @@ def name_phosphorus_thioester(mol) -> str:
         raise UnsupportedStructure("more than one phosphorus or boron atom is not supported yet")
     if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus ester")
+    if phosphorus.GetAtomicNum() == _BORON:
+        problem = boron_acid_scope_problem(mol)
+        if problem or any(mol.HasSubstructMatch(query) for query in ESTERS_SENIOR_TO_BORON):
+            raise UnsupportedStructure(problem or "an ester of a senior acid outranks the boron ester (P-41, P-42.3)")
     carbons, double, esters = _group(mol, phosphorus)
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -185,7 +192,7 @@ def name_phosphorus_thioester(mol) -> str:
 
     entries = [name_branch(graph, c.GetIdx(), phosphorus.GetIdx(), halogens, aromatic, mol=mol) for c in carbons]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
-    stem = _ACID[phosphorus.GetAtomicNum()][len(carbons)]
+    stem = _ACID[phosphorus.GetAtomicNum()][len(carbons) + (phosphorus.GetTotalNumHs() if phosphorus.GetAtomicNum() == _BORON else 0)]
     infix = _INFIX[sulfurs] if sulfurs else ""
     if pairs:
         peroxo = _peroxo_word((pairs[0][0].GetSymbol(), pairs[0][1].GetSymbol()))

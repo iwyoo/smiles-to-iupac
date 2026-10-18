@@ -75,14 +75,8 @@ def _name_at(mol, boron):
 
 
 def boron_acid_is_parent(mol) -> bool:
-    """A boronic or borinic acid whose boron carries only carbon groups (a boron bonded to N, S or Si is an
-    amide, thioester or silyl derivative named elsewhere) and that no senior acid outranks."""
-    groups = _boronic_acid_boron_atoms(mol) or _borinic_acid_boron_atoms(mol)
-    return (
-        bool(groups)
-        and all(n.GetAtomicNum() in (6, 8) for boron in groups for n in boron.GetNeighbors())
-        and not acid_outranks_boron(mol)
-    )
+    """A boronic or borinic acid that no senior acid outranks."""
+    return bool(_boronic_acid_boron_atoms(mol) or _borinic_acid_boron_atoms(mol)) and not acid_outranks_boron(mol)
 
 
 def name_boron_acid(mol) -> str:

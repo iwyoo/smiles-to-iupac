@@ -11,7 +11,7 @@ import re
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import HALOGEN_PREFIXES, nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
+from ._common import nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._nitro_group import nitro_or_nitroso_group
@@ -2153,8 +2153,6 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     bonding = atom.GetTotalValence()
     if bonding > valence and ((bonding - valence) % 2 or bonding > valence + 4):
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
-    if atom.GetAtomicNum() == 5 and _boron_acid_group_outranks_parent(mol, others):
-        raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
     if atom.GetAtomicNum() == 5 and mol.GetAtomWithIdx(coming_from).GetAtomicNum() != 1:
         borono = _borono_prefix(mol, root, others)
         if borono is not None:
@@ -2192,31 +2190,6 @@ ESTERS_SENIOR_TO_BORON = [
         "[#15,#33,#51;X3,X4]([#6])-[OX2][#6]",
     )
 ]
-
-
-def _cation_or_amine_oxide_parent(mol):
-    """A cation outranks every acid and ester (P-41 class 6), and the amine oxide chosen as parent takes the acids as prefixes (P-62.5)."""
-    from ._polyfunctional import FORCED_PRINCIPAL
-
-    return (
-        CATION_PARENT.get()
-        or FORCED_PRINCIPAL.get() == "amine"
-        or any(a.GetFormalCharge() > 0 and not any(n.GetFormalCharge() < 0 for n in a.GetNeighbors()) for a in mol.GetAtoms())
-    )
-
-
-def _boron_acid_group_outranks_parent(mol, ligands):
-    """A boron group with a hydroxy or alkoxy ligand is a boronic or borinic acid or ester (P-67.1.1), which is the parent
-    unless a radical, an ion, a senior acid, or for an ester a senior ester is present (P-41, P-42.3). With a halogen or
-    amino ligand and no hydroxy group it is a substituted borane (P-67.1.2.5.2, P-67.1.2.6.2)."""
-    oxygens = [mol.GetAtomWithIdx(n) for n in ligands if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
-    if not oxygens or RADICAL_PARENT.get() or BORON_ACID_PARENT.get() or _cation_or_amine_oxide_parent(mol):
-        return False
-    if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON) or any(a.HasProp("_anion") for a in mol.GetAtoms()):
-        return False
-    ester_only = all(o.GetTotalNumHs() == 0 for o in oxygens)
-    replaced = any(mol.GetAtomWithIdx(n).GetAtomicNum() in (7, *HALOGEN_PREFIXES) for n in ligands)
-    return not (ester_only and (replaced or any(mol.HasSubstructMatch(query) for query in ESTERS_SENIOR_TO_BORON)))
 
 
 def acid_outranks_boron(mol):
