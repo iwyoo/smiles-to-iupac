@@ -830,6 +830,23 @@ def test_phosphinate_beside_a_senior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-41, P-42.3, P-65.1.3: a P, As or Sb centre that is not an acid (halide, amide, ester, chalcogenide) is junior to every acid centre, which ranks by element before acid type
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OP(=O)(O)CCP(=O)(Cl)Cl", "(2-phosphorodichloridoylethyl)phosphonic acid", id="acid_halide"),
+        pytest.param("CP(=O)(O)CCP(=O)(N)N", "methyl(2-phosphorodiamidoylethyl)phosphinic acid", id="amide_beside_phosphinic_acid"),
+        pytest.param("OP(=O)(O)CCP(=S)(C)C", "[2-(dimethylphosphinothioyl)ethyl]phosphonic acid", id="chalcogenide"),
+        pytest.param("O[As](=O)(O)CCP(=O)(O)OC", "{2-[hydroxy(methoxy)phosphoryl]ethyl}arsonic acid", id="acid_ester_below_an_arsonic_acid"),
+        pytest.param("OP(=O)(O)CC[As](=O)(O)OC", "{2-[hydroxy(methoxy)arsoryl]ethyl}phosphonic acid", id="phosphorus_acid_before_arsenic_acid"),
+        pytest.param("CP(=O)(O)CC[As](=O)(O)O", "(2-arsonoethyl)(methyl)phosphinic acid", id="phosphinic_acid_before_arsonic_acid"),
+        pytest.param("OP(=O)(O)CCOP(=O)(OC)OC", "{2-[(dimethoxyphosphoryl)oxy]ethyl}phosphonic acid", id="phosphonic_acid_before_a_phosphate_ester"),
+    ],
+)
+def test_noncarbon_acid_outranks_a_second_group_15_centre_that_is_not_an_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-65.6.3.2.2, P-15.3: identical esters of a carboxylic or sulfonic acid joined through a phosphate are multiplied, the phosphate being part of the linker
 @pytest.mark.parametrize(
     "smiles, expected",
