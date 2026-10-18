@@ -8,7 +8,7 @@ import contextlib
 
 from rdkit import Chem
 
-from ._borinic_acid import boronic_type_group_outranks
+from ._borinic_acid import boron_acid_scope_problem, boronic_type_group_outranks
 from ._hetero_prefixes import boron_acid_parent, pentavalent_nitrogen_oxo
 from ._common import HALOGEN_PREFIXES, RuleUndefinedStructure, UnsupportedStructure, adjacency, group_substituents, halogen_substituents, is_halide_ligand
 from ._numerals import numerical_term
@@ -161,7 +161,10 @@ def _acid_parts_at(mol, center, centers):
         ligand_atoms |= _replacer(mol, center, neighbor)[1]
     ring_hetero = set().union(*(_ring_system(mol, n.GetIdx()) for n in carbon if n.GetAtomicNum() == 7))
     ligand_atoms |= {o.GetIdx() for o in others} | {n.GetIdx() for o in others for n in o.GetNeighbors() if n.GetAtomicNum() in (7, 8)}
-    if any(
+    if z == 5 and (replacers or amides or any(a.GetAtomicNum() != 8 for a in chalcogens)):
+        if boron_acid_scope_problem(mol, ligand_atoms):
+            return None
+    elif any(
         a.GetAtomicNum() not in (6, *HALOGEN_PREFIXES) and a.GetIdx() not in ring_hetero
         for a in mol.GetAtoms()
         if a.GetIdx() not in ligand_atoms

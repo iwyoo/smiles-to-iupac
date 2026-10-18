@@ -1261,6 +1261,8 @@ def test_diamines_whose_nitrogens_carry_boranyl_groups(smiles, expected):
         ("CSCCB(O)O", "[2-(methylsulfanyl)ethyl]boronic acid"),
         ("NC(=O)CCB(O)O", "(3-amino-3-oxopropyl)boronic acid"),
         ("OB(O)CC(=S)O", "boronoethanethioic O-acid"),
+        ("CC(=O)c1ccc(B(O)NC)cc1", "B-(4-acetylphenyl)-N-methylboronamidic acid"),
+        ("NCCB(O)Cl", "(2-aminoethyl)boronochloridic acid"),
     ],
 )
 def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expected):
