@@ -123,7 +123,9 @@ _OXY_PREFIX = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "but
 
 
 def has_simple_imine_shape(mol) -> bool:
-    return sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 7) == 1 and any(
+    return sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 7) == 1 and all(
+        a.GetAtomicNum() in _OXIME_ALLOWED_ATOMIC_NUMS for a in mol.GetAtoms()
+    ) and any(
         bond.GetBondTypeAsDouble() == 2.0
         and {bond.GetBeginAtom().GetAtomicNum(), bond.GetEndAtom().GetAtomicNum()} == {6, 7}
         for bond in mol.GetBonds()
@@ -192,15 +194,8 @@ def _validate_and_find_imine(mol, aromatic_ring_atoms=frozenset()):
 
     if sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 7) != 1:
         raise UnsupportedStructure("a second nitrogen outranks or joins the imine (an amine, amidine or hydrazone)")
-    allowed = _OXIME_ALLOWED_ATOMIC_NUMS if oxime_oxygen_idx is not None else _ALLOWED_ATOMIC_NUMS
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
-        if atomic_num not in allowed:
-            raise UnsupportedStructure(
-                "heteroatoms other than the imine nitrogen (P-62.3), a "
-                "single oxime oxygen (P-68.3.1.1.2), and halogen "
-                "substituents (P-35.2.1) are not supported yet"
-            )
         if atomic_num == 8 and atom.GetIdx() != oxime_oxygen_idx:
             raise UnsupportedStructure(
                 "an oxygen atom not shaped like a plain oxime N-OH/N-O-R "

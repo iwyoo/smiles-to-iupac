@@ -31,6 +31,7 @@ def test_tetrasulfide_chain_and_related(smiles, expected):
         pytest.param("SSC1CCCCC1", "cyclohexanedithioperoxol", id="saturated_ring"),
         pytest.param("[SeH][Se]C1CCCCC1", "cyclohexanediselenoperoxol", id="selenium_analogue_on_a_ring"),
         pytest.param("OSC1CCCCC1", "cyclohexane-SO-thioperoxol", id="mixed_oxygen_sulfur_on_a_ring"),
+        pytest.param("CC(=NC)CCSS", "3-(methylimino)butane-1-dithioperoxol", id="imine_is_an_imino_prefix"),
     ],
 )
 def test_chalcogen_peroxols_on_rings_and_unsaturated_chains(smiles, expected):
