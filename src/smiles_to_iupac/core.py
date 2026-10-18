@@ -1162,6 +1162,9 @@ def _name_unabridged_body(smiles: str) -> str:
         if parsed is not None and boron_acid_is_parent(parsed):
             with contextlib.suppress(UnsupportedStructure):
                 return name_boron_acid(parsed)
+            if _has_isotope_label(parsed):
+                with contextlib.suppress(UnsupportedStructure):
+                    return _labelled_namer(name_boron_acid, oxygens=True)(parsed)
         if parsed is not None:
             diacylamine = diacylamine_name(parsed)
             if diacylamine is not None:

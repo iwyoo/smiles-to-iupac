@@ -85,6 +85,21 @@ def _ring_system(mol, root):
     return system
 
 
+def _hydroperoxy(atom):
+    """The inner oxygen of a hydroperoxy group -O-OH on the acid centre: the infix peroxo (P-67.1.2.3.3)."""
+    ends = [n for n in atom.GetNeighbors() if n.GetDegree() == 1 and n.GetAtomicNum() == 8 and n.GetTotalNumHs() == 1]
+    return (
+        atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 2
+        and not atom.GetFormalCharge()
+        and not atom.GetIsotope()
+        and not atom.GetTotalNumHs()
+        and len(ends) == 1
+        and not ends[0].GetFormalCharge()
+        and not ends[0].GetIsotope()
+    )
+
+
 def _ligands(mol, center):
     """([=X atoms], [XH atoms], [carbon neighbours], [halide groups], [amide nitrogens]) of the acid centre, or None if it
     has any other neighbour."""
@@ -101,6 +116,8 @@ def _ligands(mol, center):
                 hydroxy.append(neighbor)
             else:
                 return None
+        elif center.GetAtomicNum() == 5 and order == 1.0 and _hydroperoxy(neighbor):
+            hydroxy.append(neighbor)
         elif z == 6 and order == 1.0:
             carbon.append(neighbor)
         elif order == 1.0 and _replacer(mol, center, neighbor) is not None:
@@ -146,6 +163,9 @@ def _acid_parts_at(mol, center, centers):
     z = center.GetAtomicNum()
     if others and boronic_type_group_outranks(mol, center.GetIdx(), len(hydroxy) + len(replacers) + len(amides) == 2):
         return None
+    peroxy = [a for a in hydroxy if a.GetDegree() == 2]
+    if peroxy and (replacers or amides or any(a.GetAtomicNum() != 8 for a in (*oxo, *hydroxy))):
+        return None
     pentavalent = z in _PENTAVALENT and len(oxo) == 1
     if len(oxo) > 1 or (len(oxo) == 1 and not pentavalent) or not 1 <= len(hydroxy) <= 3:
         return None
@@ -161,7 +181,7 @@ def _acid_parts_at(mol, center, centers):
         ligand_atoms |= _replacer(mol, center, neighbor)[1]
     ring_hetero = set().union(*(_ring_system(mol, n.GetIdx()) for n in carbon if n.GetAtomicNum() == 7))
     ligand_atoms |= {o.GetIdx() for o in others} | {n.GetIdx() for o in others for n in o.GetNeighbors() if n.GetAtomicNum() in (7, 8)}
-    if z == 5 and (replacers or amides or any(a.GetAtomicNum() != 8 for a in chalcogens)):
+    if z == 5 and (replacers or amides or peroxy or any(a.GetAtomicNum() != 8 for a in chalcogens)):
         if boron_acid_scope_problem(mol, ligand_atoms):
             return None
     elif any(
@@ -205,6 +225,9 @@ def name_functional_replacement_oxoacid(mol) -> str:
     for text in sorted(set(infixes)):
         count = infixes.count(text)
         pieces.append(((numerical_term(count) if count > 1 else "") + text, text))
+    peroxy = [a for a in hydroxy if a.GetDegree() == 2]
+    if peroxy:
+        pieces.append(((numerical_term(len(peroxy)) if len(peroxy) > 1 else "") + "peroxo", "peroxo"))
     pieces.sort(key=lambda piece: piece[1])
     z_center = center.GetAtomicNum()
     if z_center == 7 and amides:

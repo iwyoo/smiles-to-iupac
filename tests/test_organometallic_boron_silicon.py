@@ -1263,6 +1263,10 @@ def test_diamines_whose_nitrogens_carry_boranyl_groups(smiles, expected):
         ("OB(O)CC(=S)O", "boronoethanethioic O-acid"),
         ("CC(=O)c1ccc(B(O)NC)cc1", "B-(4-acetylphenyl)-N-methylboronamidic acid"),
         ("NCCB(O)Cl", "(2-aminoethyl)boronochloridic acid"),
+        ("COOBOCCN", "O-(2-aminoethyl) OO-methyl boronoperoxoate"),
+        ("O=Cc1cccc(F)c1B(OO)OO", "(2-fluoro-6-formylphenyl)boronodiperoxoic acid"),
+        ("[2H]C([2H])([2H])C([2H])([2H])c1cc(B(O)O)cc(F)n1", "[2-(2H5)ethyl-6-fluoropyridin-4-yl]boronic acid"),
+        ("C=CC(=O)OCCCN1CCN(B(C)O)CC1", "methyl(4-{3-[(prop-2-enoyl)oxy]propyl}piperazin-1-yl)borinic acid"),
     ],
 )
 def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expected):
