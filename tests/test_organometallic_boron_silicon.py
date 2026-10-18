@@ -147,6 +147,19 @@ def test_boron_acid_group_beside_an_olate_or_thiolate_is_a_prefix(smiles, expect
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("CB(O)CC[N+](C)(C)C", "2-[hydroxy(methyl)boranyl]-N,N,N-trimethylethan-1-aminium", id="borinic_acid_on_an_aminium"),
+        pytest.param("COB(OC)CC[P+](C)(C)C", "[2-(dimethoxyboranyl)ethyl]tri(methyl)phosphanium", id="boronic_ester_on_a_phosphanium"),
+        pytest.param("CB(O)CC[N+](C)(C)[O-]", "2-[hydroxy(methyl)boranyl]-N,N-dimethylethan-1-amine N-oxide", id="borinic_acid_on_an_amine_oxide"),
+        pytest.param("COB(OC)CCOC(C)=O", "2-(dimethoxyboranyl)ethyl acetate", id="boronic_ester_beside_a_carboxylic_ester"),
+    ],
+)
+def test_boron_group_beside_a_senior_class_is_a_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("OB(O)CCB(C)O", "{2-[hydroxy(methyl)boranyl]ethyl}boronic acid", id="boronic_acid_outranks_borinic_acid"),
         pytest.param("CB(O)CCB(CC)O", "{2-[ethyl(hydroxy)boranyl]ethyl}(methyl)borinic acid", id="unequal_borinic_acids_by_alphanumerical_order"),
         pytest.param("OB(O)CCB(N)N", "[2-(diaminoboranyl)ethyl]boronic acid", id="boronic_acid_outranks_a_borane"),
