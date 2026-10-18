@@ -995,6 +995,26 @@ def test_multiplicative_name_needs_identical_branches_on_the_linking_group(smile
             "3-{4-[(E)-2-({(Z)-2-[4-(2-carboxyethyl)phenyl]ethen-1-yl}oxy)ethen-1-yl]phenyl}propanoic acid",
             id="different_descriptors_in_the_linker_forbid_a_multiplicative_name",
         ),
+        pytest.param(
+            "C[C@H](O)c1ccc([C@@H](C)O)cc1",
+            "(1R,1'S)-1,1'-(1,4-phenylene)di(ethan-1-ol)",
+            id="arm_centres_beside_a_ring_linker",
+        ),
+        pytest.param(
+            "C[C@H](O)CC1CCC(CC1)C[C@H](C)O",
+            "(2S,2'S)-1,1'-(cyclohexane-1,4-diyl)di(propan-2-ol)",
+            id="arm_centres_away_from_the_ring_linker",
+        ),
+        pytest.param(
+            "OC[C@H](C)c1ccc(Cc2ccc([C@@H](C)CO)cc2)cc1",
+            "(2R,2'R)-2,2'-[methylenebis(4,1-phenylene)]di(propan-1-ol)",
+            id="arm_centres_beside_a_composite_linker",
+        ),
+        pytest.param(
+            "C[C@H](O)C(=O)OOOC(=O)[C@@H](C)O",
+            "(2R,2'S)-1,1'-trioxidanediylbis(2-hydroxypropan-1-one)",
+            id="arm_centres_beside_a_chalcogen_chain",
+        ),
     ],
 )
 def test_stereodescriptors_in_a_multiplicative_name(smiles, expected):

@@ -213,9 +213,9 @@ def test_face_of_the_free_valence_of_a_substituent_group(smiles, expected):
 
 
 @pytest.mark.slow
-def test_arms_with_stereo_outside_the_group_are_not_multiplied():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)[C@@H](C)CC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2C[C@H](C)C(O)=O")
+def test_arms_with_stereo_outside_the_group_keep_the_multiplicative_name():
+    smiles = "OC(=O)[C@@H](C)CC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2C[C@H](C)C(O)=O"
+    assert smiles_to_iupac(smiles) == "(2S,2'S)-3,3'-(yohimban-14,18-diyl)bis(2-methylpropanoic acid)"
 
 
 @pytest.mark.parametrize(
