@@ -1036,6 +1036,8 @@ def name_ester(mol, links):
             raise UnsupportedStructure("a ring-closing ester is not named part-wise")
         removed |= far_side
     acid = _acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen])
+    if _other_inorganic_group_is_prefix(mol, acid_atoms, chosen, acid):
+        raise UnsupportedStructure("an acid group of the same kind on another part of the skeleton is a prefix of the acid name")
     anion = anion_name(acid, letters_in_anion=False)
     context = _stereo_context(mol, removed)
     halogens = halogen_substituents(mol)
@@ -1090,6 +1092,23 @@ def name_ester(mol, links):
     if hydrogen_positions:
         hydrogen = f"{','.join(hydrogen_positions)}-{hydrogen}"
     return _multiplied(entries) + " " + hydrogen + anion
+
+
+_ACID_GROUP_PREFIX = re.compile(
+    r"(?<![a-z])(?:borono|phosphono|arsono|stibono)"
+    r"(?!us\b|thio|seleno|telluro|peroxo|chlorid|bromid|fluorid|iodid|amid|azid|cyan|isocyan|isothio|nitrid|imid|hydrazid)"
+)
+
+
+def _other_inorganic_group_is_prefix(mol, acid_atoms, chosen, acid_name):
+    """Another acid centre of the kind of the chosen ones, free or with chosen esters, that the free acid name cites as a
+    borono, phosphono, arsono or stibono prefix: the acid suffix of the ester name then holds fewer positions than the esters
+    to be multiplied, whose other groups would be lost (P-65.6.3.2.3 names them as prefixes of the organyl group)."""
+    kind = _acid_kind_rank(mol, chosen[0].center)
+    if not kind or _center(mol, chosen[0].center)[0] != "inorganic" or not _ACID_GROUP_PREFIX.search(acid_name):
+        return False
+    named = {l.center for l in chosen}
+    return sum(_acid_kind_rank(mol, a) == kind and (a in named or bool(_free_groups(mol, a))) for a in acid_atoms) > 1
 
 
 def _ester_locants(mol, acid_atoms, per_link, free_centers):

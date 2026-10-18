@@ -5,13 +5,12 @@ phosphorus acid outranks the boronic acid, which then becomes the borono prefix.
 parent and the rest are borono prefixes (P-44.1.1).
 """
 
-import contextlib
-
 
 from ._borinic_acid import _borinic_acid_boron_atoms, boron_acid_scope_problem, boronic_type_boron_atoms, name_borinic_acid
 from ._multiplicative_text import enclose
+from ._parent_choice import name_one_of_several_groups
 from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 _BORON = 5
@@ -58,22 +57,7 @@ def name_boronic_acid(mol) -> str:
 
     if len(boron_atoms) == 1:
         return _name_at(mol, boron_atoms[0])
-    multiplicative = _multiplicative_name(mol)
-    if multiplicative is not None:
-        return multiplicative
-    return min((_name_at(mol, boron) for boron in boron_atoms), key=lambda name: (alpha_sort_key(name), name))
-
-
-def _multiplicative_name(mol):
-    """The name that multiplies the boronic acid groups (P-15.3.3.2.1), None when no linking group of the molecule permits it
-    (P-15.3.4.1) and the name of one group as the parent is the only one."""
-    from ._chain_multiplicative import has_chain_multiplicative_shape
-    from ._polyfunctional import name_polyfunctional
-
-    if has_chain_multiplicative_shape(mol):
-        with contextlib.suppress(UnsupportedStructure), boron_acid_parent():
-            return name_polyfunctional(mol)
-    return None
+    return name_one_of_several_groups(mol, boron_atoms, lambda boron: _name_at(mol, boron), boron_acid_parent)
 
 
 def _name_at(mol, boron):

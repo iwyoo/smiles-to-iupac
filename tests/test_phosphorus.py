@@ -231,6 +231,19 @@ def test_phosphonic_acids_joined_by_a_linker_are_multiplied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OP(O)(=O)c1ccccc1CNc1ccc(P(O)(O)=O)cc1", "{2-[(4-phosphonoanilino)methyl]phenyl}phosphonic acid", id="unsymmetrical_linker_of_two_phosphonic_acids"),
+        pytest.param("O[As](O)(=O)c1ccccc1CNc1ccc([As](O)(O)=O)cc1", "{2-[(4-arsonoanilino)methyl]phenyl}arsonic acid", id="unsymmetrical_linker_of_two_arsonic_acids"),
+        pytest.param("OP(O)(=O)CCCOCCP(O)(O)=O", "[3-(2-phosphonoethoxy)propyl]phosphonic acid", id="phosphonic_acid_parent_by_alphanumerical_order"),
+        pytest.param("COP(=O)(OC)c1ccccc1CNc1ccc(P(=O)(OC)OC)cc1", "dimethyl [4-({[2-(dimethoxyphosphoryl)phenyl]methyl}amino)phenyl]phosphonate", id="esters_of_one_phosphonic_acid_group_of_two"),
+    ],
+)
+def test_phosphonic_acid_groups_of_different_units_choose_the_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 
 @pytest.mark.parametrize(
     "smiles, expected",
