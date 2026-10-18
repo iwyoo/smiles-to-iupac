@@ -164,6 +164,19 @@ def _peroxol_atoms(mol):
     return _hydroperoxide_oxygens(mol) or _chalcogen_peroxol_atoms(mol) or _substituted_peroxol_atoms(mol)
 
 
+def is_peroxol_terminal(atom) -> bool:
+    """True iff `atom` is the YH of a -X-YH group of two chalcogens whose X is bonded to a carbon (P-63.4.1, P-63.4.2.1)."""
+    if atom.GetAtomicNum() not in _CHALCOGENS or atom.GetDegree() != 1 or not atom.GetTotalNumHs():
+        return False
+    (bridge,) = atom.GetNeighbors()
+    return (
+        bridge.GetAtomicNum() in _CHALCOGENS
+        and bridge.GetDegree() == 2
+        and not bridge.GetTotalNumHs()
+        and any(n.GetAtomicNum() == 6 for n in bridge.GetNeighbors())
+    )
+
+
 def peroxol_suffix(attach_number, terminal_number):
     """Suffix of the group -X-YH from Table 6.1 (P-63.4.2.1): 'peroxol', 'dithioperoxol', 'OS-thioperoxol'."""
     first, second = _CHALCOGENS[attach_number], _CHALCOGENS[terminal_number]
