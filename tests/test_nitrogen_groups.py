@@ -355,6 +355,38 @@ def test_ring_amine_oxide_is_the_parent_beside_a_heteroaromatic_ring(smiles, exp
 @pytest.mark.parametrize(
     ("smiles", "expected"),
     [
+        pytest.param("CC(=O)OCC[N+](C)(C)[O-]", "2-(acetyloxy)-N,N-dimethylethan-1-amine N-oxide", id="ester_on_the_chain_is_a_prefix"),
+        pytest.param(
+            "CN(C)C(=O)OCC[N+](C)(C)[O-]", "2-[(dimethylcarbamoyl)oxy]-N,N-dimethylethan-1-amine N-oxide", id="carbamate_is_a_prefix"
+        ),
+        pytest.param(
+            "C[N+](C)([O-])c1ccc(C(=O)OC)cc1", "4-(methoxycarbonyl)-N,N-dimethylaniline N-oxide", id="ester_carbon_on_a_ring_is_methoxycarbonyl"
+        ),
+        pytest.param(
+            "COC(=O)CC[N+](C)(C)[O-]",
+            "3-methoxy-N,N-dimethyl-3-oxopropan-1-amine N-oxide",
+            id="ester_carbon_at_the_chain_end_is_part_of_the_chain",
+        ),
+        pytest.param(
+            "C[N+](C)([O-])CCC(=O)NC", "N,N-dimethyl-3-(methylamino)-3-oxopropan-1-amine N-oxide", id="substituted_amide_nitrogen_is_not_an_amine"
+        ),
+        pytest.param(
+            "CC(=O)Oc1ccc(C=[N+](C)[O-])cc1", "1-[4-(acetyloxy)phenyl]-N-methylmethanimine N-oxide", id="imine_oxide_beside_an_ester"
+        ),
+    ],
+)
+def test_amine_and_imine_oxides_outrank_esters_and_amides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_oxide_on_an_acylated_nitrogen_is_not_named_as_an_amine_oxide():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[N+](C)([O-])C(C)=O")
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
         ("C[N@+]1([O-])CCC[C@@H]1C", "(1S,2S)-1,2-dimethylpyrrolidine 1-oxide"),
         ("C[N@@+]1([O-])CCC[C@@H]1C", "(1R,2S)-1,2-dimethylpyrrolidine 1-oxide"),
         ("C[N@+]1([O-])CCCCC1C", "(1S)-1,2-dimethylpiperidine 1-oxide"),

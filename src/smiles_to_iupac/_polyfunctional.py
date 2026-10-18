@@ -3135,6 +3135,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and not (principal in _AMIDE_FAMILY and _nitrogen_acyl(mol, atom.GetIdx()))
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
             and not (FORCED_PRINCIPAL.get() == principal and principal == "nitrile")
+            and not (FORCED_PRINCIPAL.get() in ("amine", "imine") and principal in (None, FORCED_PRINCIPAL.get()))
             and principal != "ide"
             and not any(a.HasProp(ANION_PROP) for a in mol.GetAtoms())
         ):
@@ -3254,7 +3255,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                     (
                         _is_acid_family(principal)
                         or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide", "amidine", *_AMIDRAZONE)
-                        or (AMINIUM.get() and principal in ("amine", "imine"))
+                        or ((AMINIUM.get() or FORCED_PRINCIPAL.get() in ("amine", "imine")) and principal in ("amine", "imine"))
                     )
                     and _junior_end_group(mol, a.GetIdx())
                 )
@@ -6567,6 +6568,10 @@ def _terminal_chalcogen_hydride(atom):
 
 def _substituted_amine_nitrogen(mol, atom):
     if atom.HasProp(JUNIOR_GROUP):
+        return False
+    if FORCED_PRINCIPAL.get() in ("amine", "imine") and any(
+        n.GetAtomicNum() == 6 and _is_ester_like(mol, n.GetIdx()) for n in atom.GetNeighbors()
+    ):
         return False
     if any(n.GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in atom.GetNeighbors()):
         return False

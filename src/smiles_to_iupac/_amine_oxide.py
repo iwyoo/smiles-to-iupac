@@ -63,6 +63,8 @@ def name_amine_oxide(mol) -> str:
     class_word = _CHALCOGEN_CLASS[oxide_oxygen.GetAtomicNum()]
 
     reduced_mol = _reduce(mol, nitrogen, oxide_oxygen)
+    if not _is_amine_nitrogen(reduced_mol.GetAtomWithIdx(_reduced_position(nitrogen.GetIdx(), oxide_oxygen.GetIdx()))):
+        raise UnsupportedStructure("the oxidized nitrogen carries an acyl or nitrile carbon, whose oxide is not named here")
 
     amine_nitrogens = [a for a in reduced_mol.GetAtoms() if _is_amine_nitrogen(a)]
     other_nitrogens = sum(a.GetAtomicNum() == 7 for a in reduced_mol.GetAtoms()) - len(amine_nitrogens)
