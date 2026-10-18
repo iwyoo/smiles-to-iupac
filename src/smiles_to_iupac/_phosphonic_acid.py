@@ -66,13 +66,16 @@ def acid_prefixes():
 
 _ELEMENT_RANK = {15: 0, 33: 1, 51: 2}
 _ACID_CLASS_RANK = {(1, 2): 0, (0, 2): 1, (1, 1): 2, (0, 1): 3}
+_NOT_AN_ACID = (1,)
+_ACYL_PARTNERS = {7, 8, 9, 16, 17, 34, 35, 52, 53}
 
 
 def acid_centre_rank(mol, atom):
-    """Seniority key of a P, As or Sb atom as the centre of a phosphonic, phosphonous, phosphinic or phosphinous
-    acid (P-42.3): the element first, then the acid type; None for any other centre."""
+    """Seniority key of a P, As or Sb atom (P-41, P-42.3): a phosphonic, phosphonous, phosphinic or phosphinous acid
+    centre ranks by element, then acid type; any other centre (acid halide, amide, ester, chalcogenide, organyl
+    derivative) is a class below every acid and shares one junior key."""
     if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetFormalCharge() or atom.GetDegree() > 4:
-        return None
+        return _NOT_AN_ACID
     oxo = hydroxyl = organyl = 0
     for n in atom.GetNeighbors():
         double = mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
@@ -80,27 +83,19 @@ def acid_centre_rank(mol, atom):
             oxo += 1
         elif n.GetAtomicNum() == 8 and not double and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
             hydroxyl += 1
-        elif n.GetAtomicNum() in (6, *CENTER_STEMS) and not double:
+        elif n.GetAtomicNum() not in _ACYL_PARTNERS and not double:
             organyl += 1
         else:
-            return None
-    if not hydroxyl:
-        return _ELEMENT_RANK[atom.GetAtomicNum()], len(_ACID_CLASS_RANK)
-    if hydroxyl + organyl != 3 or (oxo, hydroxyl) not in _ACID_CLASS_RANK:
-        return None
-    return _ELEMENT_RANK[atom.GetAtomicNum()], _ACID_CLASS_RANK[(oxo, hydroxyl)]
+            return _NOT_AN_ACID
+    if hydroxyl + organyl + atom.GetTotalNumHs() != 3 or (oxo, hydroxyl) not in _ACID_CLASS_RANK:
+        return _NOT_AN_ACID
+    return 0, _ELEMENT_RANK[atom.GetAtomicNum()], _ACID_CLASS_RANK[(oxo, hydroxyl)]
 
 
 def senior_acid_centres(mol, candidates):
     """The candidates whose acid is as senior as every other acid centre of the molecule (several when they tie)."""
-    ranks = {}
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() in CENTER_STEMS:
-            rank = acid_centre_rank(mol, atom)
-            if rank is None:
-                return []
-            ranks[atom.GetIdx()] = rank
-    ranked = [c for c in candidates if c.GetIdx() in ranks]
+    ranks = {a.GetIdx(): acid_centre_rank(mol, a) for a in mol.GetAtoms() if a.GetAtomicNum() in CENTER_STEMS}
+    ranked = [c for c in candidates if ranks.get(c.GetIdx(), _NOT_AN_ACID) != _NOT_AN_ACID]
     best = min((ranks[c.GetIdx()] for c in ranked), default=None)
     if best is None or best != min(ranks.values()):
         return []
@@ -108,14 +103,14 @@ def senior_acid_centres(mol, candidates):
 
 
 def require_phosphorus_acid_scope(mol, phosphorus):
-    """A single phosphorus whose acid outranks every other group of the molecule (P-41): carboxylic and the
+    """A phosphorus acid centre that outranks every other group of the molecule (P-41): carboxylic and the
     sulfur-group acids are senior to phosphonic and phosphinic acids, which become phosphono prefixes."""
     in_nitro_group = set().union(*nitro_group_atoms(mol))
     for atom in mol.GetAtoms():
         if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    if not senior_acid_centres(mol, [phosphorus]) and sum(a.GetAtomicNum() in CENTER_STEMS for a in mol.GetAtoms()) > 1:
-        raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
+    if not senior_acid_centres(mol, [phosphorus]):
+        raise UnsupportedStructure("the phosphorus centre is not the senior acid centre of the molecule")
     if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus acid")
 
@@ -158,6 +153,11 @@ def has_phosphonic_acid_shape(mol) -> bool:
 def name_phosphonic_acid(mol) -> str:
     phosphorus_atoms = _phosphonic_acid_phosphorus_atoms(mol)
     senior = senior_acid_centres(mol, phosphorus_atoms)
+    if not senior:
+        from ._phosphinic_acid import _phosphinic_acid_phosphorus_atoms, name_phosphinic_acid
+
+        if senior_acid_centres(mol, _phosphinic_acid_phosphorus_atoms(mol)):
+            return name_phosphinic_acid(mol)
     if len(senior) != 1 and len(phosphorus_atoms) != 1:
         raise UnsupportedStructure("more than one phosphonic acid group is not supported yet")
     phosphorus = senior[0] if len(senior) == 1 else phosphorus_atoms[0]
