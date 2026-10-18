@@ -14,18 +14,34 @@ from ._substituents import cited_stereo_around, format_mononuclear_prefixes, nam
 _BORON = 5
 
 
+def _aminooxy_oxygen(atom):
+    """An oxygen between the boron and an acyclic amine nitrogen: that nitrogen gives no traditional ester, so the group is
+    the prefix 'aminooxy' (P-65.6.3.4.1)."""
+    nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
+    return (
+        atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 2
+        and len(nitrogens) == 1
+        and not nitrogens[0].IsInRing()
+        and not nitrogens[0].GetFormalCharge()
+        and all(b.GetBondTypeAsDouble() == 1.0 for b in nitrogens[0].GetBonds())
+    )
+
+
 def _borinic_acid_boron_atoms(mol):
-    """Boron atoms shaped like a borinic acid group: bonded to exactly two
-    non-oxygen substituents and one single-bonded hydroxyl oxygen
-    (terminal, one H)."""
+    """Boron atoms shaped like a borinic acid group: one single-bonded hydroxyl
+    oxygen (terminal, one H) and two substituents other than oxygen, of which
+    one may be the hydrogen atom of H-B(OH)-R."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != _BORON or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0 or atom.IsInRing():
+        if atom.GetAtomicNum() != _BORON or atom.GetFormalCharge() != 0 or atom.IsInRing():
             continue
         neighbors = atom.GetNeighbors()
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
-        non_oxygens = [n for n in neighbors if n.GetAtomicNum() != 8]
-        if len(oxygens) != 1 or len(non_oxygens) != 2:
+        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8 and not _aminooxy_oxygen(n)]
+        non_oxygens = [n for n in neighbors if n not in oxygens]
+        if len(oxygens) != 1 or len(non_oxygens) + atom.GetTotalNumHs() != 2:
+            continue
+        if atom.GetTotalNumHs() and (atom.GetTotalNumHs() > 1 or non_oxygens[0].GetAtomicNum() not in (6, 8)):
             continue
         if any(n.GetAtomicNum() in HALOGEN_PREFIXES for n in non_oxygens):
             continue
@@ -45,8 +61,8 @@ def boronic_type_boron_atoms(mol):
         if atom.GetAtomicNum() != _BORON or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0 or atom.IsInRing():
             continue
         neighbors = atom.GetNeighbors()
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
-        others = [n for n in neighbors if n.GetAtomicNum() != 8]
+        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8 and not _aminooxy_oxygen(n)]
+        others = [n for n in neighbors if n not in oxygens]
         if len(oxygens) == 2 and others[0].GetAtomicNum() == 6 and all(
             mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0 for o in oxygens
         ):
@@ -94,7 +110,7 @@ def name_borinic_acid(mol) -> str:
 
 def _name_at(mol, boron):
     """(number of substituent prefixes, name) with the borinic acid group at `boron` as the parent."""
-    group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
+    group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8 and not _aminooxy_oxygen(n)}
     graph = adjacency(mol)
     roots = [n for n in graph[boron.GetIdx()] if n not in group_oxygens]
     halogens = halogen_substituents(mol)
