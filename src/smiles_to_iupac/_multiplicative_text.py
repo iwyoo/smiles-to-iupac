@@ -20,6 +20,15 @@ _ASSEMBLY_BRACKETS = re.compile(
 )
 
 
+def unit_name_without_junction_marker(name, locant, marker):
+    """The name of a multiplied unit that was numbered with `marker` (a tert-butyl group) on its junction atom, with that
+    prefix removed, so that the junction locant and the other locants of the unit come from one numbering; None when
+    the marker prefix is not found."""
+    pattern = re.compile(rf"{re.escape(locant)}-{marker}-|(?:^|-){re.escape(locant)}-{marker}(?=[a-z])")
+    unit, replaced = pattern.subn("", name, count=1)
+    return unit if replaced == 1 else None
+
+
 _ADDED_HYDROGEN = re.compile(r"(?:(?<=\d)|(?<=\d[a-z])|(?<=['\u2032]))\(\d+[a-z]?H\)")
 
 

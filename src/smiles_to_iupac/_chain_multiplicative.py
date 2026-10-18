@@ -14,7 +14,14 @@ from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
 from ._multiplicative_groups import terminal_ligand
 from ._multiplicative_linker import DecompositionRejected, name_component
-from ._multiplicative_text import enclose, join_parts, multiplier_word, opens_with_assembly, unit_phrase
+from ._multiplicative_text import (
+    enclose,
+    join_parts,
+    multiplier_word,
+    opens_with_assembly,
+    unit_name_without_junction_marker,
+    unit_phrase,
+)
 from ._substituents import name_branch
 
 _LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
@@ -628,9 +635,10 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None):
 
             return f"{linker} {multiplied_anion(text, not text.isalpha() or not _unsubstituted_anion(units[0][0]), count)}"
         if unit_kind == "polyamine":
-            lead = _polyamine_lead(units[0][0], count)
-            if lead is None:
+            numbered = _polyamine_lead(units[0][0], count)
+            if numbered is None:
                 return None
+            lead, text = numbered
             return f"{lead}{_linker_text(branches, central, arm_parts)}{multiplier_word(count, False)}{unit_phrase(text, '')}"
         if unit_kind in ("amide", "amine", "imine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
@@ -796,8 +804,8 @@ _MARKER_LOCANT = re.compile(r"(N['\u2032]*\d+)-(?:\d+[a-z]*-)?" + _MARKER)
 
 
 def _polyamine_lead(unit, count):
-    """The N locants of the junction nitrogen in the identical parents, `N1,N1'-`: the unit named with a tert-butyl
-    group on that nitrogen shows its locant (P-62.2.5.2)."""
+    """The N locants of the junction nitrogen in the identical parents, `N1,N1'-`, and the unit name numbered with that
+    nitrogen first: the unit named with a tert-butyl group on that nitrogen shows its locant (P-62.2.5.2)."""
     from .core import smiles_to_iupac
 
     editable = Chem.RWMol(unit)
@@ -822,7 +830,10 @@ def _polyamine_lead(unit, count):
     if found is None:
         return None
     locant = found.group(1)
-    return ",".join(locant + "'" * i for i in range(count)) + "-"
+    unit_name = unit_name_without_junction_marker(name, locant, _MARKER)
+    if unit_name is None:
+        return None
+    return ",".join(locant + "'" * i for i in range(count)) + "-", unit_name
 
 
 def anion_multiplicative_name(mol, centers):

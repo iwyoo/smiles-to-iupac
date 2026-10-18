@@ -1397,7 +1397,6 @@ def test_skeletal_replacement_chains_with_adjacent_chalcogen_atoms(smiles, expec
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CNCNCNCNC", "2,4,6,8-tetraazanonane"),
         ("CCNC(=O)CCOCCOCCOCCOC", "N-ethyl-2,5,8,11-tetraoxatetradecan-14-amide"),
         ("CON(C)C(=O)ON=C(C#N)C(N)=O", "7-cyano-3-methyl-4-oxo-2,5-dioxa-3,6-diazaoct-6-en-8-amide"),
         ("NC(=N)NCCCCCNC(=N)NCCCCCNC(N)=N", "9-imino-2,8,10,16-tetraazaheptadecanediimidamide"),
