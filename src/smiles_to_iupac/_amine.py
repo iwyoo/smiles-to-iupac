@@ -94,6 +94,7 @@ alongside the ring double bond, are both still explicitly rejected
 pending further verification.
 """
 
+import contextlib
 from contextvars import ContextVar
 
 from rdkit import Chem
@@ -128,7 +129,6 @@ from ._common import (
     ring_name_from_substituents,
     specified_stereo_elements,
     specified_stereocenters,
-    stereo_element_atoms,
     substituent_locant_set_and_citation,
 )
 from ._bicyclic import find_bicyclic_core
@@ -138,6 +138,7 @@ from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
 from ._substituents import (
     BRANCH_STEREO,
+    cited_branch_stereo,
     format_substituent_prefixes,
     name_branch,
     ring_branch_stereo_display,
@@ -149,6 +150,18 @@ _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 CATIONIC_AMINES = ContextVar("cationic_amines", default=False)
+SUFFIX_ONLY_AMINES = ContextVar("suffix_only_amines", default=False)
+
+
+@contextlib.contextmanager
+def amines_in_suffix():
+    """For a caller that derives an ionic or radical name from the amine name by changing its ending: every nitrogen
+    must be in the suffix, not an amino prefix."""
+    token = SUFFIX_ONLY_AMINES.set(True)
+    try:
+        yield
+    finally:
+        SUFFIX_ONLY_AMINES.reset(token)
 
 
 def _validate_and_collect_amines(mol, aromatic_ring_atoms=frozenset()):
@@ -276,7 +289,9 @@ def _add_n_names(grouped, n_names, n_locants=None):
 
 def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names=(), n_locants=None):
     # A prefix could also stand on the NH2 nitrogen: the locant is kept on methane for one amine group (P-14.3.4.4)
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=chain_length == 1 and len(amine_locants) > 1)
+    # and wherever an N locant is cited, since one essential locant makes all essential (P-14.3.3)
+    omit_locants = chain_length == 1 and len(amine_locants) > 1 and not n_names
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=omit_locants)
     return prefix + name_from_substituents(
         chain_length,
         ene_locants,
@@ -311,7 +326,7 @@ def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substi
             amine_locant_set,
             combined_locant_set,
             ene_locant_set,
-            -total_count,
+            -(total_count + len(n_names)),
             locant_set,
             citation_locants,
             *_n_locant_ranks(n_names, n_locants),
@@ -339,21 +354,22 @@ def _n_locant_ranks(n_names, n_locants):
     return (tuple(sorted(rank(locant) for locant in n_locants)), cited)
 
 
-def _amine_locants(position_of, amines, graph):
-    """Each nitrogen's chain-side locant. `graph` may be the full-molecule
-    adjacency (a secondary/tertiary nitrogen then has other, non-chain
-    carbon neighbors too -- e.g. its N-substituents, deliberately excluded
-    from the chain graph being tested), so a nitrogen only counts if exactly
-    one of its carbon neighbors is part of the current candidate chain."""
-    locants = []
+def _chain_amines(position_of, amines, graph):
+    """The nitrogens of `amines` bonded to the candidate chain, each with its chain-side locant; `graph` is the
+    full-molecule adjacency, so a nitrogen counts only through the one carbon neighbour that lies on the chain."""
+    on_chain, locants = [], []
     for n in amines:
         carbons_in_chain = [c for c in graph[n] if c in position_of]
-        if len(carbons_in_chain) != 1:
-            return None
-        locants.append(position_of[carbons_in_chain[0]])
-    return locants
+        if len(carbons_in_chain) == 1:
+            on_chain.append(n)
+            locants.append(position_of[carbons_in_chain[0]])
+    return on_chain, locants
 
 
+def _amine_locants(position_of, amines, graph):
+    """Each nitrogen's chain-side locant, or None unless every one of `amines` is bonded to the chain."""
+    on_chain, locants = _chain_amines(position_of, amines, graph)
+    return locants if len(on_chain) == len(amines) else None
 
 
 def _n_locant_labels(amines, amine_locants, n_names_by_nitrogen, chain_length):
@@ -380,95 +396,102 @@ def _n_locant_labels(amines, amine_locants, n_names_by_nitrogen, chain_length):
 def _best_chain_name(
     carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=(), mol=None, n_names_by_nitrogen=None
 ):
-    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
-    from `specified_stereo_elements`/`specified_stereocenters` -- if
-    given, only chain candidates that include every tetrahedral
-    stereocenter are eligible (P-92: a stereocenter on a substituent
-    branch is out of scope; a double-bond E/Z element's atoms are already
-    required to lie on the chain via `bonds`, so no separate check is
-    needed for those). Returns (name, position_of) so a caller wrapping a
-    stereo prefix around `name` can still place it outermost using the
-    winning chain's own locants.
+    """The parent chain holds the maximum number of amine groups (P-44.1.1), then is the longest and most unsaturated;
+    an amine group off it is cited as an amino prefix of its branch. Returns (name, position_of) so a caller can
+    place the stereo prefix of `stereo` (`specified_stereo_elements` triples) using the winning chain's locants.
 
-    `n_names`: a secondary/tertiary amine's other N-substituent name(s)
-    (P-66.4), passed straight through to `_candidate_key` so they're
-    already correctly interleaved into `name` itself (P-14.5.2) -- the
-    caller no longer glues an 'N-' prefix on afterward. Ignored when
-    `n_names_by_nitrogen` is given.
-
-    `n_names_by_nitrogen`: for `_name_multi_amine_chain`'s coexisting-
-    amines case (P-16.9.2) -- `{nitrogen_atom_idx: [(name, is_compound),
-    ...]}`. Each nitrogen's own chain locant depends on which orientation
-    of which candidate chain wins, so (unlike the single-amine `n_names`
-    above) this can't be resolved by the caller ahead of time -- it's
-    recomputed per candidate below, from that candidate's own
-    `position_of`, into the flat `n_names`/`n_locants` pair
-    `_candidate_key` expects."""
-    chains = all_chains(carbon_graph)
-    branch_stereo = [e for e in stereo or [] if e[0] == "atom" and e[1] not in carbon_graph]
-    chain_stereo = [e for e in stereo if e not in branch_stereo] if stereo is not None else None
-    stereo_atoms = stereo_element_atoms(mol, chain_stereo) if chain_stereo is not None else []
-
-    eligible = []
-    for chain in chains:
+    `n_names`: the other N-substituent names of a secondary/tertiary amine (P-66.4), interleaved into `name` by
+    `_candidate_key` (P-14.5.2). `n_names_by_nitrogen`: `{nitrogen: [(name, is_compound), ...]}` for coexisting
+    amines (P-16.9.2), whose N locants depend on the candidate and are resolved per candidate."""
+    on_chain_count = {}
+    for chain in all_chains(carbon_graph):
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
-        if _amine_locants(position_of, amines, graph) is None:
-            continue
-        if chain_stereo is not None and any(atom not in position_of for atom in stereo_atoms):
-            continue
-        eligible.append(chain)
-    if not eligible:
-        raise UnsupportedStructure(
-            "not every amine-bearing carbon (and/or multiple bond) lies on "
-            "a single longest carbon chain; a shorter principal chain "
-            "capturing more -NH2 groups (P-44.1.1), an -NH2 expressed as "
-            "an 'amino' substituent prefix, or a stereocenter on a "
-            "substituent branch (P-92), is not supported yet"
-        )
-
-    best_key = None
-    best_name = None
-    best_position_of = None
+        count = len(_chain_amines(position_of, amines, graph)[0])
+        if count:
+            on_chain_count[tuple(chain)] = count
+    if not on_chain_count:
+        raise UnsupportedStructure("no amine group is bonded to an acyclic carbon chain")
+    most = max(on_chain_count.values())
+    if most < len(amines) and SUFFIX_ONLY_AMINES.get():
+        raise UnsupportedStructure("an amine nitrogen outside the parent chain is a prefix, not part of the ending")
+    eligible = [list(chain) for chain, count in on_chain_count.items() if count == most]
     chain_length = max(len(c) for c in eligible)
     eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
-    cited = {"atoms": {idx: code for _, idx, code in branch_stereo}, "bonds": {}, "used": set()}
-    token = BRANCH_STEREO.set(cited) if branch_stereo else None
-    try:
-        best_key, best_name, best_position_of = _best_candidate(
-            eligible, graph, halogens, amines, bonds, chain_stereo, n_names, mol, n_names_by_nitrogen, chain_length
-        )
-    finally:
-        if token is not None:
-            BRANCH_STEREO.reset(token)
-    if any(("atom", idx) not in cited["used"] for idx in cited["atoms"]):
-        raise UnsupportedStructure("the descriptor of a stereogenic centre outside the principal chain is not cited by this naming path")
-    return best_name, best_position_of
+    found = _best_candidate(eligible, graph, halogens, amines, bonds, stereo, n_names, mol, n_names_by_nitrogen, chain_length)
+    if found is None:
+        raise UnsupportedStructure("a stereo element outside the principal chain is not cited by this naming path")
+    return found[1], found[2]
 
 
 def _best_candidate(eligible, graph, halogens, amines, bonds, stereo, n_names, mol, n_names_by_nitrogen, chain_length):
-    best_key = best_name = best_position_of = None
+    best = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            amine_locants = _amine_locants(position_of, amines, graph)
+            on_chain, amine_locants = _chain_amines(position_of, amines, graph)
             ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
-            substituents = substituents_for_chain(graph, candidate, halogens, amines, mol=mol)
-            if n_names_by_nitrogen is not None:
-                candidate_n_names = []
-                candidate_n_locants = []
-                for n_idx, locant in _n_locant_labels(amines, amine_locants, n_names_by_nitrogen, chain_length):
-                    for sub_name, is_compound in n_names_by_nitrogen.get(n_idx, []):
-                        candidate_n_names.append((sub_name, is_compound))
-                        candidate_n_locants.append(locant)
-            else:
-                candidate_n_names, candidate_n_locants = n_names, None
-            key, name = _candidate_key(
-                chain_length, amine_locants, ene_locants, yne_locants, substituents, candidate_n_names, candidate_n_locants
-            )
-            key = (key, stereo_locant_rank(mol, stereo, position_of))
-            if best_key is None or key < best_key:
-                best_key, best_name, best_position_of = key, name, position_of
-    return best_key, best_name, best_position_of
+            parent_stereo, context = _split_stereo(mol, stereo, position_of)
+            token = BRANCH_STEREO.set(context) if context["atoms"] or context["bonds"] else None
+            try:
+                substituents = substituents_for_chain(graph, candidate, halogens, set(on_chain), mol=mol)
+                if n_names_by_nitrogen is not None:
+                    candidate_n_names = []
+                    candidate_n_locants = []
+                    for n_idx, locant in _n_locant_labels(on_chain, amine_locants, n_names_by_nitrogen, chain_length):
+                        for sub_name, is_compound in n_names_by_nitrogen.get(n_idx, []):
+                            candidate_n_names.append((sub_name, is_compound))
+                            candidate_n_locants.append(locant)
+                else:
+                    candidate_n_names, candidate_n_locants = n_names, None
+                key, name = _candidate_key(
+                    chain_length, amine_locants, ene_locants, yne_locants, substituents, candidate_n_names, candidate_n_locants
+                )
+            finally:
+                if token is not None:
+                    BRANCH_STEREO.reset(token)
+            if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+                ("bond", b) not in context["used"] for b in context["bonds"]
+            ):
+                continue
+            key = (key, stereo_locant_rank(mol, parent_stereo, position_of))
+            if best is None or key < best[0]:
+                best = (key, name, position_of)
+    return best
+
+
+def _element_atoms(mol, element):
+    kind, idx, _ = element
+    if kind == "atom":
+        return (idx,)
+    bond = mol.GetBondWithIdx(idx)
+    return bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+
+
+def _split_stereo(mol, stereo, position_of):
+    """(elements the parent cites, branch context for the others): an element touching the chain is cited with its
+    locant, a double bond to an ylidene or imino prefix by the chain atom's (P-93.5.1.4.2.1); an element wholly off
+    the chain is cited inside the substituent that holds it (P-93.5.1.1)."""
+    parent, atoms, bonds = [], {}, {}
+    for element in stereo or ():
+        ends = _element_atoms(mol, element)
+        if any(a in position_of for a in ends):
+            parent.append(element)
+        elif element[0] == "atom":
+            atoms[ends[0]] = element[2]
+        else:
+            bonds[ends] = element[2]
+    return parent, {"atoms": atoms, "bonds": bonds, "used": set()}
+
+
+def _cite_parent_stereo(mol, stereo, name, position_of):
+    labels = []
+    for element in stereo or ():
+        locants = [position_of[a] for a in _element_atoms(mol, element) if a in position_of]
+        if locants:
+            labels.append((min(locants), element[2]))
+    if not labels:
+        return name
+    return f"({','.join(f'{locant}{code}' for locant, code in sorted(labels))})-{name}"
 
 
 def _parent_rank(component, root, bonds):
@@ -513,8 +536,10 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     other_roots = [c for c in n_carbons if c != parent_root]
 
     n_names = []
-    for other in other_roots:
-        n_names.append(name_branch(graph, other, n_idx, halogens, mol=mol))
+    with _cited_n_substituent_stereo(mol, graph, n_idx, other_roots, stereo):
+        for other in other_roots:
+            n_names.append(name_branch(graph, other, n_idx, halogens, mol=mol))
+    stereo = _stereo_outside(mol, stereo, set().union(*(_reachable(graph, other, n_idx) for other in other_roots)))
 
     excluded_atoms = set()
     for other in other_roots:
@@ -531,24 +556,21 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     best_name, best_position_of = _best_chain_name(
         parent_carbon_graph, graph, halogens, {n_idx}, parent_bonds, stereo, n_names=n_names, mol=mol
     )
+    return _cite_parent_stereo(mol, stereo, best_name, best_position_of)
 
-    if stereo is not None:
-        labels = []
-        for kind, idx, code in stereo:
-            if kind == "atom" and idx not in best_position_of:
-                continue
-            if kind == "atom":
-                locant = best_position_of[idx]
-            else:
-                bond = mol.GetBondWithIdx(idx)
-                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
-            labels.append((locant, code))
-        if not labels:
-            return best_name
-        labels.sort()
-        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
-        return f"({prefix})-{best_name}"
-    return best_name
+
+@contextlib.contextmanager
+def _cited_n_substituent_stereo(mol, graph, n_idx, roots, stereo):
+    """The N-substituents named inside cite the stereo elements they hold (P-93.5.1.1)."""
+    if stereo and roots:
+        with cited_branch_stereo(mol, graph, {n_idx}, roots):
+            yield
+    else:
+        yield
+
+
+def _stereo_outside(mol, stereo, region):
+    return [e for e in stereo or () if not all(a in region for a in _element_atoms(mol, e))]
 
 
 def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
@@ -623,13 +645,15 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
         _reject_enamine_carbons(graph, [n], [b for b in bonds if b[0] in chain_component and b[1] in chain_component])
         extra_roots = [c for c in n_carbons_by_nitrogen[n] if c not in chain_component]
         names = []
-        for root in extra_roots:
-            names.append(name_branch(graph, root, n, halogens, mol=mol, unsaturated=True))
-            excluded_atoms |= set(components.get(root, ()))
-            substituent_atoms |= _reachable(graph, root, n)
+        with _cited_n_substituent_stereo(mol, graph, n, extra_roots, stereo):
+            for root in extra_roots:
+                names.append(name_branch(graph, root, n, halogens, mol=mol, unsaturated=True))
+                excluded_atoms |= set(components.get(root, ()))
+                substituent_atoms |= _reachable(graph, root, n)
         n_names_by_nitrogen[n] = names
     if not ring_atoms <= substituent_atoms:
         raise UnsupportedStructure("a ring outside the N-substituents of the amines is not supported by this naming path")
+    stereo = _stereo_outside(mol, stereo, substituent_atoms)
 
     parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
     parent_bonds = [b for b in bonds if b[0] in parent_carbon_graph and b[1] in parent_carbon_graph]
@@ -638,33 +662,7 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
         parent_carbon_graph, graph, halogens, amines, parent_bonds, stereo,
         mol=mol, n_names_by_nitrogen=n_names_by_nitrogen,
     )
-    if stereo is not None:
-        if not all(_stereo_on_parent(mol, element, best_position_of) or element[0] == "atom" for element in stereo):
-            raise UnsupportedStructure("a stereo element of an N-substituent is not cited by this naming path")
-        labels = []
-        for kind, idx, code in stereo:
-            if kind == "atom" and idx not in best_position_of:
-                continue
-            if kind == "atom":
-                locant = best_position_of[idx]
-            else:
-                bond = mol.GetBondWithIdx(idx)
-                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
-            labels.append((locant, code))
-        if not labels:
-            return best_name
-        labels.sort()
-        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
-        return f"({prefix})-{best_name}"
-    return best_name
-
-
-def _stereo_on_parent(mol, element, position_of):
-    kind, idx, _ = element
-    if kind == "atom":
-        return idx in position_of
-    bond = mol.GetBondWithIdx(idx)
-    return bond.GetBeginAtomIdx() in position_of and bond.GetEndAtomIdx() in position_of
+    return _cite_parent_stereo(mol, stereo, best_name, best_position_of)
 
 
 def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
@@ -680,23 +678,7 @@ def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     best_name, best_position_of = _best_chain_name(carbon_adjacency(mol), graph, halogens, amines, bonds, stereo, mol=mol)
-    if stereo is not None:
-        labels = []
-        for kind, idx, code in stereo:
-            if kind == "atom" and idx not in best_position_of:
-                continue
-            if kind == "atom":
-                locant = best_position_of[idx]
-            else:
-                bond = mol.GetBondWithIdx(idx)
-                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
-            labels.append((locant, code))
-        if not labels:
-            return best_name
-        labels.sort()
-        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
-        return f"({prefix})-{best_name}"
-    return best_name
+    return _cite_parent_stereo(mol, stereo, best_name, best_position_of)
 
 
 

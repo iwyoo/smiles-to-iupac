@@ -62,7 +62,7 @@ import re
 
 from rdkit import Chem
 
-from ._amine import CATIONIC_AMINES, _name_acyclic_secondary_tertiary_amine, name_amine
+from ._amine import CATIONIC_AMINES, _name_acyclic_secondary_tertiary_amine, amines_in_suffix, name_amine
 from ._common import UnsupportedStructure, non_single_bonds, specified_stereo_elements
 from ._hetero_prefixes import is_functional_carbon
 from ._onium_prefixes import onium_name
@@ -144,7 +144,8 @@ def name_polyammonium(mol) -> str:
     token = CATIONIC_AMINES.set(True)
     try:
         try:
-            name = name_amine(base)
+            with amines_in_suffix():
+                name = name_amine(base)
         except UnsupportedStructure:
             name = None
         match = re.search(r"(di|tri|tetra|penta|hexa)amine$", name or "")

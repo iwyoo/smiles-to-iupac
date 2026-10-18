@@ -183,6 +183,35 @@ def test_polyamine_n_locants_and_ring_parents(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("NCCC(CN)CCN", "3-(aminomethyl)pentane-1,5-diamine", id="amine_off_the_parent_chain_is_a_prefix"),
+        pytest.param(
+            "CNCC(CN)CNC",
+            "2-(aminomethyl)-N1,N3-dimethylpropane-1,3-diamine",
+            id="tied_parents_keep_the_one_with_more_prefixes_counting_the_n_prefixes",
+        ),
+        pytest.param("NC(Cl)NC", "1-chloro-N-methylmethanediamine", id="methane_locant_is_cited_beside_an_n_locant"),
+        pytest.param(
+            "NCCCC/C(CCC)=C/C", "(5E)-5-ethylideneoctan-1-amine", id="ylidene_bond_configuration_takes_the_chain_locant"
+        ),
+        pytest.param(
+            "NC[C@H](CN)[C@@H](C)CC",
+            "2-[(2S)-butan-2-yl]propane-1,3-diamine",
+            id="stereocentre_inside_a_branch_is_cited_in_the_branch",
+        ),
+        pytest.param(
+            "CC[C@H](C)NCC[C@H](C)CC",
+            "(3R)-N-[(2S)-butan-2-yl]-3-methylpentan-1-amine",
+            id="stereocentre_inside_an_n_substituent_is_cited_in_it",
+        ),
+    ],
+)
+def test_amine_parent_with_the_most_amine_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CCNCNCC", "N,N'-methylenediethanamine", id="methylene_joins_identical_monoamine_nitrogens"),
         pytest.param(
             "Cc1ccc(NCNc2ccc(C)cc2)cc1", "N,N'-methylenebis(4-methylaniline)", id="substituted_monoamine_units_take_bis"
