@@ -88,6 +88,15 @@ _SENIOR_TO_UREA = [
 ]
 
 
+_SENIOR_TO_AMIDE = [*_SENIOR_TO_UREA[:4], Chem.MolFromSmarts("[SX4,SX3,SeX4,TeX4](=O)[OX2H1,OX1-,OX2]")]
+
+
+def has_acid_derivative_senior_to_amide(mol, core_atoms):
+    """A carboxylic or sulfonic acid, ester or acid halide whose acyl atom lies outside `core_atoms`: the classes that
+    outrank an amide as the parent (P-41)."""
+    return any(match[0] not in core_atoms for query in _SENIOR_TO_AMIDE for match in mol.GetSubstructMatches(query))
+
+
 def has_group_senior_to_urea(mol, core_atoms, hydrazide_junior=False, junior_cores=frozenset()):
     """A carboxylic or sulfonic acid, ester, acid halide, amide or amidine outside the urea core, or a charge other
     than a nitro group's: the class that outranks urea as the parent (P-41, P-66.1.6.1.1.5). With `hydrazide_junior`
