@@ -78,6 +78,8 @@ def _component_hydro(mol, locants, hydro_rings):
 
     found = []
     for ring in hydro_rings:
+        if any(atom not in locants for atom in ring):
+            continue
         for atom in hydrogenated_atoms(mol, ring):
             ring_number, position = locants[atom]
             if len(ring) == 5 and position == 1:
