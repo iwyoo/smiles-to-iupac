@@ -1026,6 +1026,8 @@ def name_ester(mol, links):
                 CITE_SUBSTITUENT_LOCANTS.reset(token)
         else:
             cited = _diphosphate_locants(mol, acid_atoms, per_link, free_centers)
+    if not cited and len({l.center for l, _ in per_link}) > 1 and any(any(letters) for _, _, letters in named.values()):
+        raise UnsupportedStructure("the element letters of several acid centres need primes and centre locants")
     entries = [
         (name, compound, count, cited[name] if cited else letters) for name, (count, compound, letters) in named.items()
     ]

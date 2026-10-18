@@ -1189,7 +1189,7 @@ def _phosphonic_candidates(mol, graph):
     return candidates
 
 
-_CENTRE_ACID = re.compile(r"(?:bor|phosph|ars|stib)(?:on|in)(?:ic|ous) acid$")
+_CENTRE_ACID = re.compile(r"(?:bor|phosph|ars|stib)(?:on|in)[a-z()]*(?:ic|ous) (?:[A-Za-z,]+-)?acid$")
 _INORGANIC_AMIDE = re.compile(r"(?:nitramide|(?:ous|ic) amide)$")
 _CARBAMIC_ACID = re.compile(r"carbam\w*ic (?:[A-Za-z,]+-)?acid$|carbam\w*ic acid$")
 _UREA_STEMS = {8: "urea", 16: "thiourea", 34: "selenourea", 52: "tellurourea"}
@@ -1215,12 +1215,14 @@ def _unit_arms(mol, graph, attach, roots):
 
 
 def _acid_centre_candidates(mol, graph):
-    """Boronic, borinic, phosphinic and phosphinous acid groups (and the arsenic and antimony analogues) joined through
-    carbon: the centre keeps its hydroxy group(s) and one carbon substituent in the unit (P-67.1.1, P-68.1.4)."""
+    """Boronic, borinic, phosphinic and phosphinous acid groups (and the arsenic and antimony analogues), also with a
+    chalcogen, halide or amide replacing a hydroxy group, joined through carbon: the centre keeps its acid ligands and
+    its carbon substituents in the unit (P-67.1.1, P-67.1.2.4, P-68.1.4)."""
     from ._phosphonic_acid import _SENIOR_ACIDS
 
     if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
         return {}
+    chalcogens = (8, 16, 34, 52)
     candidates = {}
     for center in mol.GetAtoms():
         if center.GetAtomicNum() not in (5, 15, 33, 51) or center.GetFormalCharge() or center.IsInRing():
@@ -1230,16 +1232,18 @@ def _acid_centre_candidates(mol, graph):
         def bonded(order, group):
             return [n for n in neighbors if group(n) and mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == order]
 
-        hydroxyl = bonded(1.0, lambda n: _terminal(n, 8, 1))
-        oxo = bonded(2.0, lambda n: _terminal(n, 8, 0))
+        hydroxyl = bonded(1.0, lambda n: any(_terminal(n, z, 1) for z in chalcogens))
+        oxo = bonded(2.0, lambda n: any(_terminal(n, z, 0) for z in chalcogens))
+        replacers = bonded(1.0, lambda n: any(_terminal(n, z, 0) for z in HALOGEN_PREFIXES) or _terminal(n, 7, 2))
         carbons = bonded(1.0, lambda n: n.GetAtomicNum() == 6)
-        if len(hydroxyl) + len(oxo) + len(carbons) != len(neighbors):
+        if len(hydroxyl) + len(oxo) + len(replacers) + len(carbons) != len(neighbors):
             continue
+        singles = len(hydroxyl) + len(replacers) + len(carbons) + center.GetTotalNumHs()
         if center.GetAtomicNum() == 5:
-            fits = not oxo and hydroxyl and len(hydroxyl) + len(carbons) == 3
+            fits = not oxo and hydroxyl and singles == 3
         else:
-            fits = len(carbons) == 2 and len(hydroxyl) == 1 and len(oxo) <= 1
-        if not fits:
+            fits = hydroxyl and len(oxo) <= 1 and singles == 3
+        if not fits or not carbons:
             continue
         for found in _unit_arms(mol, graph, center.GetIdx(), [n.GetIdx() for n in carbons]):
             candidates.setdefault(_key(mol, found[2], found[0]), []).append(found)
