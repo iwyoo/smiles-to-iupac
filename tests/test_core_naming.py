@@ -777,6 +777,18 @@ def test_retained_cage_names_cubane_and_adamantane(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("C[C@]12[C@H]3[C@@H]4C5[C@H]3[C@H]1[C@@H]5[C@@H]42", "(2r,3r,5r,6r,7r,8r)-methylcubane"),
+        ("ClC[C@]12[C@H]3[C@@H]4C5[C@H]3[C@H]1[C@@H]5[C@@H]42", "(2r,3r,5r,6r,7r,8r)-(chloromethyl)cubane"),
+        ("C[C@H]1[C@H]2C[C@@H]3[C@H](C2)[C@@H]13", "(1R,2S,3S,4R,6S)-3-methyltricyclo[2.2.1.0^2,6]heptane"),
+    ],
+)
+def test_saturated_polycycle_with_prefixes_cites_the_descriptors_of_its_ring_atoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("ClC1CC12CC2", "chlorospiro[2.2]pentane"),
         ("OC1CC12CC2", "spiro[2.2]pentanol"),
         ("ClC12C3(Cl)C4(Cl)C1(Cl)C5(Cl)C2(Cl)C3(Cl)C45Cl", "octachlorocubane"),

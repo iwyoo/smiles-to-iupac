@@ -97,6 +97,9 @@ from ._common import (
     kekulized_copy,
     lowest_locant_set,
     non_single_bonds,
+    specified_stereocenters,
+    stereo_locant_rank,
+    stereo_locants_prefix,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
     specified_double_bond_stereo,
@@ -522,16 +525,20 @@ def name_polycycloalkane(mol, core, ring_count) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
+    stereo = specified_stereocenters(mol)
 
     best_key = None
     best_name = None
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
+        position = {atom: i + 1 for i, atom in enumerate(full_order)}
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
         key = outer_key + _candidate_key(
             parent, substituents, omits=lambda grouped, order=full_order: omits_all_locants(mol, order, grouped)
         )
-        if best_key is None or key < best_key:
-            best_key, best_name = key, key[-1]
+        ranked = (key[:-1], stereo_locant_rank(mol, stereo, position), key[-1])
+        if best_key is None or ranked < best_key:
+            best_key = ranked
+            best_name = stereo_locants_prefix(stereo, position) + key[-1] if stereo else key[-1]
 
     if best_name is None:
         raise UnsupportedStructure(
