@@ -925,13 +925,62 @@ def _acid_rank(mol, atoms, links, entering):
 _ACID_CLASS_RANK = {"acyl": 0, "carbonic": 0, "cyanic": 0, "inorganic": 1}
 
 
+_CENTRE_ORDER = (15, 33, 51, 14, 5, 16, 34, 52)
+
+
+def _acid_kind_rank(mol, idx):
+    """Position of the noncarbon acid on the centre `idx` in the order of P-42.3 and P-42.4: acids with a substitutable
+    hydrogen or a carbon group on the centre (phosphonic) before those without (phosphoric), then the central atom (P > As >
+    Sb > Si > B > S > Se > Te), then the acid with an oxo group (phosphonous after phosphonic), then the one with more acid
+    positions (boronic before borinic); () for any other centre."""
+    found = _center(mol, idx)
+    if found is None or found[0] != "inorganic":
+        return ()
+    atom = mol.GetAtomWithIdx(idx)
+    substituted = atom.GetTotalNumHs() or any(n.GetAtomicNum() not in _SYMBOL for n in atom.GetNeighbors())
+    z = atom.GetAtomicNum()
+    return (
+        0 if substituted else 1,
+        _CENTRE_ORDER.index(z) if z in _CENTRE_ORDER else len(_CENTRE_ORDER),
+        0 if found[1] else 1,
+        -len(found[2]),
+    )
+
+
+def _acid_kind_key(mol, idx, acidic):
+    """Kinds of noncarbon acid with a free acid group (`acidic`, a set of ranks) come before the kinds that only occur as
+    esters (P-41 class 7 before class 9), each in the order of `_acid_kind_rank`."""
+    rank = _acid_kind_rank(mol, idx)
+    return (0 if rank in acidic else 1, rank) if rank else ()
+
+
+def _acidic_kinds(mol):
+    return {
+        _acid_kind_rank(mol, a.GetIdx())
+        for a in mol.GetAtoms()
+        if _acid_kind_rank(mol, a.GetIdx()) and _free_groups(mol, a.GetIdx())
+    }
+
+
 def _senior_acid_esters(mol, links):
-    """`links` without the esters of the noncarbon acids when an ester of a carbon or sulfur-group acid is present: an ester
-    takes the rank of its acid (P-41 classes 7a, 7b before 7c), and the esters of the junior acid are prefixes of the
-    organyl group."""
-    rank = {id(l): _ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) for l in links if l.kind == "ester"}
-    top = min(rank.values(), default=0)
+    """`links` without the esters of the junior acids: an ester takes the rank of its acid (P-41 classes 7a, 7b before 7c;
+    P-42.3 within the noncarbon acids), and the esters of the junior acid are prefixes of the organyl group."""
+    acidic = _acidic_kinds(mol)
+    rank = {
+        id(l): (_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3), _acid_kind_key(mol, l.center, acidic))
+        for l in links
+        if l.kind == "ester"
+    }
+    top = min(rank.values(), default=None)
     return [l for l in links if l.kind != "ester" or rank[id(l)] == top]
+
+
+def _senior_kind_has_no_ester(mol, links):
+    """A kind of noncarbon acid that ranks above every one carrying an ester is a free acid, named as the parent elsewhere."""
+    acidic = _acidic_kinds(mol)
+    chosen = min((_acid_kind_key(mol, l.center, acidic) for l in links if l.kind == "ester"), default=())
+    present = [_acid_kind_key(mol, a.GetIdx(), acidic) for a in mol.GetAtoms()]
+    return bool(chosen) and any(key and key < chosen for key in present)
 
 
 def name_ester(mol, links):
@@ -939,6 +988,8 @@ def name_ester(mol, links):
     if has_acyloxy_amine_group(mol):
         raise UnsupportedStructure("an acyclic nitrogen gives no traditional ester: the group is an acyloxy prefix (P-65.6.3.4.1)")
     links = _senior_acid_esters(mol, links)
+    if _senior_kind_has_no_ester(mol, links):
+        raise UnsupportedStructure("a free acid of a senior kind outranks the ester (P-41, P-42.3)")
     kinds = {_center(mol, l.center)[0] == "inorganic" for l in links if l.kind == "ester"}
     if kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
         raise UnsupportedStructure("the seniority of this phosphorus or boron ester among the other groups is not decided here")
@@ -1007,8 +1058,12 @@ def name_ester(mol, links):
     ):
         raise UnsupportedStructure("a stereo element of the organyl part is not cited by any supported name")
     acid_class = _center(mol, chosen[0].center)[0]
+    chosen_rank = _acid_kind_rank(mol, chosen[0].center)
     free_slots = [
-        (a, group[0]) for a in acid_atoms if (_center(mol, a) or (None,))[0] == acid_class for group in _free_groups(mol, a)
+        (a, group[0])
+        for a in acid_atoms
+        if (_center(mol, a) or (None,))[0] == acid_class and _acid_kind_rank(mol, a) == chosen_rank
+        for group in _free_groups(mol, a)
     ]
     free_centers = [center for center, _ in free_slots]
     free = len(free_centers)
