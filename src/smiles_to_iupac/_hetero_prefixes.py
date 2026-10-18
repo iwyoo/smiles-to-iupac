@@ -74,10 +74,7 @@ _SENIOR_SULFONYL = [
 ]
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
 _AMINO_ON_RING_NITROGEN = Chem.MolFromSmarts("[NX3H2;!R]-[NX3;R;+0]")
-_OXYGEN_PEROXOL = (
-    Chem.MolFromSmarts("[OX2H1][O,S,Se,Te;X2][#6]"),
-    Chem.MolFromSmarts("[S,Se,Te;X2H1][OX2][#6]"),
-)
+_PEROXOL = Chem.MolFromSmarts("[O,S,Se,Te;X2H1][O,S,Se,Te;X2H0][#6]")
 
 
 def require_plain_chalcogen_kids(mol, z, kids):
@@ -120,7 +117,7 @@ def _has_senior_principal_group(mol):
         or mol.HasSubstructMatch(_HYDRAZINE)
         or mol.HasSubstructMatch(_AMINO_ON_RING_NITROGEN)
         or mol.HasSubstructMatch(_IMINE_NITROGEN_CHALCOGEN)
-        or any(mol.HasSubstructMatch(query) for query in _OXYGEN_PEROXOL)
+        or mol.HasSubstructMatch(_PEROXOL)
     )
 
 
