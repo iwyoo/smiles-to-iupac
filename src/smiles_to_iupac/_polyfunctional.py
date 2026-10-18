@@ -3667,7 +3667,7 @@ def _plain_diazene(bond):
         if a.IsInRing() or a.GetFormalCharge() or a.GetDegree() > 2:
             return False
         for n in a.GetNeighbors():
-            if n.GetIdx() in inner or n.GetAtomicNum() == 6:
+            if n.GetIdx() in inner or n.GetAtomicNum() == 6 or (n.GetAtomicNum() == 7 and n.IsInRing()):
                 continue
             if not (
                 n.GetAtomicNum() == 7
@@ -3686,7 +3686,14 @@ def _only_plain_hydrazines(mol):
     a hydrazine nitrogen is its ylidene substituent (P-68.3.1.2.2), two make an azine."""
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtom(), bond.GetEndAtom()
-        if a.GetAtomicNum() != 7 or b.GetAtomicNum() != 7 or bond.IsInRing() or _joins_two_rings(bond) or _plain_diazene(bond):
+        if (
+            a.GetAtomicNum() != 7
+            or b.GetAtomicNum() != 7
+            or bond.IsInRing()
+            or _joins_two_rings(bond)
+            or a.IsInRing() != b.IsInRing()
+            or _plain_diazene(bond)
+        ):
             continue
         if bond.GetBondTypeAsDouble() != 1.0 or a.IsInRing() or b.IsInRing() or _is_azide_part(a):
             return False

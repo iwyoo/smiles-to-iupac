@@ -1,6 +1,6 @@
 """Carbodiimides named as methanediimines (P-62.3.1.4, P-62.4): R-N=C=N-R' is the N,N'-substituted derivative of
 methanediimine, the substituents of two identical nitrogen groups being cited without locants like those of any
-mononuclear hydride. Carbon, halogen, silyl, hydroxy, alkoxy, acyl and sulfonyl groups on the nitrogen atoms are
+mononuclear hydride. Carbon, halogen, silyl, hydroxy, alkoxy, acyl and sulfonyl groups and azacycles on the nitrogen atoms are
 prefixes as long as no group of a class senior to the imines (P-41) occurs."""
 
 from rdkit import Chem
@@ -59,7 +59,8 @@ def has_methanediimine_shape(mol) -> bool:
         return False
     nitrogens = {n.GetIdx() for n in found[1]}
     return all(
-        a.GetIdx() in nitrogens or (a.GetAtomicNum() in _PREFIX_ELEMENTS and not a.GetFormalCharge() and not a.GetIsotope())
+        a.GetIdx() in nitrogens
+        or ((a.GetAtomicNum() in _PREFIX_ELEMENTS or (a.GetAtomicNum() == 7 and a.IsInRing())) and not a.GetFormalCharge() and not a.GetIsotope())
         for a in mol.GetAtoms()
     ) and not any(mol.HasSubstructMatch(query) for query in _SENIOR_GROUPS)
 

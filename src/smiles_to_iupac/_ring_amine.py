@@ -199,6 +199,8 @@ def _ring_amine_shape(mol):
         ring_carbon_substituent = (a, carbon_exo[0].GetIdx())
     if any(a in ring_atoms and b in ring_atoms for a, b, _ in non_single_bonds(mol)):
         return None
+    if not _substituent_atoms_allowed(mol, ring_atoms, n_idx, exo[0].GetIdx()):
+        return None
     return n_idx, ring_atoms, exo[0].GetIdx(), ring_carbon_substituent
 
 
@@ -277,6 +279,8 @@ def _two_hetero_ring_amine_shape(mol):
     if any(a in ring_atoms and b in ring_atoms for a, b, _ in non_single_bonds(mol)):
         return None
 
+    if not _substituent_atoms_allowed(mol, ring_atoms, n_idx, root):
+        return None
     other_element = _TWO_HETERO_ELEMENTS[other_atom.GetAtomicNum()]
     n_locant = 1 if other_element == "N" else 4
     elements = frozenset(("N", other_element))
@@ -337,6 +341,19 @@ def _sulfonyl_root_shape(mol, root, n_idx):
     return r_carbon.GetIdx(), {o.GetIdx() for o in oxygens}
 
 
+def _substituent_atoms_allowed(mol, ring_atoms, n_idx, root):
+    """Only carbon, halogens, a sulfonyl group and an oxo-nitrogen group outside the ring: a group with any other atom is
+    a prefix of the general engine or outranks the ring."""
+    sulfonyl = _sulfonyl_root_shape(mol, root, n_idx)
+    extra_allowed = {root, *sulfonyl[1]} if sulfonyl is not None else set()
+    if is_oxo_nitrogen(mol, mol.GetAtomWithIdx(root)):
+        extra_allowed = {root, *(n.GetIdx() for n in mol.GetAtomWithIdx(root).GetNeighbors() if n.GetAtomicNum() == 8)}
+    return all(
+        a.GetIdx() in ring_atoms or a.GetIdx() in extra_allowed or a.GetAtomicNum() in _ALLOWED_SUBSTITUENT_ATOMIC_NUMS
+        for a in mol.GetAtoms()
+    )
+
+
 def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -350,12 +367,6 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
         idx = atom.GetIdx()
         if idx in ring_atoms or idx in extra_allowed:
             continue
-        if atom.GetAtomicNum() not in _ALLOWED_SUBSTITUENT_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "a substituent containing anything other than carbon, "
-                "halogens, and a sulfonyl group is not supported yet for "
-                "this ring-amine path"
-            )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atom.GetIsAromatic():
