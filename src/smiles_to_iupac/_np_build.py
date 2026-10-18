@@ -119,6 +119,12 @@ def build(cand, view):
     if "ester" in classes and "ester_o" in classes:
         raise UnsupportedStructure("esters of both an acid and an alcohol of the parent are not supported")
     branches = list(groups.branches)
+    if principal != "aldehyde" and "aldehyde" in classes:
+        formyls = [m for m in classes["aldehyde"] if m[2].get("kind") == "c"]
+        branches += [(loc, extra["root"]) for loc, _, extra in formyls]
+        classes["aldehyde"] = [m for m in classes["aldehyde"] if m not in formyls]
+        if not classes["aldehyde"]:
+            del classes["aldehyde"]
     for cls in _ACYL_CLASSES:
         if cls in classes and cls != principal:
             for loc, _, extra in classes.pop(cls):
@@ -201,10 +207,14 @@ def build(cand, view):
         members = sorted(classes[principal], key=lambda m: loc_key(m[0]))
         if principal == "yl":
             word = "yl"
-        elif principal in ("acid", "ester", "amide"):
+        elif principal in ("acid", "ester", "amide", "nitrile"):
             if len({extra["kind"] for _, _, extra in members}) != 1:
                 raise UnsupportedStructure("a mix of ring and chain acyl groups is not supported")
             word = _ACYL_SUFFIX[(principal, members[0][2]["kind"])]
+        elif principal == "aldehyde" and members[0][2].get("kind") == "c":
+            if any(extra.get("kind") != "c" for _, _, extra in members):
+                raise UnsupportedStructure("a mix of ring and chain aldehyde groups is not supported")
+            word = "carbaldehyde"
         else:
             word = _SUFFIX[principal]
         suffix = multiplied_word(len(members), word)

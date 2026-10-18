@@ -15,9 +15,10 @@ _ACYL_SUFFIX = {
     ("ester", "o"): "oate",
     ("amide", "c"): "carboxamide",
     ("amide", "o"): "amide",
+    ("nitrile", "c"): "carbonitrile",
 }
 _PREFIX = {"alcohol": "hydroxy", "ketone": "oxo", "amine": "amino", "aldehyde": "oxo"}
-_SENIORITY = ["yl", "acid", "ester", "ester_o", "diyl", "amide", "aldehyde", "ketone", "alcohol", "amine"]
+_SENIORITY = ["yl", "acid", "ester", "ester_o", "diyl", "amide", "nitrile", "aldehyde", "ketone", "alcohol", "amine"]
 FREE_VALENCE = 7777
 
 
@@ -26,11 +27,12 @@ class Outranked(UnsupportedStructure):
 _COUNTED = {
     "acid": "[CX3](=O)[OX2H1]",
     "amide": "[CX3,SX4,PX4;!R](=O)[NX3;!R]",
+    "nitrile": "[CX2]#[NX1]",
     "aldehyde": "[CX3H1](=O)[#6]",
     "ketone": "[#6][CX3](=O)[#6]",
     "alcohol": "[OX2H][#6]",
 }
-_ACYL_CLASSES = ("acid", "ester", "ester_o", "amide", "diyl")
+_ACYL_CLASSES = ("acid", "ester", "ester_o", "amide", "nitrile", "diyl")
 _LETTERS = "abcdefghij"
 
 
@@ -123,6 +125,22 @@ def _carboxyl(view, atom, parent, mapped, ignored=frozenset()):
     return None
 
 
+def _formyl(view, atom):
+    """A -CHO group: carbon with one terminal doubly bonded oxygen and one hydrogen (P-66.6.1.1.3)."""
+    if view.elem[atom] != "C" or len(view.adj[atom]) != 2 or view.mol.GetAtomWithIdx(atom).GetTotalNumHs() != 1:
+        return False
+    return any(view.elem[n] == "O" and len(view.adj[n]) == 1 and view.order[frozenset((atom, n))] == 2 for n in view.adj[atom])
+
+
+def _cyano(view, atom):
+    """A -C#N group (P-66.5.1.1.2)."""
+    return (
+        view.elem[atom] == "C"
+        and len(view.adj[atom]) == 2
+        and any(view.elem[n] == "N" and len(view.adj[n]) == 1 and view.order[frozenset((atom, n))] == 3 for n in view.adj[atom])
+    )
+
+
 def _acyl_oxygen(view, oxygen, parent, mapped):
     acyl = next((n for n in view.adj[oxygen] if n != parent), None)
     if acyl is None or acyl in mapped:
@@ -211,6 +229,10 @@ def classify(cand, view, ignored=frozenset()):
                 groups.add("alcohol", loc, {n})
             elif n in amino:
                 groups.add("amine", loc, {n})
+            elif _cyano(view, n):
+                groups.add("nitrile", loc, {n}, {"kind": "c", "anchor": n, "root": n})
+            elif _formyl(view, n):
+                groups.add("aldehyde", loc, {n}, {"kind": "c", "anchor": n, "root": n})
             else:
                 carboxyl = _carboxyl(view, n, atom, mapped, ignored) if view.elem[n] == "C" else None
                 if carboxyl and loc in ring_atoms or (carboxyl and loc not in ring_atoms):
