@@ -1548,6 +1548,8 @@ def test_identical_esters_joined_through_a_metalloid_or_heteroatom_group(smiles,
         pytest.param("COC(=O)NCCNC(=O)OC", "dimethyl (ethane-1,2-diyl)bis(carbamate)", id="n_linked_carbamates"),
         pytest.param("CNC(=S)OCCOC(=S)NC", "O,O′-ethane-1,2-diyl bis(methylcarbamothioate)", id="thiono_carbamates"),
         pytest.param("CNC(=S)SCCSC(=S)NC", "S,S′-ethane-1,2-diyl bis(methylcarbamodithioate)", id="s_esters_of_the_dithiocarbamic_acid"),
+        pytest.param("CNC(=S)OCCOCCOC(=S)NC", "O,O′-oxydi(ethane-2,1-diyl) bis(methylcarbamothioate)", id="thiono_carbamates_through_an_oxy_diyl"),
+        pytest.param("CC(=S)OCCSCCOC(C)=S", "O,O′-sulfanediyldi(ethane-2,1-diyl) diethanethioate", id="thioacid_esters_through_a_sulfanediyl_diyl"),
     ],
 )
 def test_identical_n_substituted_carbamates_on_one_diyl_group_are_esters_not_a_skeletal_chain(smiles, expected):
