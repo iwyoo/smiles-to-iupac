@@ -4,7 +4,6 @@ import pytest
 from rdkit import Chem
 
 from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._stereoparents import STEREOPARENTS
 
 SKELETONS = {name: p.smiles for name, p in STEREOPARENTS.items() if p.scope != "table10.1"}
@@ -268,23 +267,15 @@ def test_arms_with_stereo_outside_the_group_keep_the_multiplicative_name():
             "CC1=C(C(C[C@@H](C1)O)(C)C)/C=C/C(=C/C=C/C(=C/C=C/C=C(/C=C/C=C(/C=C/C2=C(C[C@H](CC2(C)C)O)C)\\C)\\C)/C)/C",
             "all-trans-(3R,3′R)-β,β-carotene-3,3′-diol",
         ),
+        # P-103.3.2, P-103.2.7: the configuration of a retained aminoacyl group on the parent is cited in its name
+        (
+            "OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2NC(=O)[C@H]1CCCN1",
+            "14-(D-prolylamino)yohimban-18-carboxylic acid",
+        ),
     ],
 )
 def test_configuration(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        # a stereocentre in a side branch that no substituent name cites (an acyl group of a retained amino acid)
-        "OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2NC(=O)[C@H]1CCCN1",
-    ],
-)
-def test_structures_the_parent_cannot_carry_are_left_to_the_other_engines(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
