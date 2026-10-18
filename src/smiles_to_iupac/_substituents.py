@@ -10,7 +10,7 @@ import re
 from rdkit import Chem
 
 from ._common import assign_cip_labels
-from ._multiplicative_text import enclose, nesting_text
+from ._multiplicative_text import enclose
 from ._free_valence import SUFFIX_OF_ORDER
 from ._common import (
     UnsupportedStructure,
@@ -219,14 +219,7 @@ def wrap_marks(name: str) -> str:
         return name
     if name.startswith("\x01"):
         return f"({name})"
-    nested = nesting_text(name)
-    if "{" in nested:
-        return f"({name})"
-    if "[" in nested:
-        return "{" + name + "}"
-    if "(" in nested:
-        return f"[{name}]"
-    return f"({name})"
+    return enclose(name)
 
 
 def format_mononuclear_prefixes(entries) -> str:

@@ -12,6 +12,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, assign_cip_labels
+from ._multiplicative_text import enclose
 from ._substituents import FORCED_BRANCH_NAMES, format_mononuclear_prefixes, name_branch
 
 _ONIUM_STEMS = {7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium", 34: "selanium", 52: "telluranium", 33: "arsanium"}
@@ -83,10 +84,6 @@ def _cation_prefix(mol, graph, x, y):
     return (format_mononuclear_prefixes(names) if names else "") + stem + "yl"
 
 
-def _enclose(text):
-    return f"[{text}]" if "(" in text else f"({text})"
-
-
 def _smiles_with_order(mol):
     smiles = Chem.MolToSmiles(mol, canonical=False)
     order = [int(i) for i in mol.GetProp("_smilesAtomOutputOrder").strip("[]").split(",") if i.strip()]
@@ -135,7 +132,7 @@ def _ylide_pair(mol, graph, cation, anion):
         parent = smiles_to_iupac(Chem.MolToSmiles(remainder))
         if not parent.endswith("aminide") or "-" in parent.replace("aminide", "") or parent.startswith("N"):
             raise UnsupportedStructure("the anionic amine parent is not a plain alkanaminide")
-        return f"N-{_enclose(prefix)}{parent}"
+        return f"N-{enclose(prefix)}{parent}"
     raise UnsupportedStructure("an unsupported anionic centre")
 
 
@@ -230,7 +227,7 @@ def _azoxy_unstereo_name(mol, graph, oxide_nitrogen, other_nitrogen, oxygen):
     ordered = sorted(enumerate(groups), key=lambda item: alpha_sort_key(item[1][0]))
     first, second = ordered
     oxide_locant = 1 if first[0] == 0 else 2
-    left, right = (_enclose(g[0]) if g[1] else g[0] for g in (first[1], second[1]))
+    left, right = (enclose(g[0]) if g[1] else g[0] for g in (first[1], second[1]))
     return f"1-{left}-2-{right}diazene {oxide_locant}-oxide"
 
 

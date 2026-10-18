@@ -723,7 +723,7 @@ def test_stereocentre_on_a_metal_ligand_is_not_dropped():
     [
         (
             "OC(=O)CC1CC2CC[Pt](Cl)(Cl)C12",
-            "{2,2-dichloro-2-platinabicyclo[3.2.0]heptan-7-yl}acetic acid",
+            "(2,2-dichloro-2-platinabicyclo[3.2.0]heptan-7-yl)acetic acid",
         ),
         (
             "OC(=O)CC1C[Pt](Cl)(Cl)c2ccccc12",

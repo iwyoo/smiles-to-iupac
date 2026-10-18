@@ -22,6 +22,7 @@ from ._common import (
 )
 from ._ester import _name_acyl_part
 from ._functional_prefixes import functional_names
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 
 _MULTIPLICATIVE_START = re.compile(r"(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec)")
@@ -292,21 +293,13 @@ def _hydrogen_cited(mol, acyl, anion):
     return ("hydrogen " + name, True) if free else (name, substituted)
 
 
-def _enclose(name):
-    if "[" in name:
-        return f"{{{name}}}"
-    if "(" in name:
-        return f"[{name}]"
-    return f"({name})"
-
-
 def multiplied_anion(name, substituted, count):
     if count == 1:
         return name
     if substituted:
-        return multiplying_prefix(count, compound=True) + _enclose(name)
+        return multiplying_prefix(count, compound=True) + enclose(name)
     if any(ch.isdigit() for ch in name) or name.startswith("cyclo") or _MULTIPLICATIVE_START.match(name):
-        return multiplying_prefix(count) + _enclose(name)
+        return multiplying_prefix(count) + enclose(name)
     return multiplying_prefix(count) + name
 
 
@@ -325,7 +318,7 @@ def cite_anions(anions, locants_by_match, cite_locants):
         word = multiplied_anion(name, entry["substituted"], len(entry["locants"]))
         if cite_locants:
             if word[0].isdigit() or word[0] in "([{":
-                word = _enclose(word)
+                word = enclose(word)
             loc_str = ",".join(str(loc) for loc in sorted(entry["locants"]))
             word = f"{loc_str}-{word}"
         parts.append(word)

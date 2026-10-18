@@ -18,6 +18,7 @@ from ._common import (
     specified_stereo_elements,
 )
 from ._metal_pair import _STEMS as _CLASS2_STEMS, _brackets, _metal_group_name, substituted_aryl_name
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._substituents import cited_branch_stereo, name_branch
 
@@ -916,14 +917,8 @@ def _format_ligands(counts, simple_labels, organic, neutral, tags=None, bridges=
         simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))
         if simple or _is_enclosed(label):
             wrapped = label
-        elif "{" in label:
-            wrapped = f"({label})"
-        elif "[" in label:
-            wrapped = "{" + label + "}"
-        elif "(" in label:
-            wrapped = "[" + label + "]"
         else:
-            wrapped = f"({label})"
+            wrapped = enclose(label)
         text = (multiplying_prefix(n, compound=not simple) if n > 1 else "") + wrapped
         if is_bridge:
             head = multiplying_prefix(n) + "-" if n > 1 else ""
