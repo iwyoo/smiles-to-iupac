@@ -1,5 +1,5 @@
 import pytest
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 
 
 @pytest.mark.parametrize(
@@ -217,7 +217,6 @@ def test_linker_with_a_substituent_that_carries_the_principal_group():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CNCCNCCNCCNC", "2,5,8,11-tetraazadodecane"),
         ("NCCN(CCN(C)C)C", "N1-(2-aminoethyl)-N1,N2,N2-trimethylethane-1,2-diamine"),
         ("NCCNCCNCCNCN", "N1-{2-[(2-aminoethyl)amino]ethyl}-N2-(aminomethyl)ethane-1,2-diamine"),
         (
@@ -241,11 +240,29 @@ def test_hetero_chain_and_macrocycle_names(smiles, expected):
         pytest.param("NCCNCCOCCNCCN", "N1,N1'-[oxydi(ethane-2,1-diyl)]di(ethane-1,2-diamine)", id="oxygen_in_the_linker"),
         pytest.param("C(NCCN)NCCN", "N1,N1'-methylenedi(ethane-1,2-diamine)", id="methylene_linker_unchanged"),
         pytest.param("C(CNCCNCCNCCNCCN)N", "3,6,9,12-tetraazatetradecane-1,14-diamine", id="skeletal_replacement_for_four_heteroatoms"),
+        pytest.param(
+            "CNCCNCCNCCNC",
+            "N1,N1'-(ethane-1,2-diyl)di(N2-methylethane-1,2-diamine)",
+            id="amine_suffixes_kept_instead_of_skeletal_nitrogen_atoms_and_unit_numbered_from_the_junction",
+        ),
+        pytest.param(
+            "CNCNCNCNC", "N,N''-methylenebis(N'-methylmethanediamine)", id="methylene_joined_units_numbered_from_the_junction"
+        ),
+        pytest.param(
+            "CNCCOCCNCCOCCNC",
+            "2,2'-[azanediylbis(ethane-2,1-diyloxy)]bis(N-methylethanamine)",
+            id="terminal_secondary_amines_are_suffixes_not_skeletal_atoms",
+        ),
     ],
 )
 def test_diamine_parents_joined_through_nitrogen_by_a_linking_group(smiles, expected):
     # P-62.2.4.1.3, P-62.2.5.2
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_skeletal_name_that_drops_the_amine_suffixes_is_marked_non_preferred():
+    with pytest.warns(NonPreferredNameWarning, match="P-51.4.1.3"):
+        assert smiles_to_iupac("CNCNCNCNC[SiH3]") == "3,5,7,9-tetraaza-1-siladecane"
 
 
 @pytest.mark.parametrize(

@@ -9,7 +9,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
-from ._multiplicative_text import unit_phrase
+from ._multiplicative_text import unit_name_without_junction_marker, unit_phrase
 from ._numerals import alkane_name
 
 _MARKER = "tert-butyl"
@@ -171,6 +171,10 @@ def name_nitrogen_methylene_multiplicative(mol):
         if ylidene_linker is None and len(path) > 1 and not unit_name.endswith(("hydrazide", "imine")):
             continue
         token = "N" if nitrogens == 1 else found.group(1).split(",")[-1]
+        if nitrogens > 1:
+            unit_name = unit_name_without_junction_marker(marked_name, found.group(1), _MARKER)
+            if unit_name is None:
+                continue
         locants = ",".join(_nth_locant(token, k, nitrogens) for k in range(2))
         central = ylidene_linker or ("methylene" if len(path) == 1 else f"({alkane_name(len(path))}-1,{len(path)}-diyl)")
         if _starts_with_locant(unit_name) or (

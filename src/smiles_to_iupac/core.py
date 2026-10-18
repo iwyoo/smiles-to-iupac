@@ -184,7 +184,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -193,7 +193,7 @@ from ._inorganic_polyester import has_inorganic_polyester_shape, name_inorganic_
 from ._hydride_polyester import has_chain_polyester_shape, has_hydride_polyester_shape, name_hydride_polyester
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
-from ._heteroacyclic import name_heteroacyclic, has_carbonless_acyl
+from ._heteroacyclic import amine_suffix_capacity, name_heteroacyclic, has_carbonless_acyl
 from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multiplicative
 from ._chain_multiplicative import has_chain_multiplicative_shape
 from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
@@ -430,6 +430,7 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
 _NO_PIN_ADDUCT = "the Blue Book assigns no PIN to Lewis adducts, whose preferred names are coordination names (P-68.1.6.2)"
 _NO_PIN_MIXED_ADDUCT = "the Blue Book assigns no PIN to adducts with inorganic components (P-14.8.2)"
 _NO_PIN_ION_ADDUCT = "the Blue Book assigns no PIN to an adduct of ions with other components or of ions that do not balance (P-14.8.2)"
+_NO_PIN_SKELETAL_AMINE = "the preferred name keeps the amine suffixes of the substitutive name, which a skeletal replacement name does not express (P-51.4.1.3)"
 _NO_PIN_ORGANOMETALLIC ="the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
 
 _FALLBACKS_RUNNING = set()
@@ -1619,13 +1620,21 @@ def _run_fallbacks(smiles, original):
                 return mark(name_ion_adduct(mol, smiles_to_iupac), _NO_PIN_ION_ADDUCT)
             except UnsupportedStructure:
                 pass
+        skeletal_without_suffixes = None
         for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
             try:
                 name = skeletal(mol)
             except UnsupportedStructure:
                 continue
-            if name is not None:
+            if name is not None and skeletal is name_skeletal_chain and amine_suffix_capacity(mol, adjacency(mol)):
+                skeletal_without_suffixes = name
+            elif name is not None:
                 return name
+        if skeletal_without_suffixes is None:
+            try:
+                skeletal_without_suffixes = name_heteroacyclic(mol, express_amine_suffixes=False)
+            except UnsupportedStructure:
+                pass
         for fallback in _FALLBACK_NAMERS:
             try:
                 name = fallback(mol)
@@ -1636,6 +1645,8 @@ def _run_fallbacks(smiles, original):
         name = _name_via_fallbacks(mol)
         if name is not None:
             return name
+        if skeletal_without_suffixes is not None:
+            return mark(skeletal_without_suffixes, _NO_PIN_SKELETAL_AMINE)
         try:
             return name_nonpreferred_cyclophane(mol)
         except UnsupportedStructure:

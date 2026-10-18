@@ -361,13 +361,14 @@ def _long_identical_run(mol, path, hetero_positions):
     )
 
 
-def name_heteroacyclic(mol):
+def name_heteroacyclic(mol, express_amine_suffixes=True):
     """The skeletal-replacement name, or None when `mol` does not qualify. A secondary or tertiary amine is the principal
-    group when the chains qualify without its nitrogen atom, else its nitrogen is a skeletal atom (P-62.2.4.1.3)."""
-    return _name_heteroacyclic(mol, True) or _name_heteroacyclic(mol, False)
+    group when the chains qualify without its nitrogen atom, else its nitrogen is a skeletal atom (P-62.2.4.1.3); the
+    name must express as many amine suffixes as the substitutive name unless `express_amine_suffixes` is false."""
+    return _name_heteroacyclic(mol, True, express_amine_suffixes) or _name_heteroacyclic(mol, False, express_amine_suffixes)
 
 
-def _name_heteroacyclic(mol, amine_groups):
+def _name_heteroacyclic(mol, amine_groups, express_amine_suffixes=True):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     aminium = {} if any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()) else _aminium_groups(mol)
@@ -441,13 +442,14 @@ def _name_heteroacyclic(mol, amine_groups):
     }
     best, best_chain, replacement_atoms = None, (), set()
     carbamoyl = carbamoyl_of.get(principal, {})
+    suffixes = amine_suffix_capacity(mol, graph) if express_amine_suffixes and principal in (None, "amine") else 0
     for path in _chain_paths(graph, eligible, carbamoyl):
         if not _acceptable_path(mol, path):
             continue
         replacement_atoms.update(path)
         for chain in (path, path[::-1]):
             candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl)
-            if candidate is not None and (best is None or candidate[0] < best[0]):
+            if candidate is not None and -candidate[0][0] >= suffixes and (best is None or candidate[0] < best[0]):
                 best, best_chain = candidate, chain
     if best is None:
         return None
@@ -479,6 +481,30 @@ def _amine_nitrogen(mol, atom):
             for n in atom.GetNeighbors()
         )
     )
+
+
+def amine_suffix_capacity(mol, graph):
+    """The most amine groups one acyclic carbon chain carries: a skeletal replacement name must express as many amine
+    suffixes as the substitutive name, whose parent has that many (P-51.4.1.3, P-44.1.1)."""
+    amines = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if _amine_nitrogen(mol, a)
+        or (
+            a.GetAtomicNum() == 7
+            and a.GetDegree() == 1
+            and a.GetTotalNumHs() == 2
+            and not a.GetFormalCharge()
+            and all(n.GetAtomicNum() == 6 and not n.IsInRing() and not is_functional_carbon(mol, n.GetIdx()) for n in a.GetNeighbors())
+        )
+    }
+    carbons = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 6 and not a.IsInRing() and not is_functional_carbon(mol, a.GetIdx())
+    }
+    adj = {c: [n for n in graph[c] if n in carbons] for c in carbons}
+    return max((len({n for c in path for n in graph[c] if n in amines}) for path in _paths(adj, carbons)), default=0)
 
 
 def _chain_paths(graph, eligible, carbamoyl):
