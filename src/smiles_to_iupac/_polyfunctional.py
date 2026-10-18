@@ -3148,7 +3148,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         and not (RING_CENTER.get() and not AMINIUM.get())
         and any(_substituted_amine_nitrogen(mol, a) for a in mol.GetAtoms())
     ):
-        if attach is not None or n_names:
+        if attach is not None:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
         if any(kind != "isotope" for kind, _, _ in stereo or ()) and any(_skeletal_heteroatom(a) for a in mol.GetAtoms()):
             raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported beside other heteroatoms yet")
@@ -3162,50 +3162,36 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     if _is_variant(principal):
         imidic_ns = _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if imidic_ns:
-            if attach is not None or n_names:
-                raise UnsupportedStructure("an N-substituted imidic acid inside a unit is not handled by the chain engine")
             n_names = imidic_ns
 
     if principal in ("amide", "nitrile", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES):
         amide_ns = _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if amide_ns:
-            if n_names:
-                raise UnsupportedStructure("an N-substituted amide inside a unit is not handled by the chain engine")
             n_names = amide_ns
 
     if principal in _CHALCOGEN_IMIDAMIDE.values() or principal in _CHALCOGEN_HYDRAZIDINE.values():
         imidamide_ns = _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if imidamide_ns:
-            if attach is not None or n_names:
-                raise UnsupportedStructure("an N-substituted imidamide inside a unit is not handled by the chain engine")
             n_names = imidamide_ns
 
     if principal == "hydrazide" or principal in _CHALCOGEN_HYDRAZIDE.values():
         hydrazide_ns = _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if hydrazide_ns:
-            if attach is not None or n_names:
-                raise UnsupportedStructure("an N-substituted hydrazide inside a unit is not handled by the chain engine")
             n_names = hydrazide_ns
 
     if principal in _AMIDRAZONE:
         amidrazone_ns = _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if amidrazone_ns:
-            if attach is not None or n_names:
-                raise UnsupportedStructure("an N-substituted amidrazone inside a unit is not handled by the chain engine")
             n_names = amidrazone_ns
 
     if principal == "amidine":
         amidine_ns = _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
         if amidine_ns:
-            if attach is not None or n_names:
-                raise UnsupportedStructure("an N-substituted amidine inside a unit is not handled by the chain engine")
             n_names = amidine_ns
 
     if principal == "imine":
         imine_ns = _imine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
         if imine_ns:
-            if attach is not None or n_names:
-                raise UnsupportedStructure("an N-substituted imine inside a unit is not handled by the chain engine")
             n_names = imine_ns
 
     anchors = set(groups.get(principal, {}))
@@ -7121,16 +7107,16 @@ def _imidamide_roles(mol, graph, owned, cited, preferred=frozenset()):
 def _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
     """N, N', N'' ... prefix entries of a sulfonimidamide-, sulfonimidohydrazide- or sulfonohydrazonamide-type group:
     N on the nitrogen bonded to the centre by a single bond, then the primes on the terminal nitrogen of a hydrazide, on
-    the imido nitrogens and on the terminal nitrogens of hydrazono groups (P-66.4.1.1, P-66.4.2.1); several groups
-    cannot be told apart by these locants."""
+    the imido nitrogens and on the terminal nitrogens of hydrazono groups (P-66.4.1.1, P-66.4.2.1); with several groups
+    the locant carries the position of its group."""
     members = _group_members(mol, groups, ring_groups, cls)
     entries = []
-    for _, _, owned, _ in members:
+    for carbon, identity, owned, anchor in members:
         cited = _imidamide_cited(mol, graph, halogens, aromatic_atoms, owned)
+        rest = tuple(a for a in graph[carbon] if a not in owned)
         for nitrogen, locant in _imidamide_roles(mol, graph, owned, cited):
-            entries.extend((name, compound, locant) for name, compound in cited[nitrogen])
-    if entries and len(members) != 1:
-        raise UnsupportedStructure("several imidamide groups with N-substitution are not handled by the chain engine")
+            located = (locant, anchor, identity, rest, "paired") if len(members) > 1 else locant
+            entries.extend((name, compound, located) for name, compound in cited[nitrogen])
     return entries
 
 
