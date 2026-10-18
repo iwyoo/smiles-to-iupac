@@ -44,6 +44,7 @@ substituent, and the imino nitrogen takes N''. A ring fused to the guanidine cor
 from rdkit import Chem
 
 from ._chalcogenourea import (
+    c_n_configuration,
     is_core_substituent_root,
     is_urea_substituent_root,
     n_substituent_names,
@@ -255,7 +256,7 @@ def _hydrazinecarboximidamide_name(mol, core):
     )
     grouped = group_substituents({k: v for k, v in zip(("N", "N'", 1, 2), names) if v})
     numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
-    return f"{format_substituent_prefixes(grouped) if grouped else ''}hydrazine{'-1-' if numbered else ''}carboximidamide"
+    return f"{_configuration_prefix(mol, carbon_idx)}{format_substituent_prefixes(grouped) if grouped else ''}hydrazine{'-1-' if numbered else ''}carboximidamide"
 
 
 def _labelled_guanidine_name(mol, labels):
@@ -279,6 +280,12 @@ def _labelled_guanidine_name(mol, labels):
     nuclides = nitrogen_hydrogen_descriptor(mol, {n: (locant[n], entry) for n, entry in sorted(labels.items(), key=lambda i: locant[i[0]])})
     prefixes = format_substituent_prefixes(group_substituents({k: v for k, v in {"N": unprimed_names, "N'": primed_names, "N''": imino_names}.items() if v}))
     return f"{prefixes}{nuclides}guanidine"
+
+
+def _configuration_prefix(mol, carbon_idx):
+    """'(Z)-' for the specified C=N bond: the name holds no locant for it (P-93.4.2.1.3)."""
+    found = c_n_configuration(mol, [carbon_idx])
+    return f"({found[0][1]})-" if found else ""
 
 
 def name_guanidine(mol) -> str:
@@ -314,7 +321,7 @@ def name_guanidine(mol) -> str:
     unprimed, primed = _amino_assignment(n1_names, n2_names)
     positions = {"N": unprimed, "N'": primed, "N''": imino_names}
     grouped = group_substituents({k: v for k, v in positions.items() if v})
-    return f"{format_substituent_prefixes(grouped)}guanidine"
+    return f"{_configuration_prefix(mol, carbon_idx)}{format_substituent_prefixes(grouped)}guanidine"
 
 
 def _is_guanidine_carbon(mol, idx):

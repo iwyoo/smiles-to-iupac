@@ -9,6 +9,7 @@ from rdkit import Chem
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
+    assign_cip_labels,
     group_substituents,
     halogen_substituents,
     is_nitro_nitrogen,
@@ -231,3 +232,18 @@ class Chalcogenourea:
         from ._urea import name_urea
 
         return name_urea(mol, self.atomic_num)
+
+
+def c_n_configuration(mol, carbons):
+    """[(position of the guanidine carbon in `carbons`, CIP code)] of the specified C=N double bonds, which are cited
+    with the locant of the carbon in front of the name (P-93.4.2.1.3)."""
+    assign_cip_labels(mol)
+    found = []
+    for element in Chem.FindPotentialStereo(mol):
+        if element.type != Chem.StereoType.Bond_Double or element.specified != Chem.StereoSpecified.Specified:
+            continue
+        bond = mol.GetBondWithIdx(element.centeredOn)
+        carbon = next((a.GetIdx() for a in (bond.GetBeginAtom(), bond.GetEndAtom()) if a.GetIdx() in carbons), None)
+        if carbon is not None and bond.HasProp("_CIPCode"):
+            found.append((carbons.index(carbon), bond.GetProp("_CIPCode")))
+    return sorted(found)

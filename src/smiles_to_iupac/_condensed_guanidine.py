@@ -4,8 +4,8 @@ skeletal replacement ('a') names 'triimino-tetraazanonane-diimidamide'."""
 
 from rdkit import Chem
 
-from ._chalcogenourea import has_group_senior_to_urea, unprimed_first
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, assign_cip_labels, halogen_substituents
+from ._chalcogenourea import c_n_configuration, has_group_senior_to_urea, unprimed_first
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -142,7 +142,7 @@ def _substituted_name(mol, order, bridges):
             [((2 * index + 1, prime), name, compound) for index, entries in enumerate(direction) for prime, name, compound in entries]
             + [((2 * index + 2, ""), name, compound) for index, entries in enumerate(linked) for name, compound in entries]
         )
-        double_bonds = _configuration(mol, carbons)
+        double_bonds = c_n_configuration(mol, carbons)
         key = (
             [place for place, _, _ in located],
             [alpha_sort_key(name) for _, name, _ in located],
@@ -157,18 +157,3 @@ def _substituted_name(mol, order, bridges):
     prefix = format_substituent_prefixes(positions) if positions else ""
     cited = ",".join(f"{2 * index + 1}{code}" for index, code in best[2])
     return f"{f'({cited})-' if cited else ''}{prefix}{_ACID_STEMS[len(order)]} diamide"
-
-
-def _configuration(mol, carbons):
-    """[(position of the guanidine carbon in `carbons`, CIP code)] of the specified C=N double bonds, which are cited
-    with the locant of the carbon in front of the name (P-93.4.2.1.3)."""
-    assign_cip_labels(mol)
-    found = []
-    for element in Chem.FindPotentialStereo(mol):
-        if element.type != Chem.StereoType.Bond_Double or element.specified != Chem.StereoSpecified.Specified:
-            continue
-        bond = mol.GetBondWithIdx(element.centeredOn)
-        carbon = next((a.GetIdx() for a in (bond.GetBeginAtom(), bond.GetEndAtom()) if a.GetIdx() in carbons), None)
-        if carbon is not None and bond.HasProp("_CIPCode"):
-            found.append((carbons.index(carbon), bond.GetProp("_CIPCode")))
-    return sorted(found)
