@@ -8,6 +8,7 @@ import re
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
+from ._anilino import anilino_prefix
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
 from ._hetero_prefixes import (
@@ -567,7 +568,10 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 continue
             if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 and k not in named for k in kids):
                 raise UnsupportedStructure("a hetero-substituted nitrogen substituent is not supported yet")
-            if not kids:
+            anilino = anilino_prefix(graph, mol, node, kids, shown, aromatic_atoms) if kids else None
+            if anilino is not None:
+                record(node, anilino[0], anilino[0] != "anilino")
+            elif not kids:
                 record(node, "amino", False)
             else:
                 children = [child_name(k, node) for k in kids]

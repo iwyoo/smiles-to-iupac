@@ -1,15 +1,18 @@
 """Naming of boronic acids R-B(OH)2 (P-68.1.4.1): the organyl group R is cited before the retained name.
 
 Any group of a class junior to the acid (P-41, P-42.3) is a prefix on R; a carboxylic, sulfur-group or
-phosphorus acid outranks the boronic acid, which then becomes the borono prefix.
+phosphorus acid outranks the boronic acid, which then becomes the borono prefix. Of several boronic acid groups one is the
+parent and the rest are borono prefixes (P-44.1.1).
 """
+
+import contextlib
 
 from rdkit import Chem
 
-from ._borinic_acid import _borinic_acid_boron_atoms, boronic_type_group_outranks, name_borinic_acid
+from ._borinic_acid import _borinic_acid_boron_atoms, boronic_type_boron_atoms, name_borinic_acid
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, nitro_group_atoms
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 _BORON = 5
@@ -46,10 +49,8 @@ def has_boronic_acid_shape(mol) -> bool:
 
 def name_boronic_acid(mol) -> str:
     boron_atoms = _boronic_acid_boron_atoms(mol)
-    if len(boron_atoms) != 1:
-        raise UnsupportedStructure("more than one boronic acid group is not supported yet")
-    (boron,) = boron_atoms
-    if boronic_type_group_outranks(mol, boron.GetIdx(), True):
+    free = {boron.GetIdx() for boron in boron_atoms}
+    if any(boron.GetIdx() not in free for boron in boronic_type_boron_atoms(mol)):
         raise UnsupportedStructure("several boronic acid groups or esters are named as one polybasic acid (P-65.6.3.2.3)")
 
     in_nitro_group = set().union(*nitro_group_atoms(mol))
@@ -57,13 +58,35 @@ def name_boronic_acid(mol) -> str:
         if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
             raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
 
-    group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
     if acid_outranks_boron(mol):
         raise UnsupportedStructure("a carboxylic, sulfur-group or phosphorus acid outranks the boronic acid")
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    if len(boron_atoms) == 1:
+        return _name_at(mol, boron_atoms[0])
+    multiplicative = _multiplicative_name(mol)
+    if multiplicative is not None:
+        return multiplicative
+    return min((_name_at(mol, boron) for boron in boron_atoms), key=lambda name: (alpha_sort_key(name), name))
+
+
+def _multiplicative_name(mol):
+    """The name that multiplies the boronic acid groups (P-15.3.3.2.1), None when no linking group of the molecule permits it
+    (P-15.3.4.1) and the name of one group as the parent is the only one."""
+    from ._chain_multiplicative import has_chain_multiplicative_shape
+    from ._polyfunctional import name_polyfunctional
+
+    if has_chain_multiplicative_shape(mol):
+        with contextlib.suppress(UnsupportedStructure), boron_acid_parent():
+            return name_polyfunctional(mol)
+    return None
+
+
+def _name_at(mol, boron):
+    """The name with the boronic acid group at `boron` as the parent; every other one is a borono prefix (P-44.1.1)."""
+    group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
     graph = adjacency(mol)
     (root,) = [n for n in graph[boron.GetIdx()] if n not in group_oxygens]
     halogens = halogen_substituents(mol)

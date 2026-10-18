@@ -172,6 +172,12 @@ def test_boron_group_beside_a_senior_class_is_a_prefix(smiles, expected):
         pytest.param("CB(C)CCBO", "[2-(dimethylboranyl)ethyl]borinic acid", id="borinic_acid_with_a_boron_hydrogen_outranks_a_borane"),
         pytest.param("ClB(Cl)CCB(O)Cl", "[2-(dichloroboranyl)ethyl]boronochloridic acid", id="halide_replaced_boronic_acid_is_not_a_borinic_acid"),
         pytest.param("OB(O)CCBO", "[2-(hydroxyboranyl)ethyl]boronic acid", id="boronic_acid_outranks_borinic_acid_with_a_boron_hydrogen"),
+        pytest.param("OB(O)c1ccccc1CNc1ccc(B(O)O)cc1", "{2-[(4-boronoanilino)methyl]phenyl}boronic acid", id="unsymmetrical_linker_of_two_boronic_acids"),
+        pytest.param("OB(O)CCCOCCB(O)O", "[3-(2-boronoethoxy)propyl]boronic acid", id="boronic_acid_parent_by_alphanumerical_order"),
+        pytest.param("OB(O)c1ccccc1CNCc1ccccc1B(O)O", "[azanediylbis(methylene-2,1-phenylene)]bis(boronic acid)", id="symmetrical_linker_of_two_boronic_acids"),
+        pytest.param("NCCCBO", "(3-aminopropyl)borinic acid", id="borinic_acid_with_a_boron_hydrogen_outranks_an_amine"),
+        pytest.param("COBCCC(C)=O", "methyl (3-oxobutyl)borinate", id="borinic_ester_with_a_boron_hydrogen_outranks_a_ketone"),
+        pytest.param("NOB(O)c1ccc(C(C)=O)cc1", "(4-acetylphenyl)(aminooxy)borinic acid", id="acyclic_nitrogen_gives_no_boron_ester"),
     ],
 )
 def test_boron_acids_of_different_units_choose_the_parent(smiles, expected):

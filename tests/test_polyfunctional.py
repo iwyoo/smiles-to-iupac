@@ -541,7 +541,7 @@ def test_secondary_amine_and_related(smiles, expected):
         pytest.param("O=c1cccccc1C1CCOC1", "2-(oxolan-3-yl)cyclohepta-2,4,6-trien-1-one", id="seven_ring_with_a_heterocyclic_substituent"),
         pytest.param(
             "CNc1c(Nc2ccc(CC(C)C)cc2)c(=O)c1=O",
-            "3-(methylamino)-4-{[4-(2-methylpropyl)phenyl]amino}cyclobut-3-ene-1,2-dione",
+            "3-(methylamino)-4-[4-(2-methylpropyl)anilino]cyclobut-3-ene-1,2-dione",
             id="four_ring_dione_with_an_aryl_substituent",
         ),
     ],
@@ -576,6 +576,7 @@ def test_phenyl_chain_ketone_and_related(smiles, expected):
         ("Oc1cccc(N(CC)c2ccc(Cl)cc2)c1", "3-(4-chloro-N-ethylanilino)phenol"),
         ("Oc1cccc(N(c2ccc(Cl)cc2)c2ccccc2)c1", "3-(4-chloro-N-phenylanilino)phenol"),
         ("Oc1cccc(Nc2ccc3ccccc3c2)c1", "3-[(naphthalen-2-yl)amino]phenol"),
+        ("CC(=O)c1ccccc1CNc1ccccc1", "1-[2-(anilinomethyl)phenyl]ethan-1-one"),
         ("OCC[N+](=O)[O-]", "2-nitroethan-1-ol"),
         ("OCCC#N", "3-hydroxypropanenitrile"),
     ],
