@@ -429,6 +429,9 @@ def test_warning_is_emitted_once_per_call():
         ("[SeH]C(C)N[SeH]", "1-(selanylamino)ethane-1-selenol"),
         ("[TeH]C(C)N[TeH]", "1-(tellanylamino)ethane-1-tellurol"),
         ("[SeH]CC[TeH]", "2-tellanylethane-1-selenol"),
+        ("[SeH]CC[NH3+]", "2-selanylethan-1-aminium"),
+        ("[TeH]CCS(=O)(=O)O", "2-tellanylethane-1-sulfonic acid"),
+        ("[SeH]CCP(=O)(O)O", "(2-selanylethyl)phosphonic acid"),
     ],
 )
 def test_selanyl_and_tellanyl_prefixes(smiles, expected):
