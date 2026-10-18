@@ -168,6 +168,24 @@ def _chain_prefix_allowed(mol):
     return EXTENDED_PREFIXES.get() or _has_senior_principal_group(mol) or _dichalcogenide_only(mol)
 
 
+def chalcogen_link_is_parent(mol):
+    """With no principal group a chalcogen bonded to another heteroatom that is not cited as a prefix (three or more
+    identical atoms in a row, P-68.4.1.1; a link to nitrogen) makes that heteroatom chain the parent hydride (P-44.1.2.2)."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() not in CHALCOGEN_PREFIXES or atom.IsInRing() or atom.GetDegree() != 2:
+            continue
+        neighbors = list(atom.GetNeighbors())
+        if not any(n.GetAtomicNum() == 6 for n in neighbors):
+            continue
+        for other in neighbors:
+            z = other.GetAtomicNum()
+            if z in (1, 6) or z in MONONUCLEAR_HYDRIDES or (z in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other.GetIdx(), atom.GetIdx())):
+                continue
+            if not (_chain_prefix_allowed(mol) if z in _CHAIN_ELEMENTS else _hetero_connection_is_prefix(mol)):
+                return True
+    return False
+
+
 def _on_senior_hydride(mol, atom):
     """A chalcogen chain hanging on a Group 13-15 atom is a prefix, for that atom is senior to every chalcogen (P-44.1.2.1)."""
     return atom is not None and mol.GetAtomWithIdx(atom).GetAtomicNum() in MONONUCLEAR_HYDRIDES
@@ -587,11 +605,6 @@ _CHAIN_WORDS = {8: "oxy", 16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 _CHAIN_HYDRO = {8: "hydroxy", 16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 
 
-def _on_carbon(graph, mol, first, second):
-    """Whether the chalcogen pair hangs on a carbon, the only host of a peroxol or its chalcogen analogue (P-63.4.2)."""
-    return any(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in graph[first] if n != second)
-
-
 def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
     """-Z1-Z2...-H or -Z1-Z2...-R substituent groups of a run of chalcogen atoms (P-63.4.2): 'hydroperoxy',
     '(methylperoxy)', 'disulfanyl', '(methyltrisulfanyl)', '(sulfanyloxy)', '(hydroxysulfanyl)'."""
@@ -627,10 +640,6 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
         else:
             organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
-    elif len(run) == 2 and _on_carbon(graph, mol, first, second) and not any(
-        mol.HasSubstructMatch(query) for query in (*_SENIOR_TO_SELENOL, *_OXYGEN_PEROXOL)
-    ):
-        raise UnsupportedStructure("a peroxol or its chalcogen analogue outranks an amine as the principal group")
     runs = [[atom.GetAtomicNum(), 0] for atom in atoms[:1]]
     for atom in atoms[1:]:
         if atom.GetAtomicNum() == runs[-1][0]:
@@ -913,15 +922,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, others[0], root):
             acyl, acyl_compound = _sulfur_oxo_group(graph, others[0], root, halogens, aromatic_atoms, mol)
             return _enclose(acyl, acyl_compound) + word, True
-        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS and (
-            _chain_prefix_allowed(mol) or _on_senior_hydride(mol, coming_from)
-        ):
+        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS:
             return _chalcogen_chain_group(graph, root, others[0], halogens, aromatic_atoms, mol)
         from ._substituents import name_branch
 
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 6:
-            if mol.GetAtomWithIdx(others[0]).GetAtomicNum() == z or not _hetero_connection_is_prefix(mol):
-                raise UnsupportedStructure("a chalcogen chain (disulfanyl, ...) is not supported yet")
             rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
             return _enclose(rname, rcomp) + word, True
 

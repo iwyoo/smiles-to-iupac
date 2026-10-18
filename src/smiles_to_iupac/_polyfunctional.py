@@ -52,6 +52,7 @@ from ._hetero_prefixes import (
     _oxo_or_imino,
     _ring_outranks_centre,
     azoxy_atoms,
+    chalcogen_link_is_parent,
     is_functional_carbon,
     is_halogen_oxo_part,
     azono_ligands,
@@ -3774,6 +3775,8 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         hydrazine = None if centers else _hydrazine_parent(mol, aromatic_atoms)
         if hydrazine is not None:
             return ((0,), hydrazine, (None, None, None, 0, {}, False))
+        raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
+    if not ring_cation and chalcogen_link_is_parent(mol):
         raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
