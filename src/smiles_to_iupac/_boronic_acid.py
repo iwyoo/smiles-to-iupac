@@ -6,10 +6,10 @@ phosphorus acid outranks the boronic acid, which then becomes the borono prefix.
 
 from rdkit import Chem
 
-from ._borinic_acid import _borinic_acid_boron_atoms, name_borinic_acid
+from ._borinic_acid import _borinic_acid_boron_atoms, boronic_type_group_outranks, name_borinic_acid
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 _BORON = 5
@@ -27,6 +27,8 @@ def _boronic_acid_boron_atoms(mol):
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
         non_oxygens = [n for n in neighbors if n.GetAtomicNum() != 8]
         if len(oxygens) != 2 or len(non_oxygens) != 1:
+            continue
+        if non_oxygens[0].GetAtomicNum() in HALOGEN_PREFIXES:
             continue
         if any(
             mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() != 1.0 for o in oxygens
@@ -47,15 +49,13 @@ def name_boronic_acid(mol) -> str:
     if len(boron_atoms) != 1:
         raise UnsupportedStructure("more than one boronic acid group is not supported yet")
     (boron,) = boron_atoms
-    junior_boron = {a.GetIdx() for a in _borinic_acid_boron_atoms(mol)}
+    if boronic_type_group_outranks(mol, boron.GetIdx(), True):
+        raise UnsupportedStructure("several boronic acid groups or esters are named as one polybasic acid (P-65.6.3.2.3)")
 
     in_nitro_group = set().union(*nitro_group_atoms(mol))
     for atom in mol.GetAtoms():
         if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
             raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num == _BORON and atom.GetIdx() != boron.GetIdx() and atom.GetIdx() not in junior_boron:
-            raise UnsupportedStructure("more than one boron atom is not supported yet")
 
     group_oxygens = {n.GetIdx() for n in boron.GetNeighbors() if n.GetAtomicNum() == 8}
     if acid_outranks_boron(mol):

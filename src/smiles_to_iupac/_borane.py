@@ -79,9 +79,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   directly to boron or to a halogenated-phenyl ring on boron (no B=O, no
   halogen-substituted alkyl chain, no other heteroatom in a substituent
   chain).
-- More than one boron atom (borane chains, e.g. diborane -- a separate,
-  genuinely different structure/nomenclature problem, not a simple
-  extension of this substitutive-naming scope).
+- More than one boron atom: the shape check does not admit it.
 - An unsaturated substituent, an aromatic substituent other than a plain
   or halogen-substituted phenyl (a substituted-by-something-else or
   heteroaromatic ring, e.g.), or a ring other than that directly on
@@ -110,17 +108,11 @@ from ._substituents import format_mononuclear_prefixes, name_branch
 def has_simple_borane_shape(mol) -> bool:
     from ._guanidine import has_carbonic_amide_parent
 
-    return any(atom.GetAtomicNum() == 5 for atom in mol.GetAtoms()) and not has_carbonic_amide_parent(mol)
+    return sum(atom.GetAtomicNum() == 5 for atom in mol.GetAtoms()) == 1 and not has_carbonic_amide_parent(mol)
 
 
 def _validate_and_collect_substituents(mol):
-    boron_atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 5]
-    if len(boron_atoms) != 1:
-        raise UnsupportedStructure(
-            "more than one boron atom is not supported yet (see P-68, "
-            "borane chain nomenclature is a separate problem)"
-        )
-    (boron,) = boron_atoms
+    (boron,) = (atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 5)
     if boron.GetFormalCharge() != 0 or boron.GetIsotope() != 0:
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
     if boron.GetDegree() > 3:

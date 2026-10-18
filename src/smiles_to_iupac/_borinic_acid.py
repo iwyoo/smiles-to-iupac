@@ -8,7 +8,7 @@ from rdkit import Chem
 
 from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
 from ._parent_choice import senior_parent_name
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
 from ._substituents import cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 _BORON = 5
@@ -27,6 +27,8 @@ def _borinic_acid_boron_atoms(mol):
         non_oxygens = [n for n in neighbors if n.GetAtomicNum() != 8]
         if len(oxygens) != 1 or len(non_oxygens) != 2:
             continue
+        if any(n.GetAtomicNum() in HALOGEN_PREFIXES for n in non_oxygens):
+            continue
         (hydroxyl_o,) = oxygens
         if mol.GetBondBetweenAtoms(atom.GetIdx(), hydroxyl_o.GetIdx()).GetBondTypeAsDouble() != 1.0:
             continue
@@ -36,17 +38,41 @@ def _borinic_acid_boron_atoms(mol):
     return matches
 
 
+def boronic_type_boron_atoms(mol):
+    """Acyclic boron atoms R-B(OX)2 (X = H or carbon): a boronic acid, a partial ester or an ester of it."""
+    matches = []
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != _BORON or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0 or atom.IsInRing():
+            continue
+        neighbors = atom.GetNeighbors()
+        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
+        others = [n for n in neighbors if n.GetAtomicNum() != 8]
+        if len(oxygens) == 2 and others[0].GetAtomicNum() == 6 and all(
+            mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0 for o in oxygens
+        ):
+            matches.append(atom)
+    return matches
+
+
+def boronic_type_group_outranks(mol, parent_boron, boronic_family):
+    """Another boronic-type group ranks with or above the acid at `parent_boron`: every one for a boronic acid (an acid and
+    its esters are named as one polybasic acid, P-65.6.3.2.3), one still carrying a hydroxy group for a borinic acid (P-42.3)."""
+    return any(
+        b.GetIdx() != parent_boron
+        and (boronic_family or any(o.GetTotalNumHs() for o in b.GetNeighbors() if o.GetAtomicNum() == 8))
+        for b in boronic_type_boron_atoms(mol)
+    )
+
+
 def has_borinic_acid_shape(mol) -> bool:
     return bool(_borinic_acid_boron_atoms(mol))
 
 
 def name_borinic_acid(mol) -> str:
-    from ._boronic_acid import _boronic_acid_boron_atoms
-
     boron_atoms = _borinic_acid_boron_atoms(mol)
     if not boron_atoms:
         raise UnsupportedStructure("no borinic acid group")
-    if _boronic_acid_boron_atoms(mol):
+    if boronic_type_group_outranks(mol, -1, False):
         raise UnsupportedStructure("a boronic acid group outranks the borinic acid (P-42.3)")
     borons = {a.GetIdx() for a in boron_atoms}
 
@@ -54,9 +80,6 @@ def name_borinic_acid(mol) -> str:
     for atom in mol.GetAtoms():
         if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
             raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num == _BORON and atom.GetIdx() not in borons:
-            raise UnsupportedStructure("more than one boron atom is not supported yet")
 
     if acid_outranks_boron(mol):
         raise UnsupportedStructure("a carboxylic, sulfur-group or phosphorus acid outranks the borinic acid")
