@@ -130,9 +130,9 @@ def _acid_parts(mol):
 
 def _boron_acid_rank(parts):
     """Boronic-type acids (two ligands besides carbon) before borinic-type acids (P-42.3), the acid itself before its
-    derivatives by replacement, then the one with more hydroxy groups."""
+    derivatives by replacement, then the one with more hydroxy groups, halide before amide (P-41)."""
     _, _, hydroxy, _, _, replacers, amides = parts
-    return -(len(hydroxy) + len(replacers) + len(amides)), len(replacers) + len(amides), -len(hydroxy)
+    return -(len(hydroxy) + len(replacers) + len(amides)), len(replacers) + len(amides), -len(hydroxy), len(amides)
 
 
 def _acid_parts_at(mol, center, centers):
