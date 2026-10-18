@@ -7,12 +7,11 @@ parent and the rest are borono prefixes (P-44.1.1).
 
 import contextlib
 
-from rdkit import Chem
 
-from ._borinic_acid import _borinic_acid_boron_atoms, boronic_type_boron_atoms, name_borinic_acid
+from ._borinic_acid import _borinic_acid_boron_atoms, boron_acid_scope_problem, boronic_type_boron_atoms, name_borinic_acid
 from ._multiplicative_text import enclose
 from ._hetero_prefixes import acid_outranks_boron, boron_acid_parent
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, nitro_group_atoms
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
 _BORON = 5
@@ -53,16 +52,9 @@ def name_boronic_acid(mol) -> str:
     if any(boron.GetIdx() not in free for boron in boronic_type_boron_atoms(mol)):
         raise UnsupportedStructure("several boronic acid groups or esters are named as one polybasic acid (P-65.6.3.2.3)")
 
-    in_nitro_group = set().union(*nitro_group_atoms(mol))
-    for atom in mol.GetAtoms():
-        if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
-            raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
-
-    if acid_outranks_boron(mol):
-        raise UnsupportedStructure("a carboxylic, sulfur-group or phosphorus acid outranks the boronic acid")
-
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    problem = boron_acid_scope_problem(mol)
+    if problem:
+        raise UnsupportedStructure(problem)
 
     if len(boron_atoms) == 1:
         return _name_at(mol, boron_atoms[0])

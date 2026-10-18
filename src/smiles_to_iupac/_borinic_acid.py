@@ -80,6 +80,20 @@ def boronic_type_group_outranks(mol, parent_boron, boronic_family):
     )
 
 
+def boron_acid_scope_problem(mol, charged_ligands=frozenset()):
+    """Why a boron acid group of `mol` is not named as the parent here: an ion, a radical, an isotope, a senior acid or a
+    second fragment; None when none applies. Atoms of `charged_ligands` (the azido group) may carry a charge."""
+    in_nitro_group = set().union(*nitro_group_atoms(mol)) | set(charged_ligands)
+    for atom in mol.GetAtoms():
+        if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
+            return "charged, radical or isotopically modified atoms are not supported yet"
+    if acid_outranks_boron(mol):
+        return "a carboxylic, sulfur-group or phosphorus acid outranks the boron acid"
+    if len(Chem.GetMolFrags(mol)) > 1:
+        return "multi-fragment structures are not supported yet"
+    return None
+
+
 def has_borinic_acid_shape(mol) -> bool:
     return bool(_borinic_acid_boron_atoms(mol))
 
@@ -92,16 +106,9 @@ def name_borinic_acid(mol) -> str:
         raise UnsupportedStructure("a boronic acid group outranks the borinic acid (P-42.3)")
     borons = {a.GetIdx() for a in boron_atoms}
 
-    in_nitro_group = set().union(*nitro_group_atoms(mol))
-    for atom in mol.GetAtoms():
-        if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons():
-            raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
-
-    if acid_outranks_boron(mol):
-        raise UnsupportedStructure("a carboxylic, sulfur-group or phosphorus acid outranks the borinic acid")
-
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    problem = boron_acid_scope_problem(mol)
+    if problem:
+        raise UnsupportedStructure(problem)
 
     if len(borons) == 1:
         return _name_at(mol, boron_atoms[0])[1]
