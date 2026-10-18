@@ -2010,7 +2010,7 @@ def _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others):
     parts = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in rest]
     both_carbon = all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in rest)
     name = phosphoryl_name(parts, (mono, carbon_acyl if both_carbon else acyl))
-    return name, name != mono
+    return _with_centre_descriptor(name, name != mono, root)
 
 
 LAMBDA_CENTRE_STEMS = {
@@ -2162,8 +2162,8 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     if bonding > valence:
-        return (prefix + "-" if prefix else "") + f"λ{bonding}-" + base, True
-    return prefix + base, bool(entries)
+        return _with_centre_descriptor((prefix + "-" if prefix else "") + f"λ{bonding}-" + base, True, root)
+    return _with_centre_descriptor(prefix + base, bool(entries), root)
 
 
 @contextlib.contextmanager

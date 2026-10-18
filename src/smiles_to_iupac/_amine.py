@@ -137,6 +137,7 @@ from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
 from ._substituents import (
+    BRANCH_STEREO,
     format_substituent_prefixes,
     name_branch,
     ring_branch_stereo_display,
@@ -404,14 +405,16 @@ def _best_chain_name(
     `position_of`, into the flat `n_names`/`n_locants` pair
     `_candidate_key` expects."""
     chains = all_chains(carbon_graph)
-    stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
+    branch_stereo = [e for e in stereo or [] if e[0] == "atom" and e[1] not in carbon_graph]
+    chain_stereo = [e for e in stereo if e not in branch_stereo] if stereo is not None else None
+    stereo_atoms = stereo_element_atoms(mol, chain_stereo) if chain_stereo is not None else []
 
     eligible = []
     for chain in chains:
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _amine_locants(position_of, amines, graph) is None:
             continue
-        if stereo is not None and any(atom not in position_of for atom in stereo_atoms):
+        if chain_stereo is not None and any(atom not in position_of for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
@@ -428,6 +431,22 @@ def _best_chain_name(
     best_position_of = None
     chain_length = max(len(c) for c in eligible)
     eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
+    cited = {"atoms": {idx: code for _, idx, code in branch_stereo}, "bonds": {}, "used": set()}
+    token = BRANCH_STEREO.set(cited) if branch_stereo else None
+    try:
+        best_key, best_name, best_position_of = _best_candidate(
+            eligible, graph, halogens, amines, bonds, chain_stereo, n_names, mol, n_names_by_nitrogen, chain_length
+        )
+    finally:
+        if token is not None:
+            BRANCH_STEREO.reset(token)
+    if any(("atom", idx) not in cited["used"] for idx in cited["atoms"]):
+        raise UnsupportedStructure("the descriptor of a stereogenic centre outside the principal chain is not cited by this naming path")
+    return best_name, best_position_of
+
+
+def _best_candidate(eligible, graph, halogens, amines, bonds, stereo, n_names, mol, n_names_by_nitrogen, chain_length):
+    best_key = best_name = best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -449,7 +468,7 @@ def _best_chain_name(
             key = (key, stereo_locant_rank(mol, stereo, position_of))
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
-    return best_name, best_position_of
+    return best_key, best_name, best_position_of
 
 
 def _parent_rank(component, root, bonds):
@@ -516,12 +535,16 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     if stereo is not None:
         labels = []
         for kind, idx, code in stereo:
+            if kind == "atom" and idx not in best_position_of:
+                continue
             if kind == "atom":
                 locant = best_position_of[idx]
             else:
                 bond = mol.GetBondWithIdx(idx)
                 locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
             labels.append((locant, code))
+        if not labels:
+            return best_name
         labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
@@ -616,16 +639,20 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
         mol=mol, n_names_by_nitrogen=n_names_by_nitrogen,
     )
     if stereo is not None:
-        if not all(_stereo_on_parent(mol, element, best_position_of) for element in stereo):
+        if not all(_stereo_on_parent(mol, element, best_position_of) or element[0] == "atom" for element in stereo):
             raise UnsupportedStructure("a stereo element of an N-substituent is not cited by this naming path")
         labels = []
         for kind, idx, code in stereo:
+            if kind == "atom" and idx not in best_position_of:
+                continue
             if kind == "atom":
                 locant = best_position_of[idx]
             else:
                 bond = mol.GetBondWithIdx(idx)
                 locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
             labels.append((locant, code))
+        if not labels:
+            return best_name
         labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
@@ -656,12 +683,16 @@ def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
     if stereo is not None:
         labels = []
         for kind, idx, code in stereo:
+            if kind == "atom" and idx not in best_position_of:
+                continue
             if kind == "atom":
                 locant = best_position_of[idx]
             else:
                 bond = mol.GetBondWithIdx(idx)
                 locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
             labels.append((locant, code))
+        if not labels:
+            return best_name
         labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"

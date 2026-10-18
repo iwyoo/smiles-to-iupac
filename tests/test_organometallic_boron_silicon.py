@@ -1162,6 +1162,19 @@ def test_stereodescriptor_of_a_mononuclear_hydride_parent(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("C[Si@](CC)(CCC)CC[NH3+]", "2-[(S)-ethyl(methyl)(propyl)silyl]ethan-1-aminium", id="silyl_beside_an_aminium"),
+        pytest.param("C[As@](CC)CC[N+](C)(C)C", "2-[(R)-ethyl(methyl)arsanyl]-N,N,N-trimethylethan-1-aminium", id="arsanyl_beside_a_quaternary_ammonium"),
+        pytest.param("C[P@](=O)(CC)CC[NH3+]", "2-[(S)-ethyl(methyl)phosphinoyl]ethan-1-aminium", id="phosphinoyl_beside_an_aminium"),
+        pytest.param("C[P@@](=O)(CC)CC(=O)OC", "methyl [(R)-ethyl(methyl)phosphinoyl]acetate", id="phosphinoyl_prefix_beside_an_ester"),
+    ],
+)
+def test_stereodescriptor_of_a_mononuclear_group_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("[TlH3]", "thallane", id="thallane"),
         pytest.param("FB(F)[Si](C)(C)C", "(difluoroboranyl)tri(methyl)silane", id="boranyl_on_the_senior_silane"),
         pytest.param("B(O)(O)C1=CC(=C(C(=O)O)C=C1)[N+](=O)[O-]", "4-borono-2-nitrobenzoic acid", id="borono_prefix_beside_a_carboxylic_acid"),
