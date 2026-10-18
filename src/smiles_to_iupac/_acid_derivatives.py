@@ -589,7 +589,31 @@ def _diyl_name(mol, atoms, attachments):
         return name[: -len("ol")] + "yl"
     if name.endswith("triol"):
         return name[: -len("ol")] + "yl"
-    return None
+    return _diyl_from_acetates(mol, atoms, attachments)
+
+
+def _diyl_from_acetates(mol, atoms, attachments):
+    """The organyl group as it is cited in the acetate of the same polyol (P-65.6.3.2.2), for a group whose polyol name
+    carries the hydroxy groups on a compound multiplying group ('oxydi(ethane-2,1-diyl)')."""
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(mol)
+    for idx in attachments:
+        oxygen = editable.AddAtom(Chem.Atom(8))
+        carbon = editable.AddAtom(Chem.Atom(6))
+        editable.AddBond(idx, oxygen, Chem.BondType.SINGLE)
+        editable.AddBond(oxygen, carbon, Chem.BondType.SINGLE)
+        editable.AddBond(carbon, editable.AddAtom(Chem.Atom(8)), Chem.BondType.DOUBLE)
+        editable.AddBond(carbon, editable.AddAtom(Chem.Atom(6)), Chem.BondType.SINGLE)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        editable.RemoveAtom(idx)
+    acetate = editable.GetMol()
+    Chem.SanitizeMol(acetate)
+    name = smiles_to_iupac(Chem.MolToSmiles(acetate))
+    tail = _ACETATE_TAIL.search(name)
+    if tail is None or tail.group(1) != multiplying_prefix(len(attachments)):
+        return None
+    return name[: tail.start()].rstrip()
 
 
 def _pendant_text(mol, graph, links):
