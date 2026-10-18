@@ -7,13 +7,13 @@ The multiplicative 'plumbanetetrayl' form is out of scope.
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, non_single_bonds
-from ._group13_hydride import GROUP_13_STEMS, GROUP_14_STEMS, GROUP_15_STEMS
+from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._numerals import alkyl_name
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
-_STEMS = {**GROUP_13_STEMS, **GROUP_14_STEMS, **GROUP_15_STEMS}
 _SENIORITY = [33, 51, 83, 32, 50, 82, 13, 31, 49, 81]
-_MAX_VALENCE = {**{n: 3 for n in GROUP_13_STEMS}, **{n: 4 for n in GROUP_14_STEMS}, **{n: 3 for n in GROUP_15_STEMS}}
+_STEMS = {z: MONONUCLEAR_HYDRIDES[z][0] for z in _SENIORITY}
+_MAX_VALENCE = {z: MONONUCLEAR_HYDRIDES[z][2] for z in _SENIORITY}
 
 
 def has_metal_pair_shape(mol) -> bool:
@@ -23,10 +23,7 @@ def has_metal_pair_shape(mol) -> bool:
 
 
 def _group_stem(atomic_num: int) -> str:
-    stem = _STEMS[atomic_num]
-    if atomic_num in GROUP_14_STEMS:
-        return stem[:-3] + "yl"
-    return stem[:-1] + "yl"
+    return MONONUCLEAR_HYDRIDES[atomic_num][1]
 
 
 def _format(entries) -> str:

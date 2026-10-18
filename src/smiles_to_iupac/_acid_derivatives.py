@@ -306,7 +306,11 @@ def _free_acid_name(acid):
     smiles = Chem.MolToSmiles(acid)
     if smiles in _FREE_INORGANIC_ACIDS:
         return _FREE_INORGANIC_ACIDS[smiles]
-    heavy = [a for a in acid.GetAtoms() if a.GetAtomicNum() in _HEAVY_PNICTOGEN_STEMS]
+    heavy = [
+        a
+        for a in acid.GetAtoms()
+        if a.GetAtomicNum() in _HEAVY_PNICTOGEN_STEMS and any(n.GetAtomicNum() in (8, 16, 34, 52) for n in a.GetNeighbors())
+    ]
     if heavy:
         return _heavy_pnictogen_acid_name(acid, heavy)
     if has_retained_amino_acid_shape(acid):

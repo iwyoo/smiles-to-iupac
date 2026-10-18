@@ -155,14 +155,6 @@ from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
 from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
-from ._group13_hydride import (
-    has_group13_hydride_shape,
-    has_group14_hydride_shape,
-    has_group15_hydride_shape,
-    name_group13_hydride,
-    name_group14_hydride,
-    name_group15_hydride,
-)
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
@@ -317,7 +309,6 @@ from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane, name_nonpreferred_cyclophane
 from ._linear_phane import has_linear_phane_shape, linear_phane_pin, name_linear_phane
-from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
 from ._noncarbon_oxoacid import has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid
 from ._functional_replacement_oxoacid import (
@@ -2093,10 +2084,7 @@ def _name_mol(mol) -> str:
                     return namer(mol)
 
     # An all-phosphorus, multi-atom skeleton (diphosphane, triphosphane,
-    # ...) has no carbon at all and must be routed before
-    # has_simple_phosphane_shape below, which would otherwise misname it
-    # via `_phosphane.py`'s own explicit "more than one phosphorus atom"
-    # rejection.
+    # ...) has no carbon at all.
     if has_phosphane_chain_shape(mol) and mol.GetNumAtoms() > 1:
         return name_phosphane_chain(mol)
     for has_shape, namer in (
@@ -2133,10 +2121,7 @@ def _name_mol(mol) -> str:
         (has_hydroxylamine_acid_shape, name_hydroxylamine_acid),
         (has_formazan_shape, name_formazan),
         # A phosphite ester (P-67.1.3.2's P(OR)3, no P=O) has three P-O-R
-        # ester oxygens that `_phosphane.py`'s own plain-phosphane shape
-        # doesn't expect (it rejects any heteroatom besides its own
-        # phosphorus outright) -- must be routed here first, same reason as
-        # phosphate above.
+        # ester oxygens.
         (has_phosphite_shape, name_phosphite),
         # A sulfate ester (P-67.1.3.2's S(=O)(=O)(OR)2) has two S-O-R ester
         # oxygens no other sulfur module expects (they all assume a direct
@@ -2163,17 +2148,12 @@ def _name_mol(mol) -> str:
         # sulfate/nitrate above.
         (has_carbonic_acid_shape, name_carbonic_acid),
         # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
-        # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
-        # expect at all (that module rejects any heteroatom besides its own
-        # phosphorus outright) -- must be routed here first, before
-        # has_simple_phosphane_shape below, for the same reason as
-        # has_phosphane_chain_shape above.
+        # has its own phosphorus-bonded oxygen.
         (has_phosphanone_shape, name_phosphanone),
         (has_phosphanimine_shape, name_phosphanimine),
         # Thiophosphoric acid (P-67.1.2's own preselected infix-modified
         # oxoacid name) has a phosphorus with 4 substituents (=S plus three
-        # -OH), which `_phosphane.py` rejects outright (more than three
-        # substituents) -- must be routed here first.
+        # -OH).
         (has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid),
         (has_functional_replacement_oxoacid_shape, name_functional_replacement_oxoacid),
     ):
@@ -2181,21 +2161,14 @@ def _name_mol(mol) -> str:
             return namer(mol)
 
     # Phosphinine/phosphinoline/isophosphinoline (P-25's own P-ring
-    # counterparts to pyridine/quinoline/isoquinoline) have P in a ring,
-    # which `_phosphane.py` never expects -- routed here first.
+    # counterparts to pyridine/quinoline/isoquinoline) have P in a ring.
     if any(atom.GetAtomicNum() == 15 for atom in mol.GetAtoms()):
         if has_hetero_monocyclic_name(mol):
             return name_hetero_monocyclic(mol)
         if has_hetero_monocyclic_substituent_name(mol):
             return name_hetero_monocyclic_substituent(mol)
     for has_shape, namer in (
-        # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
-        # be routed here before every other branch below: none of them
-        # recognize phosphorus at all, and a phosphane carbon substituent would
-        # otherwise reach the plain acyclic-alkane/amine dispatch further down
-        # with no phosphorus handling.
         (has_polyphosphane_shape, name_polyphosphane),
-        (has_simple_phosphane_shape, name_simple_phosphane),
         # A boronic acid (P-68.1.4.1's R-B(OH)2) has two hydroxyl oxygens on
         # boron that `_borane.py`'s own plain-borane shape doesn't expect --
         # `has_simple_borane_shape` matches any molecule with a boron atom at
@@ -2206,26 +2179,15 @@ def _name_mol(mol) -> str:
         # collision as boronic acid above, so it must be routed here for the
         # same reason.
         (has_borinic_acid_shape, name_borinic_acid),
-        # A boron atom (P-68's borane substitutive nomenclature, the same shape
-        # as phosphane above with boron in place of phosphorus) must be routed
-        # here for the same reason -- none of the branches below recognize
-        # boron at all.
+        # A boron atom (P-68's borane substitutive nomenclature) must be routed
+        # here: none of the branches below recognize boron at all.
         (has_simple_borane_shape, name_simple_borane),
-        # A Group 13 metal (Al/Ga/In/Tl, P-69.1) is the same substitutive-
-        # naming shape as boron/phosphorus above, generalized as one shared
-        # mechanism -- must be routed here for the same reason: none of the
-        # branches below recognize any of these elements at all.
-        (has_group13_hydride_shape, name_group13_hydride),
-        (has_group14_hydride_shape, name_group14_hydride),
-        (has_group15_hydride_shape, name_group15_hydride),
     ):
         if has_shape(mol):
             return namer(mol)
 
-    # A Group 1/2 metal (Li/Na/K/Mg/Ca, P-69.3) is a different additive
-    # naming mechanism from Group 13 above, but the same reasoning for
-    # dispatch order applies: none of the branches below recognize any of
-    # these elements at all.
+    # A Group 1/2 metal (Li/Na/K/Mg/Ca, P-69.3) is named additively; none of
+    # the branches below recognize any of these elements at all.
     if has_group1_2_organometallic_shape(mol):
         return mark(name_group1_2_organometallic(mol), _NO_PIN_ORGANOMETALLIC)
 

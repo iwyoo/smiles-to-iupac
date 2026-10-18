@@ -965,15 +965,8 @@ def test_imines_on_fused_and_heterocyclic_rings_with_substituents(smiles, expect
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("CC=NOO", id="two_oxygens_on_oxime_nitrogen_raises"),
-    ],
-)
-def test_branched_oxime_o_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_peroxy_group_on_the_nitrogen_of_an_imine_is_a_prefix():
+    assert smiles_to_iupac("CC=NOO") == "N-hydroperoxyethanimine"
 
 
 @pytest.mark.parametrize(
