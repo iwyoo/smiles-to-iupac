@@ -4,6 +4,7 @@ for by methyl groups whose names are replaced by the acyl prefixes, so the amide
 
 from rdkit import Chem
 
+from ._chalcogenourea import has_acid_derivative_senior_to_amide
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._diester_ring_diyl import _system_of
 from ._dipolar import _smiles_with_order
@@ -13,7 +14,7 @@ from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS, name_branch
 
 
 def _acyl_roots(mol, nitrogen):
-    """Neighbours of `nitrogen` that are the carbon of a carboxylic acyl group or the sulfur of a sulfonyl group."""
+    """Neighbours of `nitrogen` that are the carbon of a carboxylic acyl group or the sulfur of a sulfonyl or sulfinyl group."""
     roots = []
     for n in nitrogen.GetNeighbors():
         if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
@@ -24,7 +25,7 @@ def _acyl_roots(mol, nitrogen):
         if n.GetAtomicNum() == 6 and len(doubly) == 1 and not n.IsInRing():
             if (not rest and n.GetTotalNumHs() == 1) or (len(rest) == 1 and rest[0].GetAtomicNum() == 6):
                 roots.append(n.GetIdx())
-        elif n.GetAtomicNum() == 16 and len(doubly) == 2 and len(rest) == 1 and rest[0].GetAtomicNum() == 6 and not n.IsInRing():
+        elif n.GetAtomicNum() == 16 and len(doubly) in (1, 2) and len(rest) == 1 and rest[0].GetAtomicNum() == 6 and not n.IsInRing():
             roots.append(n.GetIdx())
     return roots
 
@@ -40,19 +41,19 @@ def _side(graph, root, blocked):
 
 
 def _rank(mol, graph, root, nitrogen):
-    """Smaller is senior: carboxamides before sulfonamides, ring parents before chains, heterocycles before
-    carbocycles, then the larger ring or the longer chain."""
+    """Smaller is senior: carboxamides before sulfonamides before sulfinamides, ring parents before chains,
+    heterocycles before carbocycles, then the larger ring or the longer chain."""
     atom = mol.GetAtomWithIdx(root)
-    sulfur = atom.GetAtomicNum() == 16
+    sulfur = 0 if atom.GetAtomicNum() != 16 else 1 + (sum(n.GetAtomicNum() == 8 for n in atom.GetNeighbors()) == 1)
     carbons = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
     if not carbons:
-        return (int(sulfur), 2, (), 0)
+        return (sulfur, 2, (), 0)
     start = carbons[0]
     side = _side(graph, start, root)
     if mol.GetAtomWithIdx(start).IsInRing():
-        return (int(sulfur), 0, ring_seniority_key(mol, _system_of(mol, start)[1]), 0)
+        return (sulfur, 0, ring_seniority_key(mol, _system_of(mol, start)[1]), 0)
     length = len([a for a in side if mol.GetAtomWithIdx(a).GetAtomicNum() == 6 and not mol.GetAtomWithIdx(a).IsInRing()])
-    return (int(sulfur), 1, (), -length)
+    return (sulfur, 1, (), -length)
 
 
 def donor_names(mol, graph, donors, halogens, aromatic, labels=None):
@@ -166,10 +167,15 @@ def diacylamine_name(mol):
     nitrogen = nitrogens[0]
     graph = adjacency(mol)
     roots = _acyl_roots(mol, nitrogen)
+    core = {nitrogen.GetIdx(), *roots}
+    if has_acid_derivative_senior_to_amide(mol, core):
+        return None
     parent = min(
         roots,
         key=lambda r: (_rank(mol, graph, r, nitrogen.GetIdx()), modified_atoms_beyond(graph, labels, r, nitrogen.GetIdx()), r),
     )
+    if _rank(mol, graph, parent, nitrogen.GetIdx())[0] == 2:
+        return None
     donors = [r for r in roots if r != parent]
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
