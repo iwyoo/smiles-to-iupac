@@ -42,6 +42,7 @@ from rdkit import Chem
 
 from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._multiplicative_text import enclose
+from ._parent_choice import name_one_of_several_groups
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
 from ._substituents import centre_nuclides, cited_stereo_around, name_branch
 
@@ -158,16 +159,24 @@ def name_phosphonic_acid(mol) -> str:
 
         if senior_acid_centres(mol, _phosphinic_acid_phosphorus_atoms(mol)):
             return name_phosphinic_acid(mol)
-    if len(senior) != 1 and len(phosphorus_atoms) != 1:
+    if not senior and len(phosphorus_atoms) != 1:
         raise UnsupportedStructure("more than one phosphonic acid group is not supported yet")
-    phosphorus = senior[0] if len(senior) == 1 else phosphorus_atoms[0]
+    candidates = senior or phosphorus_atoms
 
-    require_phosphorus_acid_scope(mol, phosphorus)
-    group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
-
+    require_phosphorus_acid_scope(mol, candidates[0])
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    if len(candidates) == 1:
+        return _name_at(mol, candidates[0])
+    if any(n.GetAtomicNum() in CENTER_STEMS for c in candidates for n in c.GetNeighbors()):
+        raise UnsupportedStructure("acid centres bonded to each other are named as one polynuclear acid")
+    return name_one_of_several_groups(mol, candidates, lambda phosphorus: _name_at(mol, phosphorus), acid_prefixes)
+
+
+def _name_at(mol, phosphorus):
+    """The name with the acid group at `phosphorus` as the parent; every other one is a phosphono, arsono or stibono prefix."""
+    group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
     graph = adjacency(mol)
     (root,) = [n for n in graph[phosphorus.GetIdx()] if n not in group_oxygens]
     halogens = halogen_substituents(mol)

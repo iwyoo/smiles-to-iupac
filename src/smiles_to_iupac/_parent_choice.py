@@ -1,8 +1,11 @@
 """Choice among equally senior parent candidates of one class (P-15.3.1.1, P-45.2.1, P-45.5)."""
 
+import contextlib
+
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, alpha_sort_key
+from ._pin import mark
 
 
 def _group_atoms(mol, centre):
@@ -49,3 +52,18 @@ def senior_parent_name(mol, centres, build):
     if len(set(units)) != len(units):
         raise UnsupportedStructure("identical parent structures are named multiplicatively")
     return min((build(c) for c in centres), key=lambda built: (-built[0], alpha_sort_key(built[1])))[1]
+
+
+def name_one_of_several_groups(mol, centres, name_at, prefix_context):
+    """The multiplicative name of identical acid groups (P-15.3.3.2.1) when a linking group allows it (P-15.3.4.1), else the
+    alphanumerically first of the substitutive names with one group as the parent (P-45.5); `name_at(centre)` gives one."""
+    from ._chain_multiplicative import has_chain_multiplicative_shape
+    from ._polyfunctional import name_polyfunctional
+
+    if has_chain_multiplicative_shape(mol):
+        with contextlib.suppress(UnsupportedStructure), prefix_context():
+            return name_polyfunctional(mol)
+    names = [name_at(centre) for centre in centres]
+    if len(set(names)) == 1:
+        return mark(names[0], "identical parent structures joined by a symmetrical group are named multiplicatively (P-15.3.3.2.1)")
+    return min(names, key=lambda name: (alpha_sort_key(name), name))
