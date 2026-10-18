@@ -119,16 +119,8 @@ def _phosphonic_acid_phosphorus_atoms(mol):
     return matches
 
 
-def _acid_centres(mol, acid_class):
-    return [
-        atom
-        for atom in mol.GetAtoms()
-        if (parts := acid_group_parts(mol, atom)) is not None and parts[:2] == acid_class and parts[2] > 0
-    ]
-
-
 def has_phosphorus_acid_shape(mol) -> bool:
-    return bool(_acid_centres(mol, (1, 2)) or _acid_centres(mol, (1, 1)))
+    return any((parts := acid_group_parts(mol, atom)) is not None and parts[2] > 0 for atom in mol.GetAtoms())
 
 
 def name_phosphorus_acid(mol) -> str:
