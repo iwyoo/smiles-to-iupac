@@ -325,8 +325,7 @@ from ._dinuclear_oxoacid import has_dinuclear_oxoacid_shape, name_dinuclear_oxoa
 from ._phosphite import has_phosphite_shape, name_phosphite
 from ._sulfate import has_sulfate_shape, name_sulfate
 from ._sulfite import has_sulfite_shape, name_sulfite
-from ._phosphonic_acid import has_phosphonic_acid_shape, name_phosphonic_acid
-from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
+from ._phosphonic_acid import has_phosphorus_acid_shape, name_phosphorus_acid
 from ._phosphorus_acid_derivative import has_phosphorus_acid_derivative_shape, name_phosphorus_acid_derivative
 from ._azonic_acid import has_azonic_acid_shape, name_azonic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
@@ -1904,8 +1903,7 @@ def _name_mol(mol) -> str:
     boron_acid = has_boronic_acid_shape(mol) or has_borinic_acid_shape(mol)
     acid_centre = (
         boron_acid
-        or has_phosphonic_acid_shape(mol)
-        or has_phosphinic_acid_shape(mol)
+        or has_phosphorus_acid_shape(mol)
         or has_phosphanone_shape(mol)
         or has_phosphanimine_shape(mol)
     )
@@ -2091,17 +2089,8 @@ def _name_mol(mol) -> str:
     if has_phosphane_chain_shape(mol) and mol.GetNumAtoms() > 1:
         return name_phosphane_chain(mol)
     for has_shape, namer in (
-        # A phosphonic acid (P-67.1.1's R-P(=O)(OH)2) has two hydroxyl oxygens
-        # on phosphorus that `_phosphanone.py`'s own phosphine-oxide shape
-        # doesn't expect -- `has_phosphanone_shape` would otherwise still
-        # match (it only checks for a single P=O) and then fail inside
-        # `name_phosphanone`'s validation, so this must be routed first.
-        (has_phosphonic_acid_shape, name_phosphonic_acid),
-        # A phosphinic acid (P-67.1.1's R2-P(=O)-OH) has the same
-        # phosphanone-shape collision as phosphonic acid above (its own
-        # hydroxyl oxygen isn't expected by `_phosphanone.py`), so it must be
-        # routed here for the same reason.
-        (has_phosphinic_acid_shape, name_phosphinic_acid),
+        # the oxo acid groups carry hydroxyl oxygens `_phosphanone.py` does not expect, so they are routed first
+        (has_phosphorus_acid_shape, name_phosphorus_acid),
         (has_phosphorus_acid_derivative_shape, name_phosphorus_acid_derivative),
         (has_azonic_acid_shape, name_azonic_acid),
         # Diphosphoric acid (P-67.2.1's own preselected dinuclear-acid name)

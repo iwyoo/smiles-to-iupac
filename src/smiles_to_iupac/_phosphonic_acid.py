@@ -1,40 +1,6 @@
-"""Naming of phosphonic acids (R-P(=O)(OH)2), per the IUPAC 2013
-Recommendations ("the Blue Book"):
-
-- P-67.1.1.1 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
-  'phosphonic acid' is the preselected retained name for HP(O)(OH)2.
-- P-67.1.1.2: when the hydrogen atom attached to the central phosphorus is
-  substituted by an organyl group R, the substituent is cited directly as
-  a prefix on the retained name -- 'ethylphosphonic acid' (PIN), *not*
-  'ethanephosphonic acid'. The Blue Book explicitly rejects the
-  sulfonic-acid-style suffix approach (which would give
-  'benzenephosphonic acid') for exactly this reason: phosphonic acid's
-  sibling phosphinic acid has *two* substitutable hydrogens on the central
-  atom, and a suffix-on-parent-hydride approach would need extra letter
-  locants to distinguish them, which the Blue Book calls unnecessarily
-  cumbersome. Phosphonic acid itself has only one substitutable hydrogen,
-  so there's never more than one R group and never a locant to omit or
-  cite.
-  Confirmed against real PubChem structures: 'methylphosphonic acid'
-  (CID 13818, `CP(=O)(O)O`), 'phenylphosphonic acid' (CID 15295),
-  'ethylphosphonic acid' (CID 204482), 'benzylphosphonic acid'
-  (CID 81312) -- a ring substituent uses the exact same shape as an
-  acyclic one, unlike the sulfonic/selenonic/telluronic acid modules
-  elsewhere in this project, which need a separate plain-benzene-ring
-  retained-name path.
-
-Scope: a single phosphonic acid group (one phosphorus bonded to exactly
-one non-oxygen substituent R, one double-bonded oxygen, and two hydroxyl
-oxygens), with no other heteroatom anywhere in the molecule except the
-group's own oxygens and, in R, any halogen. R is named via `name_branch`,
-so it may be any substituent shape that helper already supports -- a
-plain alkyl chain, a branched chain, a plain benzene ring, or a
-halogenated variant of either. Explicitly out of scope (raise
-`UnsupportedStructure`): a second phosphonic acid group, phosphinic acid
-(two substituents on phosphorus -- see `_phosphinic_acid.py`),
-coexistence with a more senior characteristic group, and any
-functional-replacement/infix variant (phosphonous, phosphoric, etc.).
-"""
+"""Phosphorus, arsenic and antimony acids R-E(=O)(OH)2, R2E(=O)OH and their -ous analogues (P-67.1.1.1, P-67.1.1.2): the
+senior acid centre (P-42.3) is the parent, the organyl groups on it are cited as prefixes and every other acid centre is
+a phosphono, arsono, stibono ... prefix (P-41)."""
 
 import contextlib
 
@@ -42,9 +8,9 @@ from rdkit import Chem
 
 from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._multiplicative_text import enclose
-from ._parent_choice import name_one_of_several_groups
+from ._parent_choice import name_one_of_several_groups, senior_parent_name
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
-from ._substituents import centre_nuclides, cited_stereo_around, name_branch
+from ._substituents import centre_nuclides, cited_stereo_around, format_mononuclear_prefixes, name_branch
 
 CENTER_STEMS = {15: "phosph", 33: "ars", 51: "stib"}
 
@@ -67,16 +33,16 @@ def acid_prefixes():
 
 _ELEMENT_RANK = {15: 0, 33: 1, 51: 2}
 _ACID_CLASS_RANK = {(1, 2): 0, (0, 2): 1, (1, 1): 2, (0, 1): 3}
+_ACID_ENDINGS = {(1, 2): "onic acid", (0, 2): "onous acid", (1, 1): "inic acid", (0, 1): "inous acid"}
 _NOT_AN_ACID = (1,)
 _ACYL_PARTNERS = {7, 8, 9, 16, 17, 34, 35, 52, 53}
 
 
-def acid_centre_rank(mol, atom):
-    """Seniority key of a P, As or Sb atom (P-41, P-42.3): a phosphonic, phosphonous, phosphinic or phosphinous acid
-    centre ranks by element, then acid type; any other centre (acid halide, amide, ester, chalcogenide, organyl
-    derivative) is a class below every acid and shares one junior key."""
-    if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetFormalCharge() or atom.GetDegree() > 4:
-        return _NOT_AN_ACID
+def acid_group_parts(mol, atom):
+    """(oxo, hydroxyl, organyl) counts of a phosphonic, phosphonous, phosphinic or phosphinous acid centre; None for any
+    other P, As or Sb atom (acid halide, amide, ester, chalcogenide, ring member, organyl derivative)."""
+    if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetFormalCharge() or atom.GetDegree() > 4 or atom.IsInRing():
+        return None
     oxo = hydroxyl = organyl = 0
     for n in atom.GetNeighbors():
         double = mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
@@ -87,10 +53,19 @@ def acid_centre_rank(mol, atom):
         elif n.GetAtomicNum() not in _ACYL_PARTNERS and not double:
             organyl += 1
         else:
-            return _NOT_AN_ACID
+            return None
     if hydroxyl + organyl + atom.GetTotalNumHs() != 3 or (oxo, hydroxyl) not in _ACID_CLASS_RANK:
+        return None
+    return oxo, hydroxyl, organyl
+
+
+def acid_centre_rank(mol, atom):
+    """Seniority key of a P, As or Sb atom (P-41, P-42.3): an acid centre ranks by element, then acid type; any other
+    centre is a class below every acid and shares one junior key."""
+    parts = acid_group_parts(mol, atom)
+    if parts is None:
         return _NOT_AN_ACID
-    return 0, _ELEMENT_RANK[atom.GetAtomicNum()], _ACID_CLASS_RANK[(oxo, hydroxyl)]
+    return 0, _ELEMENT_RANK[atom.GetAtomicNum()], _ACID_CLASS_RANK[parts[:2]]
 
 
 def senior_acid_centres(mol, candidates):
@@ -103,15 +78,12 @@ def senior_acid_centres(mol, candidates):
     return [c for c in ranked if ranks[c.GetIdx()] == best]
 
 
-def require_phosphorus_acid_scope(mol, phosphorus):
-    """A phosphorus acid centre that outranks every other group of the molecule (P-41): carboxylic and the
-    sulfur-group acids are senior to phosphonic and phosphinic acids, which become phosphono prefixes."""
+def require_phosphorus_acid_scope(mol):
+    """Carboxylic and the sulfur-group acids are senior to the phosphorus acids, which become phosphono prefixes (P-41)."""
     in_nitro_group = set().union(*nitro_group_atoms(mol))
     for atom in mol.GetAtoms():
         if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    if not senior_acid_centres(mol, [phosphorus]):
-        raise UnsupportedStructure("the phosphorus centre is not the senior acid centre of the molecule")
     if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus acid")
 
@@ -147,42 +119,48 @@ def _phosphonic_acid_phosphorus_atoms(mol):
     return matches
 
 
-def has_phosphonic_acid_shape(mol) -> bool:
-    return bool(_phosphonic_acid_phosphorus_atoms(mol))
+def _acid_centres(mol, acid_class):
+    return [
+        atom
+        for atom in mol.GetAtoms()
+        if (parts := acid_group_parts(mol, atom)) is not None and parts[:2] == acid_class and parts[2] > 0
+    ]
 
 
-def name_phosphonic_acid(mol) -> str:
-    phosphorus_atoms = _phosphonic_acid_phosphorus_atoms(mol)
-    senior = senior_acid_centres(mol, phosphorus_atoms)
-    if not senior:
-        from ._phosphinic_acid import _phosphinic_acid_phosphorus_atoms, name_phosphinic_acid
+def has_phosphorus_acid_shape(mol) -> bool:
+    return bool(_acid_centres(mol, (1, 2)) or _acid_centres(mol, (1, 1)))
 
-        if senior_acid_centres(mol, _phosphinic_acid_phosphorus_atoms(mol)):
-            return name_phosphinic_acid(mol)
-    if not senior and len(phosphorus_atoms) != 1:
-        raise UnsupportedStructure("more than one phosphonic acid group is not supported yet")
-    candidates = senior or phosphorus_atoms
 
-    require_phosphorus_acid_scope(mol, candidates[0])
+def name_phosphorus_acid(mol) -> str:
+    """The name with the senior acid centre (P-42.3) as the parent; identical centres on different parts are named
+    through the choice among several parents (P-45.5)."""
+    require_phosphorus_acid_scope(mol)
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-
-    if len(candidates) == 1:
-        return _name_at(mol, candidates[0])
-    if any(n.GetAtomicNum() in CENTER_STEMS for c in candidates for n in c.GetNeighbors()):
+    centres = senior_acid_centres(mol, [a for a in mol.GetAtoms() if a.GetAtomicNum() in CENTER_STEMS])
+    if len(centres) == 1:
+        return name_acid_group(mol, centres[0])[1]
+    if any(n.GetAtomicNum() in CENTER_STEMS for c in centres for n in c.GetNeighbors()):
         raise UnsupportedStructure("acid centres bonded to each other are named as one polynuclear acid")
-    return name_one_of_several_groups(mol, candidates, lambda phosphorus: _name_at(mol, phosphorus), acid_prefixes)
+    if acid_group_parts(mol, centres[0])[1] == 2:
+        return name_one_of_several_groups(mol, centres, lambda phosphorus: name_acid_group(mol, phosphorus)[1], acid_prefixes)
+    return senior_parent_name(mol, [c.GetIdx() for c in centres], lambda idx: name_acid_group(mol, mol.GetAtomWithIdx(idx)))
 
 
-def _name_at(mol, phosphorus):
-    """The name with the acid group at `phosphorus` as the parent; every other one is a phosphono, arsono or stibono prefix."""
+def name_acid_group(mol, phosphorus):
+    """(number of substituent prefixes, name) with the acid group at `phosphorus` as the parent."""
+    oxo, hydroxyl, _ = acid_group_parts(mol, phosphorus)
     group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
     graph = adjacency(mol)
-    (root,) = [n for n in graph[phosphorus.GetIdx()] if n not in group_oxygens]
+    roots = [n for n in graph[phosphorus.GetIdx()] if n not in group_oxygens]
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
     with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
-        name, is_compound = name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol)
-    prefix = enclose(name) if is_compound else name
-    return f"{prefix}{centre_nuclides(phosphorus.GetIdx(), oxygens=True)}{CENTER_STEMS[phosphorus.GetAtomicNum()]}onic acid"
+        entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
+    centre = centre_nuclides(phosphorus.GetIdx(), oxygens=True)
+    stem = f"{centre}{CENTER_STEMS[phosphorus.GetAtomicNum()]}{_ACID_ENDINGS[(oxo, hydroxyl)]}"
+    if hydroxyl == 2:
+        ((name, is_compound),) = entries
+        return 1, f"{enclose(name) if is_compound else name}{stem}"
+    return len(entries), f"{format_mononuclear_prefixes(entries)}{stem}"

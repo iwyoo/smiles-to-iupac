@@ -853,6 +853,8 @@ def test_phosphinate_beside_a_senior_group(smiles, expected):
         pytest.param("O[As](=O)(O)CCP(=O)(O)OC", "{2-[hydroxy(methoxy)phosphoryl]ethyl}arsonic acid", id="acid_ester_below_an_arsonic_acid"),
         pytest.param("OP(=O)(O)CC[As](=O)(O)OC", "{2-[hydroxy(methoxy)arsoryl]ethyl}phosphonic acid", id="phosphorus_acid_before_arsenic_acid"),
         pytest.param("CP(=O)(O)CC[As](=O)(O)O", "(2-arsonoethyl)(methyl)phosphinic acid", id="phosphinic_acid_before_arsonic_acid"),
+        pytest.param("CP(=O)(O)CCP(O)O", "{2-[hydroxy(methylphosphonoyl)]ethyl}phosphonous acid", id="phosphonous_acid_before_phosphinic_acid"),
+        pytest.param("CP(O)CC[As](=O)(O)O", "(2-arsonoethyl)(methyl)phosphinous acid", id="phosphinous_acid_before_arsonic_acid"),
         pytest.param("OP(=O)(O)CCOP(=O)(OC)OC", "{2-[(dimethoxyphosphoryl)oxy]ethyl}phosphonic acid", id="phosphonic_acid_before_a_phosphate_ester"),
     ],
 )
