@@ -21,7 +21,7 @@ def chain_template(cand, view, branches):
         return None
     found = []
     for loc, root in branches:
-        if view.elem[root] != "C":
+        if view.elem[root] != "C" or view.order[frozenset((root, cand.mapping[loc]))] != 1:
             continue
         atoms = _branch_atoms(view, root, mapped)
         if any(a in view.rings for a in atoms):

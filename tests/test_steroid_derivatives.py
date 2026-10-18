@@ -86,6 +86,47 @@ def test_side_chain_double_bond_geometry(geometry, expected):
 
 
 
+ANDROSTANE_EXO = "C[C@]12CC[C@H]3[C@H]([C@@H]1CC{c}2{x})CC[C@@H]4[C@@]3(CC{a}C4)C"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        # P-64.7.1: the ketone outranks the ylidene group, which is cited as a prefix.
+        (
+            "C[C@]12CC[C@H]3[C@@H](CC(=C)C4=CC(=O)C=C[C@]34C)[C@@H]1CCC2=O",
+            "6-methylideneandrosta-1,4-diene-3,17-dione",
+        ),
+        (ANDROSTANE_EXO.format(c="C", x="=C", a="C"), "17-methylidene-5α-androstane"),
+        # P-62.3.1.1: an oxime is an N-hydroxy imine named with the suffix 'imine'.
+        (ANDROSTANE_EXO.format(c="C", x="=NO", a="C"), "N-hydroxy-5α-androstan-17-imine"),
+        (ANDROSTANE_EXO.format(c="C", x="=N", a="C"), "5α-androstan-17-imine"),
+        # P-62.3.1.2, P-64.7.1: below a ketone the imine is cited as a prefix.
+        (ANDROSTANE_EXO.format(c="C", x="=NO", a="C(=O)"), "17-(hydroxyimino)-5α-androstan-3-one"),
+        (ANDROSTANE_EXO.format(c="C", x="=NN", a="C(=O)"), "17-hydrazinylidene-5α-androstan-3-one"),
+        # P-62.3.1.1: several imines take N locants numbered by the position of their carbon.
+        (ANDROSTANE_EXO.format(c="C", x="=NO", a="C(=NOC)"), "N17-hydroxy-N3-methoxy-5α-androstane-3,17-diimine"),
+        # P-64.6.1, P-64.6.2: the chalcogen analogues of the ketone are suffixes below it.
+        (ANDROSTANE_EXO.format(c="C", x="=S", a="C(=S)"), "5α-androstane-3,17-dithione"),
+        (ANDROSTANE_EXO.format(c="C", x="=S", a="C(=O)"), "17-sulfanylidene-5α-androstan-3-one"),
+        # P-93.5.1.4.2: the geometry of the double bond to an ylidene group or an imine nitrogen is cited with the ring locant.
+        (ANDROSTANE_EXO.format(c="/C", x="=N/O", a="C"), "(17Z)-N-hydroxy-5α-androstan-17-imine"),
+        ("C[C@]12CC[C@H]3[C@H]([C@@H]1C/C(=C/c1ccccc1)C2=O)CC[C@@H]4[C@@]3(CCCC4)C", "(16Z)-16-benzylidene-5α-androstan-17-one"),
+    ],
+)
+def test_exocyclic_double_bonds_on_a_steroid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "x",
+    ["=NC(=O)C", "=NOC(C)=O", "=NN", "=NC#N"],
+)
+def test_imine_nitrogen_bearing_a_senior_group_is_not_an_imine_suffix(x):
+    name = smiles_to_iupac(ANDROSTANE_EXO.format(c="C", x=x, a="C"))
+    assert not name.endswith("-17-imine")
+
+
 def test_stereo_centre_inside_a_steroid_ester_alkyl_is_cited():
     smiles = "C[C@H](CC)OC(=O)[C@H]1CC[C@H]2[C@@H]3CC=C4C[C@@H](O)CC[C@]4(C)[C@H]3CC[C@]12C"
     assert smiles_to_iupac(smiles) == "(2R)-butan-2-yl 3β-hydroxyandrost-5-ene-17β-carboxylate"
