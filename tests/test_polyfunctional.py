@@ -205,6 +205,8 @@ def test_name_via_senior_acyclic_rejects_reversed_seniority():
             "2,2-bis[(acetyloxy)methyl]propane-1,3-diyl diacetate",
         ),
         ("CC(=O)OCC=CCOC(C)=O", "but-2-ene-1,4-diyl diacetate"),
+        ("CC(=O)Oc1ccc(cc1-c1ccccc1)OC(C)=O", "[1,1'-biphenyl]-2,5-diyl diacetate"),
+        ("CC(=O)OCCc1ccc(cc1-c1ccccc1)CCOC(C)=O", "[1,1'-biphenyl]-2,5-diyldi(ethane-2,1-diyl) diacetate"),
     ],
 )
 def test_diester_acyloxy_generalized_backbones(smiles, expected):
