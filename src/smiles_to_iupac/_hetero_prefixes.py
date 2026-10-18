@@ -57,8 +57,6 @@ _SENIOR_TO_SELENOL = [
     )
 ]
 _NONCARBON_ACID_ESTERS = [Chem.MolFromSmarts(smarts) for smarts in ("[!#6;!#1](=[O,S])[OX2][#6]", "[#5][OX2][#6]")]
-_SELONE_KETONE = Chem.MolFromSmarts("[#6][CX3](=[Se])[#6]")
-_SELENOL = Chem.MolFromSmarts("[SeX2H1][#6;!$([#6]=[O,S,Se,Te])]")
 _HEAVY_CHALCOGENOL = Chem.MolFromSmarts("[SeX2H1,TeX2H1][#6;!$([#6]=[O,S,Se,Te])]")
 AMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
 _ARYLAMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[c]")
@@ -193,19 +191,6 @@ def chalcogen_link_is_parent(mol):
             if not linked:
                 return True
     return False
-
-
-def require_senior_group(mol, z, parent=None):
-    """A free -SeH/-TeH/=Se/=Te is the principal group (selenol, tellurol, selone) unless a more senior class
-    (acid, ester, amide, nitrile, aldehyde, ketone, alcohol, thiol) is present (P-41, P-63.1); on a nitrogen it is the
-    chalcogen analogue of hydroxylamine, cited as a prefix like -SH (P-68.3.1.1.1.6)."""
-    if parent is not None and mol.GetAtomWithIdx(parent).GetAtomicNum() == 7:
-        return
-    if z in (34, 52) and not any(
-        mol.HasSubstructMatch(query)
-        for query in (*_SENIOR_TO_SELENOL, *_NONCARBON_ACID_ESTERS, *([_SELONE_KETONE, _SELENOL] if z == 52 else []))
-    ):
-        raise UnsupportedStructure("a selenol, tellurol, selone or tellone is the principal group, not a prefix")
 
 
 MONONUCLEAR_HYDRIDES = {
@@ -885,8 +870,6 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z in CHALCOGEN_PREFIXES:
         word = CHALCOGEN_PREFIXES[z]
-        if not others:
-            require_senior_group(mol, z, coming_from)
         require_plain_chalcogen_kids(mol, z, others)
         if order == 2.0 and not others:
             return word[:-2] + "ylidene", False

@@ -14,7 +14,7 @@ from ._common import (
     named_prefix,
 )
 from ._multiplicative_text import enclose as nested_enclose
-from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
+from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids
 from ._substituents import (
     ISOTOPE_LABELS,
     format_mononuclear_prefixes,
@@ -145,7 +145,6 @@ class PrefixNamer:
             word = CHALCOGEN_PREFIXES[z]
             require_plain_chalcogen_kids(mol, z, [q for q in self.graph[n] if q != parent])
             if not entries:
-                require_senior_group(mol, z, parent)
                 return word, False
             return format_mononuclear_prefixes(entries) + word, True
         if z == 7:
