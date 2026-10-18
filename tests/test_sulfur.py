@@ -1214,6 +1214,21 @@ def test_chains_of_two_chalcogens_are_prefixes_and_four_units_make_a_replacement
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OB(O)C(C)CSS", "(1-disulfanylpropan-2-yl)boronic acid", id="boronic_acid"),
+        pytest.param("C[N+](C)(C)CCSS", "2-disulfanyl-N,N,N-trimethylethan-1-aminium", id="quaternary_ammonium"),
+        pytest.param("[NH3+]CC[Se][SeH]", "2-diselanylethan-1-aminium", id="primary_ammonium"),
+        pytest.param("C[P+](C)(C)CCSS", "(2-disulfanylethyl)tri(methyl)phosphanium", id="phosphonium"),
+        pytest.param("SC(=O)CCSS", "3-disulfanylpropanethioic S-acid", id="thioic_acid"),
+        pytest.param("NCCSS", "2-aminoethane-1-dithioperoxol", id="amine_ranks_below_the_dithioperoxol"),
+    ],
+)
+def test_a_dithioperoxol_group_is_a_prefix_only_beside_a_senior_class(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_stereogenic_sulfinyl_group_cites_its_descriptor():
     assert smiles_to_iupac("C[S@](=O)c1ccccc1") == "(S)-(methanesulfinyl)benzene"
 
