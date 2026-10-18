@@ -1130,6 +1130,8 @@ def test_lactam_units_with_a_substituted_linker_and_ring_assembly_linkers(smiles
         pytest.param("CC(C)(c1ccc(C(=O)NN)cc1)c1ccc(C(=O)NN)cc1", "4,4'-(propane-2,2-diyl)dibenzohydrazide", id="hydrazide_units_substituted_linker"),
         pytest.param("NC(=NO)c1ccc(Oc2ccc(C(N)=NO)cc2)cc1", "4,4'-oxybis(N'-hydroxybenzene-1-carboximidamide)", id="amidoxime_units"),
         pytest.param("CN(c1ccc(C(N)=NO)cc1)c1ccc(C(N)=NO)cc1", "4,4'-(methylazanediyl)bis(N'-hydroxybenzene-1-carboximidamide)", id="amidoxime_units_substituted_linker"),
+        pytest.param("CNNC(=O)CCOCCC(=O)NNC", "3,3'-oxybis(N'-methylpropanehydrazide)", id="n_substituted_hydrazide_units"),
+        pytest.param("CC(=NC)CCOCCC(C)=NC", "4,4'-oxybis(N-methylbutan-2-imine)", id="n_substituted_imine_units"),
     ],
 )
 def test_hydrazide_and_amidoxime_units_joined_by_a_linker(smiles, expected):

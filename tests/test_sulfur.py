@@ -920,6 +920,7 @@ def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
         pytest.param("CS(=N)(=NC)N(C)C", "N,N,N'-trimethylmethanesulfonodiimidamide", id="substituted_nitrogens_take_the_lower_locants"),
         pytest.param("c1ccccc1S(=N)(=O)N", "benzenesulfonimidamide", id="sulfonimidamide_on_a_ring"),
         pytest.param("NS(=O)(=N)CCS(=O)(=N)N", "ethane-1,2-disulfonimidamide", id="two_sulfonimidamide_groups"),
+        pytest.param("CNS(=N)(=O)CCS(=N)(=O)NC", "N1,N2-dimethylethane-1,2-disulfonimidamide", id="n_substituted_sulfonimidamide_groups"),
         pytest.param("CS(=S)(=N)N", "methanesulfonimidothioamide", id="replaced_oxygen_in_a_sulfonimidamide"),
         pytest.param("CS(=N)(=O)N1CCOCC1", "4-(methanesulfonimidoyl)morpholine", id="sulfonimidoyl_on_a_ring_nitrogen"),
         pytest.param("CS(=NC)(=O)n1cccc1", "1-(N-methylmethanesulfonimidoyl)-1H-pyrrole", id="n_substituted_sulfonimidoyl_on_an_aromatic_nitrogen"),
