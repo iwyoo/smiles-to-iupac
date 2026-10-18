@@ -13,6 +13,7 @@ from ._common import (
     is_nitro_nitrogen,
     named_prefix,
 )
+from ._multiplicative_text import enclose as nested_enclose
 from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
 from ._substituents import (
     ISOTOPE_LABELS,
@@ -34,15 +35,7 @@ def _oxy(name, compound):
 
 
 def enclose(name: str) -> str:
-    if name in _SIMPLE:
-        return name
-    if "{" in name:
-        return f"({name})"
-    if "[" in name:
-        return "{" + name + "}"
-    if "(" in name:
-        return f"[{name}]"
-    return f"({name})"
+    return name if name in _SIMPLE else nested_enclose(name)
 
 
 class PrefixNamer:

@@ -958,6 +958,11 @@ def test_different_alkyl_groups_on_one_polyacid_are_cited_with_the_locants_of_th
         pytest.param(
             "OC(=O)CN1C(=O)c2ccccc2CC1", "(1-oxo-3,4-dihydroisoquinolin-2(1H)-yl)acetic acid", id="added_hydrogen_parentheses_are_ignored"
         ),
+        pytest.param(
+            "CNCNCNCNCNCNCNC",
+            "N-({[(methylamino)methyl]amino}methyl)-N'-{[({[(methylamino)methyl]amino}methyl)amino]methyl}methanediamine",
+            id="marks_cycle_with_the_depth_of_the_nest",
+        ),
     ],
 )
 def test_enclosing_marks_follow_the_nesting_order(smiles, expected):
