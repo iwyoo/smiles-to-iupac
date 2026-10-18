@@ -5552,6 +5552,13 @@ def _unit_parts(unit, attach, arm):
     return (stem[: len(prefix)] if stem.startswith(prefix) else "", stem[len(prefix):] if stem.startswith(prefix) else stem, tail, locant)
 
 
+def _constitution_smiles(unit):
+    """Canonical SMILES of a cut unit without its stereo, since a configuration is cited after the units are matched."""
+    bare = Chem.Mol(unit)
+    Chem.RemoveStereochemistry(bare)
+    return Chem.MolToSmiles(bare)
+
+
 def _modified_unit_smiles(unit, atoms):
     """Canonical SMILES of a cut unit, its isotopically modified atoms marked, so that units modified differently are
     not identical (P-82.2.2)."""
@@ -5765,15 +5772,18 @@ def _diacyl_chalcogen_chain_name(mol, graph, stereo):
     arms = [_arm_atoms(graph, r, end) for r, end in zip(roots, (order[0], order[-1]))]
     if arms[0] & arms[1] or len(arms[0]) + len(arms[1]) + len(chain) != mol.GetNumAtoms():
         return None
-    if stereo:
+    if not all(element[0] != "isotope" and _stereo_within(element, arms[0] | arms[1]) for element in stereo):
         raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
     units = [_unit_molecule(mol, atoms, root, chalcogen_cut=True) for atoms, root in zip(arms, roots)]
-    if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
+    if len({_constitution_smiles(unit[0]) for unit in units}) != 1:
         return None
     try:
         _, _, parts = _select(*units[0])
     except UnsupportedStructure:
         return None
+    stereo_text = ""
+    if stereo:
+        parts, stereo_text = _stereo_arms(mol, stereo, arms, units)
     prefix, body, tail, locant = parts[:4]
     if locant is None:
         return None
@@ -5781,8 +5791,8 @@ def _diacyl_chalcogen_chain_name(mol, graph, stereo):
         word = f"[{word}]"
     text = prefix + body
     if prefix:
-        return f"{locant},{locant}'-{word}{_bis_unit(text, tail)}"
-    return f"{locant},{locant}'-{word}di{unit_phrase(text, tail)}"
+        return f"{stereo_text}{locant},{locant}'-{word}{_bis_unit(text, tail)}"
+    return f"{stereo_text}{locant},{locant}'-{word}di{unit_phrase(text, tail)}"
 
 
 def _arm_atoms(graph, start, blocked):
@@ -5961,7 +5971,7 @@ def _composite_linker_name(mol, graph, stereo):
         ):
             continue
         units = [_unit_molecule(mol, atoms, root) for atoms, (_, _, (_, root)) in zip(arms, sides)]
-        if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
+        if len({_constitution_smiles(unit[0]) for unit in units}) != 1:
             continue
         components = []
         for ring, ring_atom, (r, root) in sides:
@@ -5976,15 +5986,18 @@ def _composite_linker_name(mol, graph, stereo):
             _, _, parts = _select(unit, attach)
         except UnsupportedStructure:
             continue
-        if stereo:
+        if not all(element[0] != "isotope" and _stereo_within(element, arms[0] | arms[1]) for element in stereo):
             raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
+        stereo_text = ""
+        if stereo:
+            parts, stereo_text = _stereo_arms(mol, stereo, arms, units)
         prefix, body, tail, locant = parts[:4]
         lead = f"{locant},{locant}'-" if locant is not None else ""
         linker = enclose(f"{word}bis({components[0]})")
         text = prefix + body
         if prefix:
-            return f"{lead}{linker}{_bis_unit(text, tail)}"
-        return f"{lead}{linker}di{unit_phrase(text, tail)}"
+            return f"{stereo_text}{lead}{linker}{_bis_unit(text, tail)}"
+        return f"{stereo_text}{lead}{linker}di{unit_phrase(text, tail)}"
     return None
 
 
@@ -6011,20 +6024,25 @@ def _natural_product_linker_name(mol, graph, stereo):
     ):
         return None
     units = [_unit_molecule(mol, atoms, root) for atoms, (_, root) in zip(arms, attachments)]
-    if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
+    if len({_constitution_smiles(unit[0]) for unit in units}) != 1:
         return None
     try:
         _, _, parts = _select(*units[0])
     except UnsupportedStructure:
         return None
-    if not all(_stereo_within(element, central) for element in stereo):
+    arm_atoms = arms[0] | arms[1]
+    arm_stereo = [element for element in stereo if element[0] != "isotope" and _stereo_within(element, arm_atoms)]
+    if not all(_stereo_within(element, central) for element in stereo if element not in arm_stereo):
         raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
+    stereo_text = ""
+    if arm_stereo:
+        parts, stereo_text = _stereo_arms(mol, arm_stereo, arms, units)
     prefix, body, tail, locant = parts[:4]
     lead = f"{locant},{locant}'-" if locant is not None else ""
     text = prefix + body
     if prefix:
-        return f"{lead}{enclose(linker)}{_bis_unit(text, tail)}"
-    return f"{lead}{enclose(linker)}di{unit_phrase(text, tail)}"
+        return f"{stereo_text}{lead}{enclose(linker)}{_bis_unit(text, tail)}"
+    return f"{stereo_text}{lead}{enclose(linker)}di{unit_phrase(text, tail)}"
 
 
 def _stereo_within(element, atoms):
@@ -6081,8 +6099,14 @@ def _ring_linker_name(mol, graph, stereo):
         arm_atoms = arms[0] | arms[1]
         ring_stereo = [element for element in stereo if _stereo_within(element, ring_set)]
         arm_isotopes = [element for element in stereo if element[0] == "isotope" and element[1] in arm_atoms]
-        if len(ring_stereo) + len(arm_isotopes) != len(stereo) or any(kind not in ("atom", "isotope") for kind, _, _ in ring_stereo):
+        arm_stereo = [element for element in stereo if element[0] != "isotope" and _stereo_within(element, arm_atoms)]
+        if len(ring_stereo) + len(arm_isotopes) + len(arm_stereo) != len(stereo) or any(
+            kind not in ("atom", "isotope") for kind, _, _ in ring_stereo
+        ):
             raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
+        stereo_text = ""
+        if arm_stereo:
+            parts, stereo_text = _stereo_arms(mol, arm_stereo, arms, units)
         if spec is not None:
             linker = name_ring_component(mol, ring, attachments, [], None, stereo=ring_stereo)
         else:
@@ -6110,8 +6134,8 @@ def _ring_linker_name(mol, graph, stereo):
             isotope_context["consumed"].update(atom for kind, atom, _ in ring_stereo + arm_isotopes if kind == "isotope")
         linker_text = f"({linker[0]})" if linker[1] and not ring_stereo else enclose(linker[0])
         if prefix:
-            return f"{lead}{linker_text}{_bis_unit(text, tail)}"
-        return f"{lead}{linker_text}di{unit_phrase(text, tail)}"
+            return f"{stereo_text}{lead}{linker_text}{_bis_unit(text, tail)}"
+        return f"{stereo_text}{lead}{linker_text}di{unit_phrase(text, tail)}"
     return None
 
 
