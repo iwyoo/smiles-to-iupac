@@ -532,6 +532,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None):
     kind, atoms = components[center]
     centre_stereo = {}
     ring_stereo = []
+    chain_stereo = []
     for element in stereo:
         touched = {element[1]} if isinstance(element[1], int) else set(element[1])
         if touched <= arm_atoms:
@@ -543,13 +544,16 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None):
         if kind == "ring" and element[0] == "atom" and touched <= set(atoms):
             ring_stereo.append(element)
             continue
+        if kind == "carbon" and touched <= set(atoms):
+            chain_stereo.append(element)
+            continue
         holders = [i for i, atoms_ in enumerate(branch_atoms) if touched <= atoms_]
         if len(holders) != 1:
             return None
         branch_stereo[holders[0]].append(element)
     if len({tuple(sorted(code for _, _, code in found)) for found in branch_stereo}) != 1:
         return None
-    ctx = _make_context(mol, graph, [_context_element(mol, e) for e in branch_stereo[0]], unit_group)
+    ctx = _make_context(mol, graph, [_context_element(mol, e) for e in branch_stereo[0] + chain_stereo], unit_group)
     # P-15.6.1.5, P-51.5: a ring bearing a side chain with a further principal group is a substituent of the chain
     # parent that carries them, not a multiplicative centre
     found = _principal_atoms(mol) if unit_kind == "chain" else None
@@ -664,7 +668,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None):
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
     linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
-    if len(ctx.used) != len(branch_stereo[0]):
+    if len(ctx.used) != len(branch_stereo[0]) + len(chain_stereo):
         return None
     unit, attach = units[0]
     try:

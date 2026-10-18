@@ -1011,6 +1011,16 @@ def test_multiplicative_name_needs_identical_branches_on_the_linking_group(smile
             id="arm_centres_beside_a_composite_linker",
         ),
         pytest.param(
+            "OCCc1ccc(/C=C/C=C\\c2ccc(CCO)cc2)cc1",
+            "2,2'-[(1Z,3E)-buta-1,3-diene-1,4-diyldi(4,1-phenylene)]di(ethan-1-ol)",
+            id="double_bonds_of_a_central_chain",
+        ),
+        pytest.param(
+            "OCCc1ccc([C@H](C)[C@@H](C)c2ccc(CCO)cc2)cc1",
+            "2,2'-[(2R,3R)-butane-2,3-diyldi(4,1-phenylene)]di(ethan-1-ol)",
+            id="centres_of_a_central_chain",
+        ),
+        pytest.param(
             "C[C@H](O)C(=O)OOOC(=O)[C@@H](C)O",
             "(2R,2'S)-1,1'-trioxidanediylbis(2-hydroxypropan-1-one)",
             id="arm_centres_beside_a_chalcogen_chain",
