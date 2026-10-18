@@ -1100,6 +1100,10 @@ def name_polyfunctional(mol) -> str:
         if center is not None:
             return _name_isotopic(mol, *split, build=lambda clean, labels: _name_labelled_ring_center(clean, labels, center))
         return _name_isotopic(mol, *split)
+    mixed = None if anionic_parent else _cation_parent_base(mol)
+    if mixed is not None:
+        with ion_stereo_carried(mol, mixed[0]):
+            return _name_aminium(mixed[0], parent=mixed[1], cationic=mixed[2])
     cation = None if anionic_parent else _aminium_base(mol)
     if cation is not None:
         with ion_stereo_carried(mol, cation):
@@ -1108,9 +1112,7 @@ def name_polyfunctional(mol) -> str:
     if amidinium is not None:
         with ion_stereo_carried(mol, amidinium):
             name = _name_labelled(amidinium, {})
-        if not name.endswith("imidamide"):
-            raise UnsupportedStructure("the amidinium cation is not named as an amidine parent")
-        return name[:-1] + "ium"
+        return _cationic_group_suffix(name, "amidine", sum(a.GetFormalCharge() == 1 for a in mol.GetAtoms()))
     iminium = None if anionic_parent else _iminium_base(mol)
     if iminium is not None:
         with ion_stereo_carried(mol, iminium):
@@ -1717,10 +1719,10 @@ def _cationic_prefix_nitrogen(atom):
     )
 
 
-def _iminium_base(mol):
-    """The mol with its iminium nitrogen neutralised when it still carries a hydrogen, else the cation itself, for the
-    single =N(+)< centre of an acyclic C=N group whose other substituents are carbon (P-73.1.2.1); else None."""
-    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+def _iminium_base(mol, ignore=frozenset()):
+    """The mol with its iminium nitrogens neutralised when they still carry a hydrogen, else the cation itself, for the
+    =N(+)< centres of acyclic C=N groups whose other substituents are carbon (P-73.1.2.1); else None."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
     if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 for a in charged):
         return None
     for nitrogen in charged:
@@ -1744,6 +1746,85 @@ def _iminium_base(mol):
     return neutral.GetMol()
 
 
+_CATION_KIND_ORDER = ("amide", "amidine", "nitrile", "amine", "imine")
+
+
+def _cation_kind(mol, atom):
+    """The kind of cationic characteristic group an acyclic nitrogen cation stands for (Table 7.4): acylammonium (amide),
+    amidinium, nitrilium, ammonium (amine) or iminium; None for any other charged atom."""
+    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() != 1 or atom.IsInRing() or atom.GetIsAromatic():
+        return None
+    if any(b.GetBondTypeAsDouble() == 3.0 for b in atom.GetBonds()):
+        return "nitrile"
+    doubles = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 2.0]
+    valence = atom.GetDegree() + atom.GetTotalNumHs()
+    if doubles:
+        carbon = doubles[0].GetOtherAtom(atom)
+        if len(doubles) != 1 or valence != 3 or carbon.GetAtomicNum() != 6:
+            return None
+        amino = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetIdx() != atom.GetIdx() and not n.GetFormalCharge()]
+        if atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2 and len(amino) == 1 and carbon.GetDegree() == 3:
+            return "amidine"
+        return "imine"
+    if valence != 4:
+        return None
+    if any(n.GetAtomicNum() == 6 and _double_oxygens(mol, n.GetIdx()) for n in atom.GetNeighbors()):
+        return "amide"
+    return "amine"
+
+
+_NEUTRAL_GROUP_PATTERNS = {
+    "amide": Chem.MolFromSmarts("[CX3;!R](=O)[NX3]"),
+    "amidine": Chem.MolFromSmarts("[CX3;!R](=[NX2])[NX3]"),
+    "nitrile": Chem.MolFromSmarts("[CX2;!R]#[NX1]"),
+}
+
+
+def _demote_neutral_groups(base, kind, cations):
+    """`base` with the neutral groups of the cationic kind marked as junior, so that they are cited as prefixes: the
+    cation outranks the neutral group of the same class (P-41, P-73.7)."""
+    pattern = _NEUTRAL_GROUP_PATTERNS.get(kind)
+    if pattern is None:
+        return base
+    demoted = None
+    for match in base.GetSubstructMatches(pattern):
+        group_nitrogens = [i for i in match[1:] if base.GetAtomWithIdx(i).GetAtomicNum() == 7]
+        if any(i in cations for i in group_nitrogens):
+            continue
+        demoted = demoted or Chem.Mol(base)
+        demoted.GetAtomWithIdx(match[0]).SetBoolProp(JUNIOR_GROUP, True)
+    return base if demoted is None else demoted
+
+
+def _cation_parent_base(mol):
+    """(neutral base, parent kind, number of cations of that kind) for the cationic characteristic groups of `mol` when
+    the cations are of several kinds, are amidinium groups, or neutral groups of their own class stand beside them: the
+    parent carries the most cationic suffixes, then the senior kind (P-73.7); the cations of other kinds stay charged and
+    are cited as 'azaniumyl'-type prefixes, neutral groups of the class are prefixes too."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    kinds = {a.GetIdx(): _cation_kind(mol, a) for a in charged}
+    if not kinds or None in kinds.values():
+        return None
+    counts = Counter(kinds.values())
+    kind = min(counts, key=lambda k: (-counts[k], _CATION_KIND_ORDER.index(k)))
+    ignore = frozenset(i for i, k in kinds.items() if k != kind)
+    if kind == "amine":
+        base = _aminium_base(mol, ignore=ignore)
+    elif kind == "imine":
+        base = _iminium_base(mol, ignore=ignore)
+    elif kind == "amidine":
+        base = _amidinium_base(mol, ignore=ignore)
+    else:
+        base = _group_cation_base(mol, kind, ignore=ignore, neutral_groups=True)
+    if base is None:
+        return None
+    cations = {i for i, k in kinds.items() if k == kind}
+    demoted = _demote_neutral_groups(base, kind, cations)
+    if len(counts) == 1 and kind != "amidine" and demoted is base:
+        return None
+    return demoted, kind, counts[kind]
+
+
 def _prefix_ammonium(mol, nitrogen):
     return (
         nitrogen.GetDegree() + nitrogen.GetTotalNumHs() == 4
@@ -1758,35 +1839,34 @@ def _prefix_ammonium(mol, nitrogen):
 
 
 def _amidinium_base(mol, ignore=frozenset()):
-    """The neutral amidine of the only charge in `mol` (besides the `ignore`d ring centres), an amidinium group
-    C(NR2)=NH2(+) on carbon; the cation takes the suffix 'imidamidium' with the N locants of the neutral amidine
-    (P-73.5.3.1)."""
+    """The neutral amidine of the charges in `mol` (besides the `ignore`d ring centres), amidinium groups C(NR2)=NH2(+)
+    on carbon; each cation takes the suffix 'imidamidium' with the N locants of the neutral amidine (P-73.5.3.1)."""
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
-    if len(charged) != 1:
-        return None
-    cation = charged[0]
-    if cation.GetFormalCharge() != 1 or cation.GetAtomicNum() != 7 or cation.GetIsAromatic() or cation.IsInRing():
-        return None
-    if cation.GetDegree() != 1 or cation.GetTotalNumHs() != 2:
-        return None
-    carbon = cation.GetNeighbors()[0]
-    if carbon.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(cation.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 2.0:
-        return None
-    others = [n for n in carbon.GetNeighbors() if n.GetIdx() != cation.GetIdx()]
-    amino = [n for n in others if n.GetAtomicNum() == 7 and not n.GetIsAromatic() and not n.GetFormalCharge()]
-    if len(amino) != 1 or len(others) != 2:
+    if not charged:
         return None
     neutral = Chem.RWMol(mol)
-    atom = neutral.GetAtomWithIdx(cation.GetIdx())
-    atom.SetFormalCharge(0)
-    atom.SetNoImplicit(True)
-    atom.SetNumExplicitHs(1)
+    for cation in charged:
+        if cation.GetFormalCharge() != 1 or cation.GetAtomicNum() != 7 or cation.GetIsAromatic() or cation.IsInRing():
+            return None
+        if cation.GetDegree() != 1 or cation.GetTotalNumHs() != 2:
+            return None
+        carbon = cation.GetNeighbors()[0]
+        if carbon.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(cation.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 2.0:
+            return None
+        others = [n for n in carbon.GetNeighbors() if n.GetIdx() != cation.GetIdx()]
+        amino = [n for n in others if n.GetAtomicNum() == 7 and not n.GetIsAromatic() and not n.GetFormalCharge()]
+        if len(amino) != 1 or len(others) != 2:
+            return None
+        atom = neutral.GetAtomWithIdx(cation.GetIdx())
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(1)
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
     return base
 
 
-def _group_cation_base(mol, kind, ignore=frozenset()):
+def _group_cation_base(mol, kind, ignore=frozenset(), neutral_groups=False):
     """The mol with its hydrogen-bearing cationic nitrogens neutralised, for the acylammonium (amidium, a nitrogen with
     four bonds on an amide carbonyl) or nitrilium (C#N-H) centres of a polycation of one kind (Table 7.4); else None."""
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
@@ -1835,11 +1915,12 @@ def _group_cation_base(mol, kind, ignore=frozenset()):
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
     groups = Chem.MolFromSmarts("[CX2]#[N]" if kind == "nitrile" else "[CX3](=O)[NX3]")
-    if len(base.GetSubstructMatches(groups)) > len(charged):
+    if not neutral_groups and len(base.GetSubstructMatches(groups)) > len(charged):
         return None
     return base
 
 
+_IMIDAMIDE_SUFFIX = re.compile(r"(?P<mult>di|tri|tetra)?(?P<carbo>carbox|carbo)?imidamide$")
 _GROUP_SUFFIX = re.compile(r"(?P<mult>di|tri|tetra)?(?P<carbo>carbox|carbo)?(?P<kind>amide|nitrile)$")
 
 
@@ -1976,9 +2057,14 @@ def cationic_multiplied_units(name, cationic):
 
 def _cationic_group_suffix(name, parent, cationic=None):
     if parent == "amidine":
-        if not name.endswith("imidamide"):
+        match = _IMIDAMIDE_SUFFIX.search(name)
+        if match is None:
             raise UnsupportedStructure("the amidinium cation is not named as an amidine parent")
-        return name[:-1] + "ium"
+        count = _MULTIPLIED[match.group("mult")] if match.group("mult") else 1
+        word = (match.group("carbo") or "") + "imidamidium"
+        if count > 1:
+            return f"{name[:match.start()]}{_UNIT_WORD[count]}({word})"
+        return name[:match.start()] + word
     if parent in ("amide", "nitrile"):
         match = _GROUP_SUFFIX.search(name)
         if match is None or match.group("kind") != parent:
@@ -2003,8 +2089,6 @@ def _cationic_group_suffix(name, parent, cationic=None):
         raise UnsupportedStructure("several iminium centres need a multiplied imine parent")
     multiple = re.search(r"(di|tri|tetra|penta|hexa)(amine|aniline)$", name)
     if multiple is not None:
-        if cationic and _MULTIPLIED[multiple.group(1)] > cationic:
-            raise UnsupportedStructure("a neutral amino group beside a cationic one is not cited as a prefix of this parent")
         word = {"di": "bis", "tri": "tris", "tetra": "tetrakis", "penta": "pentakis", "hexa": "hexakis"}[multiple.group(1)]
         return f"{name[:multiple.start()]}{word}(aminium)"
     return name[:-1] + "ium"
@@ -2431,7 +2515,25 @@ def _cationic_amine_parent(mol):
     """A single substituted ammonium centre is the parent beside neutral groups (P-41, class 6), so it is never the linker
     of a multiplied name; several centres are the identical parents that a linker joins."""
     centres = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7 and (a.GetFormalCharge() == 1 or a.HasProp("_cationic_amine"))]
-    return AMINIUM.get() is True and len(centres) == 1 and centres[0].GetDegree() > 1
+    if AMINIUM.get() is not True:
+        return False
+    return (len(centres) == 1 and centres[0].GetDegree() > 1) or _neutral_amine_beside_cation(mol, centres)
+
+
+def _neutral_amine_beside_cation(mol, centres):
+    """A neutral amino group beside the cationic nitrogens is a prefix of the aminium parent, not one of its units
+    (P-41, class 6), so units that differ in this way are not identical."""
+    cationic = {a.GetIdx() for a in centres}
+    return bool(cationic) and any(
+        a.GetAtomicNum() == 7
+        and a.GetIdx() not in cationic
+        and not a.GetFormalCharge()
+        and not a.IsInRing()
+        and not a.GetIsAromatic()
+        and all(n.GetAtomicNum() == 6 and not _double_oxygens(mol, n.GetIdx()) for n in a.GetNeighbors())
+        and all(b.GetBondTypeAsDouble() == 1.0 for b in a.GetBonds())
+        for a in mol.GetAtoms()
+    )
 
 
 def _ionic_linker_centre(mol):
