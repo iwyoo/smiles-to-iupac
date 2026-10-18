@@ -82,7 +82,8 @@ def heterone_centers(mol):
 
 
 def has_phosphanone_shape(mol) -> bool:
-    return bool(heterone_centers(mol))
+    """A heterone is the parent only when no acid, ester, amide, nitrile or aldehyde group outranks it (P-41)."""
+    return bool(heterone_centers(mol)) and not any(mol.HasSubstructMatch(query) for query in _SENIOR)
 
 
 def name_phosphanone(mol) -> str:
@@ -96,8 +97,6 @@ def name_phosphanone(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    if any(mol.HasSubstructMatch(query) for query in _SENIOR):
-        raise UnsupportedStructure("an acid, ester, amide, nitrile or aldehyde group outranks the chalcogenide")
     if len(candidates) > 1 and any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
         raise UnsupportedStructure("stereodescriptors beside several chalcogenide centres are not supported yet")
     ranked = []
