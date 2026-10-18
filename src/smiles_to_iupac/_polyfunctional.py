@@ -1124,7 +1124,8 @@ def name_polyfunctional(mol) -> str:
         return _name_ring_group_cation(*grouped)
     center = _ring_center_base(mol)
     if center is not None:
-        return _name_ring_center(*center)
+        with _oxide_stereo_carried(mol, center[0]):
+            return _name_ring_center(*center)
     carbocation = _carbocation_base(mol)
     if carbocation is not None:
         base, atom = carbocation
@@ -2043,6 +2044,45 @@ def ion_stereo_carried(mol, neutral):
         yield
     finally:
         STEREO_OF_ISOTOPOLOGUE.reset(token)
+
+
+@contextlib.contextmanager
+def _oxide_stereo_carried(mol, base):
+    """The descriptors of an N-oxide, whose oxygen is the fourth ligand of the nitrogen (P-93.2.3), moved to the atoms of
+    `base`, the amine without its oxide atoms, that names it."""
+    oxides = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 8
+        and a.GetFormalCharge() == -1
+        and a.GetDegree() == 1
+        and a.GetNeighbors()[0].GetAtomicNum() == 7
+        and a.GetNeighbors()[0].IsInRing()
+    }
+    if not oxides or mol.GetNumAtoms() - len(oxides) != base.GetNumAtoms():
+        yield
+        return
+    try:
+        elements = _located_elements(mol)
+    except UnsupportedStructure:
+        yield
+        return
+
+    def moved(idx):
+        return idx - sum(1 for o in oxides if o < idx)
+
+    located = [
+        (kind, moved(idx) if kind == "atom" else tuple(moved(i) for i in idx), code)
+        for kind, idx, code in elements
+        if kind == "bond" or idx not in oxides
+    ]
+    token = STEREO_OF_ISOTOPOLOGUE.set(located)
+    try:
+        yield
+    finally:
+        STEREO_OF_ISOTOPOLOGUE.reset(token)
+
+
 JUNIOR_GROUP = "_junior_group"
 ACYL_ROOT = "_acyl_root"
 
