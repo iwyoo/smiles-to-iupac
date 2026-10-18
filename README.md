@@ -208,6 +208,14 @@ behavior. Structures from [PubChem](https://pubchem.ncbi.nlm.nih.gov/)
 (U.S. National Library of Medicine) are used only as a cross-check and never
 to produce names.
 
+## Related projects
+
+[NISPO](https://github.com/oxpig/nispo) also generates names from structures.
+It is optimized for names that [OPSIN](https://github.com/dan2097/opsin)
+parses back to the same structure, whereas this library follows the Blue Book,
+returning the preferred IUPAC name where one is defined and refusing
+structures it cannot name by the rules.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
