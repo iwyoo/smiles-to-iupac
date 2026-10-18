@@ -5255,7 +5255,7 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
             for arm in arms[i]:
                 name, compound = name_branch(graph, arm, i, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                 n_names.append((name, compound, ("N", mapped[position_of_carbon[carbons[i]]], i)))
-        token = SUBSTITUTED_AMINE_PREFIX.set(True) if kept else None
+        token = SUBSTITUTED_AMINE_PREFIX.set(True)
         unlabelled = ISOTOPE_LABELS.set(None)
         try:
             with _renumbered_branch_stereo(keep):
@@ -5264,8 +5264,7 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
             return None, set()
         finally:
             ISOTOPE_LABELS.reset(unlabelled)
-            if token is not None:
-                SUBSTITUTED_AMINE_PREFIX.reset(token)
+            SUBSTITUTED_AMINE_PREFIX.reset(token)
         missing = {i for i in cut if mapped[position_of_carbon[carbons[i]]] not in result[2][4]}
         if missing or any(name not in result[1] for name, *_ in n_names):
             return None, missing

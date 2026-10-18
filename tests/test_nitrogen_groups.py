@@ -142,6 +142,11 @@ def test_phenyl_chain_amidine_ring_halogen():
             "N1,N1,N2-trimethyl-N2-{2-[(2-{[1-(methylamino)ethyl]amino}ethyl)sulfanyl]ethyl}ethane-1,2-diamine",
             id="equal_diamine_backbones_the_one_with_more_prefixes_is_the_parent",
         ),
+        pytest.param(
+            "CNC(C)NCc1ccc(CC(C)(NC)NC)o1",
+            "N2,N'2-dimethyl-1-[5-({[1-(methylamino)ethyl]amino}methyl)furan-2-yl]propane-2,2-diamine",
+            id="equal_diamine_backbones_the_longer_chain_is_the_parent_when_the_other_amines_lie_beyond_a_ring",
+        ),
     ],
 )
 def test_polyamines_of_a_ring_and_acyclic_amine_nitrogens(smiles, expected):
