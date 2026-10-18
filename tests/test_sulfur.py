@@ -547,11 +547,19 @@ def test_sulfanium_chain_locants_and_lambda_centre(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_sulfonium_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[S@+](CC)CCC")
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[S@@+](CC)CCC")
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        pytest.param("C[S@+](CC)CCC", "(R)-ethyl(methyl)(propyl)sulfanium", id="sulfanium_centre"),
+        pytest.param("C[S@@+](CC)c1ccccc1.[Cl-]", "(S)-ethyl(methyl)(phenyl)sulfanium chloride", id="salt"),
+        pytest.param("C[Se@+](CC)c1ccccc1.[Cl-]", "(R)-ethyl(methyl)(phenyl)selanium chloride", id="selanium_centre"),
+        pytest.param("C[S@+](CC)CC(=O)[O-]", "[(R)-ethyl(methyl)sulfaniumyl]acetate", id="prefix_of_an_anionic_parent"),
+        pytest.param("C[N@+](CC)(CCC)CC(=O)[O-]", "[(S)-ethyl(methyl)(propyl)azaniumyl]acetate", id="azaniumyl_prefix"),
+        pytest.param("C[S@+]1CCC[C@H]1C", "(1R,2R)-1,2-dimethylthiolan-1-ium", id="ring_centre"),
+    ],
+)
+def test_stereogenic_sulfanium_and_selanium_centres_cite_their_descriptor(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_mixed_alkyl_and_phenyl_substituents():

@@ -8,10 +8,12 @@ from rdkit import Chem
 
 from ._common import (
     CITE_SKELETAL_LAMBDA,
+    ISOTOPIC_CIP,
     UnsupportedStructure,
     adjacency,
     group_substituents,
     halogen_substituents,
+    specified_stereo_elements,
     substituent_locant_set_and_citation,
 )
 
@@ -269,11 +271,15 @@ def _name_ring_polycation(mol, centres):
     base.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(base)
     token = CITE_SKELETAL_LAMBDA.set(True)
+    held = ISOTOPIC_CIP.get()
+    carried = {i: code for kind, i, code in specified_stereo_elements(mol) or () if kind == "atom" and i in indices}
+    cip_token = ISOTOPIC_CIP.set((base.GetNumAtoms(), {**(held[1] if held and held[0] == base.GetNumAtoms() else {}), **carried}))
     try:
         found = evaluate_skeleton(
             base, adjacency(base), "ring", rings, atoms, indices, set(), "ylium" if lambda_centres else "ium"
         )
     finally:
+        ISOTOPIC_CIP.reset(cip_token)
         CITE_SKELETAL_LAMBDA.reset(token)
     if found is None:
         raise UnsupportedStructure("this cationic ring system has no supported name yet")

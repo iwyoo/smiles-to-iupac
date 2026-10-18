@@ -38,9 +38,11 @@ def centre_is_specified_stereocentre(mol, center):
 
 
 def centre_descriptor(mol, center):
-    """P-93.2.2: the R or S of an azanium, phosphanium, arsanium, stibanium or bismuthanium centre with four ligands,
-    cited in front of the cation name without a locant."""
-    if center.GetAtomicNum() not in (7, 15, 33, 51, 83) or center.GetDegree() + center.GetTotalNumHs() != 4:
+    """P-93.2.2, P-93.3.4.1: the R or S of an azanium, phosphanium, arsanium, stibanium or bismuthanium centre with four
+    ligands, or of a sulfanium, selanium or telluranium centre with three ligands and a lone pair, cited in front of the
+    cation name without a locant."""
+    ligands = 3 if center.GetAtomicNum() in (16, 34, 52) else 4
+    if center.GetAtomicNum() not in (7, 15, 16, 33, 34, 51, 52, 83) or center.GetDegree() + center.GetTotalNumHs() != ligands:
         return ""
     if not centre_is_specified_stereocentre(mol, center):
         return ""

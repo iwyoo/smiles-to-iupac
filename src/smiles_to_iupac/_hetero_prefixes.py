@@ -270,7 +270,20 @@ def _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
     from ._substituents import format_mononuclear_prefixes
 
     entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
-    return (format_mononuclear_prefixes(entries) if entries else "") + _ONIUM_PREFIX_STEMS[z][0] + "yl", bool(entries)
+    name = (format_mononuclear_prefixes(entries) if entries else "") + _ONIUM_PREFIX_STEMS[z][0] + "yl"
+    return _with_centre_descriptor(name, bool(entries), root)
+
+
+def _with_centre_descriptor(name, compound, centre):
+    """`name` of an onium prefix led by the descriptor of its stereogenic centre (P-93.3.4.1)."""
+    from ._substituents import BRANCH_STEREO
+
+    stereo = BRANCH_STEREO.get()
+    code = stereo["atoms"].get(centre) if stereo else None
+    if code is None:
+        return name, compound
+    stereo["used"].add(("atom", centre))
+    return f"({code})-{name}", True
 
 
 def _oxidized_nitrogen_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
@@ -959,7 +972,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         from ._substituents import format_mononuclear_prefixes
 
         entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
-        return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumyl", bool(entries)
+        return _with_centre_descriptor(
+            (format_mononuclear_prefixes(entries) if entries else "") + "azaniumyl", bool(entries), root
+        )
     onium = _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol)
     if onium is not None:
         return onium
