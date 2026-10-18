@@ -16,6 +16,10 @@ ANDROSTANE = "C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2{x})CC[C@@H]4[C@@]3(CC{a}C4)C
         (ANDROSTANE.format(x="C(=O)O", a="C(=O)"), "3-oxo-5α-androstane-17β-carboxylic acid"),
         (ANDROSTANE.format(x="C(=O)OC", a="C(=O)"), "methyl 3-oxo-5α-androstane-17β-carboxylate"),
         (ANDROSTANE.format(x="C(=O)N", a="C"), "5α-androstane-17β-carboxamide"),
+        # P-66.6.1.1.3, P-66.5.1.1.2: a ring -CHO or -CN is a carbaldehyde or carbonitrile suffix, otherwise a formyl or cyano prefix.
+        (ANDROSTANE.format(x="C=O", a="C(=O)"), "3-oxo-5α-androstane-17β-carbaldehyde"),
+        (ANDROSTANE.format(x="C#N", a="C(C=O)"), "3ξ-formyl-5α-androstane-17β-carbonitrile"),
+        ("O=Cc1ccc2c(c1)CC[C@@H]1[C@@H]2CC[C@]2(C)C(=O)CC[C@@H]12", "17-oxoestra-1,3,5(10)-triene-3-carbaldehyde"),
         # P-101.7.3: an ester of a steroid alcohol names the steroid as a substituent group.
         (ANDROSTANE.format(x="C(C)=O", a="[C@@H](OC(C)=O)"), "20-oxo-5α-pregnan-3α-yl acetate"),
         (ANDROSTANE.format(x="OC(C)=O", a="C"), "5α-androstan-17β-yl acetate"),
