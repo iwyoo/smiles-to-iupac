@@ -1119,7 +1119,7 @@ def name_polyfunctional(mol) -> str:
         if acylated is not None:
             with ion_stereo_carried(mol, acylated):
                 return _name_aminium(acylated, parent=kind)
-    grouped = _ring_cation_with_group(mol)
+    grouped = None if anionic_parent else _ring_cation_with_group(mol)
     if grouped is not None:
         return _name_ring_group_cation(*grouped)
     center = _ring_center_base(mol)
@@ -1138,6 +1138,7 @@ def _ring_center_base(mol):
     them as prefixes. `probe` checks the centre's locant when the ring has another nitrogen."""
     from ._diester_ring_diyl import _system_of
 
+    anionic_parent = any(_anionic_group_atom(mol, a) or a.HasProp(ANION_PROP) for a in mol.GetAtoms())
     charged = [
         a
         for a in mol.GetAtoms()
@@ -1145,6 +1146,7 @@ def _ring_center_base(mol):
         and (not _is_nitro_part(a) or _is_ring_azoxy_part(a))
         and not _anionic_group_atom(mol, a)
         and not _is_chain_amine_oxide_part(a)
+        and not (anionic_parent and _cationic_prefix_nitrogen(a))
     ]
     centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
     if len(centers) > 1:

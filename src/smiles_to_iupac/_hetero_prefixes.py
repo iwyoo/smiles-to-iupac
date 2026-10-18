@@ -1537,6 +1537,29 @@ def _sulfonyl_centre(mol, atom):
     )
 
 
+def _amidinium_carbon(mol, root, coming_from, others):
+    """A carbon joined by a single bond to `coming_from` that carries a doubly bonded =NH2(+) group and one amino or
+    substituted amino group: a cationic prefix of the methyl group, 'amino(azaniumylidene)methyl' (P-73.6)."""
+    if mol.GetAtomWithIdx(root).IsInRing() or len(others) != 2 or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        return False
+    cationic = [n for n in others if mol.GetAtomWithIdx(n).GetFormalCharge() == 1]
+    neutral = [n for n in others if n not in cationic]
+    if len(cationic) != 1 or len(neutral) != 1:
+        return False
+    plus, amino = mol.GetAtomWithIdx(cationic[0]), mol.GetAtomWithIdx(neutral[0])
+    return (
+        plus.GetAtomicNum() == 7
+        and plus.GetDegree() == 1
+        and plus.GetTotalNumHs() == 2
+        and mol.GetBondBetweenAtoms(root, plus.GetIdx()).GetBondTypeAsDouble() == 2.0
+        and amino.GetAtomicNum() == 7
+        and not amino.GetFormalCharge()
+        and not amino.IsInRing()
+        and mol.GetBondBetweenAtoms(root, amino.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and all(n.GetAtomicNum() == 6 for n in amino.GetNeighbors() if n.GetIdx() != root)
+    )
+
+
 def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     from ._substituents import ISOTOPE_LABELS, _labelled_carboxy, name_branch
 
@@ -1581,6 +1604,11 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     carbonyl = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0]
     if not carbonyl and _is_plain_amidine(mol, graph, root, coming_from):
         return "carbamimidoyl", False
+    if any(a.HasProp("_anion") for a in mol.GetAtoms()) and _amidinium_carbon(mol, root, coming_from, others):
+        from ._substituents import format_mononuclear_prefixes
+
+        entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
+        return format_mononuclear_prefixes(entries) + "methyl", True
     if len(carbonyl) != 1 or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         raise UnsupportedStructure("this carbonyl-derived substituent is not supported yet")
     rest = [n for n in others if n != carbonyl[0]]

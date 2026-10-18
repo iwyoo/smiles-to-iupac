@@ -611,6 +611,13 @@ def test_carbanide_salt_names():
         pytest.param(
             "C[S+](C)CC([NH3+])C(=O)[O-]", "2-azaniumyl-3-(dimethylsulfaniumyl)propanoate", id="cationic_prefixes_of_two_classes_on_a_carboxylate"
         ),
+        pytest.param(
+            "NC(=[NH2+])NCCC[C@H](N)C(=O)[O-]", "(2S)-2-amino-5-{[amino(azaniumylidene)methyl]amino}pentanoate", id="guanidinium_prefix_on_a_nitrogen_of_a_carboxylate"
+        ),
+        pytest.param("NC(=[NH2+])c1ccc(cc1)C(=O)[O-]", "4-[amino(azaniumylidene)methyl]benzoate", id="amidinium_prefix_on_a_ring_of_a_carboxylate"),
+        pytest.param(
+            "[NH3+][C@@H](Cc1ccc[nH+]c1)C(=O)[O-]", "(2S)-2-azaniumyl-3-(pyridin-1-ium-3-yl)propanoate", id="ium_ring_beside_an_azaniumyl_prefix_on_a_carboxylate"
+        ),
         pytest.param("C[P+](C)(C)CC(=O)[O-]", "(trimethylphosphaniumyl)acetate", id="phosphonium_prefix_on_a_carboxylate"),
         pytest.param("C[S+](C)CCS(=O)(=O)[O-]", "2-(dimethylsulfaniumyl)ethane-1-sulfonate", id="sulfonium_prefix_on_a_sulfonate"),
         pytest.param("C[S+](C)CCCCCC[N+](C)(C)C", "6-(dimethylsulfaniumyl)-N,N,N-trimethylhexan-1-aminium", id="senior_nitrogen_cation_is_the_parent"),
