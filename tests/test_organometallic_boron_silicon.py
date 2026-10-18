@@ -151,6 +151,7 @@ def test_boron_acid_group_beside_an_olate_or_thiolate_is_a_prefix(smiles, expect
         pytest.param("COB(OC)CC[P+](C)(C)C", "[2-(dimethoxyboranyl)ethyl]tri(methyl)phosphanium", id="boronic_ester_on_a_phosphanium"),
         pytest.param("CB(O)CC[N+](C)(C)[O-]", "2-[hydroxy(methyl)boranyl]-N,N-dimethylethan-1-amine N-oxide", id="borinic_acid_on_an_amine_oxide"),
         pytest.param("COB(OC)CCOC(C)=O", "2-(dimethoxyboranyl)ethyl acetate", id="boronic_ester_beside_a_carboxylic_ester"),
+        pytest.param("CB(C)CCB(Cl)OC", "chloro[2-(dimethylboranyl)ethyl](methoxy)borane", id="borane_with_a_halogen_and_an_alkoxy_group_is_not_an_ester"),
     ],
 )
 def test_boron_group_beside_a_senior_class_is_a_prefix(smiles, expected):

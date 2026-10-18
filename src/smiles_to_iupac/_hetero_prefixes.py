@@ -11,7 +11,7 @@ import re
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
+from ._common import HALOGEN_PREFIXES, nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._nitro_group import nitro_or_nitroso_group
@@ -2210,14 +2210,16 @@ def _cation_or_amine_oxide_parent(mol):
 
 def _boron_acid_group_outranks_parent(mol, ligands):
     """A boron group with a hydroxy or alkoxy ligand is a boronic or borinic acid or ester (P-67.1.1), which is the parent
-    unless a radical, an ion, a senior acid, or for an ester a senior ester is present (P-41, P-42.3)."""
+    unless a radical, an ion, a senior acid, or for an ester a senior ester is present (P-41, P-42.3). With a halogen or
+    amino ligand and no hydroxy group it is a substituted borane (P-67.1.2.5.2, P-67.1.2.6.2)."""
     oxygens = [mol.GetAtomWithIdx(n) for n in ligands if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
     if not oxygens or RADICAL_PARENT.get() or BORON_ACID_PARENT.get() or _cation_or_amine_oxide_parent(mol):
         return False
     if any(mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON) or any(a.HasProp("_anion") for a in mol.GetAtoms()):
         return False
     ester_only = all(o.GetTotalNumHs() == 0 for o in oxygens)
-    return not (ester_only and any(mol.HasSubstructMatch(query) for query in ESTERS_SENIOR_TO_BORON))
+    replaced = any(mol.GetAtomWithIdx(n).GetAtomicNum() in (7, *HALOGEN_PREFIXES) for n in ligands)
+    return not (ester_only and (replaced or any(mol.HasSubstructMatch(query) for query in ESTERS_SENIOR_TO_BORON)))
 
 
 def acid_outranks_boron(mol):
