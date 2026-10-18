@@ -304,6 +304,7 @@ def name_hydrazine_with_heteroatom_groups(mol) -> str:
     """P-68.3.1.2.1, P-44.1.2: a hydrazine whose substituents include oxygen, sulfur or other heteroatom groups, with
     no principal group senior to the hydrazine class (alcohol, thiol, carbonyl, nitrile or amine on carbon)."""
     from ._hetero_prefixes import is_functional_carbon
+    from ._hydroperoxide import is_peroxol_terminal
 
     nitrogens = _hydrazine_nitrogens(mol)
     if nitrogens is None or len(Chem.GetMolFrags(mol)) > 1:
@@ -314,10 +315,10 @@ def name_hydrazine_with_heteroatom_groups(mol) -> str:
             raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
         if atom.GetAtomicNum() == 6 and is_functional_carbon(mol, atom.GetIdx()):
             raise UnsupportedStructure("a carbon group senior to the hydrazine class is the principal group")
-        if atom.GetAtomicNum() in (8, 16, 34, 52) and atom.GetTotalNumHs() and any(
-            n.GetAtomicNum() == 6 for n in atom.GetNeighbors()
+        if atom.GetAtomicNum() in (8, 16, 34, 52) and atom.GetTotalNumHs() and (
+            is_peroxol_terminal(atom) or any(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
         ):
-            raise UnsupportedStructure("an alcohol or chalcogen analogue on carbon is senior to the hydrazine class")
+            raise UnsupportedStructure("an alcohol, peroxol or chalcogen analogue on carbon is senior to the hydrazine class")
         if atom.GetAtomicNum() == 7 and atom.GetIdx() not in (n1.GetIdx(), n2.GetIdx()):
             raise UnsupportedStructure("a further nitrogen group is not handled here")
     if any(b.GetBondTypeAsDouble() != 1.0 and not b.GetIsAromatic() for b in mol.GetBonds()):

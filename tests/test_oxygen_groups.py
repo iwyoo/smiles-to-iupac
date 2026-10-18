@@ -621,6 +621,7 @@ def test_hydron_beside_a_neutral_base_and_an_anion_is_the_acid_of_the_anion(smil
     [
         ("COO", "methaneperoxol"),
         ("ClCCOO", "2-chloroethane-1-peroxol"),
+        ("NNCCOO", "2-hydrazinylethane-1-peroxol"),
     ],
 )
 def test_hydroperoxide(smiles, expected):
