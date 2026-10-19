@@ -335,6 +335,14 @@ def test_dipolar_compounds(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [("[NH3+]C#N", "cyanoazanium"), ("N#[N+]C#N", "cyanodiazyn-1-ium")],
+)
+def test_cation_on_a_nitrile_carbon(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_unsupported_base_fragment():
     assert (
         smiles_to_iupac("c1ccccc1CC(=O)Nc1ccccc1C(=O)OCCCC.Cl")
