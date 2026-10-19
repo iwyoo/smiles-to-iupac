@@ -3148,6 +3148,15 @@ def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset(), suf
 
 
 def _select(mol, attach=None, n_names=(), stereo=None):
+    selected = _try_select(mol, attach, n_names, stereo)
+    if selected is None:
+        raise UnsupportedStructure("an ester of this structure outranks the parents this engine builds, and is named as the acid derivative")
+    return selected
+
+
+def _try_select(mol, attach=None, n_names=(), stereo=None):
+    """The parent selection of `mol`, or None when an ester-like group outranks every parent the engine can build here,
+    the acid derivative namers then taking the structure (P-41, P-65.6)."""
     classes = {_group_of(mol, a.GetIdx())[0] for a in mol.GetAtoms() if _group_of(mol, a.GetIdx())} | {
         c for c, _, _ in _ring_occurrences(mol)
     }
@@ -3222,6 +3231,8 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
             for amidine_kept, amidine_rings in _diamidide_alternatives(mol, groups, ring_groups)
             for kept, kept_rings in _joined_imine_alternatives(mol, graph, amidine_kept, amidine_rings)
         ]
+        if None in results:
+            return None
         best = min(results, key=lambda result: result[0])
     finally:
         IMINE_PARENT.reset(imine_token)
@@ -3379,7 +3390,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and principal != "ide"
             and not any(a.HasProp(ANION_PROP) for a in mol.GetAtoms())
         ):
-            raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
+            return None
     if principal in (None, "amine") and attach is None and not n_names and not RING_CENTER.get():
         boranyl = _boranyl_amines(mol, graph, halogens, aromatic_atoms)
         if boranyl is not None:

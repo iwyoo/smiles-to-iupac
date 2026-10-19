@@ -6,7 +6,7 @@ carrying its name.
 
 from rdkit import Chem
 
-from ._acid_derivatives import name_acid_derivative
+from ._acid_derivatives import in_acid_derivative_scope, name_acid_derivative
 from ._common import UnsupportedStructure, adjacency
 from ._metallacycle import _METAL_A_PREFIXES, FREE_VALENCE_PROP
 from ._phosphanyl_group import PREFIX_PROP
@@ -61,9 +61,13 @@ def name_metallacycle_as_group(mol):
                 rw.RemoveAtom(idx)
             rest = rw.GetMol()
             Chem.SanitizeMol(rest)
-            try:
-                name = name_acid_derivative(rest)
-            except UnsupportedStructure:
+            name = None
+            if in_acid_derivative_scope(rest):
+                try:
+                    name = name_acid_derivative(rest)
+                except UnsupportedStructure:
+                    pass
+            if name is None:
                 try:
                     name = _name_mol(rest)
                 except UnsupportedStructure:
