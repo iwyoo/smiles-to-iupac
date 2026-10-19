@@ -52,6 +52,37 @@ def hook_suspended():
     return _state["depth"] > 0
 
 
+def labels_in(atoms):
+    """{atom: label entry} of the isotopically modified atoms among `atoms` while a labelled structure is named."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    return {a: e for a, e in context["labels"].items() if a in atoms} if context else {}
+
+
+def label_marked(mol):
+    """`mol` with each nuclide label written as an isotope number of its atom, so that canonical ranks and fragment
+    SMILES tell structures that differ only in their modification apart."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if not context or not context["labels"]:
+        return mol
+    marked = Chem.RWMol(mol)
+    for idx, entry in context["labels"].items():
+        mass = int("".join(ch for ch in entry["skeleton"] or "" if ch.isdigit()) or 0)
+        marked.GetAtomWithIdx(idx).SetIsotope(mass + 1000 * entry["H"].get("2H", 0) + 100000 * entry["H"].get("3H", 0))
+    return marked
+
+
+def consume_labels(atoms):
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if context:
+        context["consumed"].update(a for a in atoms if a in context["labels"])
+
+
 def subtree(mol, root, from_atom):
     seen = {root}
     stack = [root]
@@ -130,6 +161,11 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
     `from_atom`), named as a prefix in the context of a parent whose
     principal group class is `suffix_group` (None: plain ring parent)."""
     atom = mol.GetAtomWithIdx(root)
+    if labels_in(subtree(mol, root, from_atom)):
+        from ._common import adjacency
+        from ._substituents import name_branch
+
+        return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol, unsaturated=True)
     if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1:
         return halogen_prefix(atom), False
     if not atom.IsInRing() and mol.GetBondBetweenAtoms(root, from_atom).GetBondTypeAsDouble() != 1.0:

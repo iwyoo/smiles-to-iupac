@@ -11,10 +11,11 @@ from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
 from ._multiplicative_groups import KETONE_LIKE, chalcogen_linker_ligands
-from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
+from ._multiplicative_prefix import SIMPLE_PREFIXES, consume_labels, labels_in, prefix_name, subtree
 from ._multiplicative_text import enclose
 from ._multiplicative_ring import name_ring_component
 from ._numerals import alkane_name, multiplying_prefix
+from ._isotope_labels import descriptor, modification_key
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
@@ -97,7 +98,7 @@ def _substituent_entry(mol, owner, root, ctx):
         return _TERMINAL_DOUBLE_WORDS[atom.GetAtomicNum()], False
     atoms = subtree(mol, root, owner)
     for g in ctx.groups:
-        if g.anchor == root and g.atoms - {owner} == atoms and g.name in SIMPLE_PREFIXES and g.name not in KETONE_LIKE:
+        if g.anchor == root and g.atoms - {owner} == atoms and g.name in SIMPLE_PREFIXES and g.name not in KETONE_LIKE and not labels_in(atoms):
             if g.name in ("amide", "sulfonamide", "amine") and not _primary(mol, g):
                 break
             return SIMPLE_PREFIXES[g.name], False
@@ -450,11 +451,17 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
                 tuple(sorted(p for p, _, _ in entries)),
                 tuple(p for p, _ in sorted(((p, n) for p, n, _ in entries), key=lambda e: (alpha_sort_key(e[1]), e[0]))),
                 tuple(sorted(loc for loc, code, _, _ in _chain_descriptors(mol, ctx, position) if code in "ZR")),
+                modification_key(labels_in(on_chain), position) if labels_in(on_chain) else (),
             )
             if best is None or key < best[0]:
                 best = (key, direction, position, ene, yne, entries)
     _, chain, position, ene, yne, entries = best
     length = len(chain)
+    chain_labels = labels_in(chain)
+    label_text = ""
+    if chain_labels:
+        capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in chain_labels}
+        label_text = descriptor(chain_labels, position, length == 1, capacity=capacity)
     descriptors = _chain_descriptors(mol, ctx, position)
     for _, _, kind, idx in descriptors:
         ctx.used.add((kind, idx))
@@ -497,7 +504,8 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
         base = {2: "methylene", 3: "methanetriyl", 4: "methanetetrayl"}.get(count)
         if base is None:
             raise UnsupportedStructure("unsupported carbon linker valence")
-        return Part(prefix + base, bool(entries), False)
+        consume_labels(chain_labels)
+        return Part(prefix + label_text + base, bool(entries or label_text), False)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     word = multiplied_word(count, "yl")
     sorted_join = ",".join(str(x) for x in sorted(cited))
@@ -513,7 +521,8 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
         stem = alkane_name(length)[:-3]
         needs_a = (len(ene) >= 2) if ene else (len(yne) >= 2)
         name = f"{stem}{'a' if needs_a else ''}-{body}"
-    return Part(stereo_prefix + prefix + name, bool(prefix), True)
+    consume_labels(chain_labels)
+    return Part(stereo_prefix + prefix + label_text + name, bool(prefix or label_text), True)
 
 
 def name_component(mol, kind, atoms, attachments, ctx, directed=None, first=None, ring_stereo=()):
@@ -524,13 +533,18 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None, first=None
         if any(order != 1 for _, _, order in attachments):
             raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
         ring_attachments = [(a, b) for a, b, _ in attachments]
+        ring_labels = labels_in(atoms)
+        isotope_entries = [
+            ("isotope", a, "|".join(filter(None, [e["skeleton"], *(n for n, c in e["H"].items() for _ in range(c))])))
+            for a, e in ring_labels.items()
+        ]
         result = name_ring_component(
-            mol, atoms, ring_attachments, ctx.groups, ctx.suffix_group, ctx.name_function, directed, first, ring_stereo
+            mol, atoms, ring_attachments, ctx.groups, ctx.suffix_group, ctx.name_function, directed, first, [*ring_stereo, *isotope_entries]
         )
         if result is None:
             raise UnsupportedStructure("this ring is not supported as a multiplicative linker component")
         text, has_prefix = result
-        return Part(text, has_prefix, True)
+        return Part(text, has_prefix or bool(ring_labels), True)
     if kind == "assembly":
         from ._chain_assembly import assembly_diyl
         from ._common import adjacency, halogen_substituents
@@ -553,4 +567,10 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None, first=None
             if mol.GetBondBetweenAtoms(*atoms) is not None and mol.GetBondBetweenAtoms(*atoms).GetBondTypeAsDouble() == 1.0:
                 return Part("hydrazinediylidene", False, False)
         raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
-    return _hetero_part(mol, list(atoms), attachments, ctx, directed)
+    part = _hetero_part(mol, list(atoms), attachments, ctx, directed)
+    single_labels = labels_in(atoms) if len(atoms) == 1 else {}
+    if single_labels and not part.has_prefix:
+        capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in single_labels}
+        consume_labels(single_labels)
+        return Part(descriptor(single_labels, {a: 1 for a in single_labels}, True, capacity=capacity) + part.text, True, part.has_locants)
+    return part

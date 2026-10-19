@@ -18,7 +18,7 @@ from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import CATION_RANK, KETONE_LIKE, SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, alternating_chalcogen_runs, name_component
-from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
+from ._multiplicative_prefix import SUFFIX_CARRIERS, consume_labels, hook_suspended, label_marked, labels_in
 from ._multiplicative_ring import (
     bare_polycyclic_unit,
     name_monocyclic_unit,
@@ -82,7 +82,7 @@ def _ring_systems(mol):
 
 
 def _fragment_key(mol, atoms, marked):
-    rw = Chem.RWMol(mol)
+    rw = Chem.RWMol(label_marked(mol))
     atom = rw.GetAtomWithIdx(marked)
     atom.SetAtomMapNum(1)
     atom.SetNoImplicit(True)
@@ -438,6 +438,28 @@ def _pendant_assembly_rings(mol, systems, node_of, selected_nodes, span):
 
 
 def _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=False):
+    """`_attempt_units`, the nuclides of every selected unit counting as cited when the one cited unit is named, and a
+    failed attempt leaving no cited nuclides behind."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    before = set(context["consumed"]) if context else set()
+    name = None
+    try:
+        name = _attempt_units(mol, groups, selected, tree, core, name_function, merge_assemblies)
+    finally:
+        if context:
+            if name is None:
+                context["consumed"].clear()
+                context["consumed"].update(before)
+            else:
+                first = labels_in(selected[0].atoms)
+                if first and set(first) <= context["consumed"]:
+                    consume_labels(set().union(*(u.atoms for u in selected)))
+    return name
+
+
+def _attempt_units(mol, groups, selected, tree, core, name_function, merge_assemblies=False):
     systems, node_of, adj = tree
     selected_nodes = {u.node for u in selected}
     span = _prune(core, selected_nodes)
@@ -582,6 +604,7 @@ def _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=
             involved = {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()}
         if (element_kind, idx) not in ctx.used and not involved <= elsewhere | unit_atoms:
             raise UnsupportedStructure("stereodescriptors outside the linking group of a multiplicative name are not supported yet")
+    consume_labels(elsewhere - unit_atoms)
     name = _assemble(len(selected), unit, central, arm_parts)
     descriptors = _unit_descriptors(mol, selected, unit)
     if descriptors is False:
@@ -727,8 +750,36 @@ def _junction_key(mol, groups, selected, name_function):
 
 
 def name_if_multiplicative(mol, name_function=None):
-    name = _name_if_multiplicative(mol, name_function)
+    labelled = any(a.GetIsotope() for a in mol.GetAtoms())
+    name = _name_labelled_multiplicative(mol, name_function) if labelled else _name_if_multiplicative(mol, name_function)
     return name.replace("(1,2-dioxoethane-1,2-diyl)", "oxalyl") if name else name
+
+
+def _name_labelled_multiplicative(mol, name_function):
+    """The multiplicative name of an isotopically modified structure: units modified in the same way are multiplied with
+    their nuclides inside the enclosing marks, units modified differently are named substitutively (P-82.2.1, P-82.2.2)."""
+    from ._isotope_labels import split_isotopes
+    from ._substituents import ISOTOPE_LABELS
+
+    if len(Chem.GetMolFrags(mol)) != 1 or specified_stereo_elements(mol):
+        return None
+    try:
+        clean, labels, _ = split_isotopes(mol)
+    except UnsupportedStructure:
+        return None
+    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
+        return None
+    context = {"labels": labels, "consumed": set(), "mol": clean}
+    token = ISOTOPE_LABELS.set(context)
+    try:
+        name = _name_if_multiplicative(clean, name_function)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    if name is None:
+        return None
+    if set(labels) - context["consumed"]:
+        raise UnsupportedStructure("a nuclide of this multiplicative name is not cited by a supported name")
+    return name
 
 
 def _name_if_multiplicative(mol, name_function=None):

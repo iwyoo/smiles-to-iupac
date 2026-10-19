@@ -61,6 +61,7 @@ from ._hetero_prefixes import (
 )
 from ._multiplicative import _bare_key
 from ._multiplicative_text import JunctionBondLocant, PrimedLocant, enclose, unit_phrase
+from ._multiplicative_prefix import label_marked
 from ._multiplicative_ring import (
     NO_RETAINED_BENZENE,
     RingSpec,
@@ -3563,7 +3564,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         raise chain_error
     if ring_count and ring_count >= chain_count and not (attach is not None and principal == "ide" and chain_best is not None):
         if attach is not None:
-            raise UnsupportedStructure("a ring parent inside a multiplicative unit is not supported yet")
+            return None
         return _finish(ring_best[1])
     if chain_best is None:
         raise UnsupportedStructure("no parent carries the principal group")
@@ -5104,7 +5105,7 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         leading = [c for c in leading if system_rank(c) == senior]
     if len(leading) == 1:
         return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
-    ranks = CanonicalRankAtoms(mol, breakTies=False)
+    ranks = CanonicalRankAtoms(label_marked(mol), breakTies=False)
     if len({ranks[next(iter(c[3]))[1]] for c in leading}) == 1 and not mol.HasSubstructMatch(_DIACYLGUANIDINE):
         raise UnsupportedStructure("several rings bear the principal group; a multiplicative name is needed")
     ranked = _isolated_candidates(
