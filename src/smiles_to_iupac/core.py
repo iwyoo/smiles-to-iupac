@@ -146,7 +146,7 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, has_hydrazone_shape, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, has_hydrazone_shape, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, phantom_capped, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -457,6 +457,23 @@ def _parse_smiles(smiles):
     return mol
 
 
+def _keep_radical_chirality(smiles, mol):
+    """Perception of stereo ignores an unpaired electron, so a centre whose substituents differ only by a radical centre
+    loses its tag at parse; the tags are restored for the namer that cites the radical as a phantom ligand (P-92.1.4.1)."""
+    legacy = Chem.GetUseLegacyStereoPerception()
+    Chem.SetUseLegacyStereoPerception(True)
+    try:
+        tagged = Chem.MolFromSmiles(smiles)
+    finally:
+        Chem.SetUseLegacyStereoPerception(legacy)
+    if tagged is None or tagged.GetNumAtoms() != mol.GetNumAtoms():
+        return mol
+    for atom, source in zip(mol.GetAtoms(), tagged.GetAtoms()):
+        if atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED and not atom.GetNumRadicalElectrons():
+            atom.SetChiralTag(source.GetChiralTag())
+    return mol
+
+
 def _parse_smiles_unannotated(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is not None and (
@@ -481,7 +498,7 @@ def _parse_smiles_unannotated(smiles):
             elif atom.GetAtomicNum() == 81 and atom.GetDegree() and not atom.GetFormalCharge() and atom.GetTotalValence() < 3:
                 atom.SetNumRadicalElectrons(3 - atom.GetTotalValence())
         if any(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms()):
-            return mol
+            return _keep_radical_chirality(smiles, mol)
         return _neutral_group15_oxides(mol)
     # hypervalent anionic centers (lambda-convention parents) fail RDKit's valence check only
     mol = Chem.MolFromSmiles(smiles, sanitize=False)
@@ -1261,11 +1278,12 @@ def _name_unabridged_body(smiles: str) -> str:
             name = _hydro_fusion_name(parsed) or name
         if parsed is not None and _override_count(parsed) > len(_OVERRIDE_TOKENS.findall(name)):
             raise UnsupportedStructure("the allene stereochemistry of this structure is not cited by any supported name")
-        if parsed is not None and _has_specified_stereo(parsed):
+        visible = phantom_capped(parsed) if parsed is not None else None
+        if visible is not None and _has_specified_stereo(visible):
             tokens = bool(_STEREO_TOKENS.search(name) or _STEREO_IN_RETAINED_NAME.search(name))
-            if tokens and not _cites_every_double_bond(parsed, name):
+            if tokens and not _cites_every_double_bond(visible, name):
                 raise UnsupportedStructure("a stereodefined double bond of this structure is not cited by any supported name")
-            if tokens and not _cites_every_tetrahedral_center(parsed, name):
+            if tokens and not _cites_every_tetrahedral_center(visible, name):
                 raise UnsupportedStructure("a stereocentre of this structure is not cited by any supported name")
             if tokens and name.startswith("("):
                 cited = _engine_name(parsed)

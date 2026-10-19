@@ -1728,6 +1728,29 @@ def match_cip_labels(original, copy, origin=None):
             Chem.SetDoubleBondNeighborDirections(copy)
 
 
+def phantom_capped(mol):
+    """`mol` with each unpaired electron replaced by a bond to an atom of atomic number zero, the phantom ligand of the
+    CIP rules (P-92.1.4.1); stereo perception ignores the electron, so the radical group is read from this copy."""
+    radicals = [a.GetIdx() for a in mol.GetAtoms() if a.GetNumRadicalElectrons() in (1, 2, 3)]
+    if not radicals:
+        return mol
+    capped = Chem.RWMol(mol)
+    orders = {1: Chem.BondType.SINGLE, 2: Chem.BondType.DOUBLE, 3: Chem.BondType.TRIPLE}
+    for index in radicals:
+        atom = capped.GetAtomWithIdx(index)
+        order = atom.GetNumRadicalElectrons()
+        atom.SetNumRadicalElectrons(0)
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+        capped.AddBond(index, capped.AddAtom(Chem.Atom(0)), orders[order])
+    result = capped.GetMol()
+    try:
+        Chem.SanitizeMol(result)
+    except Exception:
+        return mol
+    return result
+
+
 def refuse_specified_stereo(mol):
     """For a namer that cites no descriptor: a flat name would silently drop the specified stereo of `mol`, so the chain
     engine, which cites it, names the structure instead."""
