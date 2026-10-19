@@ -552,6 +552,8 @@ def _evaluate_skeleton(
             _DESCRIPTOR_ORDER.get(code, 9) for _, code in sorted((_stereo_locant(a, position_of), c) for a, c in ring_stereo)
         )
         center_key = tuple(sorted(position_of[a] for a, _ in centers))
+        if any(word == "ylium" for _, word in centers):
+            center_key = (center_key, tuple(sorted(position_of[a] for a, word in centers if word != "ylium")))
         if key_centers:
             center_key = (
                 tuple(sorted(position_of[a] for a, _ in key_centers if a in position_of)),
@@ -665,22 +667,22 @@ def _marked_centers(mol, atoms):
         if atom.HasProp("_anion_word"):
             found.extend([(a, atom.GetProp("_anion_word"))] * int(atom.GetProp("_anion_charge")))
         elif atom.HasProp("_anion"):
-            found.extend([(a, "ide")] * int(atom.GetProp("_anion")))
+            found.extend([(a, "ylium" if atom.HasProp("_cationic_site") else "ide")] * int(atom.GetProp("_anion")))
     return found
 
 
 def _with_anion_centers(parent, located, suffix="yl"):
-    """Cite 'ide'/'uide' centers (as 'id'/'uid' before a vowel) before the free-valence suffix (P-72.6.3) or the
+    """Cite 'ylium' and 'ide'/'uide' centers (as 'id'/'uid' before a vowel) before the free-valence suffix (P-72.6.3) or the
     suffix of a characteristic group on the same parent hydride (P-72.5.3)."""
-    words = {word for _, word in located}
-    if len(words) != 1:
+    words = {word for _, word in located} - {"ylium"}
+    if len(words) > 1 or (parent.endswith("ium") and "ylium" in {word for _, word in located}):
         raise UnsupportedStructure("ide and uide centers inside one substituent group are not supported yet")
-    locants = sorted(loc for loc, _ in located)
-    word = words.pop()
-    count = len(locants)
-    sites = ",".join(str(x) for x in locants)
+    groups = [
+        (sorted(loc for loc, w in located if w == word), word) for word in ("ylium", *words) if any(w == word for _, w in located)
+    ]
     if parent.endswith("ium"):
-        return f"{parent}-{sites}-{_COUNT_PREFIX[count]}{word}"
+        locants, word = groups[0]
+        return f"{parent}-{','.join(map(str, locants))}-{_COUNT_PREFIX[len(locants)]}{word}"
     if suffix in SUFFIX_OF_ORDER.values():
         match = re.search(r"(-\d+(?:,\d+)*-)?(?:di|tri)?(?:yl|ylidene|ylidyne)$", parent)
     else:
@@ -688,11 +690,14 @@ def _with_anion_centers(parent, located, suffix="yl"):
     if match is None:
         raise UnsupportedStructure("this substituent group cannot carry an anionic center yet")
     following = match.group(0)[len(match.group(1) or ""):]
-    ending = word[:-1] if following[0] in "aeiouy" else word
     base = parent[: match.start()]
     if base.endswith("e"):
         base = base[:-1]
-    return f"{base}-{sites}-{_COUNT_PREFIX[count]}{ending}{match.group(0)}"
+    cited = ""
+    for locants, word in groups:
+        ending = word[:-1] if word.endswith("e") and word is groups[-1][1] and following[0] in "aeiouy" else word
+        cited += f"-{','.join(map(str, locants))}-{_COUNT_PREFIX[len(locants)]}{ending}"
+    return f"{base}{cited}{match.group(0)}"
 
 
 _COUNT_PREFIX = {1: "", 2: "di", 3: "tri"}
