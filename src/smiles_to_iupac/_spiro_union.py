@@ -76,8 +76,22 @@ def _lk(text):
 
 
 def _primed(locant, count):
-    match = re.match(r"(\d+)(.*)", locant)
-    return match.group(1) + _PRIME * count + match.group(2)
+    return re.sub(r"(\d+)([a-z]*\d*)", lambda match: match.group(1) + _PRIME * count + match.group(2), locant)
+
+
+TRIPLE_MARK = "\u2261"
+
+
+def unsaturation_locants(pairs, locant_of):
+    """The 'ene' and 'yne' locants of the multiple bonds `pairs`, (atom, atom, bond order), of a spiro component under one
+    numbering; a bond between locants that are not consecutive takes the compound locant '1(6)', and a triple bond
+    is marked with TRIPLE_MARK (P-31.1.4.2.4, P-31.1.4.3.4)."""
+    found = []
+    for a, b, order in pairs:
+        low, high = sorted((int(locant_of[a]), int(locant_of[b])))
+        text = str(low) if high == low + 1 else f"{low}({high})"
+        found.append(text + (TRIPLE_MARK if order == 3.0 else ""))
+    return tuple(sorted(found, key=lambda x: (x.endswith(TRIPLE_MARK), int(re.match(r"\d+", x).group()), x)))
 
 
 def _components(mol):
@@ -138,20 +152,19 @@ def _bracket_locants(name):
 
 
 def _monocycle(sub, atoms, mol, force_replacement):
-    double = {
-        frozenset((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
+    multiple = [
+        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order)
         for bond in sub.GetBonds()
-        if mol.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble() == 2.0
-    }
-    if any(mol.GetBondBetweenAtoms(atoms[b.GetBeginAtomIdx()], atoms[b.GetEndAtomIdx()]).GetBondTypeAsDouble() not in (1.0, 2.0) for b in sub.GetBonds()):
-        raise UnsupportedStructure("this bond order is not supported in a spiro component")
+        if (order := mol.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble()) != 1.0
+    ]
+    if any(order not in (2.0, 3.0) for _, _, order in multiple):
+        raise UnsupportedStructure("a fractional bond order of a spiro component has no ene or yne locant")
+    double = {frozenset((a, b)) for a, b, order in multiple if order == 2.0}
     hetero = any(a.GetAtomicNum() != 6 for a in sub.GetAtoms())
     replacement = hetero and (
         force_replacement or (sub.GetNumAtoms() > _MAX_HANTZSCH_WIDMAN_SIZE and not has_hetero_monocyclic_name(sub))
     )
-    if replacement and double:
-        raise UnsupportedStructure("an unsaturated monocyclic spiro component named by replacement is not supported yet")
-    mancude = hetero and not replacement and bool(double)
+    mancude = hetero and not replacement and bool(double) and not any(order == 3.0 for _, _, order in multiple)
     if mancude:
         name = None
     elif hetero and not replacement:
@@ -170,13 +183,15 @@ def _monocycle(sub, atoms, mol, force_replacement):
                 for a in order
                 if sub.GetAtomWithIdx(a).GetAtomicNum() != 6 and not replacement
             ]
-            ene = () if mancude else tuple(sorted(min(locants[a] for a in pair) for pair in double))
+            ene = () if mancude else unsaturation_locants(multiple, locants)
             key = (sorted(l for _, l in symbols), [l for _, l in sorted(symbols)])
             options.append((key, {a: str(l) for a, l in locants.items()}, ene))
     best = min(k for k, _, _ in options)
     kept = [(n, e) for k, n, e in options if k == best]
     if mancude:
         name = _mancude_name(sub, kept[0][0])
+        if name is None:
+            return _monocycle(sub, atoms, mol, True)
     elif name is None:
         name = _saturated_hetero_name(sub, kept[0][0])
     return name, kept, replacement, mancude
@@ -190,6 +205,7 @@ def _saturated_hetero_name(sub, numbering):
 
 
 def _mancude_name(sub, numbering):
+    """The mancude name of a heteromonocycle, or None when it has no Hantzsch-Widman name and is named by replacement."""
     by_locant = sorted(numbering, key=lambda a: int(numbering[a]))
     elements = tuple(sub.GetAtomWithIdx(a).GetSymbol() for a in by_locant)
     hetero = [(i + 1, _RANK.get(e, 99)) for i, e in enumerate(elements) if e != "C"]
@@ -197,7 +213,7 @@ def _mancude_name(sub, numbering):
     if stem is None:
         stem = _hantzsch_widman(elements, saturated=False)
         if stem is None:
-            raise UnsupportedStructure("this unsaturated heteromonocycle has no supported mancude name")
+            return None
         stem = _with_hetero_locants(stem, elements, hetero)
     return _bracket_locants(stem)
 
@@ -231,16 +247,14 @@ def _von_baeyer(sub):
 
 def _von_baeyer_ene(mol, sub, atoms, locants):
     """Locants of the double bonds of a von Baeyer spiro component under one numbering (P-31.1.5.2.1)."""
-    found = []
-    for bond in sub.GetBonds():
-        order = mol.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble()
-        if order == 1.0:
-            continue
-        low, high = sorted(int(locants[i]) for i in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
-        if order != 2.0 or high != low + 1:
-            raise UnsupportedStructure("this multiple bond of a von Baeyer spiro component is not supported yet")
-        found.append(low)
-    return tuple(sorted(found))
+    pairs = [
+        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order)
+        for bond in sub.GetBonds()
+        if (order := mol.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble()) != 1.0
+    ]
+    if any(order not in (2.0, 3.0) for _, _, order in pairs):
+        raise UnsupportedStructure("a fractional bond order of a von Baeyer spiro component has no ene or yne locant")
+    return unsaturation_locants(pairs, locants)
 
 
 def _adamantane_component(mol, comp, atoms, orders, spiro_atoms):
@@ -365,8 +379,11 @@ def _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds):
             if a not in capable or b not in capable or bond.GetIdx() not in polycyclic_bonds:
                 raise UnsupportedStructure("a double bond outside the polycyclic spiro components is not supported yet")
             doubled |= {a, b}
-        elif bond.GetBondTypeAsDouble() not in (1.0,):
-            raise UnsupportedStructure("this bond order is not supported in a spiro system")
+        elif bond.GetBondTypeAsDouble() == 3.0:
+            if bond.GetIdx() not in monocyclic_bonds and (bond.IsInRing() or a in capable or b in capable):
+                raise UnsupportedStructure("a triple bond outside the monocyclic and von Baeyer spiro components is not supported yet")
+        elif bond.GetBondTypeAsDouble() != 1.0:
+            raise UnsupportedStructure("a fractional bond order of a spiro system has no ene or yne locant")
     saturated = capable - doubled
     graph = nx.Graph()
     graph.add_nodes_from(capable)
