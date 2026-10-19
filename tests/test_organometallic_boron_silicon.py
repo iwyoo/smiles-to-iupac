@@ -1390,6 +1390,8 @@ def test_hydride_atom_against_a_ring_by_the_seniority_of_atoms(smiles, expected)
         pytest.param("N#C[SiH]1CCCC1", "silolane-1-carbonitrile", id="cyano_on_a_ring_silicon"),
         pytest.param("OCCOB1OCCO1", "2-[(1,3,2-dioxaborolan-2-yl)oxy]ethan-1-ol", id="ring_boron_through_oxygen_on_an_alcohol_chain"),
         pytest.param("OC(=O)COB1OCCO1", "[(1,3,2-dioxaborolan-2-yl)oxy]acetic acid", id="ring_boron_through_oxygen_on_an_acid_chain"),
+        pytest.param("OC(=O)COP1(=O)OCCO1", "[(2-oxo-1,3,2λ5-dioxaphospholan-2-yl)oxy]acetic acid", id="ring_phosphorus_oxo_through_oxygen"),
+        pytest.param("OC(=O)CS[Si]1(C)CCCC1", "[(1-methylsilolan-1-yl)sulfanyl]acetic acid", id="ring_silicon_through_sulfur"),
     ],
 )
 def test_substituent_on_a_ring_heteroatom_of_group_13_to_15(smiles, expected):
