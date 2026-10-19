@@ -1413,7 +1413,7 @@ def test_several_identical_cationic_centres(smiles, expected):
         ),
         pytest.param(
             "C[N+](C)(C)CC[N+](C)(C)CC[N+](C)(C)C",
-            "2,2'-(dimethylazaniumdiyl)bis(N,N,N-trimethylethan-1-aminium)",
+            "N1,N1,N1,N2,N2-pentamethyl-N2-[2-(trimethylazaniumyl)ethyl]ethane-1,2-bis(aminium)",
             id="quaternary_ammonium_linker",
         ),
     ],

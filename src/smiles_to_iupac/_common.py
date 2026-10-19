@@ -2014,6 +2014,7 @@ _STANDARD_BONDING = {
 
 # Ion names cite the bonding numbers of their centres themselves, on a neutral parent named by a nested call.
 CITE_SKELETAL_LAMBDA = ContextVar("cite_skeletal_lambda", default=True)
+CATIONIC_AMINES = ContextVar("cationic_amines", default=False)
 KEEP_ASSEMBLY_ENDING = ContextVar("keep_assembly_ending", default=False)
 
 

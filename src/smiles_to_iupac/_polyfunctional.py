@@ -3343,8 +3343,6 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     ):
         if attach is not None:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
-        if any(kind != "isotope" for kind, _, _ in stereo or ()) and any(_skeletal_heteroatom(a) for a in mol.GetAtoms()):
-            raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported beside other heteroatoms yet")
         return _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
 
     if principal is None:
@@ -5216,6 +5214,16 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         and not _labels_on_backbone_only(mol, graph, amine_nitrogens)
         and not _labels_on_alike_nitrogens(mol, graph, [*amine_nitrogens, *primary_nitrogens])
     ):
+        if (
+            len(amine_nitrogens) > 1
+            and primary_nitrogens
+            and not ISOTOPE_LABELS.get()
+            and not SUBSTITUTED_AMINE_PREFIX.get()
+            and not any(a.GetFormalCharge() for a in amine_nitrogens)
+        ):
+            named = _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, [*amine_nitrogens, *primary_nitrogens])
+            if named is not None:
+                return named
         raise UnsupportedStructure("several amine groups with N-substitution are not handled by the chain engine")
     nitrogen = amine_nitrogens[0]
     n_idx = nitrogen.GetIdx()
@@ -5290,16 +5298,16 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             ring = as_prefix[2][5]
             anchor = next(iter(as_prefix[2][4]))
             results.append(
-                (as_prefix[0][0], ring, _ring_rank(mol, anchor), len(as_prefix[2][4]) if not ring else 0, as_prefix, None)
+                (as_prefix[0][0], ring, _ring_rank(mol, anchor), (len(as_prefix[2][4]) if not ring else 0, 0), as_prefix, None)
             )
         if not results:
             raise UnsupportedStructure("no parent carries the amine groups of this substituted amine")
     preferred = PREFERRED_AMINE_ATOM.get()
     results.sort(
         key=lambda r: (
-            r[0], not r[1], r[2], not _is_assembly_result(r[4]), -r[3], r[6] if len(r) > 6 else (),
+            r[0], not r[1], r[2], not _is_assembly_result(r[4]), tuple(-x for x in r[3]), r[6] if len(r) > 6 else (),
             preferred is None or r[5] is None or preferred not in arms[r[5]],
-            r[4][1],
+            _parent_name_rank(r[4][1]),
         )
     )
     best = results[0]
@@ -5355,6 +5363,29 @@ def _hydroxy_or_alkoxy_on_nitrogen(atom):
     )
 
 
+def _parent_name_rank(name):
+    """P-45.2.1-P-45.2.3, P-45.5 for parents equal in every other respect: the name with more prefix locants, then the
+    lower locant set, the lower set in order of citation and the earlier letters wins."""
+    depth, pieces, current = 0, [], ""
+    for char in name:
+        depth += char in "([{"
+        depth -= char in ")]}"
+        if char == "-" and depth == 0:
+            pieces.append(current)
+            current = ""
+        else:
+            current += char
+    locants = []
+    for piece in pieces:
+        if re.fullmatch(r"(?:(?:\d+[a-z]?|N\d*'*),)*(?:\d+[a-z]?|N\d*'*)", piece):
+            locants.extend(piece.split(","))
+
+    def rank(locant):
+        return (0, 0, locant) if locant.startswith("N") else (1, int(re.match(r"\d+", locant).group()), locant)
+
+    return (-len(locants), sorted(map(rank, locants)), [rank(x) for x in locants], alphanumerical_name_key(name), name)
+
+
 def _is_assembly_result(result):
     """Whether the parent of `result` is a ring assembly, whose locants are primed (P-28.2.1)."""
     return any(isinstance(locant, PrimedLocant) for locant in result[2][4].values())
@@ -5405,7 +5436,7 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
 
     if any(
         n.IsInRing() or (n.GetFormalCharge() and not (AMINIUM.get() is True and n.GetFormalCharge() == 1))
-        or n.GetTotalNumHs() > 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
+        or (n.GetTotalNumHs() > 1 and n.GetDegree() > 1) or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
         or any(
             not _hydroxy_or_alkoxy_on_nitrogen(x)
             and not _ring_nitrogen_parent(x)
@@ -5495,35 +5526,24 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
 
 
 def _chain_backbone_groups(mol, graph, nitrogens):
-    """`nitrogens` split into the sets joined through acyclic carbons only: each set holds the amino groups of one chain
-    (P-62.2.4.1.2)."""
+    """`nitrogens` grouped by the acyclic carbon chain they hang on: each set holds the amino groups of one chain
+    (P-62.2.4.1.2); a nitrogen between two chains belongs to both."""
     chain = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
     by_index = {n.GetIdx(): n for n in nitrogens}
-    joined = {first: set() for first in by_index}
-    for first in by_index:
-        reached, stack = {first}, [first]
-        while stack:
-            for nxt in graph[stack.pop()]:
-                if nxt in chain and nxt not in reached:
-                    reached.add(nxt)
-                    stack.append(nxt)
-        for atom in reached:
-            for other in graph[atom]:
-                if other in by_index and other != first:
-                    joined[first].add(other)
-                    joined[other].add(first)
     groups, seen = [], set()
-    for start in by_index:
+    for start in chain:
         if start in seen:
             continue
-        group, stack = set(), [start]
+        component, stack = set(), [start]
         while stack:
-            i = stack.pop()
-            if i not in group:
-                group.add(i)
-                stack.extend(joined[i])
-        seen |= group
-        groups.append([by_index[i] for i in by_index if i in group])
+            atom = stack.pop()
+            if atom not in component:
+                component.add(atom)
+                stack.extend(n for n in graph[atom] if n in chain)
+        seen |= component
+        group = [by_index[i] for i in by_index if any(c in component for c in graph[i])]
+        if group:
+            groups.append(group)
     return groups
 
 
@@ -5589,7 +5609,7 @@ def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, rin
             ring = parent.GetAtomWithIdx(mapped).IsInRing()
             kept = sorted(set(arm) | {n_idx})
             positions = {kept[new]: locant for new, locant in result[2][4].items() if new < len(kept)}
-            ranked = (not ring, _ring_rank(parent, mapped), -_chain_size(parent, mapped), result[1])
+            ranked = (not ring, _ring_rank(parent, mapped), tuple(-x for x in _chain_size(parent, mapped)), result[1])
             candidates.append((ranked, (result[0], result[1], (*result[2][:4], positions, *result[2][5:]))))
     if not candidates:
         raise UnsupportedStructure("no parent carries the amine nitrogen of these N-substituted amines")
@@ -5668,8 +5688,27 @@ def _boranyl_amines(mol, graph, halogens, aromatic_atoms):
 
 @contextlib.contextmanager
 def _renumbered_branch_stereo(kept):
-    """The stereo elements cited inside substituents, renumbered for the molecule made of the sorted atoms `kept`
-    (as `_amine_parent_molecule` renumbers them); what is cited there counts as cited in the whole molecule."""
+    """The stereo elements and supplied prefix names cited inside substituents, renumbered for the molecule made of the
+    sorted atoms `kept` (as `_amine_parent_molecule` renumbers them); what is cited there counts as cited in the whole
+    molecule."""
+    from ._substituents import BRANCH_STEREO, FORCED_BRANCH_NAMES
+
+    forced = FORCED_BRANCH_NAMES.get()
+    if forced is not None and kept and forced[0] > max(kept):
+        index = {old: new for new, old in enumerate(kept)}
+        forced_token = FORCED_BRANCH_NAMES.set((len(kept), {index[a]: name for a, name in forced[1].items() if a in index}))
+    else:
+        forced_token = None
+    try:
+        with _renumbered_stereo(kept):
+            yield
+    finally:
+        if forced_token is not None:
+            FORCED_BRANCH_NAMES.reset(forced_token)
+
+
+@contextlib.contextmanager
+def _renumbered_stereo(kept):
     from ._substituents import BRANCH_STEREO
 
     outer = BRANCH_STEREO.get()
@@ -5730,11 +5769,16 @@ def _ring_rank(mol, idx):
 
 
 def _chain_size(mol, idx):
+    """(length, number of multiple bonds) of the best acyclic carbon chain through `idx` (P-44.3, P-44.4.1.1)."""
     if mol.GetAtomWithIdx(idx).IsInRing():
-        return 0
+        return 0, 0
     graph = adjacency(mol)
     eligible = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
-    return max((len(p) for p in _paths(graph, eligible) if idx in p), default=0)
+
+    def multiple(path):
+        return sum(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() > 1.0 for a, b in zip(path, path[1:]))
+
+    return max(((len(p), multiple(p)) for p in _paths(graph, eligible) if idx in p), default=(0, 0))
 
 
 def _unit_parts(unit, attach, arm):

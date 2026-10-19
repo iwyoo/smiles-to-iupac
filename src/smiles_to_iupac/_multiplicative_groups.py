@@ -190,7 +190,7 @@ def classify(mol):
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in _ALLOWED_ELEMENTS or atom.GetIsotope() or atom.GetNumRadicalElectrons():
             return None
-    from ._amine import CATIONIC_AMINES
+    from ._common import CATIONIC_AMINES
 
     covered = set()
     groups = []

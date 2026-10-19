@@ -310,8 +310,8 @@ def test_phosphoglycerides(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ('C[N+](C)(C)CCOP(O)(=O)OC[C@H](OC(=O)CCCCCCCCCCCCCCC)COC(=O)CCCCCCCCCCCCCCC', '(7R)-7-(hexadecanoyloxy)-4-hydroxy-N,N,N-trimethyl-4,10-dioxo-3,5,9-trioxa-4λ5-phosphapentacosan-1-aminium'),
-        ('C[N+](C)(C)CCOP(O)(=O)OC[C@H](OC(=O)CCCCCCCCCCCCCCC)COC(=O)CCCCCCCCCCCCCCC.[OH-]', '(7R)-7-(hexadecanoyloxy)-4-hydroxy-N,N,N-trimethyl-4,10-dioxo-3,5,9-trioxa-4λ5-phosphapentacosan-1-aminium hydroxide'),
+        ('C[N+](C)(C)CCOP(O)(=O)OC[C@H](OC(=O)CCCCCCCCCCCCCCC)COC(=O)CCCCCCCCCCCCCCC', '2-({[(2R)-2,3-bis(hexadecanoyloxy)propoxy](hydroxy)phosphoryl}oxy)-N,N,N-trimethylethan-1-aminium'),
+        ('C[N+](C)(C)CCOP(O)(=O)OC[C@H](OC(=O)CCCCCCCCCCCCCCC)COC(=O)CCCCCCCCCCCCCCC.[OH-]', '2-({[(2R)-2,3-bis(hexadecanoyloxy)propoxy](hydroxy)phosphoryl}oxy)-N,N,N-trimethylethan-1-aminium hydroxide'),
         ('C[N+](C)(C)CCOP([O-])(=O)OC[C@H](OC(=O)CCCCCCCCCCCCCCC)COC(=O)CCCCCCCCCCCCCCC', '(2R)-2,3-bis(hexadecanoyloxy)propyl 2-(trimethylazaniumyl)ethyl phosphate'),
         ('C[N+](C)(C)CCOP([O-])(=O)OC[C@@H](O)COC(=O)CCCCCCCCCCCCCCC', '(2S)-3-(hexadecanoyloxy)-2-hydroxypropyl 2-(trimethylazaniumyl)ethyl phosphate'),
         ('CCCCCCCCCCCCCCCCOC[C@H](OC(C)=O)COP([O-])(=O)OCC[N+](C)(C)C', '(2S)-2-(acetyloxy)-3-(hexadecyloxy)propyl 2-(trimethylazaniumyl)ethyl phosphate'),

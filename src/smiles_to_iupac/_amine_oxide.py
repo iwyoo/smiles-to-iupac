@@ -53,7 +53,7 @@ def has_amine_oxide_shape(mol) -> bool:
 
 
 def name_amine_oxide(mol) -> str:
-    from ._amine import name_amine
+    from ._polyfunctional import name_polyfunctional
 
     nitrogens = _oxide_nitrogens(mol)
     if len(nitrogens) > 1:
@@ -98,11 +98,11 @@ def name_amine_oxide(mol) -> str:
         reduced_mol,
         {i: i + (i >= oxide_oxygen.GetIdx()) for i in range(reduced_mol.GetNumAtoms())},
     )
+    if nitrogen.IsInRing():
+        raise UnsupportedStructure("the ring of an oxidized ring nitrogen is the parent of its N-oxide (P-62.5)")
     try:
-        base_name = name_amine(reduced_mol)
+        base_name = name_polyfunctional(reduced_mol)
     except UnsupportedStructure:
-        if nitrogen.IsInRing():
-            raise
         base_name = _name_with_nitrile_prefix(reduced_mol)
     return f"{with_unlocated_descriptor(base_name, nitrogen_code)} N-{class_word}"
 

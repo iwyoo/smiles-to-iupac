@@ -97,7 +97,6 @@ import re
 
 from rdkit import Chem
 
-from ._amine import amines_in_suffix, name_amine
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._common import UnsupportedStructure
 from ._oxonium import has_oxonium_shape, name_oxonium
@@ -204,16 +203,12 @@ def _ylium_yl_radical(mol):
     if neutral is None:
         return None
 
-    try:
-        with amines_in_suffix():
-            neutral_name = name_amine(neutral)
-    except UnsupportedStructure:
-        from .core import smiles_to_iupac
+    from .core import smiles_to_iupac
 
-        try:
-            neutral_name = smiles_to_iupac(Chem.MolToSmiles(neutral))
-        except UnsupportedStructure:
-            return None
+    try:
+        neutral_name = smiles_to_iupac(Chem.MolToSmiles(neutral))
+    except UnsupportedStructure:
+        return None
     if not neutral_name.endswith(("amide", "amine", "imine", "aniline")):
         return None
     # P-73.2.3.2: a nitrogen with two missing valences is the hydride-loss cation (acetamidylium); the third is a radical
