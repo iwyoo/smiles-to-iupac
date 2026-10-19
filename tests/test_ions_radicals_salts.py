@@ -2002,6 +2002,8 @@ def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expecte
         pytest.param("N#[N+]c1ccc(cc1)Oc1ccc(cc1)[N+]#N", "4,4'-oxybis(benzenediazonium)", id="diazonium_rings_joined_by_a_linker"),
         pytest.param("N#[N+]c1ccc(cc1)C(=O)c1ccc(cc1)[N+]#N", "4,4'-carbonylbis(benzenediazonium)", id="cations_outrank_a_ketone_linker"),
         pytest.param("[NH3+]c1ccc(cc1)C(=O)c1ccc(cc1)[NH3+]", "4,4'-carbonylbis(anilinium)", id="aminium_rings_joined_by_a_carbonyl"),
+        pytest.param("N#[N+]c1ccc(cc1)C(=O)OCC[N+]#N", "4-{[2-(diazyn-1-ium-1-yl)ethoxy]carbonyl}benzenediazonium", id="diazonium_in_the_alkoxy_of_an_ester"),
+        pytest.param("N#[N+]c1ccc(cc1)C(=O)Oc1ccc(cc1)[N+]#N", "4-{[4-(diazyn-1-ium-1-yl)benzoyl]oxy}benzenediazonium", id="diazonium_in_the_acyl_of_an_ester"),
         pytest.param("O=C(c1ccccc1)N[N+](C)(C)C", "N',N',N'-trimethylbenzohydrazid-N'-ium", id="hydrazide_ium"),
     ],
 )

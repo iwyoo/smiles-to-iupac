@@ -130,6 +130,18 @@ def nitroso_atoms(mol):
 _CARBOXYLIC_CLASS = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N)]")
 
 
+def _restore_cation(editable, index):
+    """The cationic amine that a surrogate name stands for: the diazonium group N#N+ or the ammonium group."""
+    atom = editable.GetAtomWithIdx(index)
+    atom.SetFormalCharge(1)
+    atom.SetNoImplicit(True)
+    if atom.HasProp("_diazonium_surrogate"):
+        atom.SetNumExplicitHs(0)
+        editable.AddBond(index, editable.AddAtom(Chem.Atom(7)), Chem.BondType.TRIPLE)
+    else:
+        atom.SetNumExplicitHs(atom.GetTotalNumHs() + 1)
+
+
 def _acyl_prefix(mol, subtree, root, parent):
     """'-yl' name of the acyl group rooted at `root`, from its parent acid's name."""
     from .core import smiles_to_iupac
@@ -144,8 +156,11 @@ def _acyl_prefix(mol, subtree, root, parent):
     restore_labels(rw, mol, labelled)
     new_o = rw.AddAtom(Chem.Atom(8))
     rw.AddBond(root, new_o, Chem.BondType.SINGLE)
+    cationic_amines = [a for a in subtree if mol.GetAtomWithIdx(a).HasProp("_cationic_amine") and not mol.GetAtomWithIdx(a).GetFormalCharge()]
+    for index in cationic_amines:
+        _restore_cation(rw, index)
     # an ammonium group in the acid outranks it as a parent, so the acid is named as its anion beside the cation
-    zwitterion = any(mol.GetAtomWithIdx(a).GetFormalCharge() > 0 for a in subtree)
+    zwitterion = bool(cationic_amines) or any(mol.GetAtomWithIdx(a).GetFormalCharge() > 0 for a in subtree)
     if zwitterion:
         rw.GetAtomWithIdx(new_o).SetFormalCharge(-1)
     for idx in sorted(set(range(mol.GetNumAtoms())) - subtree, reverse=True):
