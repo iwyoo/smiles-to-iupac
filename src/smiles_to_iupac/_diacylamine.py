@@ -13,19 +13,21 @@ from ._ring_system_seniority import ring_seniority_key
 from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS, name_branch
 
 
-def _acyl_roots(mol, nitrogen):
-    """Neighbours of `nitrogen` that are the carbon of a carboxylic acyl group or the sulfur of a sulfonyl or sulfinyl group."""
+def _acyl_roots(mol, nitrogen, carbon_chalcogens=(8,)):
+    """Neighbours of `nitrogen` that are the carbon of an acyl group whose double bond goes to one of `carbon_chalcogens`
+    or the sulfur of a sulfonyl or sulfinyl group."""
     roots = []
     for n in nitrogen.GetNeighbors():
-        if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 or n.IsInRing():
             continue
         others = [m for m in n.GetNeighbors() if m.GetIdx() != nitrogen.GetIdx()]
-        doubly = [m for m in others if m.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(n.GetIdx(), m.GetIdx()).GetBondTypeAsDouble() == 2.0]
+        elements = carbon_chalcogens if n.GetAtomicNum() == 6 else (8,)
+        doubly = [m for m in others if m.GetAtomicNum() in elements and mol.GetBondBetweenAtoms(n.GetIdx(), m.GetIdx()).GetBondTypeAsDouble() == 2.0]
         rest = [m for m in others if m not in doubly]
-        if n.GetAtomicNum() == 6 and len(doubly) == 1 and not n.IsInRing():
+        if n.GetAtomicNum() == 6 and len(doubly) == 1:
             if (not rest and n.GetTotalNumHs() == 1) or (len(rest) == 1 and rest[0].GetAtomicNum() == 6):
                 roots.append(n.GetIdx())
-        elif n.GetAtomicNum() == 16 and len(doubly) in (1, 2) and len(rest) == 1 and rest[0].GetAtomicNum() == 6 and not n.IsInRing():
+        elif n.GetAtomicNum() == 16 and len(doubly) in (1, 2) and len(rest) == 1 and rest[0].GetAtomicNum() == 6:
             roots.append(n.GetIdx())
     return roots
 

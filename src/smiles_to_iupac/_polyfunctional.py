@@ -7019,7 +7019,26 @@ def _carbamoyl_on(mol, atom, nitrogen):
         and not amino[0].GetFormalCharge()
         and not amino[0].IsInRing()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), amino[0].GetIdx()).GetBondTypeAsDouble() == 1.0
-        and _plain_nitrogen_substituents(mol, amino[0], atom.GetIdx())
+        and (_plain_nitrogen_substituents(mol, amino[0], atom.GetIdx()) or _plain_hydrazinyl(mol, amino[0], atom.GetIdx()))
+    )
+
+
+def _plain_hydrazinyl(mol, nitrogen, origin):
+    """Whether `nitrogen` is the first nitrogen of a hydrazinyl group whose every substituent is a plain carbon group."""
+    partners = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != origin and n.GetAtomicNum() == 7]
+    if len(partners) != 1:
+        return False
+    (partner,) = partners
+    return (
+        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), partner.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not partner.GetFormalCharge()
+        and not partner.IsInRing()
+        and _plain_nitrogen_substituents(mol, partner, nitrogen.GetIdx())
+        and all(
+            n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx())
+            for n in nitrogen.GetNeighbors()
+            if n.GetIdx() not in (origin, partner.GetIdx())
+        )
     )
 
 

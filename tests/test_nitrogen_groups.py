@@ -754,6 +754,7 @@ def test_phenyl_chain_hydrazide_ring_halogen():
     [
         ("CC(=O)NNC(=O)C", "N'-acetylacetohydrazide"),
         ("CCC(=O)NNC(=O)CC", "N'-propanoylpropanehydrazide"),
+        ("CC(=S)NNC(=O)C", "N'-(ethanethioyl)acetohydrazide"),
     ],
 )
 def test_symmetric_diacyl_hydrazide(smiles, expected):
@@ -766,6 +767,8 @@ def test_symmetric_diacyl_hydrazide(smiles, expected):
         pytest.param("CC(=O)NNC(=O)NC", "N'-(methylcarbamoyl)acetohydrazide", id="carbamoyl_on_terminal_hydrazide_nitrogen"),
         pytest.param("c1ccccc1C(=O)NNC(=S)Nc1ccccc1", "N'-(phenylcarbamothioyl)benzohydrazide", id="carbamothioyl_keeps_the_carboxylic_hydrazide_parent"),
         pytest.param("CC(=S)NNC(N)=O", "N'-carbamoylethanethiohydrazide", id="thiohydrazide_with_carbamoyl"),
+        pytest.param("CC(=O)NNC(=S)NN", "N'-(hydrazinecarbothioyl)acetohydrazide", id="hydrazinyl_on_the_carbamothioyl_nitrogen"),
+        pytest.param("NNC(=O)CCC(=S)NN", "4-hydrazinyl-4-sulfanylidenebutanehydrazide", id="oxygen_hydrazide_is_the_parent_beside_a_thiohydrazide"),
     ],
 )
 def test_hydrazide_with_carbamoyl_or_carbamothioyl_on_the_terminal_nitrogen(smiles, expected):
