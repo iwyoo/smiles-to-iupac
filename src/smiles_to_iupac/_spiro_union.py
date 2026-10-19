@@ -22,12 +22,14 @@ from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
 from ._von_baeyer_heteroatom import _replacement_multiplied_word
 
 _PRIME = "′"
-_STANDARD = {5: 3, 7: 3, 8: 2, 15: 3, 16: 2, 33: 3, 34: 2, 51: 3, 52: 2, 83: 3}
+_STANDARD = {5: 3, 7: 3, 8: 2, 13: 3, 15: 3, 16: 2, 31: 3, 33: 3, 34: 2, 49: 3, 51: 3, 52: 2, 81: 3, 83: 3}
+_GROUP_13 = {5, 13, 31, 49, 81}
 _GROUP_14 = {6, 14, 32, 50, 82}
+_GROUP_15_PARENT = {15, 33, 51, 83}
 _HALOGENS = {9, 17, 35, 53}
 _A_PREFIX = {
     8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza", 15: "phospha", 33: "arsa", 51: "stiba", 83: "bisma",
-    14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora",
+    14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "alumina", 31: "galla", 49: "indiga", 81: "thalla",
 }
 _MAX_HANTZSCH_WIDMAN_SIZE = 10
 _MIN_FUSION_RING = 5
@@ -151,14 +153,21 @@ def _bracket_locants(name):
     return f"[{match.group(1)}]{match.group(2)}" if match else name
 
 
-def _monocycle(sub, atoms, mol, force_replacement):
-    multiple = [
+def _multiple_bonds(mol, sub, atoms):
+    """(atom, atom, order) of the double and triple bonds of the skeleton `sub`, read from the Kekule structure of `mol`."""
+    kekule = mol
+    if any(b.GetIsAromatic() for b in mol.GetBonds()):
+        kekule = Chem.Mol(mol)
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+    return [
         (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order)
         for bond in sub.GetBonds()
-        if (order := mol.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble()) != 1.0
+        if (order := kekule.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble()) != 1.0
     ]
-    if any(order not in (2.0, 3.0) for _, _, order in multiple):
-        raise UnsupportedStructure("a fractional bond order of a spiro component has no ene or yne locant")
+
+
+def _monocycle(sub, atoms, mol, force_replacement):
+    multiple = _multiple_bonds(mol, sub, atoms)
     double = {frozenset((a, b)) for a, b, order in multiple if order == 2.0}
     hetero = any(a.GetAtomicNum() != 6 for a in sub.GetAtoms())
     replacement = hetero and (
@@ -247,14 +256,7 @@ def _von_baeyer(sub):
 
 def _von_baeyer_ene(mol, sub, atoms, locants):
     """Locants of the double bonds of a von Baeyer spiro component under one numbering (P-31.1.5.2.1)."""
-    pairs = [
-        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order)
-        for bond in sub.GetBonds()
-        if (order := mol.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble()) != 1.0
-    ]
-    if any(order not in (2.0, 3.0) for _, _, order in pairs):
-        raise UnsupportedStructure("a fractional bond order of a von Baeyer spiro component has no ene or yne locant")
-    return unsaturation_locants(pairs, locants)
+    return unsaturation_locants(_multiple_bonds(mol, sub, atoms), locants)
 
 
 def _adamantane_component(mol, comp, atoms, orders, spiro_atoms):
@@ -313,8 +315,8 @@ def _component(mol, comp, force_replacement, spiro_atoms=frozenset()):
 def _bonding_number(atom):
     z = atom.GetAtomicNum()
     standard = 4 if z in _GROUP_14 else _STANDARD.get(z)
-    anion = z == 5 and atom.GetFormalCharge() == -1
-    valence = atom.GetTotalValence() + (atom.GetFormalCharge() if anion else 0)
+    anion = atom.GetFormalCharge() == -1
+    valence = atom.GetTotalValence() + (atom.GetFormalCharge() if z in _GROUP_13 else -atom.GetFormalCharge() if anion else 0)
     if standard is None or z not in _A_PREFIX or (atom.GetFormalCharge() and not anion) or valence < standard or (valence - standard) % 2:
         raise UnsupportedStructure("this skeletal replacement heteroatom is not supported")
     return valence if valence > standard else None
@@ -370,8 +372,8 @@ def _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds):
     Chem.Kekulize(kekule, clearAromaticFlags=True)
     doubled = set()
     for bond in kekule.GetBonds():
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         if bond.GetBondTypeAsDouble() == 2.0:
-            a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
             if bond.GetIdx() in monocyclic_bonds:
                 continue
             if not bond.IsInRing() and a not in capable and b not in capable:
@@ -379,11 +381,8 @@ def _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds):
             if a not in capable or b not in capable or bond.GetIdx() not in polycyclic_bonds:
                 raise UnsupportedStructure("a double bond outside the polycyclic spiro components is not supported yet")
             doubled |= {a, b}
-        elif bond.GetBondTypeAsDouble() == 3.0:
-            if bond.GetIdx() not in monocyclic_bonds and (bond.IsInRing() or a in capable or b in capable):
-                raise UnsupportedStructure("a triple bond outside the monocyclic and von Baeyer spiro components is not supported yet")
-        elif bond.GetBondTypeAsDouble() != 1.0:
-            raise UnsupportedStructure("a fractional bond order of a spiro system has no ene or yne locant")
+        elif bond.GetBondTypeAsDouble() == 3.0 and bond.GetIdx() in polycyclic_bonds:
+            doubled |= {a, b}
     saturated = capable - doubled
     graph = nx.Graph()
     graph.add_nodes_from(capable)
@@ -428,8 +427,11 @@ def _spiro_atom(mol, spiro):
         return None, False
     if z in _GROUP_14 and not charge and atom.GetTotalValence() == 4:
         return None, False
-    if z == 5 and charge == -1 and atom.GetTotalValence() == 4:
-        return None, False
+    if charge == -1 and atom.GetTotalValence() == 4 and not atom.GetNumRadicalElectrons():
+        if z in _GROUP_13:
+            return None, False
+        if z in _GROUP_15_PARENT:
+            return 5, False
     if z not in _STANDARD or charge not in (0, 1):
         raise UnsupportedStructure("this charged or nonstandard spiro atom has no suffix that expresses it")
     bonding = atom.GetTotalValence() + charge

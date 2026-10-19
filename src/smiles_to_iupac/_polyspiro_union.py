@@ -5,6 +5,7 @@ monocyclic units and, beyond those, the largest nameable system as a unit (P-24.
 same search numbers the system for suffix groups (P-31.1.4).
 """
 
+import contextlib
 import re
 from collections import defaultdict
 from itertools import permutations, product
@@ -19,6 +20,7 @@ from ._numerals import alkane_name, multiplying_prefix, numerical_term
 from ._pin import mark
 from ._polyspiro import _arc_choice_options, _build_sequence, _chain_direction_candidates
 from ._spiro_union import (
+    _GROUP_13,
     _HALOGENS,
     SpiroLocant,
     _bonding_number,
@@ -34,7 +36,7 @@ from ._spiro_union import (
     TRIPLE_MARK,
     unsaturation_locants,
 )
-from ._substituents import format_substituent_prefixes
+from ._substituents import cited_branch_stereo, format_substituent_prefixes
 
 _MAX_ASSIGNMENTS = 200000
 
@@ -213,7 +215,18 @@ def _shape(spiro, count):
 
 def has_spiro_union_shape(mol, atoms=None) -> bool:
     structure = _structure(mol, atoms)
-    return structure is not None and _shape(structure[1], len(structure[0]))[0] is not None
+    if structure is None or _shape(structure[1], len(structure[0]))[0] is None:
+        return False
+    return atoms is not None or not _carries_principal_group(mol, structure[0])
+
+
+def _carries_principal_group(mol, comps):
+    """Whether a group other than a halogen stands on a spiro union that has no cationic spiro atom: the group is then
+    the principal characteristic group of the suffix route (P-41); a cation is the parent and the group a prefix."""
+    scope = set().union(*(c["atoms"] for c in comps))
+    if any(a.GetFormalCharge() == 1 and a.GetDegree() == 4 and a.GetIdx() in scope for a in mol.GetAtoms()):
+        return False
+    return any(a.GetIdx() not in scope and a.GetAtomicNum() != 6 and a.GetAtomicNum() not in _HALOGENS for a in mol.GetAtoms())
 
 
 def _unique(orders):
@@ -430,12 +443,6 @@ def _analyse(mol, atoms=None, outer=frozenset()):
     inside = [a for a in mol.GetAtoms() if atoms is None or a.GetIdx() in scope]
     if any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in inside):
         raise UnsupportedStructure("isotopes and radicals of a spiro union are not supported yet")
-    if any(
-        b.GetStereo() != Chem.BondStereo.STEREONONE and not b.IsInRing()
-        for b in mol.GetBonds()
-        if atoms is None or (b.GetBeginAtomIdx() in scope and b.GetEndAtomIdx() in scope)
-    ):
-        raise UnsupportedStructure("double-bond stereo outside the rings of a spiro union is cited by the substituent route")
     info = {s: _spiro_atom(mol, s) for s in spiro}
     outer_atoms = set(spiro)
     named = []
@@ -451,10 +458,6 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             info.update(n["sub"].info)
             ambiguous = ambiguous or n["sub"].ambiguous
     cationic = [s for s, (_, charged) in info.items() if charged]
-    if atoms is None and not cationic:
-        for a in mol.GetAtoms():
-            if a.GetIdx() not in scope and a.GetAtomicNum() != 6 and a.GetAtomicNum() not in _HALOGENS:
-                raise UnsupportedStructure("a spiro union with a principal characteristic group is not supported yet")
 
     forced = set()
     for s, members in spiro.items():
@@ -518,6 +521,11 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             # indicated hydrogen of the spiro atom
             capable.add(s)
 
+    triples = [
+        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+        for bond in _kekule(mol).GetBonds()
+        if bond.GetBondTypeAsDouble() == 3.0 and bond.GetIdx() in polycyclic_bonds
+    ]
     lam_members = defaultdict(list)
     for s in [*info, *extra_lambda]:
         lam_members[s] = [i for i, c in enumerate(comps) if s in c["atoms"]]
@@ -538,10 +546,11 @@ def _analyse(mol, atoms=None, outer=frozenset()):
         projections[i] = table
     return SimpleNamespace(
         comps=comps, spiro=spiro, info=info, cationic=cationic,
-        anionic=[s for s in spiro if mol.GetAtomWithIdx(s).GetFormalCharge() < 0], named=named, inner=inner, names=names, spiro_in=spiro_in,
+        anionic=[s for s in spiro if mol.GetAtomWithIdx(s).GetFormalCharge() < 0], named=named,
+        anion_word={s: "uide" if mol.GetAtomWithIdx(s).GetAtomicNum() in _GROUP_13 else "ide" for s in spiro}, inner=inner, names=names, spiro_in=spiro_in,
         capable=capable, polycyclic_bonds=polycyclic_bonds, monocyclic_bonds=monocyclic_bonds,
         replacement_atoms=replacement_atoms, layouts=layouts, projections=projections, scope=scope,
-        lam_members=lam_members, own_hetero=own_hetero, ambiguous=ambiguous, extra_lambda=extra_lambda,
+        lam_members=lam_members, own_hetero=own_hetero, ambiguous=ambiguous, extra_lambda=extra_lambda, triples=triples,
         widths=[c.get("width", 1) for c in comps],
     )
 
@@ -644,10 +653,10 @@ def _ending_text(ene, ending):
             locants = found[1]
             text += f"-{','.join(locants)}-" + ("ylium" if len(locants) == 1 else f"{_BIS[len(locants)]}(ylium)")
             initial = initial or ("y" if len(locants) == 1 else "b")
-        elif found[0] == "uide":
-            locants = found[1]
-            text += f"-{','.join(locants)}-" + ("uide" if len(locants) == 1 else f"{multiplying_prefix(len(locants))}uide")
-            initial = initial or "u"
+        elif found[0] in ("ide", "uide"):
+            kind, locants = found
+            text += f"-{','.join(locants)}-" + (kind if len(locants) == 1 else f"{multiplying_prefix(len(locants))}{kind}")
+            initial = initial or kind[0]
         else:
             _, word, locants, added = found
             added_text = f"({','.join(f'{a}H' for a in added)})" if added else ""
@@ -771,9 +780,25 @@ def _compose(ctx, mol, sol, indicated, hydro, prefixes, ending):
     return out
 
 
-def _doubled_atoms(mol):
+def _kekule(mol):
     kekule = Chem.Mol(mol)
     Chem.Kekulize(kekule, clearAromaticFlags=True)
+    return kekule
+
+
+def _dehydro_locants(ctx, locant_of):
+    """Locants of the atoms of the ring triple bonds of fused components, which the mancude parent carries as double
+    bonds and the prefix 'didehydro' reduces (P-31.1.4.2.4)."""
+    return sorted((locant_of[a] for pair in ctx.triples for a in pair), key=_lk)
+
+
+def _hydro_prefixes(dehydro, hydro_text):
+    dehydro_text = f"{','.join(dehydro)}-{multiplied_word(len(dehydro), 'dehydro')}" if dehydro else ""
+    return "-".join(text for text in (dehydro_text, hydro_text) if text)
+
+
+def _doubled_atoms(mol):
+    kekule = _kekule(mol)
     return {
         atom
         for bond in kekule.GetBonds()
@@ -789,16 +814,27 @@ def _mark_ambiguous(ctx, name):
 
 
 def name_spiro_union(mol) -> str:
-    from ._ylium_ring import _prefixes
-
     ctx = _analyse(mol)
     graph = adjacency(mol)
     cited = _with_anion_prefixes(mol, ctx)
     ring_atoms = ctx.scope
     saturated, choices = _hydrogen_choices(mol, ctx.capable, ctx.polycyclic_bonds, ctx.monocyclic_bonds)
-    from ._common import specified_stereocenters
+    from ._common import specified_stereocenters, specified_stereo_elements
 
     centres = specified_stereocenters(mol) or []
+    roots = [n for a in ring_atoms for n in graph[a] if n not in ring_atoms]
+    branches = cited_branch_stereo(mol, graph, ring_atoms, roots) if specified_stereo_elements(mol) else contextlib.nullcontext()
+    with branches:
+        best = _best_numbering(ctx, mol, graph, cited, ring_atoms, saturated, choices, centres)
+    if best is None:
+        raise UnsupportedStructure("this spiro union has no supported numbering")
+    _, sol, picked, grouped = best
+    return _finish(ctx, mol, cited, sol, picked, grouped, saturated)
+
+
+def _best_numbering(ctx, mol, graph, cited, ring_atoms, saturated, choices, centres):
+    from ._ylium_ring import _prefixes
+
     best = None
     for sol in _solutions(ctx, mol):
         locant_of = sol.locant_of
@@ -814,21 +850,23 @@ def name_spiro_union(mol) -> str:
             ),
             key=lambda c: (c[0], c[1]),
         )
-        unsaturation = sorted(choice[1] + [_lk(x) for x in sol.ene])
+        dehydro_key = [_lk(l) for l in _dehydro_locants(ctx, locant_of)]
+        unsaturation = sorted(choice[1] + [_lk(x) for x in sol.ene] + dehydro_key)
         configuration = tuple(0 if code in "Rr" else 1 for _, code in sorted(((_lk(locant_of[a]), code) for a, code in centres if a in locant_of)))
-        key = (*_ranked(ctx, mol, sol), choice[0], unsaturation, locant_set, citation_prefix, configuration)
+        key = (*_ranked(ctx, mol, sol), choice[0], unsaturation, dehydro_key, locant_set, citation_prefix, configuration)
         if best is None or key < best[0]:
             best = (key, sol, choice[2], grouped)
-    if best is None:
-        raise UnsupportedStructure("this spiro union has no supported numbering")
-    _, sol, picked, grouped = best
+    return best
+
+
+def _finish(ctx, mol, cited, sol, picked, grouped, saturated):
     locant_of = sol.locant_of
     indicated = ",".join(f"{locant_of[a]}H" for a in sorted(picked, key=lambda a: _lk(locant_of[a])))
     hydro_atoms = sorted(saturated - picked, key=lambda a: _lk(locant_of[a]))
     hydro = f"{','.join(locant_of[a] for a in hydro_atoms)}-{multiplied_word(len(hydro_atoms), 'hydro')}" if hydro_atoms else ""
     prefixes = format_substituent_prefixes(grouped) if grouped else ""
     ending = _ionic_endings(ctx, sol) or None
-    name = _compose(ctx, mol, sol, indicated, hydro, prefixes, ending)
+    name = _compose(ctx, mol, sol, indicated, _hydro_prefixes(_dehydro_locants(ctx, locant_of), hydro), prefixes, ending)
     if cited is not mol:
         name = mark(name, "an anionic group outranks the cationic spiro atom as the parent, whose name carries it as a suffix (P-74.0)")
     return _spiro_descriptor(mol, locant_of, _mark_ambiguous(ctx, name))
@@ -857,7 +895,11 @@ def _with_anion_prefixes(mol, ctx):
 def _ionic_endings(ctx, sol):
     """The cumulative 'ylium' and 'uide' suffixes of the charged spiro atoms, cationic ones first (P-74.1.1)."""
     endings = []
-    for kind, atoms in (("ylium", ctx.cationic), ("uide", ctx.anionic)):
+    for kind, atoms in (
+        ("ylium", ctx.cationic),
+        ("ide", [s for s in ctx.anionic if ctx.anion_word[s] == "ide"]),
+        ("uide", [s for s in ctx.anionic if ctx.anion_word[s] == "uide"]),
+    ):
         if atoms:
             locants = sorted(
                 (min((_primed(sol.assignment[m][0][s], sol.prime_of[m]) for m in ctx.spiro[s]), key=_lk) for s in atoms), key=_lk
@@ -881,11 +923,14 @@ def _spiro_descriptor(mol, locant_of, name):
         else:
             bond = mol.GetBondWithIdx(index)
             atoms = (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
-        if any(atom not in locant_of for atom in atoms):
-            raise UnsupportedStructure("a specified stereo element outside the rings of a spiro union is not supported yet")
-        locants = sorted((locant_of[atom] for atom in atoms), key=_lk)
-        locant = locants[0] if kind == "atom" or _lk(locants[1])[0] == _lk(locants[0])[0] + 1 else f"{locants[0]}({locants[1]})"
+        ring = [atom for atom in atoms if atom in locant_of]
+        if not ring:
+            continue
+        locants = sorted((locant_of[atom] for atom in ring), key=_lk)
+        locant = locants[0] if len(ring) == 1 or _lk(locants[1])[0] == _lk(locants[0])[0] + 1 else f"{locants[0]}({locants[1]})"
         cited.append((locants[0], f"{locant}{code}"))
+    if not cited:
+        return name
     cited.sort(key=lambda item: _lk(item[0]))
     return f"({','.join(text for _, text in cited)})-{name}"
 
@@ -898,8 +943,6 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
     atoms = set(skeleton_atoms)
     ctx = _analyse(mol, atoms)
     _mark_ambiguous(ctx, "")
-    if ctx.cationic and not any(a.HasProp("_anion") for a in mol.GetAtoms()):
-        raise UnsupportedStructure("a cation outranks the neutral suffix groups of a spiro union, which are cited as prefixes")
     kekule = Chem.Mol(mol)
     Chem.Kekulize(kekule, clearAromaticFlags=True)
     doubled = set()
@@ -913,11 +956,8 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
             if a not in ctx.capable or b not in ctx.capable or bond.GetIdx() not in ctx.polycyclic_bonds:
                 raise UnsupportedStructure("a double bond outside the polycyclic spiro components is not supported yet")
             doubled |= {a, b}
-        elif bond.GetBondTypeAsDouble() == 3.0:
-            if bond.GetIdx() not in ctx.monocyclic_bonds:
-                raise UnsupportedStructure("a triple bond outside the monocyclic and von Baeyer spiro components is not supported yet")
-        elif bond.GetBondTypeAsDouble() != 1.0:
-            raise UnsupportedStructure("a fractional bond order of a spiro system has no ene or yne locant")
+        elif bond.GetBondTypeAsDouble() == 3.0 and bond.GetIdx() in ctx.polycyclic_bonds:
+            doubled |= {a, b}
     saturated = ctx.capable - doubled
     skeleton = nx.Graph()
     skeleton.add_nodes_from(ctx.capable)
@@ -942,6 +982,7 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
         if split is None:
             continue
         ih, added, hydro = split
+        dehydro = sorted(position_of[a] for pair in ctx.triples for a in pair)
 
         def text(locants, valence, substituted=frozenset(), suffix="yl", sol=sol, ih=ih, added=added, hydro=hydro):
             if suffix == "":
@@ -949,9 +990,16 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
             elif suffix == "carboxylate":
                 raise UnsupportedStructure("a carboxylate suffix on a spiro union is not supported yet")
             else:
-                word = _yl(valence) if suffix == "yl" else multiplied_word(valence, suffix)
-                ending = [*_ionic_endings(ctx, sol), ("suffix", word, sorted(locants), added)]
+                ending = _ionic_endings(ctx, sol)
+                if suffix == "ylium":
+                    cited = {text for kind, found, *_ in ending if kind == "ylium" for text in found}
+                    centres = sorted({*cited, *map(str, locants)}, key=_lk)
+                    ending = [("ylium", centres), *(e for e in ending if e[0] != "ylium")]
+                else:
+                    word = _yl(valence) if suffix == "yl" else multiplied_word(valence, suffix)
+                    ending = [*ending, ("suffix", word, sorted(locants), added)]
             hydro_text = f"{_locs(hydro)}-{multiplied_word(len(hydro), 'hydro')}" if hydro else ""
+            hydro_text = _hydro_prefixes(_dehydro_locants(ctx, sol.locant_of), hydro_text)
             indicated = ",".join(f"{p}H" for p in ih)
             return _compose(ctx, mol, sol, indicated, hydro_text, "", ending)
 
@@ -959,7 +1007,12 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
             position_of,
             text,
             pre_key=(*_ranked(ctx, mol, sol), ih),
-            unsat_key=(tuple(sorted(SpiroLocant(re.match(r"\d+\u2032*[a-z]*\d*", x).group()) for x in sol.ene)), added, hydro),
+            unsat_key=(
+                tuple(sorted(SpiroLocant(re.match(r"\d+\u2032*[a-z]*\d*", x).group()) for x in sol.ene)),
+                added,
+                tuple(sorted((*hydro, *dehydro))),
+                tuple(dehydro),
+            ),
             ih=ih,
         )
         numbering.hydro, numbering.added = tuple(hydro), tuple(added)
