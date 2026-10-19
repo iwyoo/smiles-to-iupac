@@ -41,7 +41,7 @@ def _carbonyl_with_heteroatom(mol, idx):
 
 
 def _insert_before_ending(anion, text):
-    for ending in ("oate", "ate"):
+    for ending in ("oate", "sulfonate", "sulfinate", "ate"):
         if anion.endswith(ending):
             return anion[: -len(ending)] + text + ending
     raise UnsupportedStructure("the ester ending is not delimited")

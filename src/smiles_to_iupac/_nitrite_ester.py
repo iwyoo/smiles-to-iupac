@@ -100,4 +100,4 @@ def name_nitrite_ester(mol) -> str:
 
     (root,) = [n for n in graph[ester_oxygen_idx] if n != nitrogen.GetIdx()]
     ((name, _),) = cited_ester_groups(mol, graph, [(root, ester_oxygen_idx)], halogens, aromatic_atoms)
-    return f"{format_ester_words([name])} {centre_nuclides(nitrogen.GetIdx())}nitrite"
+    return f"{format_ester_words([name])} {centre_nuclides(nitrogen.GetIdx(), oxygens=True)}nitrite"

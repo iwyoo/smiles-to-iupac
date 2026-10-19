@@ -125,7 +125,7 @@ def name_nitrate_ester(mol) -> str:
     (root,) = [n for n in graph[ester_oxygen_idx] if n != nitrogen.GetIdx()]
     ((name, _),) = cited_ester_groups(mol, graph, [(root, ester_oxygen_idx)], halogens, aromatic_atoms)
     word, symbol = _ESTER_ATOMS[mol.GetAtomWithIdx(ester_oxygen_idx).GetAtomicNum()]
-    nuclide = centre_nuclides(nitrogen.GetIdx())
+    nuclide = centre_nuclides(nitrogen.GetIdx(), oxygens=True)
     if word:
         return f"{symbol}-{format_ester_words([name])} {word}{nuclide}nitrate"
     return f"{format_ester_words([name])} {nuclide}nitrate"
