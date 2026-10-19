@@ -816,17 +816,20 @@ _CENTRE_PREFIX_STEM = {
 }
 
 
-def _terminal_oxygen_nuclides(mol, centre, labels):
-    """{atom: label entry} of the terminal oxygens of `centre` that carry a nuclide of their own."""
-    return {
-        n.GetIdx(): labels[n.GetIdx()]
-        for n in mol.GetAtomWithIdx(centre).GetNeighbors()
-        if n.GetAtomicNum() == 8
-        and n.GetDegree() == 1
-        and n.GetIdx() in labels
-        and labels[n.GetIdx()]["skeleton"]
-        and not labels[n.GetIdx()]["H"]
-    }
+def _terminal_oxygen_nuclides(mol, centre, labels, peroxy=False):
+    """{atom: label entry} of the terminal oxygens of `centre` that carry a nuclide of their own; with `peroxy` the two
+    oxygens of a hydroperoxy group on `centre` count as well."""
+    oxygens = []
+    for n in mol.GetAtomWithIdx(centre).GetNeighbors():
+        if n.GetAtomicNum() != 8:
+            continue
+        if n.GetDegree() == 1:
+            oxygens.append(n.GetIdx())
+        elif peroxy and n.GetDegree() == 2 and not n.GetTotalNumHs():
+            far = next(m for m in n.GetNeighbors() if m.GetIdx() != centre)
+            if far.GetAtomicNum() == 8 and far.GetDegree() == 1:
+                oxygens += [n.GetIdx(), far.GetIdx()]
+    return {a: labels[a] for a in oxygens if a in labels and labels[a]["skeleton"] and not labels[a]["H"]}
 
 
 def centre_nuclides(centre, consume=True, oxygens=False, nitrogens=()):
@@ -839,7 +842,7 @@ def centre_nuclides(centre, consume=True, oxygens=False, nitrogens=()):
         return ""
     open_labels = {a: e for a, e in context["labels"].items() if a not in context["consumed"]}
     entry = open_labels.get(centre)
-    letters = _terminal_oxygen_nuclides(context["mol"], centre, open_labels) if oxygens else {}
+    letters = _terminal_oxygen_nuclides(context["mol"], centre, open_labels, peroxy=True) if oxygens else {}
     amino = {a: open_labels[a] for a in nitrogens if a in open_labels}
     if entry is None and not letters and not amino:
         return ""

@@ -7,6 +7,7 @@ from rdkit import Chem
 from ._chalcogenourea import _UREA_SUBSTITUENT_ELEMENTS, has_group_senior_to_urea, n_substituent_names
 from ._cited_group import cited_group
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, is_nitro_nitrogen
+from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
 from ._numerals import numerical_term
 from ._polycarbonic_nuclides import chain_nuclide_key, chain_nuclides_text
 from ._substituents import cited_whole_stereo, format_substituent_prefixes, name_branch
@@ -86,7 +87,22 @@ def _hydrocarbon_arms(mol, graph, nitrogen, skip, junior=False):
     return names, covered
 
 
-def cyanamide_name(mol):
+def _cyanamide_nuclides(mol, labels, cyano, nitrogens):
+    """'(13C,N-15N)': the nuclides of the cyano carbon and nitrogen without locants, those of the amide nitrogens with
+    their letter locants (P-82.2.1, P-82.6.3.3); None when another atom is modified or one nuclide would take two
+    kinds of position."""
+    if not labels:
+        return ""
+    modified = {a: labels[a] for a in cyano if a in labels}
+    lettered = {a: (locant, labels[a]) for a, locant in nitrogens.items() if a in labels}
+    if set(labels) - set(modified) - set(lettered) or any(e["H"] or not e["skeleton"] for e in modified.values()):
+        return None
+    if {e["skeleton"] for e in modified.values()} & {e["skeleton"] for _, e in lettered.values()}:
+        return None
+    return nitrogen_hydrogen_descriptor(mol, lettered, modified)
+
+
+def cyanamide_name(mol, labels=None):
     if not _plain(mol, stereo=True):
         return None
     graph = adjacency(mol)
@@ -123,7 +139,10 @@ def cyanamide_name(mol):
             grouped = {}
             for name, compound in names:
                 grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(1)
-            return (format_substituent_prefixes(grouped, omit_locants=True) if grouped else "") + "cyanamide"
+            nuclides = _cyanamide_nuclides(mol, labels, (atom.GetIdx(), terminal.GetIdx()), {amino.GetIdx(): "N"})
+            if nuclides is None:
+                continue
+            return (format_substituent_prefixes(grouped, omit_locants=True) if grouped else "") + nuclides + "cyanamide"
         found = _hydrocarbon_arms(mol, graph, amino.GetIdx(), {atom.GetIdx(), *(b.GetIdx() for b in betas)})
         if found is None:
             continue
@@ -146,8 +165,18 @@ def cyanamide_name(mol):
         for locant, name, compound in entries:
             grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
         prefix = format_substituent_prefixes(grouped, omit_locants=not betas) if grouped else ""
-        return prefix + ("cyanohydrazide" if betas else "cyanamide")
+        nuclides = _cyanamide_nuclides(
+            mol, labels, (atom.GetIdx(), terminal.GetIdx()), {amino.GetIdx(): "N", **({betas[0].GetIdx(): "N'"} if betas else {})}
+        )
+        if nuclides is None:
+            continue
+        return prefix + nuclides + ("cyanohydrazide" if betas else "cyanamide")
     return None
+
+
+def name_labelled_cyanamide(mol):
+    split = split_isotopes(mol)
+    return None if split is None else cyanamide_name(split[0], split[1])
 
 
 def carbonohydrazonic_diamide_name(mol):

@@ -6,11 +6,14 @@ filled with hydrogens, and the final 'ane' takes the suffix 'yl', 'ylidene' or '
 ('trisilan-2-yl', 'hydrazine-1,2-diyl').
 """
 
+import contextlib
 import re
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
+from ._isotope_labels import split_isotopes
+from ._substituents import ISOTOPE_LABELS, chain_nuclide_locants, skeleton_nuclides
 
 _SUFFIX = {1: "yl", 2: "ylidene", 3: "ylidyne"}
 _GROUP_14 = {14, 32, 50, 82}
@@ -67,6 +70,31 @@ def _mononuclear(mol, radical):
     return name[:-1] + suffix
 
 
+@contextlib.contextmanager
+def _unlabelled():
+    token = ISOTOPE_LABELS.set(None)
+    try:
+        yield
+    finally:
+        ISOTOPE_LABELS.reset(token)
+
+
+def _positions(sequence):
+    return {atom: i + 1 for i, atom in enumerate(sequence)}
+
+
+def _labelled_chain_name(split, radicals):
+    """The chain radical named without its nuclides, which are cited with the locants of the chain in front of the parent
+    (P-82.2.1, P-82.5.1); None when an atom outside the chain and its substituents is modified."""
+    clean, labels, index = split
+    centres = [clean.GetAtomWithIdx(index[a.GetIdx()]) for a in radicals]
+    token = ISOTOPE_LABELS.set({"labels": labels, "consumed": set(), "mol": clean})
+    try:
+        return _chain(clean, centres) or _substituted_chain(clean, centres)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+
+
 def _chain(mol, radicals):
     elements = {a.GetAtomicNum() for a in mol.GetAtoms()}
     if len(elements) != 1 or elements == {6} or mol.GetRingInfo().NumRings() or mol.GetNumAtoms() < 2:
@@ -82,7 +110,8 @@ def _chain(mol, radicals):
         previous = order[-1]
         order.append(nxt[0])
     try:
-        base = _hydride_name(Chem.MolToSmiles(_healed(mol, radicals)))
+        with _unlabelled():
+            base = _hydride_name(Chem.MolToSmiles(_healed(mol, radicals)))
     except (UnsupportedStructure, Chem.rdchem.AtomValenceException):
         return None
     if not re.search(r"ane(\(\d+\))?$", base) and base != "hydrazine":
@@ -90,25 +119,26 @@ def _chain(mol, radicals):
     valences = {a.GetIdx(): a.GetNumRadicalElectrons() for a in radicals}
     best = None
     for sequence in (order, order[::-1]):
-        key = [i + 1 for i, atom in enumerate(sequence) if atom in valences]
+        key = ([i + 1 for i, atom in enumerate(sequence) if atom in valences], chain_nuclide_locants(_positions(sequence)))
         if best is None or key < best[0]:
-            best = (key, [valences[a] for a in sequence if a in valences])
-    locants, counts = best
+            best = (key, [valences[a] for a in sequence if a in valences], sequence)
+    (locants, _), counts, sequence = best
     if len(set(counts)) != 1 or counts[0] not in _SUFFIX:
         return None
     suffix, number = _SUFFIX[counts[0]], len(counts)
     if number == 1 and base.endswith(")"):
         return None
+    nuclides = skeleton_nuclides(_positions(sequence))
     if (base, number) in _RETAINED:
-        return _RETAINED[(base, number)]
+        return nuclides + _RETAINED[(base, number)]
     if base == "hydrazine" and number == 1:
-        return "hydrazin" + suffix
+        return nuclides + "hydrazin" + suffix
     joined = ",".join(map(str, locants))
     if number == 1:
         if mol.GetNumAtoms() == 2:
-            return base[:-1] + suffix
-        return f"{base[:-1]}-{joined}-{suffix}"
-    return f"{base}-{joined}-{_MULTIPLIER[number]}{suffix}"
+            return nuclides + base[:-1] + suffix
+        return f"{nuclides}{base[:-1]}-{joined}-{suffix}"
+    return f"{nuclides}{base}-{joined}-{_MULTIPLIER[number]}{suffix}"
 
 
 def _chain_parent(mol, graph, radicals):
@@ -155,7 +185,7 @@ def _substituted_chain(mol, radicals):
 
     if any(a.GetNumRadicalElectrons() not in _SUFFIX for a in radicals):
         return None
-    if any(a.GetFormalCharge() or a.GetIsotope() or a.IsInRing() for a in mol.GetAtoms()) or any(
+    if any(a.GetFormalCharge() or a.IsInRing() for a in mol.GetAtoms()) or any(
         b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()
     ):
         return None
@@ -167,8 +197,11 @@ def _substituted_chain(mol, radicals):
     chain_atoms = set(order)
     halogens = halogen_substituents(mol)
     valence_of = {a.GetIdx(): a.GetNumRadicalElectrons() for a in radicals}
+    context = ISOTOPE_LABELS.get()
     best = None
     for candidate in (order, order[::-1]):
+        if context:
+            context["consumed"].clear()
         substituents = {}
         for position, atom in enumerate(candidate, start=1):
             for n in graph[atom]:
@@ -180,17 +213,26 @@ def _substituted_chain(mol, radicals):
         grouped = group_substituents(substituents)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         by_valence = {v: [i + 1 for i, atom in enumerate(candidate) if valence_of.get(atom) == v] for v in _SUFFIX}
-        key = (sorted(sum(by_valence.values(), [])), by_valence[1], by_valence[2], by_valence[3], locant_set, citation)
+        key = (
+            sorted(sum(by_valence.values(), [])), by_valence[1], by_valence[2], by_valence[3], locant_set, citation,
+            chain_nuclide_locants(_positions(candidate)),
+        )
         if best is None or key < best[0]:
-            best = (key, grouped, by_valence)
-    _, grouped, by_valence = best
+            best = (key, grouped, by_valence, candidate, set(context["consumed"]) if context else set())
+    _, grouped, by_valence, candidate, consumed = best
+    if context:
+        context["consumed"].clear()
+        context["consumed"].update(consumed)
+    nuclides = skeleton_nuclides(_positions(candidate))
+    if context and set(context["labels"]) - context["consumed"]:
+        return None
     pieces = [
         f"{','.join(map(str, locants))}-{'' if len(locants) == 1 else _MULTIPLIER[len(locants)]}{_SUFFIX[v]}"
         for v, locants in by_valence.items()
         if locants
     ]
     stem = parent if len(by_valence[min(v for v, l in by_valence.items() if l)]) > 1 else re.sub(r"e(\(\d+\))?$", r"\1", parent)
-    return f"{format_substituent_prefixes(grouped, omit_locants=False)}{stem}-{'-'.join(pieces)}"
+    return f"{format_substituent_prefixes(grouped, omit_locants=False)}{nuclides}{stem}-{'-'.join(pieces)}"
 
 
 def _isodiazene(mol):
@@ -255,6 +297,9 @@ def hetero_radical_name(mol):
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
     if not radicals:
         return None
+    split = split_isotopes(mol)
+    if split is not None:
+        return _labelled_chain_name(split, radicals)
     if len(radicals) > 1:
         return _chain(mol, radicals) or _substituted_chain(mol, radicals)
     if sum(a.GetNumRadicalElectrons() for a in radicals) > 3:

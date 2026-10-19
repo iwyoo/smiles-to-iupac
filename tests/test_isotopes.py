@@ -858,6 +858,7 @@ def test_acid_hydrogen_nuclide_of_a_noncarbon_oxoacid_ester(smiles, expected):
         pytest.param("[15NH2]NC(=O)NN", "(2-15N)hydrazinecarbohydrazide", id="modified_unit_is_the_parent"),
         pytest.param("[2H]NNC(=O)N([2H])N", "(1,N'-2H2)hydrazinecarbohydrazide", id="lower_locant_unit_is_the_parent"),
         pytest.param("CNNC(=O)N[15NH2]", "2-methyl(N'-15N)hydrazine-1-carbohydrazide", id="substituent_decides_before_modification"),
+        pytest.param("N#CN[15NH2]", "(N'-15N)cyanohydrazide", id="nitrogen_of_a_cyanohydrazide"),
     ],
 )
 def test_nuclides_of_the_carboxamide_group_and_of_a_carbonohydrazide(smiles, expected):
@@ -975,6 +976,7 @@ def test_nuclides_on_the_skeleton_of_a_diazonium_cation(smiles, expected):
         pytest.param("C[11B](O)O", "methyl(11B)boronic acid", id="boronic_acid"),
         pytest.param("O=C(O)C[31P](=O)(O)O", "(31P)phosphonoacetic acid", id="phosphono_prefix"),
         pytest.param("N[34S](N)(=O)=O", "(34S)sulfuric diamide", id="parent_stem_of_a_lone_atom"),
+        pytest.param("OB(O)[10B]", "2,2-dihydroxy(1-10B)diboran(4)-1-ylidene", id="boron_of_a_radical_diborane_chain"),
     ],
 )
 def test_nuclide_on_a_heteroatom_of_the_parent_or_a_linking_atom(smiles, expected):
@@ -1112,6 +1114,7 @@ def test_nuclide_on_an_atom_of_a_pseudohalide_group(smiles, expected):
     [
         pytest.param("ClCO[18O]C", "chloro[methyl(2-18O)peroxy]methane", id="peroxy_prefix"),
         pytest.param("CC(=O)O[18O]C(=O)c1ccccc1", "acetic benzoic (2-18O)peroxyanhydride", id="peroxyanhydride_bridge"),
+        pytest.param("CP(=O)(O)O[18O]C", "O18O-methyl hydrogen methylphosphono(perox(18O1)oate)", id="peroxy_ester_of_a_phosphorus_acid"),
     ],
 )
 def test_nuclide_on_an_oxygen_of_a_peroxy_linkage(smiles, expected):

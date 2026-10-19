@@ -1022,12 +1022,24 @@ def _ester_oxygen_nuclides(mol, links):
         return {}
     found = {}
     for link in links:
-        oxygen = link.chain[-1]
-        entry = context["labels"].get(oxygen)
-        if len(link.chain) == 1 and entry and entry["skeleton"] and not entry["H"] and mol.GetAtomWithIdx(oxygen).GetAtomicNum() == 8:
-            found[oxygen] = entry
+        if len(link.chain) > 2 or any(mol.GetAtomWithIdx(a).GetAtomicNum() != 8 for a in link.chain):
+            continue
+        for oxygen in link.chain:
+            entry = context["labels"].get(oxygen)
+            if entry and entry["skeleton"] and not entry["H"]:
+                found[oxygen] = entry
     context["consumed"].update(found)
     return found
+
+
+def _ester_letters(mol, link, ester_nuclides):
+    """The locant letters of the organyl group of `link`, a modified oxygen taking its nuclide symbol in place of 'O' (P-82.6.4)."""
+    letters = _letters(mol, link)
+    if len(link.chain) == 1:
+        return ester_nuclides[link.chain[0]]["skeleton"] if link.chain[0] in ester_nuclides else letters
+    if letters:
+        return "".join(ester_nuclides[a]["skeleton"] if a in ester_nuclides else "O" for a in link.chain)
+    return ester_nuclides[link.chain[-1]]["skeleton"] if link.chain[-1] in ester_nuclides else ""
 
 
 def _cite_ester_oxygens(anion, ester_nuclides):
@@ -1108,7 +1120,7 @@ def name_ester(mol, links):
             name, compound = name_branch(graph, l.far, l.chain[-1], halogens, mol=mol)
             entry = named.setdefault(name, [0, compound, []])
             entry[0] += 1
-            entry[2].append(ester_nuclides[l.chain[-1]]["skeleton"] if l.chain[-1] in ester_nuclides else _letters(mol, l))
+            entry[2].append(_ester_letters(mol, l, ester_nuclides))
             per_link.append((l, name))
     finally:
         EXTENDED_PREFIXES.reset(prefixes)
