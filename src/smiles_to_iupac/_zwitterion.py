@@ -52,8 +52,7 @@ from rdkit import Chem
 
 from ._multiplicative_text import enclose
 from ._ammonium import has_ammonium_shape, name_ammonium
-from ._common import UnsupportedStructure, adjacency, bfs, specified_stereocenters
-from ._imine import has_simple_imine_shape, name_imine
+from ._common import UnsupportedStructure, adjacency, bfs, has_simple_imine_shape, specified_stereocenters
 from ._onium_prefixes import onium_name
 from ._sulfonate import _find_sulfonate_group, _name_acyclic_sulfonate
 
@@ -166,7 +165,9 @@ def _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx):
     if centre.GetAtomicNum() != 7:
         cation_name = onium_name(nitrogen_fragment, centre, _ONIUM_STEMS[centre.GetAtomicNum()][0])
     elif has_simple_imine_shape(nitrogen_fragment):
-        cation_name = name_imine(nitrogen_fragment)
+        from .core import smiles_to_iupac
+
+        cation_name = smiles_to_iupac(Chem.MolToSmiles(nitrogen_fragment))
     else:
         cation_name = name_ammonium(nitrogen_fragment)
     prefix = cation_name + ("ylidene" if cut_order == 2 else "yl")

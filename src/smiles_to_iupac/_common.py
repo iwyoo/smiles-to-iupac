@@ -2154,3 +2154,24 @@ def format_n_prefix(entries):
         multiplier = multiplying_prefix(len(locants)) if len(locants) > 1 else ""
         parts.append(f"{','.join(locants)}-{multiplier}{name}")
     return "-".join(parts)
+
+
+def has_simple_imine_shape(mol) -> bool:
+    """One nitrogen, only C, N, O and halogen atoms, and a C=N double bond whose carbon holds no heteroatom (an imidic
+    acid or imidate is named from its acid)."""
+    return sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 7) == 1 and all(
+        not (a.GetAtomicNum() == 7 and any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetBonds()[0].GetBondTypeAsDouble() == 2.0 for n in a.GetNeighbors()))
+        for a in mol.GetAtoms()
+    ) and all(
+        a.GetAtomicNum() in {6, 7, 8, *HALOGEN_PREFIXES} for a in mol.GetAtoms()
+    ) and any(
+        bond.GetBondTypeAsDouble() == 2.0
+        and {bond.GetBeginAtom().GetAtomicNum(), bond.GetEndAtom().GetAtomicNum()} == {6, 7}
+        and all(
+            n.GetAtomicNum() in (6, 7)
+            for end in (bond.GetBeginAtom(), bond.GetEndAtom())
+            if end.GetAtomicNum() == 6
+            for n in end.GetNeighbors()
+        )
+        for bond in mol.GetBonds()
+    )

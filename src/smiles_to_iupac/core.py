@@ -150,7 +150,7 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -220,7 +220,6 @@ from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._formazan import has_formazan_shape, name_formazan
 from ._hydroxylamine_acid import has_hydroxylamine_acid_shape, name_hydroxylamine_acid
 from ._hydroxylamine_general import has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine
-from ._imine import has_simple_imine_shape, name_imine
 from ._dipole_oxide import (
     has_nitrile_oxide_prefix_shape,
     has_nitrile_oxide_shape,
@@ -2330,7 +2329,7 @@ def _name_mol(mol) -> str:
     # correctly caught by has_simple_imine_shape's other call site further
     # down.
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()) and has_simple_imine_shape(mol):
-        return name_imine(mol)
+        return _name_standalone(mol)
     for has_shape, namer in (
         # Thiourea (H2N-C(=S)-NH2) has no oxygen at all, so it would otherwise
         # fall straight through the oxygen-gated block below (and every other
@@ -2731,7 +2730,7 @@ def _name_mol(mol) -> str:
         # does have an oxygen) is already caught by the has_simple_imine_shape
         # check much earlier, before the "any O atom" branch.
         if has_simple_imine_shape(mol):
-            return name_imine(mol)
+            return _name_standalone(mol)
         # A plain saturated monocyclic amine whose sole ring nitrogen
         # carries one substituent (e.g. 1-methylpiperidine, or the N,N/
         # N,S piperazine/thiomorpholine siblings -- the N,O morpholine

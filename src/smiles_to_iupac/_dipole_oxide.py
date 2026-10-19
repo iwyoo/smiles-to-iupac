@@ -46,7 +46,6 @@ import re
 from rdkit import Chem
 
 from ._common import _OPPOSITE_BOND_STEREO, UnsupportedStructure, match_cip_labels, specified_double_bond_stereo
-from ._imine import name_imine
 from ._nitrile import name_nitrile
 
 # P-66.5.1.2.1: HCN keeps its retained PIN 'formonitrile' (no carbon chain to name).
@@ -161,28 +160,32 @@ def _hydrogen_imine_configuration(mol, nitrogen, oxygen):
     return stereo[0][1] if stereo else None
 
 
+def _imine_name(stripped, configuration):
+    """The imine name, with the E/Z code of a C=N bond that the stripped molecule cannot hold cited in front (P-93.4.2.1.3)."""
+    from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
+
+    token = FORCED_PRINCIPAL.set("imine")
+    try:
+        name = name_polyfunctional(stripped)
+    finally:
+        FORCED_PRINCIPAL.reset(token)
+    if not name.endswith("imine"):
+        raise UnsupportedStructure("the nitrone is not named from an imine parent")
+    if configuration is None:
+        return name
+    if not any(ch.isdigit() for ch in name):
+        return f"({configuration})-{name}"
+    found = re.search(r"-(\d+)-imine$", name)
+    return f"({found.group(1) if found else 1}{configuration})-{name}"
+
+
 def name_nitrone(mol) -> str:
     nitrogen, oxygen = _dipole_nitrogen_oxygen(mol)
+    if any(n.GetAtomicNum() == 8 and n.GetIdx() != oxygen.GetIdx() for n in nitrogen.GetNeighbors()):
+        raise UnsupportedStructure("a nitrogen holding a second oxygen is an aci-nitro group, not a nitrone")
     stripped = _strip_dipole_oxygen(mol, nitrogen.GetIdx(), oxygen.GetIdx())
     configuration = _hydrogen_imine_configuration(mol, nitrogen, oxygen)
-    try:
-        return f"{name_imine(stripped, configuration)} N-oxide"
-    except UnsupportedStructure:
-        if configuration is not None:
-            raise
-        from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
-
-        shifted = nitrogen.GetIdx() - (oxygen.GetIdx() < nitrogen.GetIdx())
-        if any(n.GetAtomicNum() == 8 for n in stripped.GetAtomWithIdx(shifted).GetNeighbors()):
-            raise
-        token = FORCED_PRINCIPAL.set("imine")
-        try:
-            name = name_polyfunctional(stripped)
-        finally:
-            FORCED_PRINCIPAL.reset(token)
-        if not name.endswith("imine"):
-            raise
-        return f"{name} N-oxide"
+    return f"{_imine_name(stripped, configuration)} N-oxide"
 
 
 def _is_bare_hydrogen_nitrile(mol) -> bool:
