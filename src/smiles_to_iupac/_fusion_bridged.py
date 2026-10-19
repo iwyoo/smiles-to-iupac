@@ -679,6 +679,8 @@ def bridged_parents(mol, atoms, max_cycle=None):
     atoms included (P-25.5.1.2)."""
     if any(mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in atoms):
         raise UnsupportedStructure("a radical ring atom of a bridged fused system has no radical suffix here")
+    if any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
+        raise UnsupportedStructure("the charge of a ring atom of a bridged fused system is cited only by the ring-centre route")
     bonds = sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms)
     if bonds - len(atoms) + 1 > _MAX_RINGS:
         raise UnsupportedStructure("a ring system with more rings than a fused system and its bridges can have")
