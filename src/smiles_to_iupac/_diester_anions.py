@@ -15,13 +15,10 @@ from ._common import (
     alpha_sort_key,
     carbon_adjacency,
     component_subgraph,
-    halogen_substituents,
     is_polyhedral_centre,
     longest_chains,
     polyhedral_code,
 )
-from ._ester import _name_acyl_part
-from ._functional_prefixes import functional_names
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 
@@ -149,47 +146,6 @@ def _acyl_component(graph, acyl_idx, ester_oxygen_idx):
     return component
 
 
-def _specified_stereo_in(mol, atoms):
-    for element in Chem.FindPotentialStereo(mol):
-        if element.specified != Chem.StereoSpecified.Specified:
-            continue
-        if element.type == Chem.StereoType.Atom_Tetrahedral:
-            if element.centeredOn in atoms:
-                return True
-        else:
-            bond = mol.GetBondWithIdx(element.centeredOn)
-            if bond.GetBeginAtomIdx() in atoms and bond.GetEndAtomIdx() in atoms:
-                return True
-    return False
-
-
-def _fast_anion(mol, graph, carbon_graph, halogens, match, component):
-    acyl, carbonyl, ester_o, _ = match
-    acyl_idx = acyl.GetIdx()
-    ring_neighbors = [n for n in graph[acyl_idx] if n in component and mol.GetRingInfo().NumAtomRings(n) > 0]
-    if ring_neighbors:
-        from ._diester_ring_diyl import ring_carboxylate_name
-
-        name, atoms = ring_carboxylate_name(mol, graph, acyl_idx, ring_neighbors[0])
-        return name, bool(component - atoms - {acyl_idx, carbonyl.GetIdx()})
-    blocked = {acyl_idx, carbonyl.GetIdx(), ester_o.GetIdx()}
-    seeds = [(acyl_idx, n) for n in graph[acyl_idx] if n not in blocked]
-    named, shown, covered = functional_names(mol, graph, seeds, blocked, halogens, chain_seeds=True)
-    chain_graph = {a: [n for n in ns if n not in covered] for a, ns in carbon_graph.items() if a not in covered}
-    chains = longest_chains(component_subgraph(chain_graph, acyl_idx))
-    substituted = len([a for a in component if a != carbonyl.GetIdx()]) > len(chains[0])
-    name = _name_acyl_part(
-        mol,
-        acyl,
-        carbonyl.GetIdx(),
-        ester_o.GetIdx(),
-        None,
-        extra_names={a: shown[a] for a in named},
-        extra_excluded_atoms=(frozenset(range(mol.GetNumAtoms())) - component) | covered,
-    )
-    return name, substituted
-
-
 def _is_acid_group_carbon(mol, atom_idx):
     atom = mol.GetAtomWithIdx(atom_idx)
     if atom.GetAtomicNum() != 6:
@@ -257,8 +213,6 @@ def inorganic_anion_name(mol, centre):
 def acid_anions(mol, matches):
     """[(anion_name, is_substituted), ...] aligned with `matches`."""
     graph = adjacency(mol)
-    carbon_graph = carbon_adjacency(mol)
-    halogens = halogen_substituents(mol)
     ester_atoms = set()
     for acyl, carbonyl, ester_o, _ in matches:
         ester_atoms |= {acyl.GetIdx(), carbonyl.GetIdx(), ester_o.GetIdx()}
@@ -272,12 +226,6 @@ def acid_anions(mol, matches):
         component = _acyl_component(graph, acyl.GetIdx(), ester_o.GetIdx())
         if (component & ester_atoms) != {acyl.GetIdx(), carbonyl.GetIdx()}:
             raise UnsupportedStructure("an acyl group connected to another ester group is not supported yet")
-        if not _specified_stereo_in(mol, component):
-            try:
-                results.append(_hydrogen_cited(mol, acyl, _fast_anion(mol, graph, carbon_graph, halogens, match, component)))
-                continue
-            except UnsupportedStructure:
-                pass
         results.append(_hydrogen_cited(mol, acyl, _general_anion(mol, graph, match, component)))
     return results
 

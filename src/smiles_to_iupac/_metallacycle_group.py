@@ -6,6 +6,7 @@ carrying its name.
 
 from rdkit import Chem
 
+from ._acid_derivatives import name_acid_derivative
 from ._common import UnsupportedStructure, adjacency
 from ._metallacycle import _METAL_A_PREFIXES, FREE_VALENCE_PROP
 from ._phosphanyl_group import PREFIX_PROP
@@ -61,9 +62,12 @@ def name_metallacycle_as_group(mol):
             rest = rw.GetMol()
             Chem.SanitizeMol(rest)
             try:
-                name = _name_mol(rest)
+                name = name_acid_derivative(rest)
             except UnsupportedStructure:
-                continue
+                try:
+                    name = _name_mol(rest)
+                except UnsupportedStructure:
+                    continue
             if group_name in name and "iod" not in name.replace(group_name, ""):
                 return name
     raise UnsupportedStructure("this metallacycle could not be cited as a substituent group")

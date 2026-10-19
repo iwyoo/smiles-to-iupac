@@ -179,7 +179,6 @@ from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsat
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._inorganic_polyester import has_inorganic_polyester_shape, name_inorganic_polyester
 from ._hydride_polyester import has_chain_polyester_shape, has_hydride_polyester_shape, name_hydride_polyester
-from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import amine_suffix_capacity, name_heteroacyclic, has_carbonless_acyl
 from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multiplicative
@@ -280,7 +279,6 @@ from ._thione import has_thione_shape, name_thione
 from ._selone import has_selone_shape, name_selone
 from ._tellone import has_tellone_shape, name_tellone
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
-from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._selenocyanate import has_selenocyanate_shape, name_selenocyanate
 from ._tellurocyanate import has_tellurocyanate_shape, name_tellurocyanate
@@ -2616,14 +2614,6 @@ def _name_mol(mol) -> str:
             # construction from `_ester.py`'s single-ester "exactly one"
             # rejection below, so it must be routed first.
             return name_diester_acyloxy(mol)
-        if has_ester_shape(mol):
-            # P-41/Table 3.3: 'oate' outranks 'one', so an ester whose acyl
-            # chain also carries one or more ketones names the ester as the
-            # suffix and demotes each ketone to an 'oxo' prefix instead of
-            # `_ester.py`'s own "coexisting oxygen" rejection.
-            if has_ketone_ester_shape(mol):
-                return name_ketone_ester(mol)
-            return name_ester(mol)
         # A thioic acid (-CO-SH/-CS-OH, P-65.1.5) has a carbonyl-shaped
         # chalcogen cluster that would otherwise look like a plain
         # carboxylic acid's carbonyl (if the double-bonded atom is O) or

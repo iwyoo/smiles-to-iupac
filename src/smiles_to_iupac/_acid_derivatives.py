@@ -301,8 +301,11 @@ def _acid_name(mol, keep, caps):
 
 
 def _free_acid_name(acid):
-    from .core import smiles_to_iupac
+    from ._phosphanyl_group import PREFIX_PROP
+    from .core import _name_mol, smiles_to_iupac
 
+    if any(atom.HasProp(PREFIX_PROP) for atom in acid.GetAtoms()):
+        return _name_mol(acid)
     smiles = Chem.MolToSmiles(acid)
     if smiles in _FREE_INORGANIC_ACIDS:
         return _FREE_INORGANIC_ACIDS[smiles]
