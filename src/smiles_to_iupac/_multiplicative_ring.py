@@ -388,6 +388,10 @@ def name_ring_component(
     descriptor in front of the parent hydride name (P-82.2.1)."""
     isotope_atoms = [atom for kind, atom, _ in stereo if kind == "isotope"]
     stereo = [entry for entry in stereo if entry[0] != "isotope"]
+    ranked_stereo = [
+        (kind, mol.GetBondBetweenAtoms(*where).GetIdx(), code) if kind == "bond" else (kind, where, code)
+        for kind, where, code in stereo
+    ]
     spec = spec_of(mol, ring_atoms)
     if spec is None:
         if isotope_atoms:
@@ -417,7 +421,7 @@ def name_ring_component(
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
             modification_key(ring_labels, locants) if ring_labels else (),
-            stereo_locant_rank(mol, stereo, locants),
+            stereo_locant_rank(mol, ranked_stereo, locants),
         )
         if best is None or key < best[0]:
             best = (key, locants)
@@ -445,7 +449,10 @@ def name_ring_component(
     prefix_text = _prefix_text(entries, locants)
     name = _join(prefix_text, body)
     if stereo:
-        descriptors = ",".join(f"{locant}{code}" for locant, code in sorted((locants[atom], code) for _, atom, code in stereo))
+        located = [
+            (min(locants[where[0]], locants[where[1]]) if kind == "bond" else locants[where], code) for kind, where, code in stereo
+        ]
+        descriptors = ",".join(f"{locant}{code}" for locant, code in sorted(located))
         return f"({descriptors})-{name}", True
     return name, bool(prefix_text)
 
