@@ -253,7 +253,6 @@ from ._ketone import (
 from ._thione import has_thione_shape, name_thione
 from ._selone import has_selone_shape, name_selone
 from ._tellone import has_tellone_shape, name_tellone
-from ._nitrile import has_nitrile_shape, name_nitrile
 from ._selenocyanate import has_selenocyanate_shape, name_selenocyanate
 from ._tellurocyanate import has_tellurocyanate_shape, name_tellurocyanate
 from ._thiocyanate import has_thiocyanate_shape, name_thiocyanate
@@ -2591,7 +2590,7 @@ def _name_mol(mol) -> str:
             if has_open_chain_2_ketose_shape(mol):
                 return name_open_chain_2_ketose(mol)
             return name_ketone(mol)
-        # A real nitrile/thiol/selenol coexisting with an oxygen that isn't
+        # A real thiol/selenol coexisting with an oxygen that isn't
         # a real alcohol at all (e.g. a furan ring substituent's own
         # non-functional ring oxygen, now recognized by these modules
         # themselves -- P-616 M4) has no coexisting-alcohol shape above to
@@ -2599,8 +2598,6 @@ def _name_mol(mol) -> str:
         # branch's own unconditional fallback -- must be routed here first, mirroring
         # the nitrogen-gated branch's own thiol/selenol checks before its
         # amine fallback below.
-        if has_nitrile_shape(mol):
-            return name_nitrile(mol)
         if has_thiol_shape(mol):
             return name_thiol(mol)
         if has_selenol_shape(mol):
@@ -2701,11 +2698,6 @@ def _name_mol(mol) -> str:
         # for the same reason.
         if has_tellurocyanate_shape(mol):
             return name_tellurocyanate(mol)
-        # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
-        # branch alongside plain amines; it must be routed here before
-        # the amine fallback, which doesn't recognize a triple-bonded nitrogen at all.
-        if has_nitrile_shape(mol):
-            return name_nitrile(mol)
         # An amidine carbon (-C(=NH)NH2, P-66.4.1.1) has a C=N double bond that would otherwise look imine-shaped to
         # the check below; guanidine has the same imino+amino nitrogen shape and is claimed first.
         if has_guanidine_shape(mol):

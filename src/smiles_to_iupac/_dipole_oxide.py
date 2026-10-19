@@ -46,7 +46,6 @@ import re
 from rdkit import Chem
 
 from ._common import _OPPOSITE_BOND_STEREO, UnsupportedStructure, match_cip_labels, specified_double_bond_stereo
-from ._nitrile import name_nitrile
 
 # P-66.5.1.2.1: HCN keeps its retained PIN 'formonitrile' (no carbon chain to name).
 _NITRILE_OXIDE_RETAINED_OVERRIDES = {"methanenitrile": "formonitrile"}
@@ -229,8 +228,6 @@ def name_nitrile_oxide(mol) -> str:
         token = FORCED_PRINCIPAL.set("nitrile")
         try:
             parent_name = name_polyfunctional(stripped)
-        except UnsupportedStructure:
-            parent_name = name_nitrile(stripped)
         finally:
             FORCED_PRINCIPAL.reset(token)
         parent_name = _NITRILE_OXIDE_RETAINED_OVERRIDES.get(parent_name, parent_name)
