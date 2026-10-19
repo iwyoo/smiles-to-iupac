@@ -10,6 +10,7 @@ import re
 from rdkit import Chem
 
 from ._common import GROUP_13, UnsupportedStructure, adjacency, halogen_substituents
+from ._hetero_prefixes import ANION_PARENT
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 _PARENTS = {
@@ -53,11 +54,14 @@ def name_center_anion(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
     centers = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0 and not _is_nitro_oxygen(a)]
+    from ._anion import _is_ammonium_prefix
+
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a)]
-    if cations:
-        if len(cations) == 1 and cations[0].IsInRing() and cations[0].GetFormalCharge() == 1 and all(a.IsInRing() for a in centers):
-            return _name_ring_zwitterion(mol, centers, cations[0])
-        raise UnsupportedStructure("cationic centers beside an anionic center are not supported here")
+    ring_cations = [a for a in cations if not _is_ammonium_prefix(a)]
+    if ring_cations:
+        if len(ring_cations) == 1 and ring_cations[0].IsInRing() and ring_cations[0].GetFormalCharge() == 1 and all(a.IsInRing() for a in centers):
+            return _name_ring_zwitterion(mol, centers, ring_cations[0])
+        raise UnsupportedStructure("this combination of cationic and anionic centers is not named as a prefixed anion")
     if any(a.IsInRing() for a in centers):
         if len(centers) > 1 and not all(a.IsInRing() for a in centers):
             raise UnsupportedStructure("ring and chain anionic centers together are not supported yet")
@@ -262,10 +266,14 @@ def _name_skeletal_anion(mol, centers):
         return name_cation_assembly(mol)
     word = "ide" if mixed or "ide" in words else "uide"
     key_centers = [(a.GetIdx(), kinds[a.GetIdx()][0]) for a in centers] if mixed else ()
-    found = evaluate_skeleton(
-        neutral, graph, "ring", rings, atoms, attach or uide_extra, set(), word if attach else "uide",
-        key_centers=key_centers,
-    )
+    token = ANION_PARENT.set(True)
+    try:
+        found = evaluate_skeleton(
+            neutral, graph, "ring", rings, atoms, attach or uide_extra, set(), word if attach else "uide",
+            key_centers=key_centers,
+        )
+    finally:
+        ANION_PARENT.reset(token)
     if found is None:
         raise UnsupportedStructure("this anionic ring system has no supported name yet")
     name, position_of = found[1], found[2]

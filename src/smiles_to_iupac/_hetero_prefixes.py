@@ -94,6 +94,7 @@ def require_plain_chalcogen_kids(mol, z, kids):
 
 CATION_PARENT = contextvars.ContextVar("cation_parent", default=False)
 RADICAL_PARENT = contextvars.ContextVar("radical_parent", default=False)
+ANION_PARENT = contextvars.ContextVar("anion_parent", default=False)
 RADICAL_CENTRE = contextvars.ContextVar("radical_centre", default=None)
 
 
@@ -547,9 +548,11 @@ def _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, infix):
 
 
 def _alcoholate_anion_parent(mol):
-    """Whether the structure has the anion of an alcohol, phenol, thiol or its heavier analogues, which is then the parent."""
-    return any(
-        a.HasProp("_anion") and a.GetAtomicNum() in (8, 16, 34, 52) and any(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
+    """Whether the structure has the anion of an alcohol, phenol, thiol or its heavier analogues, or an ide centre of a
+    ring or mononuclear parent, which is then the parent (P-74.1.3)."""
+    return ANION_PARENT.get() or any(
+        (a.HasProp("_anion") and (a.GetAtomicNum() not in (8, 16, 34, 52) or any(n.GetAtomicNum() == 6 for n in a.GetNeighbors())))
+        or a.HasProp("_anion_word")
         for a in mol.GetAtoms()
     )
 

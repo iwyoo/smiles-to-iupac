@@ -1259,6 +1259,8 @@ def test_radical_ions_named_through_the_filled_ion(smiles, expected):
         pytest.param("C[NH2+]CC[O-]", "2-(methanaminiumyl)ethan-1-olate", id="secondary_cation_prefix_on_an_olate"),
         pytest.param("C[N+](C)(C)c1ccc([O-])cc1", "4-(N,N-dimethylmethanaminiumyl)phenoxide", id="cation_prefix_on_a_phenoxide"),
         pytest.param("[S-]CC[N+](C)(C)C", "2-(N,N-dimethylmethanaminiumyl)ethane-1-thiolate", id="ammonium_prefix_on_a_thiolate"),
+        pytest.param("C[N+](C)(C)C1CC[CH-]CC1", "4-(N,N-dimethylmethanaminiumyl)cyclohexan-1-ide", id="ammonium_prefix_on_a_ring_carbanide"),
+        pytest.param("C[N+](C)(C)C[PH3-]", "[(N,N-dimethylmethanaminiumyl)methyl]phosphanuide", id="ammonium_prefix_on_a_phosphanuide"),
         pytest.param("[O-]C(=O)C[NH2+]CC(=O)[O-]", "[(carboxylatomethyl)azaniumyl]acetate", id="cationic_centre_between_identical_carboxylates"),
         pytest.param("[O-]C(=O)C[NH+](CC(=O)[O-])CC(=O)[O-]", "[bis(carboxylatomethyl)azaniumyl]acetate", id="cationic_centre_between_three_identical_carboxylates"),
         pytest.param("[O-]CCC1=CC=C[CH-]1", "2-(2-oxidoethyl)cyclopenta-2,4-dien-1-ide", id="ide_ring_outranks_an_olate_chain"),
