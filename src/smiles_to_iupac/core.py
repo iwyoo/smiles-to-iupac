@@ -13,6 +13,7 @@ from ._acid_derivatives import (
     name_isotope_acyl_halide,
     name_labelled_anhydride,
     name_phosphorous_acid,
+    name_sulfur_acid_ester,
 )
 from ._acid_salts import name_acid_salt
 from ._hetero_carboxylic import name_hetero_parent_acid
@@ -1207,7 +1208,7 @@ def _name_unabridged_body(smiles: str) -> str:
                 name_hetero_parent_acid,
                 name_phosphorous_acid,
                 *(
-                    (_labelled_namer(name_polycarbonic, oxygens=True), _labelled_namer(name_carbonic_family), _labelled_namer(name_acid_derivative))
+                    (_labelled_namer(name_polycarbonic, oxygens=True), _labelled_namer(name_carbonic_family), _labelled_namer(name_acid_derivative), _labelled_namer(name_sulfur_acid_ester, oxygens=True))
                     if _has_isotope_label(parsed)
                     else ()
                 ),

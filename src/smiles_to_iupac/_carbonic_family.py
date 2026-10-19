@@ -405,7 +405,7 @@ def _name_at(mol, center, cite_nuclides=False):
     name = carbonic_acid_name(x, ligands, amino=amino is not None)
     name = _labelled(atom, name)
     if cite_nuclides:
-        name = centre_nuclides(center, oxygens=True) + name
+        name = centre_nuclides(center, oxygens=True, nitrogens=[n for n in (amino, imine_n) if n is not None]) + name
     if anions:
         name = _anionic(name)
         if hydrogens:

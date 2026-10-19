@@ -284,18 +284,18 @@ def find_links(mol):
     return links, acid
 
 
-def _restore_nuclides(editable, mol, keep):
+def _restore_nuclides(editable, mol, keep, skip=()):
     """The nuclide labels of the kept atoms go back on an acid cut from the unlabelled `mol` (P-82.2.4): the acid is
     named, and its descriptor cited, as a word of its own."""
     context = ISOTOPE_LABELS.get()
     if not context or context.get("mol") is not mol:
         return
-    kept = set(keep)
+    kept = set(keep) - set(skip)
     restore_labels(editable, mol, context["labels"], skip=set(range(mol.GetNumAtoms())) - kept)
     context["consumed"].update(kept & set(context["labels"]))
 
 
-def _capped_acid(mol, keep, caps):
+def _capped_acid(mol, keep, caps, skip=()):
     """The free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`, and the index
     of each kept atom in it."""
     editable = Chem.RWMol(mol)
@@ -303,7 +303,7 @@ def _capped_acid(mol, keep, caps):
         atom = editable.GetAtomWithIdx(idx)
         atom.SetNumExplicitHs(1)
         atom.SetNoImplicit(True)
-    _restore_nuclides(editable, mol, keep)
+    _restore_nuclides(editable, mol, keep, skip)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
@@ -311,9 +311,9 @@ def _capped_acid(mol, keep, caps):
     return acid, {idx: i for i, idx in enumerate(sorted(keep))}
 
 
-def _acid_name(mol, keep, caps):
+def _acid_name(mol, keep, caps, skip=()):
     """Name of the free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`."""
-    acid, index = _capped_acid(mol, keep, caps)
+    acid, index = _capped_acid(mol, keep, caps, skip)
     match_cip_labels(mol, acid, {i: idx for idx, i in index.items()})
     for atom in acid.GetAtoms():
         if atom.GetAtomicNum() in (15, 16):
@@ -1012,6 +1012,31 @@ def _senior_kind_has_no_ester(mol, links):
     return bool(chosen) and any(key and key < chosen for key in present)
 
 
+def _ester_oxygen_nuclides(mol, links):
+    """{ester oxygen: label entry} of the labelled oxygens that join an acid centre to its organyl groups; they are cited
+    with the organyl word and in the anion, not as oxygens of the acid (P-82.6.4)."""
+    context = ISOTOPE_LABELS.get()
+    if not context or context.get("mol") is not mol:
+        return {}
+    found = {}
+    for link in links:
+        oxygen = link.chain[-1]
+        entry = context["labels"].get(oxygen)
+        if len(link.chain) == 1 and entry and entry["skeleton"] and not entry["H"] and mol.GetAtomWithIdx(oxygen).GetAtomicNum() == 8:
+            found[oxygen] = entry
+    context["consumed"].update(found)
+    return found
+
+
+def _cite_ester_oxygens(anion, ester_nuclides):
+    from ._ester_by_parts import _insert_before_ending
+
+    counts = {}
+    for entry in ester_nuclides.values():
+        counts[entry["skeleton"]] = counts.get(entry["skeleton"], 0) + 1
+    return _insert_before_ending(anion, "(" + ",".join(f"{n}{c}" for n, c in sorted(counts.items())) + ")")
+
+
 def name_ester(mol, links):
     _reject_unsupported(mol)
     if has_acyloxy_amine_group(mol):
@@ -1064,10 +1089,13 @@ def name_ester(mol, links):
         if far_side & set(acid_atoms):
             raise UnsupportedStructure("a ring-closing ester is not named part-wise")
         removed |= far_side
-    acid = _acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen])
+    ester_nuclides = _ester_oxygen_nuclides(mol, chosen)
+    acid = _acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen], ester_nuclides)
     if _other_inorganic_group_is_prefix(mol, acid_atoms, chosen, acid):
         raise UnsupportedStructure("an acid group of the same kind on another part of the skeleton is a prefix of the acid name")
     anion = anion_name(acid, letters_in_anion=False)
+    if ester_nuclides:
+        anion = _cite_ester_oxygens(anion, ester_nuclides)
     context = _stereo_context(mol, removed)
     halogens = halogen_substituents(mol)
     named = {}
@@ -1079,7 +1107,7 @@ def name_ester(mol, links):
             name, compound = name_branch(graph, l.far, l.chain[-1], halogens, mol=mol)
             entry = named.setdefault(name, [0, compound, []])
             entry[0] += 1
-            entry[2].append(_letters(mol, l))
+            entry[2].append(ester_nuclides[l.chain[-1]]["skeleton"] if l.chain[-1] in ester_nuclides else _letters(mol, l))
             per_link.append((l, name))
     finally:
         EXTENDED_PREFIXES.reset(prefixes)
@@ -1107,7 +1135,9 @@ def name_ester(mol, links):
         if cited is not None:
             token = CITE_SUBSTITUENT_LOCANTS.set(True)
             try:
-                anion = anion_name(_acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen]), letters_in_anion=False)
+                anion = anion_name(_acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen], ester_nuclides), letters_in_anion=False)
+                if ester_nuclides:
+                    anion = _cite_ester_oxygens(anion, ester_nuclides)
             finally:
                 CITE_SUBSTITUENT_LOCANTS.reset(token)
         else:
@@ -1913,6 +1943,16 @@ def name_acid_derivative(mol):
     if "ester" in kinds:
         return _stereogenic_phosphorus_ester(mol, name_ester(mol, links))
     return name_acyl_halide(mol, links)
+
+
+def name_sulfur_acid_ester(mol):
+    """The ester name of a sulfonic or sulfinic acid ester, whose labelled oxygens are cited as those of the acid or of the
+    ester linkage (P-82.6.4)."""
+    links, _ = find_links(mol)
+    esters = [l for l in links if l.kind == "ester"]
+    if not esters or any(mol.GetAtomWithIdx(l.center).GetAtomicNum() != 16 for l in esters):
+        raise UnsupportedStructure("no sulfonic or sulfinic acid ester")
+    return name_acid_derivative(mol)
 
 
 def name_labelled_anhydride(mol):

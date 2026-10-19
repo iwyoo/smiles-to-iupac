@@ -1113,3 +1113,16 @@ def test_nuclide_on_an_atom_of_a_pseudohalide_group(smiles, expected):
 )
 def test_nuclide_on_an_oxygen_of_a_peroxy_linkage(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.2.4, P-82.6.4: nuclides on the nitrogen of a carbamate, the oxygens of a nitro or nitrate group and the oxygens of a sulfonate
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[15NH]C(=O)OC", "methyl N-methyl(N-15N)carbamate", id="carbamate_nitrogen"),
+        pytest.param("CO[N+](=[18O])[O-]", "methyl (O-18O)nitrate", id="nitrate_oxygen"),
+        pytest.param("C[18O]S(=O)(=O)c1ccccc1", "18O-methyl benzene(18O1)sulfonate", id="sulfonate_ester_oxygen"),
+    ],
+)
+def test_nuclide_on_the_nitrogen_or_oxygens_of_a_carbamate_nitrate_and_sulfonate(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

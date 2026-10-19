@@ -116,8 +116,8 @@ def _validate_nitro_atoms(mol, nitro_atom_idxs, ring_atoms):
                 "an oxygen atom not belonging to a nitro group is out of "
                 "scope for this module"
             )
-        if atom.GetFormalCharge() not in (0, 1, -1) or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("isotopically modified atoms are not supported yet")
+        if atom.GetFormalCharge() not in (0, 1, -1):
+            raise UnsupportedStructure("atoms with a charge other than +1 or -1 are not supported yet")
         if atomic_num == 6 and atom.GetIsAromatic():
             raise UnsupportedStructure(
                 "more than one aromatic ring is not supported yet"

@@ -12,7 +12,7 @@ from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._isotope_labels import nitrogen_hydrogen_descriptor, split_isotopes
 from ._multiplicative_text import enclose
-from ._substituents import BRANCH_STEREO, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _CARBAMATE = Chem.MolFromSmarts("[NX3;!R]-[CX3;!R](=O)-[OX2;!R]-[#6]")
 _SENIOR_TO_CARBAMATE = [
@@ -62,12 +62,14 @@ def name_carbamate_ester(mol) -> str:
     """The name of a molecule whose senior group is one acyclic carbamate ester, else raises."""
     labels = {}
     split = split_isotopes(mol)
+    context = ISOTOPE_LABELS.get()
     if split is not None:
         mol, labels, _ = split
-    if len(Chem.GetMolFrags(mol)) != 1 or any(
-        a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()
-    ):
-        raise UnsupportedStructure("charged, isotopic and multi-fragment structures are not named as carbamate esters here")
+        context = None
+    elif context and context.get("mol") is mol:
+        labels = {a: e for a, e in context["labels"].items() if a not in context["consumed"]}
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        raise UnsupportedStructure("charged, radical and multi-fragment structures are not named as carbamate esters here")
     matches = mol.GetSubstructMatches(_CARBAMATE)
     if len(matches) != 1:
         raise UnsupportedStructure("exactly one acyclic carbamate ester is required")
@@ -104,6 +106,8 @@ def name_carbamate_ester(mol) -> str:
         if set(labels) != {nitrogen}:
             raise UnsupportedStructure("only the nitrogen of a carbamate ester can carry a nuclide label here")
         nuclides = nitrogen_hydrogen_descriptor(mol, {nitrogen: ("N", labels[nitrogen])})
+        if context:
+            context["consumed"].add(nitrogen)
         prefixes = format_substituent_prefixes(group_substituents({"N": entries})) if entries else ""
         return f"{alkyl_text} {prefixes}{nuclides}carbamate"
     if not entries:

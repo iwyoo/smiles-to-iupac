@@ -824,27 +824,31 @@ def _terminal_oxygen_nuclides(mol, centre, labels):
     }
 
 
-def centre_nuclides(centre, consume=True, oxygens=False):
+def centre_nuclides(centre, consume=True, oxygens=False, nitrogens=()):
     """'(32P)': the nuclide of the one atom that a parent name is built on, cited in front of that parent without a locant
     (P-82.2.1, P-82.6.1.1); '' when the atom is unmodified or already cited. With `consume` false the atom stays open for
     the name that is finally chosen. With `oxygens` the nuclides of the terminal oxygens of an acid centre join it with
-    the letter locant O (P-82.6.2)."""
+    the letter locant O, and those of the `nitrogens` of the acid group with the letter locant N (P-82.6.2)."""
     context = ISOTOPE_LABELS.get()
     if not context:
         return ""
     open_labels = {a: e for a, e in context["labels"].items() if a not in context["consumed"]}
     entry = open_labels.get(centre)
     letters = _terminal_oxygen_nuclides(context["mol"], centre, open_labels) if oxygens else {}
-    if entry is None and not letters:
+    amino = {a: open_labels[a] for a in nitrogens if a in open_labels}
+    if entry is None and not letters and not amino:
         return ""
-    if entry is not None and (entry["H"] or not entry["skeleton"]):
+    if any(e["H"] or not e["skeleton"] for e in (*([entry] if entry is not None else []), *amino.values())):
         raise UnsupportedStructure("a hydrogen nuclide on the atom of a mononuclear parent is not supported yet")
     if consume:
-        context["consumed"].update(({centre} if entry is not None else set()) | set(letters))
+        context["consumed"].update(({centre} if entry is not None else set()) | set(letters) | set(amino))
     from ._isotope_labels import descriptor
 
     return descriptor(
-        {centre: entry} if entry is not None else {}, {centre: 1}, True, extra=[(e["skeleton"], "O", 1, False) for e in letters.values()]
+        {centre: entry} if entry is not None else {},
+        {centre: 1},
+        True,
+        extra=[(e["skeleton"], "O", 1, False) for e in letters.values()] + [(e["skeleton"], "N", 1, False) for e in amino.values()],
     )
 
 
@@ -916,7 +920,7 @@ def _labelled_centre_prefix(name, mol, root, labelled, capacity):
     if mol is None or labelled.get(root, {"H": None})["H"]:
         return None
     z = mol.GetAtomWithIdx(root).GetAtomicNum()
-    letters = _terminal_oxygen_nuclides(mol, root, labelled) if z in (5, 15, 16) else {}
+    letters = _terminal_oxygen_nuclides(mol, root, labelled) if z in (5, 7, 15, 16) else {}
     if set(labelled) - {root} - set(letters):
         return None
     stems = _CENTRE_PREFIX_STEM.get(z)
