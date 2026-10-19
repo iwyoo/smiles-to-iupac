@@ -170,7 +170,7 @@ def marked_neutral(mol):
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
     centers = anion_atoms(mol)
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a)]
-    prefix_cations = [a for a in cations if _is_ammonium_prefix(a)] if centers and all(_is_group_anion(a) for a in centers) else []
+    prefix_cations = [a for a in cations if _is_ammonium_prefix(a)] if centers else []
     cations = [a for a in cations if a not in prefix_cations]
     if any(not (a.IsInRing() and a.GetFormalCharge() == 1) for a in cations) or len(cations) > 1:
         raise UnsupportedStructure("cationic centers beside an anionic group are not supported here")
