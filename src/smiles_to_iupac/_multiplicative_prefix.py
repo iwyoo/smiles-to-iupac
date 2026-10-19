@@ -137,6 +137,14 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
         from ._substituents import name_branch
 
         return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol, unsaturated=True)
+    from ._common import CATIONIC_AMINES
+    from ._polyfunctional import AMINIUM
+
+    if suffix_group == "amine" and (AMINIUM.get() is True or CATIONIC_AMINES.get()):
+        from ._common import adjacency
+        from ._substituents import name_branch
+
+        return name_branch(adjacency(mol), root, from_atom, halogen_substituents(mol), frozenset(), mol=mol, unsaturated=True)
     if not atom.IsInRing():
         from ._common import adjacency
         from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, hetero_branch_name

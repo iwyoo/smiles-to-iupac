@@ -880,6 +880,10 @@ def _group_of(mol, carbon):
     atom = mol.GetAtomWithIdx(carbon)
     if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.HasProp(JUNIOR_GROUP):
         return None
+    if AMINIUM.get() is True:
+        cationic = next((found for name, found in _hydroxy_type_groups(mol, carbon) if name == "amine" and found), None)
+        if cationic:
+            return "amine", set(cationic)
     variant = acid_group_at(mol, carbon)
     if variant is not None and not variant.spec.plain:
         return variant.spec.key, variant.owned
@@ -5919,6 +5923,8 @@ def _unsymmetrical_branches(mol, linker, first_arm, second_arm):
     def same_kind(bond):
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         ends = (mol.GetAtomWithIdx(a), mol.GetAtomWithIdx(b))
+        if bond.GetBondTypeAsDouble() == 2.0 and any(e.GetDegree() == 1 for e in ends):
+            return True
         return bond.IsInRing() or (ends[0].GetAtomicNum() == ends[1].GetAtomicNum() and not any(e.IsInRing() for e in ends))
 
     for bond in mol.GetBonds():

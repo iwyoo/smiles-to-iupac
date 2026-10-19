@@ -489,7 +489,11 @@ def _attempt(mol, groups, selected, tree, core, name_function, merge_assemblies=
     ):
         return None
     soft = any(mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1 for u in selected)
-    ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft, unit_group=principal_group)
+    cationic_unit = any(g.cationic and g.anchor in unit_atoms for g in groups)
+    ctx = _Context(
+        groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft,
+        unit_group="cation" if cationic_unit else principal_group,
+    )
     stereo = ctx.stereo
 
     unit = _unit_text(mol, selected[0], groups, name_function)

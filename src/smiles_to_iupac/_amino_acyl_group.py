@@ -44,7 +44,7 @@ def amino_acyl_group(mol, graph, root, coming_from):
     labels = ISOTOPE_LABELS.get()
     if labels and any(a in labels["labels"] for a in inside):
         return None
-    if any(mol.GetAtomWithIdx(a).HasProp(CATION_INSERT_PROP) for a in inside):
+    if any(mol.GetAtomWithIdx(a).HasProp(CATION_INSERT_PROP) or mol.GetAtomWithIdx(a).HasProp("_cationic_amine") for a in inside):
         return None
     editable = Chem.RWMol(mol)
     oxygen = editable.AddAtom(Chem.Atom(8))

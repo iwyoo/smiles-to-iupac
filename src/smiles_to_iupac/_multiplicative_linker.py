@@ -24,6 +24,7 @@ _OXOACID_LINKER = {15: ("phosphor", "phosphon"), 33: ("arsor", "arson"), 51: ("s
 _ACYL_INFIX = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
 _HALOGENS = (9, 17, 35, 53)
 _CLASS_OF_UNIT_GROUP = {
+    "cation": 0,
     "carboxylic_acid": 7, "sulfonic_acid": 7, "sulfinic_acid": 7, "acid": 7, "thioic": 7, "peroxoic": 7, "imidic": 7, "sulfonic": 7,
     "ester": 9, "sulfonate_ester": 9, "acyl_halide": 10, "sulfonyl_halide": 10,
     "amide": 11, "sulfonamide": 11, "chalcogen_amide": 11, "amidine": 11, "hydrazide": 12,

@@ -423,6 +423,7 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
     surrogate = editable.GetMol()
     Chem.SanitizeMol(surrogate)
     shifted = {atom - sum(1 for r in remove if r < atom): entry for atom, entry in (labels or {}).items()}
+    count = len(nitrogens)
     token = AMINIUM.set(True)
     parent_token = CATION_PARENT.set(True)
     try:
@@ -431,30 +432,61 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
         except UnsupportedStructure:
             if shifted:
                 raise
+            name = None
+        result = _diazonium_from_amine_name(name, count) if name else None
+        if result is None and not shifted:
             from ._multiplicative import name_if_multiplicative
 
-            name = name_if_multiplicative(surrogate) or smiles_to_iupac(Chem.MolToSmiles(surrogate))
+            candidate = name_if_multiplicative(surrogate) or (None if name else smiles_to_iupac(Chem.MolToSmiles(surrogate)))
+            result = _diazonium_from_amine_name(candidate, count) if candidate else None
     finally:
         CATION_PARENT.reset(parent_token)
         AMINIUM.reset(token)
-    count = len(nitrogens)
+    if result is None:
+        raise UnsupportedStructure("this diazonium skeleton has no amine surrogate name")
+    return result
+
+
+def _diazonium_from_amine_name(name, count):
     cited = _SURROGATE_ENDING.search(name)
-    multiplied = _MULTIPLIED_SURROGATE_ENDING.search(name)
+    multiplied = _multiplied_unit(name)
     suffixed = 0
     if multiplied:
-        suffixed = _MULTIPLIER_COUNT[multiplied.group("multiplier")]
+        suffixed = _MULTIPLIER_COUNT[multiplied[1]]
     elif cited:
         suffixed = _MULTIPLIER_COUNT[cited.group("multiplier")]
     if not suffixed or (suffixed < count) != ("diazyn-1-ium-1-yl" in name):
-        raise UnsupportedStructure("this diazonium skeleton has no amine surrogate name")
+        return None
     if multiplied:
-        inner = _diazonium_head(multiplied.group("inner"), 1)
-        return name[: multiplied.start()] + _MULTIPLYING_WORD[suffixed] + f"({inner})"
+        start, _, opener, closer, head = multiplied
+        return name[:start] + _MULTIPLYING_WORD[suffixed] + opener + _diazonium_head(head, 1) + closer
     if cited.group("ending") == "aniline":
         if suffixed > 1:
             return name[: cited.start()] + _MULTIPLYING_WORD[suffixed] + "(benzenediazonium)"
         return name[: cited.start()] + "benzenediazonium"
     return _diazonium_head(name[: cited.start()], suffixed)
+
+
+def _multiplied_unit(name):
+    """(start, multiplier, opener, closer, head) of a trailing enclosed repeated amine unit, 'bis(3-oxopropan-1-amine)'."""
+    closer = name[-1:]
+    opener = {")": "(", "]": "[", "}": "{"}.get(closer)
+    if opener is None or not name[:-1].endswith("amine"):
+        return None
+    depth = 0
+    for index in range(len(name) - 1, -1, -1):
+        if name[index] == closer:
+            depth += 1
+        elif name[index] == opener:
+            depth -= 1
+            if depth == 0:
+                break
+    else:
+        return None
+    word = _MULTIPLIER_WORD.search(name[:index])
+    if word is None:
+        return None
+    return word.start(), word.group(1), opener, closer, name[index + 1 : -len("amine") - 1]
 
 
 def _diazonium_head(head, count):
@@ -470,10 +502,10 @@ def _diazonium_head(head, count):
     return stem + locants + _MULTIPLYING_WORD[count] + "(diazonium)"
 
 
-_MULTIPLIER_COUNT = {None: 1, "di": 2, "tri": 3, "tetra": 4}
+_MULTIPLIER_COUNT = {None: 1, "di": 2, "tri": 3, "tetra": 4, "bis": 2, "tris": 3, "tetrakis": 4}
 _MULTIPLYING_WORD = {2: "bis", 3: "tris", 4: "tetrakis"}
 _SURROGATE_ENDING = re.compile(r"(?P<multiplier>di|tri|tetra)?(?P<ending>amine|aniline)$")
-_MULTIPLIED_SURROGATE_ENDING = re.compile(r"(?P<multiplier>di|tri|tetra)\((?P<inner>[^()]*)amine\)$")
+_MULTIPLIER_WORD = re.compile(r"(di|tri|tetra|bis|tris|tetrakis)$")
 
 
 def _name_diazonium_skeleton(mol) -> str:
