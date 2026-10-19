@@ -922,7 +922,13 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return oxidized
     if order == 1.0 and is_diazonium_nitrogen(atom):
         return "diazyn-1-ium-1-yl", True
-    if z == 7 and atom.GetFormalCharge() == 1 and order in (1.0, 2.0) and _alcoholate_anion_parent(mol):
+    if (
+        z == 7
+        and atom.GetFormalCharge() == 1
+        and order in (1.0, 2.0)
+        and atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED
+        and _alcoholate_anion_parent(mol)
+    ):
         # P-74.1.3: the cation on another parent than the olate or thiolate is named as the cationic amine, 'aminiumyl'
         from ._substituents import ISOTOPE_LABELS
         from ._zwitterion import _ammonium_prefix
