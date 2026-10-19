@@ -295,8 +295,9 @@ def _component(mol, comp, force_replacement, spiro_atoms=frozenset()):
 def _bonding_number(atom):
     z = atom.GetAtomicNum()
     standard = 4 if z in _GROUP_14 else _STANDARD.get(z)
-    valence = atom.GetTotalValence()
-    if standard is None or z not in _A_PREFIX or atom.GetFormalCharge() or valence < standard or (valence - standard) % 2:
+    anion = z == 5 and atom.GetFormalCharge() == -1
+    valence = atom.GetTotalValence() + (atom.GetFormalCharge() if anion else 0)
+    if standard is None or z not in _A_PREFIX or (atom.GetFormalCharge() and not anion) or valence < standard or (valence - standard) % 2:
         raise UnsupportedStructure("this skeletal replacement heteroatom is not supported")
     return valence if valence > standard else None
 
@@ -354,6 +355,8 @@ def _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds):
             a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
             if bond.GetIdx() in monocyclic_bonds:
                 continue
+            if not bond.IsInRing() and a not in capable and b not in capable:
+                continue
             if a not in capable or b not in capable or bond.GetIdx() not in polycyclic_bonds:
                 raise UnsupportedStructure("a double bond outside the polycyclic spiro components is not supported yet")
             doubled |= {a, b}
@@ -403,8 +406,10 @@ def _spiro_atom(mol, spiro):
         return None, False
     if z in _GROUP_14 and not charge and atom.GetTotalValence() == 4:
         return None, False
+    if z == 5 and charge == -1 and atom.GetTotalValence() == 4:
+        return None, False
     if z not in _STANDARD or charge not in (0, 1):
-        raise UnsupportedStructure("this spiro atom is not supported")
+        raise UnsupportedStructure("this charged or nonstandard spiro atom has no suffix that expresses it")
     bonding = atom.GetTotalValence() + charge
     if bonding <= _STANDARD[z] or (bonding - _STANDARD[z]) % 2:
         raise UnsupportedStructure("this spiro heteroatom has no lambda bonding number")
