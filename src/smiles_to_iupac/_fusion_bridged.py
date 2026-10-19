@@ -153,6 +153,12 @@ _STANDARD_BONDING = {
 }
 
 
+def _onium_centre(atom):
+    """A pnictogen of the neutral analogue of an onium cation, which has one bond more than the neutral hydride and
+    gains the 'ium' suffix instead of a lambda symbol (P-73.3.1)."""
+    return atom.GetSymbol() in ("N", "P", "As", "Sb", "Bi") and not atom.GetFormalCharge() and atom.GetTotalValence() == _STANDARD_BONDING[atom.GetSymbol()] + 1
+
+
 def _hetero_word(mol, atoms, first):
     symbol = mol.GetAtomWithIdx(atoms[0]).GetSymbol()
     count = len(atoms)
@@ -160,7 +166,7 @@ def _hetero_word(mol, atoms, first):
     odd = [
         (i + 1, mol.GetAtomWithIdx(a).GetTotalValence())
         for i, a in enumerate(atoms)
-        if mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(symbol)
+        if mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(symbol) and not _onium_centre(mol.GetAtomWithIdx(a))
     ]
     if odd and symbol not in _HETERO_WORDS:
         raise UnsupportedStructure(f"the bridge atom {symbol} of nonstandard bonding number has no parent hydride word")
@@ -671,8 +677,8 @@ def bridged_parents(mol, atoms, max_cycle=None):
     """Names of the ring system `atoms` as a fused ring system with bridges: list of `BridgedParent`, best choice only.
     A fused ring system with no fusion name takes its hydrocarbon name with 'a' prefixes for all heteroatoms, bridge
     atoms included (P-25.5.1.2)."""
-    if any(mol.GetAtomWithIdx(a).GetFormalCharge() or mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in atoms):
-        raise UnsupportedStructure("a charged or radical ring atom in a bridged fused system")
+    if any(mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in atoms):
+        raise UnsupportedStructure("a radical ring atom of a bridged fused system has no radical suffix here")
     bonds = sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms)
     if bonds - len(atoms) + 1 > _MAX_RINGS:
         raise UnsupportedStructure("a ring system with more rings than a fused system and its bridges can have")
