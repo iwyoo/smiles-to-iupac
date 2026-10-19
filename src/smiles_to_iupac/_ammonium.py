@@ -76,8 +76,7 @@ def name_polyammonium(mol) -> str:
     (P-73.1.2.1): each hydrogen-bearing cation is neutralised for the amine namer, which numbers the N-substituents."""
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    if any(a.GetAtomicNum() == 6 and is_functional_carbon(mol, a.GetIdx()) for a in mol.GetAtoms()):
-        raise UnsupportedStructure("a carbonyl-type group beside the cations is cited as a prefix by the chain engine")
+    functional = any(a.GetAtomicNum() == 6 and is_functional_carbon(mol, a.GetIdx()) for a in mol.GetAtoms())
     neutral = Chem.RWMol(mol)
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() and atom.GetTotalNumHs():
@@ -85,6 +84,7 @@ def name_polyammonium(mol) -> str:
             copy.SetFormalCharge(0)
             copy.SetNoImplicit(True)
             copy.SetNumExplicitHs(atom.GetTotalNumHs() - 1)
+            copy.SetBoolProp("_cationic_amine", True)
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
     from ._multiplicative import name_if_multiplicative
@@ -93,7 +93,7 @@ def name_polyammonium(mol) -> str:
     token = CATIONIC_AMINES.set(True)
     try:
         try:
-            name = name_polyfunctional(base)
+            name = None if functional else name_polyfunctional(base)
         except UnsupportedStructure:
             name = None
         match = re.search(r"(di|tri|tetra|penta|hexa)amine$", name or "")
@@ -104,6 +104,8 @@ def name_polyammonium(mol) -> str:
     finally:
         CATIONIC_AMINES.reset(token)
     named = cationic_multiplied_units(multiplicative, sum(1 for a in mol.GetAtoms() if a.GetFormalCharge())) if multiplicative else None
+    if named is None and functional:
+        raise UnsupportedStructure("a carbonyl-type group beside the cations is cited as a prefix by the chain engine")
     if named is None:
         return name_polyfunctional(mol)
     return named

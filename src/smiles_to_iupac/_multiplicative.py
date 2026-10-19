@@ -15,7 +15,7 @@ from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, specified_stereo_elements
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._formazan import FORMAZAN_SKELETON
-from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS, classify
+from ._multiplicative_groups import CATION_RANK, KETONE_LIKE, SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, alternating_chalcogen_runs, name_component
 from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
@@ -200,10 +200,14 @@ def _leaf_units(mol, systems, node_of, core):
     return units
 
 
+def _gate_rank(group):
+    return CATION_RANK if group.cationic else group.rank
+
+
 def _class_gate(mol, groups, selected, systems, node_of):
     unit_atoms = set().union(*(u.atoms for u in selected))
-    best_in = min((g.rank for g in groups if g.anchor in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
-    best_out = min((g.rank for g in groups if g.anchor not in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
+    best_in = min((_gate_rank(g) for g in groups if g.anchor in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
+    best_out = min((_gate_rank(g) for g in groups if g.anchor not in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
     heterone_oxygens = chalcogen_chain_oxygen_count(mol)
     if heterone_oxygens:
         # P-64.7.2: a heterone ranks with the ketones and the one holding more doubly bonded oxygen atoms is the parent
@@ -217,8 +221,8 @@ def _class_gate(mol, groups, selected, systems, node_of):
         if best_out is None or best_out > best_in:
             return True
         # P-44.1.1: at equal class the parent holding more principal groups wins; a tie goes to the rings (P-44.1.2.2)
-        inside = sum(1 for g in groups if g.anchor in unit_atoms and g.rank == best_in)
-        outside = sum(1 for g in groups if g.anchor not in unit_atoms and g.rank == best_in)
+        inside = sum(1 for g in groups if g.anchor in unit_atoms and _gate_rank(g) == best_in)
+        outside = sum(1 for g in groups if g.anchor not in unit_atoms and _gate_rank(g) == best_in)
         return best_out == best_in and inside >= outside
     if best_out is not None:
         return False
