@@ -139,7 +139,6 @@ from ._benzenide import has_benzenide_shape, name_benzenide
 from ._cyclopentadienide import has_cyclopentadienide_shape, name_cyclopentadienide
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, has_isotope_diazonium_shape, name_diazonium, name_isotope_diazonium
-from ._radical import has_radical_shape, name_radical
 from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
@@ -261,7 +260,13 @@ from ._isotope import (
 )
 from ._isotope_steroid import has_isotope_steroid_shape, name_isotope_steroid
 from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
-from ._radical_group import has_group_cation_shape, has_radical_group_shape, name_group_cation, name_radical_group
+from ._radical_group import (
+    has_group_cation_shape,
+    has_radical_group_shape,
+    has_radical_shape,
+    name_group_cation,
+    name_radical_group,
+)
 from ._isotope_one_carbon import has_isotope_one_carbon_shape, name_isotope_one_carbon
 from ._ketone import (
     has_five_membered_1_2_ring_ketone_shape,
@@ -1939,7 +1944,6 @@ def _name_mol(mol) -> str:
         # plain alkane/cycloalkane dispatch further down, which doesn't know a
         # hydrogen is missing.
         (_has_nameable_radical_group, name_radical_group),
-        (has_radical_shape, name_radical),
         # A nitrogen ylide (P-74.2.1.1.1's zwitterionic anion-carbon-parent
         # naming) has its own charged nitrogen too -- checked before
         # `has_ammonium_shape` below, whose own check already explicitly
