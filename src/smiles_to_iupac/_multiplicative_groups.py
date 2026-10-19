@@ -239,7 +239,7 @@ def classify(mol):
             terminal = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() in (7, 8, 16, 34, 52) and n.GetDegree() == 1]
             if any(mol.GetBondBetweenAtoms(atom.GetIdx(), t).GetBondTypeAsDouble() == 2.0 for t in terminal):
                 covered.update(terminal)
-    unplaced = False
+    unplaced = unplaced_acid = False
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
         z = atom.GetAtomicNum()
@@ -260,11 +260,14 @@ def classify(mol):
             and not _hydrazinediylidene_nitrogen(b.GetOtherAtom(atom))
             for b in atom.GetBonds()
         ):
-            return None
+            unplaced_acid = True
+            continue
         if atom.GetFormalCharge() and idx not in covered:
             return None
     if any(g.cationic for g in groups):
         groups = [g for g in groups if g.cationic or g.name != "amine"]
+    if unplaced_acid and min((CATION_RANK if g.cationic else g.rank for g in groups), default=JUNIOR_RANK) > SUFFIX_RANKS["carboxylic_acid"]:
+        return None
     if unplaced and min((CATION_RANK if g.cationic else g.rank for g in groups), default=JUNIOR_RANK) > SUFFIX_RANKS["ketone"]:
         return None
     return groups
