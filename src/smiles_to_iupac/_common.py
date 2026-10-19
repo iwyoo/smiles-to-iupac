@@ -2082,10 +2082,7 @@ def has_amide_shape(mol) -> bool:
     unbranched alkyl carbon, or -OH), regardless of whether the rest of the
     molecule is in scope. Used by `core.py` to route ahead of the aldehyde/
     ketone dispatch, since an amide carbon would otherwise look aldehyde-
-    shaped to those modules (both have exactly one carbon neighbor besides
-    the carbonyl, and that count ignores a nitrogen substituent -- the same
-    routing trap `core.py`'s own `_is_aldehyde_shaped` comment already names
-    directly). A nitrogen bonded to two carbonyl carbons (a symmetric imide)
+    shaped (it has exactly one carbon neighbor besides the carbonyl). A nitrogen bonded to two carbonyl carbons (a symmetric imide)
     is excluded here so `core.py`'s later `has_imide_shape` check still gets
     a chance at it."""
     for atom in mol.GetAtoms():
