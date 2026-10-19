@@ -227,7 +227,7 @@ _MULTIPLIER_WORDS = {2: "bis", 3: "tris", 4: "tetrakis"}
 
 
 def _is_acyl(atom):
-    if atom.GetNumRadicalElectrons() != 1 or atom.GetAtomicNum() not in (6, 16):
+    if atom.GetNumRadicalElectrons() != 1 or atom.GetAtomicNum() not in (6, 16, 34, 52):
         return False
     oxygens = [
         n
