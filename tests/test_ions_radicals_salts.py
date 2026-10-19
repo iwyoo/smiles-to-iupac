@@ -343,6 +343,10 @@ def test_cation_on_a_nitrile_carbon(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_stereogenic_azanium_with_a_heteroatom_ligand():
+    assert smiles_to_iupac("C[N@+](CC)(CCC)Cl") == "(S)-chloro(ethyl)(methyl)(propyl)azanium"
+
+
 def test_unsupported_base_fragment():
     assert (
         smiles_to_iupac("c1ccccc1CC(=O)Nc1ccccc1C(=O)OCCCC.Cl")

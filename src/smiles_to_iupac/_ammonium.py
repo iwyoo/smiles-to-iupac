@@ -13,7 +13,7 @@ from rdkit import Chem
 
 from ._common import CATIONIC_AMINES, UnsupportedStructure
 from ._hetero_prefixes import is_functional_carbon
-from ._onium_prefixes import onium_name
+from ._onium_prefixes import centre_descriptor, onium_name
 
 
 def has_ammonium_shape(mol) -> bool:
@@ -170,7 +170,7 @@ def name_ammonium(mol) -> str:
         any(_heteroatom_acyl(mol, n) or _nitrile_carbon(mol, n) or n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors())
         and not nitrogen.IsInRing()
     ):
-        return onium_name(mol, nitrogen, "azanium")
+        return centre_descriptor(mol, nitrogen) + onium_name(mol, nitrogen, "azanium")
 
     if any(atom.GetAtomicNum() == 6 and is_functional_carbon(mol, atom.GetIdx()) for atom in mol.GetAtoms()):
         raise UnsupportedStructure("a carbonyl-type group beside the cation is cited as a prefix by the chain engine")
