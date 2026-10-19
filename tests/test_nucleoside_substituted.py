@@ -423,3 +423,20 @@ def test_nucleoside_retained_acid_words(smiles, expected):
 )
 def test_nucleoside_ring_ester_beside_other_groups_and_stereo_in_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "CC(=O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1O",
+            "acetic 5′-adenylic monoanhydride",
+        ),
+        (
+            "CC(=O)OP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1O",
+            "acetic [adenosine 5′-(trihydrogen diphosphate)] monoanhydride",
+        ),
+    ],
+)
+def test_carboxylic_acid_anhydride_of_a_nucleoside_phosphate(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
