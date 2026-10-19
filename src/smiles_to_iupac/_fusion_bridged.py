@@ -154,9 +154,9 @@ _STANDARD_BONDING = {
 
 
 def _onium_centre(atom):
-    """A pnictogen of the neutral analogue of an onium cation, which has one bond more than the neutral hydride and
-    gains the 'ium' suffix instead of a lambda symbol (P-73.3.1)."""
-    return atom.GetSymbol() in ("N", "P", "As", "Sb", "Bi") and not atom.GetFormalCharge() and atom.GetTotalValence() == _STANDARD_BONDING[atom.GetSymbol()] + 1
+    """A pnictogen or chalcogen of the neutral analogue of an onium cation, which has one bond more than the neutral
+    hydride and gains the 'ium' suffix instead of a lambda symbol (P-73.3.1)."""
+    return atom.GetSymbol() in ("N", "P", "As", "Sb", "Bi", "O", "S", "Se", "Te") and not atom.GetFormalCharge() and atom.GetTotalValence() == _STANDARD_BONDING[atom.GetSymbol()] + 1
 
 
 def _hetero_word(mol, atoms, first):
@@ -168,8 +168,6 @@ def _hetero_word(mol, atoms, first):
         for i, a in enumerate(atoms)
         if mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(symbol) and not _onium_centre(mol.GetAtomWithIdx(a))
     ]
-    if odd and symbol not in _HETERO_WORDS:
-        raise UnsupportedStructure(f"the bridge atom {symbol} of nonstandard bonding number has no parent hydride word")
     lambdas = ""
     if odd:
         lambdas = (
@@ -185,6 +183,8 @@ def _hetero_word(mol, atoms, first):
         word = "azano" if not enes else f"az[{','.join(map(str, enes))}]" + ("eno" if len(enes) == 1 else numerical_term(len(enes)) + "eno")
         return lambdas + ("epi" if first else "") + multiplier + word
     if symbol == "O":
+        if odd or any(_onium_centre(mol.GetAtomWithIdx(a)) or mol.GetAtomWithIdx(a).HasProp("_ring_cation_centre") for a in atoms):
+            return lambdas + multiplier + "oxidano"
         return ("ep" if count == 1 else "epi") * first + multiplier + "oxy"
     if symbol in _HETERO_WORDS:
         return lambdas + multiplier + _HETERO_WORDS[symbol]
@@ -428,10 +428,19 @@ def _substituent_word(mol, seq, singles, doubles, first):
         else:
             stem = alkane_name(n)[:-3] + ("a" if len(ene) > 1 else "") + f"[{','.join(map(str, ene))}]" + ("ene" if len(ene) == 1 else numerical_term(len(ene)) + "ene")
     else:
-        if symbol not in _HYDRIDES or any(o != 1.0 for o in inner):
-            raise UnsupportedStructure(f"a polyvalent bridge of {symbol} atoms joined by multiple bonds has no substituent group name")
-        ene = []
-        stem = (numerical_term(n) if n > 1 else "") + _HYDRIDES[symbol]
+        if symbol not in _HYDRIDES or any(o not in (1.0, 2.0) for o in inner):
+            raise UnsupportedStructure(f"a polyvalent bridge of {symbol} atoms joined by a triple bond has no substituent group name")
+        ene = [i + 1 for i, o in enumerate(inner) if o == 2.0]
+        hydride = _HYDRIDES[symbol]
+        if not ene:
+            stem = (numerical_term(n) if n > 1 else "") + hydride
+        elif n == 2:
+            stem = numerical_term(n) + hydride[:-3] + "ene"
+        else:
+            locants = ",".join(map(str, ene))
+            stem = numerical_term(n) + hydride[:-3] + ("a" if len(ene) > 1 else "") + f"[{locants}]" + (
+                "ene" if len(ene) == 1 else numerical_term(len(ene)) + "ene"
+            )
     show = not (n == 1 or (n == 2 and sorted(singles + doubles) == [1, 2]))
     text, letter = _ending(singles, doubles, show)
     if letter == "y":
@@ -677,10 +686,6 @@ def bridged_parents(mol, atoms, max_cycle=None):
     """Names of the ring system `atoms` as a fused ring system with bridges: list of `BridgedParent`, best choice only.
     A fused ring system with no fusion name takes its hydrocarbon name with 'a' prefixes for all heteroatoms, bridge
     atoms included (P-25.5.1.2)."""
-    if any(mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in atoms):
-        raise UnsupportedStructure("a radical ring atom of a bridged fused system has no radical suffix here")
-    if any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
-        raise UnsupportedStructure("the charge of a ring atom of a bridged fused system is cited only by the ring-centre route")
     bonds = sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms)
     if bonds - len(atoms) + 1 > _MAX_RINGS:
         raise UnsupportedStructure("a ring system with more rings than a fused system and its bridges can have")
