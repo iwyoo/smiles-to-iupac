@@ -2023,6 +2023,7 @@ def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expecte
         pytest.param("N#[N+]c1ccc(cc1)Nc1ccc(cc1)[N+]#N", "4,4'-azanediylbis(benzenediazonium)", id="neutral_amine_linking_two_diazonium_rings"),
         pytest.param("[NH3+]CCNCC[NH3+]", "2,2'-azanediylbis(ethan-1-aminium)", id="neutral_amine_linking_two_aminium_chains"),
         pytest.param("N#[N+]c1ccc(cc1)C(C(=O)S)c1ccc(cc1)[N+]#N", "4,4'-(2-oxo-2-sulfanylethane-1,1-diyl)bis(benzenediazonium)", id="thioic_acid_group_on_the_methylene_between_cations"),
+        pytest.param("N#[N+]CCOP(=O)(O)CC[N+]#N", "2-{[2-(diazyn-1-ium-1-yl)ethoxy](hydroxy)phosphoryl}ethane-1-diazonium", id="unsymmetrical_phosphinate_linker_between_cations"),
         pytest.param("O=C(c1ccccc1)N[N+](C)(C)C", "N',N',N'-trimethylbenzohydrazid-N'-ium", id="hydrazide_ium"),
     ],
 )

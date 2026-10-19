@@ -5923,7 +5923,7 @@ def _unsymmetrical_branches(mol, linker, first_arm, second_arm):
     def same_kind(bond):
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         ends = (mol.GetAtomWithIdx(a), mol.GetAtomWithIdx(b))
-        if bond.GetBondTypeAsDouble() == 2.0 and any(e.GetDegree() == 1 for e in ends):
+        if any(e.GetDegree() == 1 for e in ends):
             return True
         return bond.IsInRing() or (ends[0].GetAtomicNum() == ends[1].GetAtomicNum() and not any(e.IsInRing() for e in ends))
 
