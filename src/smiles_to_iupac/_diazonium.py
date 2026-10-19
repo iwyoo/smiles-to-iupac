@@ -379,15 +379,12 @@ def has_isotope_diazonium_shape(mol) -> bool:
 
 def name_isotope_diazonium(mol) -> str:
     from ._isotope_labels import split_isotopes
-    from .core import _require_isotopes_cited
 
     split = split_isotopes(mol)
     if split is None:
         raise UnsupportedStructure("no isotopically modified atom")
     clean, labels, _ = split
-    name = _name_via_amine_surrogate(clean, labels)
-    _require_isotopes_cited(mol, name)
-    return name
+    return _name_via_amine_surrogate(clean, labels)
 
 
 def _name_via_amine_surrogate(mol, labels=None) -> str:

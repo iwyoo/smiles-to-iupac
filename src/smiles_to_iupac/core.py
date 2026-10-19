@@ -9,6 +9,7 @@ from ._adduct import has_adduct_shape, has_bare_inorganic_component, has_inorgan
 from ._acyclic import name_acyclic_alkane
 from ._acid_derivatives import (
     has_isotope_acyl_halide_shape,
+    in_acid_derivative_scope,
     name_acid_derivative,
     name_isotope_acyl_halide,
     name_labelled_anhydride,
@@ -559,7 +560,9 @@ def _name_checked(smiles: str) -> str:
     name = cite_spiro_stereo(smiles, cite_axial_stereo(smiles, _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))))
     mol = _parse_smiles(smiles)
     if mol is not None:
-        _require_isotopes_cited(mol, name)
+        uncited = _uncited_nuclide(mol, name)
+        if uncited:
+            raise UnsupportedStructure(f"no name built for this structure cites its {uncited} nuclide label")
         _require_radicals_cited(mol, name)
         _require_ring_triple_bonds_cited(mol, name)
         _require_cumulated_ring_atoms_cited(mol, name)
@@ -652,11 +655,8 @@ def _has_isotope_label(mol) -> bool:
 def _name_keeping_labels(mol, namer):
     """The name of `mol`, or None when `mol` has nuclide labels that this name leaves uncited."""
     name = namer(mol)
-    if _has_isotope_label(mol):
-        try:
-            _require_isotopes_cited(mol, name)
-        except UnsupportedStructure:
-            return None
+    if _has_isotope_label(mol) and _uncited_nuclide(mol, name):
+        return None
     return name
 
 
@@ -709,13 +709,19 @@ def _name_isotope_label(mol) -> str:
         (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
     ):
         if has_shape(mol):
+            name, failure = None, None
             try:
-                return namer(mol)
+                name = namer(mol)
             except UnsupportedStructure as error:
-                try:
-                    return _name_labelled_substituents(mol)
-                except UnsupportedStructure:
-                    raise error from None
+                failure = error
+            if name is not None and not _uncited_nuclide(mol, name):
+                return name
+            try:
+                return _name_labelled_substituents(mol)
+            except UnsupportedStructure:
+                if failure is None:
+                    raise
+                raise failure from None
     return _name_labelled_substituents(mol)
 
 
@@ -789,7 +795,9 @@ def _name_labelled_substituents(mol):
         name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"]) or name
     if isotopic and not _cites_every_stereo_element(mol, name):
         raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
-    _require_isotopes_cited(mol, name)
+    uncited = _uncited_nuclide(mol, name)
+    if uncited:
+        raise UnsupportedStructure(f"no parent name of this structure cites its {uncited} nuclide label")
     return name
 
 
@@ -896,7 +904,6 @@ def _labelled_namer(namer, oxygens=False):
             ISOTOPE_LABELS.reset(token)
         if isotopic and not _cites_every_stereo_element(mol, result):
             raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
-        _require_isotopes_cited(mol, result)
         return result
 
     return name
@@ -961,14 +968,15 @@ def _cited_nuclides(name):
     return cited
 
 
-def _require_isotopes_cited(mol, name):
+def _uncited_nuclide(mol, name):
+    """The first nuclide label of `mol` that `name` does not cite as often as the structure carries it, else None."""
     expected = {}
     for atom in mol.GetAtoms():
         if atom.GetIsotope():
             key = f"{atom.GetIsotope()}{atom.GetSymbol()}"
             expected[key] = expected.get(key, 0) + 1
     if not expected:
-        return
+        return None
     cited = _cited_nuclides(name)
     forced = FORCED_BRANCH_NAMES.get()
     given_names = [a.GetProp(PREFIX_PROP) for a in mol.GetAtoms() if a.HasProp(PREFIX_PROP)]
@@ -978,10 +986,9 @@ def _require_isotopes_cited(mol, name):
             for key, count in _cited_nuclides(given).items():
                 cited[key] = cited.get(key, 0) - count
     for key, count in expected.items():
-        if key not in name:
-            raise UnsupportedStructure(f"the name does not cite the {key} nuclide label")
-        if cited.get(key, 0) != count:
-            raise UnsupportedStructure(f"the name does not cite every {key} nuclide label")
+        if key not in name or cited.get(key, 0) != count:
+            return key
+    return None
 
 
 _NESTED_NAMES: dict = {}
@@ -1129,7 +1136,9 @@ def _name_unabridged_body(smiles: str) -> str:
                 return name_boron_acid(parsed)
             if _has_isotope_label(parsed):
                 with contextlib.suppress(UnsupportedStructure):
-                    return _labelled_namer(name_boron_acid, oxygens=True)(parsed)
+                    boron_name = _labelled_namer(name_boron_acid, oxygens=True)(parsed)
+                    if not _uncited_nuclide(parsed, boron_name):
+                        return boron_name
         if parsed is not None:
             diacylamine = diacylamine_name(parsed)
             if diacylamine is not None:
@@ -1204,7 +1213,7 @@ def _name_unabridged_body(smiles: str) -> str:
                 name_polycarbonic,
                 name_carbonic_family,
                 name_inorganic_ester_parent,
-                name_acid_derivative,
+                *((name_acid_derivative,) if in_acid_derivative_scope(parsed) else ()),
                 name_boron_peroxy_ester,
                 name_hetero_parent_acid,
                 name_phosphorous_acid,
@@ -1216,8 +1225,9 @@ def _name_unabridged_body(smiles: str) -> str:
             ):
                 try:
                     candidate = namer(parsed)
-                    _require_isotopes_cited(parsed, candidate)
                 except UnsupportedStructure:
+                    continue
+                if _uncited_nuclide(parsed, candidate):
                     continue
                 # these namers do not cite stereodescriptors, so a flat name would silently drop the stereo
                 if stereo_specified and namer is not name_acid_salt and not _cites_every_stereo_element(parsed, candidate):

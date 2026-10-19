@@ -543,12 +543,15 @@ def _isocyanide_carbon(atom):
     )
 
 
-def _reject_unsupported(mol):
-    for atom in mol.GetAtoms():
-        if atom.GetIsotope() or atom.GetNumRadicalElectrons() or atom.GetFormalCharge() and atom.GetAtomicNum() not in (7, 8) and not _isocyanide_carbon(atom):
-            raise UnsupportedStructure("isotopes, radicals and charges are not supported by the acid derivative engine")
-    if len(Chem.GetMolFrags(mol)) != 1:
-        raise UnsupportedStructure("several fragments are named as salts or adducts")
+def in_acid_derivative_scope(mol):
+    """Whether the acid derivative engine names `mol` as it stands: a structure with a nuclide, a radical or an ion
+    centre away from nitrogen and oxygen is named with that modification, by the namers of those classes."""
+    return not any(
+        atom.GetIsotope()
+        or atom.GetNumRadicalElectrons()
+        or atom.GetFormalCharge() and atom.GetAtomicNum() not in (7, 8) and not _isocyanide_carbon(atom)
+        for atom in mol.GetAtoms()
+    )
 
 
 def _multiplied(entries):
@@ -802,10 +805,6 @@ def _polyester_with_acyloxy_groups(mol, links):
     of its acid and ranks below the others is an acyloxy prefix of an organyl group, not an anion of the name."""
     if any(l.kind != "ester" for l in links):
         return None
-    try:
-        _reject_unsupported(mol)
-    except UnsupportedStructure:
-        return None
     frags, owner, acid_pieces, r_pieces = _ester_pieces(mol, links)
     if len(acid_pieces) < 3:
         return None
@@ -885,7 +884,7 @@ def _suffix_links(mol, links, keep, cap_of):
     """The `links` whose acid centre the polyfunctional engine cites as a suffix group when every link of `links`
     is turned into a free acid (P-44.1.1): when one parent cannot carry them all, the other links stay as ester or
     halide groups and are cited as prefixes of that acid. All of `links` when the parent cannot be determined."""
-    from ._polyfunctional import _group_of, _principal_class, _ring_occurrences, _select
+    from ._polyfunctional import _group_of, _principal_class, _ring_occurrences, _try_select
 
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
@@ -900,9 +899,12 @@ def _suffix_links(mol, links, keep, cap_of):
     acid = editable.GetMol()
     try:
         Chem.SanitizeMol(acid)
-        position_of = _select(acid)[2][4]
+        selected = _try_select(acid)
     except Exception:
         return list(links)
+    if selected is None:
+        return list(links)
+    position_of = selected[2][4]
     origin = {a.GetIdx(): a.GetIntProp("_origin") for a in acid.GetAtoms()}
     parent = {origin[i] for i in position_of if i in origin}
     occurrences = _ring_occurrences(acid)
@@ -1038,7 +1040,6 @@ def _cite_ester_oxygens(anion, ester_nuclides):
 
 
 def name_ester(mol, links):
-    _reject_unsupported(mol)
     if has_acyloxy_amine_group(mol):
         raise UnsupportedStructure("an acyclic nitrogen gives no traditional ester: the group is an acyloxy prefix (P-65.6.3.4.1)")
     links = _senior_acid_esters(mol, links)
@@ -1450,7 +1451,6 @@ def _bridge_nuclide(mol, bridges, owner, words):
 
 
 def name_anhydride(mol, links):
-    _reject_unsupported(mol)
     links = _senior_bridge_links(mol, links)
     bridges, frags, owner = _bridged_components(mol, links)
     kinds = {tuple(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in chain) for chain, _, _ in bridges.values()}
@@ -1700,7 +1700,6 @@ def _halocarbonic_amide(mol, graph):
 
 
 def name_acyl_halide(mol, links):
-    _reject_unsupported(mol)
     amide = _halocarbonic_amide(mol, adjacency(mol))
     if amide is not None:
         return amide
@@ -1782,7 +1781,7 @@ def _without_nuclides(mol):
 def name_isotope_acyl_halide(mol):
     """P-82.2.1, P-82.6.1.1: the nuclide descriptor of an acyl halide is that of its acid, whose hydroxy group stands for the
     halogen; deuterium on the only hydrogen-bearing atom needs no locant, because the acid's O-H is not there."""
-    from .core import _require_isotopes_cited, smiles_to_iupac
+    from .core import smiles_to_iupac
 
     plain = _without_nuclides(mol)
     amide = _halocarbonic_amide(plain, adjacency(plain))
@@ -1820,15 +1819,12 @@ def name_isotope_acyl_halide(mol):
     only_hydrogen = all(a.GetAtomicNum() == 1 for a in mol.GetAtoms() if a.GetIsotope())
     if found and only_hydrogen and len(hydrogen_bearing) == 1:
         name = f"({found.group(1)}{found.group(2)})" + name[found.end():]
-    _require_isotopes_cited(mol, name)
     return name
 
 
 def _labelled_halocarbonic_amide(mol, amide):
     """'carbono(36Cl)chloridic amide', 'N-methyl(13C)carbonochloridic amide': the nuclide of the halogen stands in front of
     the infix that names it and that of the carbon in front of the acid name (P-82.2.1); None when another atom is modified."""
-    from .core import _require_isotopes_cited
-
     halogens = [a for a in mol.GetAtoms() if is_halide_ligand(a) and a.GetNeighbors()[0].GetAtomicNum() == 6]
     modified = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsotope()}
     for halogen in halogens:
@@ -1839,9 +1835,7 @@ def _labelled_halocarbonic_amide(mol, amide):
         return None
     infix = re.search(r"carbono(\w+?id)ic amide$", amide)
     carbon_nuclide = f"({carbon.GetIsotope()}C)" if carbon.GetIsotope() else ""
-    name = amide[: infix.start()] + carbon_nuclide + f"carbono({halogen.GetIsotope()}{halogen.GetSymbol()}){infix.group(1)}ic amide"
-    _require_isotopes_cited(mol, name)
-    return name
+    return amide[: infix.start()] + carbon_nuclide + f"carbono({halogen.GetIsotope()}{halogen.GetSymbol()}){infix.group(1)}ic amide"
 
 
 _OXOACID_STEMS = {5: ("boron", "borin"), 15: ("phosphon", "phosphin"), 33: ("arson", "arsin"), 51: ("stibon", "stibin")}
@@ -1853,7 +1847,6 @@ def _acyloxy_oxoacid(mol, acid):
     from ._common import group_substituents
     from ._substituents import format_substituent_prefixes
 
-    _reject_unsupported(mol)
     if len(set(acid)) != 1:
         raise UnsupportedStructure("an anhydride of several inorganic acid groups is not named by a single parent")
     center = mol.GetAtomWithIdx(acid[0])
@@ -1908,6 +1901,8 @@ def name_acid_derivative(mol):
     """Name of an ester, anhydride or acyl halide with no free acid group, else raises."""
     if any(atom.GetAtomicNum() not in _ORGANIC_ELEMENTS for atom in mol.GetAtoms()):
         raise UnsupportedStructure("elements outside the organic acid derivative engine")
+    if len(Chem.GetMolFrags(mol)) != 1:
+        raise UnsupportedStructure("several fragments are named as salts or adducts")
     links, acid = find_links(mol)
     if not links:
         raise UnsupportedStructure("no acid derivative group")
