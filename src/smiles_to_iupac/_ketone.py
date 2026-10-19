@@ -1651,11 +1651,10 @@ def has_hetero_ring_ketone_shape(mol) -> bool:
     five-membered 1,3-two-heteroatom shape (see
     `has_five_membered_1_3_ring_ketone_shape` below) -- that shape needs
     to be routed much earlier (ahead of ether/acetal/carbamate too), while
-    this single-/1,4-two-heteroatom shape must stay routed after
-    `has_anhydride_shape`: a single-heteroatom ring flanked by a ketone on
-    both neighboring carbons (e.g. 'O=C1CCC(=O)O1') is itself a cyclic
-    anhydride shape, and moving this check any earlier would silently
-    reclassify it before `_anhydride.py`'s own explicit ring rejection."""
+    this single-/1,4-two-heteroatom shape must stay routed after the
+    acid-derivative engine, which hands a cyclic anhydride (a
+    single-heteroatom ring flanked by a ketone on both neighboring carbons,
+    e.g. 'O=C1CCC(=O)O1') back as a heterocycle (P-65.7.7)."""
     return _has_ring_carbonyl(mol) and (
         _hetero_ring_heteroatom(mol) is not None
         or _hetero_ring_two_heteroatoms(mol) is not None

@@ -1417,9 +1417,10 @@ def name_anhydride(mol, links):
         return f"{text} {_bridge_nuclide(mol, bridges)}{class_word}"
     hubs = [i for i in components if degrees[i] > 2]
     if hubs:
-        if len(hubs) != 1:
-            raise UnsupportedStructure("a branched polyanhydride beyond one polybasic centre is not handled")
-        hub = hubs[0]
+        hub = min(
+            hubs,
+            key=lambda i: (-degrees[i], -sum(1 for a in frags[i] if a not in bridge_atoms), citation_order_key(word_of[i])),
+        )
         if any(degrees[i] != 1 for i in components if i != hub):
             hub_keys = {key for key, (_, first, second) in bridges.items() if hub in (owner[first], owner[second])}
             return name_anhydride(
@@ -1444,6 +1445,8 @@ def name_anhydride(mol, links):
         for leaf_word in sorted(groups, key=citation_order_key):
             group = sorted(groups[leaf_word], key=lambda t: (len(t), t))
             body = _multiplied_word(leaf_word, len(group))
+            if carbon_hub and len(group) == 1 and not leaf_word.isalpha():
+                body = enclose(leaf_word)
             cited.append(f"{','.join(group)}-{body}" if carbon_hub else body)
         return f"{' '.join(cited)} {word_of[hub]} {class_word}"
     ends = [i for i in components if degrees[i] == 1]
