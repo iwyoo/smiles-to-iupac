@@ -13,8 +13,8 @@ _ID_CENTRES = r"(\d+(?:,\d+)*)-(di|tri|tetra)?id-(\d+)-yl"
 _ID_SUFFIX = re.compile(_ID_CENTRES)
 _PARENT_ID_TAIL = re.compile(_ID_CENTRES + "$")
 _ANION_LEFT = re.compile(r"\d-id-|(?<!meth)anid|diid|uid")
-_CITED_CATION = re.compile(r"(di|tri|tetra|penta|hexa)?methylium(?:yl|ylidene|ylidyne)|(\d+(?:,\d+)*)-(?:di|tri|tetra)?ylium")
-_CITED_ANION = re.compile(r"(di|tri|tetra|penta|hexa)?methanid(?:yl|ylidene|ylidyne)|(\d+(?:,\d+)*)-(?:di|tri|tetra)?id(?=-)")
+_CITED_CATION = re.compile(r"(di|tri|tetra|penta|hexa)?methylium(?:yl|ylidene|ylidyne)|(\d+'*(?:,\d+'*)*)-(?:di|tri|tetra)?ylium")
+_CITED_ANION = re.compile(r"(di|tri|tetra|penta|hexa)?methanid(?:yl|ylidene|ylidyne)|(\d+'*(?:,\d+'*)*)-(?:di|tri|tetra)?id(?=-)")
 _MULTIPLE = {None: 1, "di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
 
 
@@ -137,7 +137,7 @@ def _general_name(mol, radicals, anions, cations):
     name = name_anion(analogue)
     found = LAST_POSITIONS.get()
     tail = re.search(r"-?(\d+(?:,\d+)*)-(di|tri|tetra)?ide$", name)
-    if tail is None or found is None or any(r.GetIdx() not in found[1] for r in radicals):
+    if tail is None or found is None or "'" in name or any(r.GetIdx() not in found[1] for r in radicals):
         return None
     positions = found[1]
     outside = [a for a in ions if a.GetIdx() not in positions]
@@ -203,22 +203,20 @@ def _prefixed_name(mol, radicals, anions, cations):
         target.SetFormalCharge(-1)
         target.SetProp("_cationic_site", "1")
     analogue = analogue.GetMol()
-    try:
-        Chem.SanitizeMol(analogue)
-        name = name_radical_group(analogue)
-    except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
-        return None
+    Chem.SanitizeMol(analogue)
+    name = name_radical_group(analogue)
     if cations and _cited_count(_CITED_CATION, name) != len(cations):
         tail = _PARENT_ID_TAIL.search(name)
-        if anions and (tail is None or _cited_count(_CITED_ANION, name[: tail.start()]) != len(anions)):
-            return None
-        name = (_PARENT_ID_TAIL if anions else _ID_SUFFIX).sub(
-            lambda m: f"{m.group(1)}-{m.group(2) or ''}ylium-{m.group(3)}-yl", name
-        )
-        if not anions and _ANION_LEFT.search(name):
-            return None
-    if _cited_count(_CITED_CATION, name) + _cited_count(_CITED_ANION, name) != len(anions) + len(cations):
-        return None
+        if not anions or (tail is not None and _cited_count(_CITED_ANION, name[: tail.start()]) == len(anions)):
+            name = (_PARENT_ID_TAIL if anions else _ID_SUFFIX).sub(
+                lambda m: f"{m.group(1)}-{m.group(2) or ''}ylium-{m.group(3)}-yl", name
+            )
+            if not anions and _ANION_LEFT.search(name):
+                name = None
+        else:
+            name = None
+    if name is None or _cited_count(_CITED_CATION, name) + _cited_count(_CITED_ANION, name) != len(anions) + len(cations):
+        raise UnsupportedStructure("the name of this radical group does not cite every ionic centre of the structure")
     return name
 
 
@@ -300,8 +298,4 @@ def name_skeleton_radical_ion(mol) -> str:
         named = _general_name(mol, radicals, anions, cations)
     except UnsupportedStructure:
         named = None
-    if named is None:
-        named = _prefixed_name(mol, radicals, anions, cations)
-    if named is None:
-        raise UnsupportedStructure("anionic and cationic centres beside a radical outside one parent hydride cannot be told apart in the analogue name")
-    return named
+    return named if named is not None else _prefixed_name(mol, radicals, anions, cations)
