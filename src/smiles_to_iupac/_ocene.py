@@ -586,7 +586,7 @@ def _name_contracted(rw, drop, marks, once=False):
         group = next(iter(groups))
         match = re.search(r"(\d+(?:,\d+)*)-(?:bis|di)?[(\[]*" + re.escape(group) + r"[)\]]*", name)
         if match:
-            name = f"{name[:match.start()]}{match.group(1)}-({group}){name[match.end():]}"
+            name = f"{name[:match.start()]}{match.group(1)}-{enclose(group)}{name[match.end():]}"
     if "iodo" in name or "iodide" in name or any(group not in name for group in groups):
         raise UnsupportedStructure("the metallocene groups could not be cited as prefixes here")
     return name
@@ -680,20 +680,24 @@ def _as_bridge(mol, graph, rings, unit, roots, comps, ends, parent):
     ('3,5-(ferrocene-1,1'-diyl)pentanoic acid')."""
     namer = PrefixNamer(mol, graph)
     suffix = {r: _suffix_kind(mol, graph, *r) for r in roots}
-    others = {}
-    for r in roots:
-        if r in ends:
-            continue
-        if not suffix[r] and _component_kind(mol, graph, comps[r[1]]):
-            raise UnsupportedStructure("a bridged metallocene beside a further group of the same rank is not supported here")
-        others[r] = _root_name(namer, suffix, r)
+    bridge_kinds = _group_kinds(mol, graph, comps[ends[0][1]])
+    side_kinds = [k for r in roots if r not in ends and not suffix[r] for k in _group_kinds(mol, graph, comps[r[1]])]
+    side_best = min(side_kinds, key=_ORDER.index, default=None)
+    bridge_best = min(bridge_kinds, key=_ORDER.index, default=None)
+    if side_best and (
+        not bridge_best
+        or _ORDER.index(side_best) < _ORDER.index(bridge_best)
+        or (side_best == bridge_best and side_kinds.count(side_best) > bridge_kinds.count(bridge_best))
+    ):
+        raise UnsupportedStructure("a bridged metallocene beside a more senior group of a substituent is not supported here")
+    others = {r: _root_name(namer, suffix, r) for r in roots if r not in ends}
     group = _divalent_group(graph, rings, ends, others, parent)
     remove = set(unit)
     for a, x in roots:
         if (a, x) not in ends:
             remove |= comps[x]
     name = _name_contracted(Chem.RWMol(mol), remove, [(x, group) for _, x in ends], once=True)
-    if f"-({group})" not in name:
+    if f"-{enclose(group)}" not in name:
         raise UnsupportedStructure("the name of the bridge does not cite the metallocene group once")
     if not any(_group_kinds(mol, graph, comps[x]) for _, x in ends) and not any(mol.GetAtomWithIdx(i).IsInRing() for _, x in ends for i in comps[x]):
         return mark(name, "a phane name needs two or more ring systems (P-52.2.5.1), so no PIN is defined for a single bridged metallocene")

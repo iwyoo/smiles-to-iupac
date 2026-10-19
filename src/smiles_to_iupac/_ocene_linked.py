@@ -240,7 +240,7 @@ class _Assembly:
 def name_assembly(mol, units, graph):
     asm = _Assembly(mol, graph, units)
     if not asm.is_tree():
-        raise UnsupportedStructure("a ring of metallocenes joined other than in a phane is not supported here")
+        raise UnsupportedStructure("metallocenes joined in a ring other than by the carbon nodes of a phane are not supported here")
     ring_kinds = [kind for kind in asm.suffix.values() if kind]
     chain_kinds = [kind for kinds in asm.kinds.values() for kind in kinds]
     ring_best = min(ring_kinds, key=_SUFFIX_ORDER.index, default=None)
