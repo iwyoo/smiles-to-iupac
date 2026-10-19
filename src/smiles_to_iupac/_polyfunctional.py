@@ -40,6 +40,7 @@ from ._common import (
 )
 from ._amino_acyl_group import CATION_INSERT_PROP
 from ._anion import ANION_PROP, anion_weight
+from ._nitro_group import nitro_or_nitroso_group
 from ._numerals import multiplying_prefix
 from ._chalcogenourea import is_oxo_nitrogen
 from ._functional_prefixes import is_nitro_nitrogen
@@ -959,7 +960,12 @@ def _group_of(mol, carbon):
             raise UnsupportedStructure("a formaldehyde-type carbonyl is not named by the chain engine")
         if len(hetero) == 2:
             hydroxyl = [h for h in hetero if h.GetAtomicNum() == 8 and _terminal_heteroatom(mol, h.GetIdx(), 1)]
-            nitro = [h for h in hetero if h.GetAtomicNum() == 7 and is_nitro_nitrogen(mol, h.GetIdx())]
+            nitro = [
+                h
+                for h in hetero
+                if (h.GetAtomicNum() == 7 and (nitro_or_nitroso_group(mol, h) or ("",))[0] in ("nitro", "nitroso"))
+                or (h.GetAtomicNum() in (16, 34, 52) and h.GetDegree() >= 3 and not h.GetFormalCharge())
+            ]
             if hydroxyl and nitro and not carbon_neighbors:
                 return "acid", {oxygens[0], hydroxyl[0].GetIdx()}
         if hetero and all(_acyl_diazene_nitrogen(mol, h, carbon) for h in hetero):

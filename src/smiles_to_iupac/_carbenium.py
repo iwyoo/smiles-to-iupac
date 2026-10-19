@@ -60,12 +60,8 @@ Book"):
     formyl/acetyl (`_retained_acids.py`, P-65.1.7.2.1) for one- and
     two-carbon chains, else the systematic '-oyl' stem plus 'ium'.
     Confirmed worked example `acetylium (PIN)`, the Blue Book.
-  - A ring-attached acylium carbon: `_carboxylic_acid.py`'s
-    `_name_ring_attached_carboxyl`/`_name_benzo_attached_carboxyl`
-    reused with `suffix="carbonylium"`/`word="benzoylium"` (the same
-    kernels `_ester.py` reuses with `suffix="carboxylate"`/
-    `word="benzoate"`, and `_radical.py` with `suffix="carbonyl"`/
-    `word="benzoyl"`). Confirmed worked example `cyclohexanecarbonylium
+  - A ring-attached acylium carbon: the name of the same ring as a carboxylic acid with its ending turned into
+    'carbonylium'/'benzoylium'. Confirmed worked example `cyclohexanecarbonylium
     (PIN)`, the Blue Book; `benzoylium` has no
     explicit Blue Book worked example but follows the identical
     systematic pattern the rule's own text describes.
@@ -88,13 +84,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._bicyclic import find_bicyclic_core
-from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
 from ._common import (
     UnsupportedStructure,
     adjacency,
     carbon_adjacency,
     group_substituents,
-    halogen_substituents,
     linear_branch,
     longest_chains,
     name_from_substituents,
@@ -351,11 +345,8 @@ def _acylium_acyclic_name(mol):
 
 
 def _acylium_ring_name(mol):
-    """Name if `mol` is P-73.2.3.1's ring-attached acylium cation shape
-    (the '-carbonylium'/'benzoylium' construction) -- mirrors
-    `_radical.py`'s own `_acyl_radical_ring_name` (a +1 charge instead of
-    a radical electron), reusing `_carboxylic_acid.py`'s own ring-
-    numbering kernels directly -- else None."""
+    """Name if `mol` is P-73.2.3.1's ring-attached acylium cation shape (the '-carbonylium'/'benzoylium'
+    construction), else None."""
     core = _acylium_core(mol)
     if core is None:
         return None
@@ -393,10 +384,29 @@ def _acylium_ring_name(mol):
         ):
             return None
 
-    halogens = halogen_substituents(mol)
-    if ring_is_aromatic:
-        return _name_benzo_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, word="benzoylium" if not infix else f"benzenecarbo{infix}ylium", mol=mol)
-    return _name_ring_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, suffix=f"carbo{infix}ylium" if infix else "carbonylium", mol=mol)
+    return _acylium_from_acid_name(mol, cation, oxygen, infix, ring_is_aromatic)
+
+
+def _acylium_from_acid_name(mol, cation, chalcogen, infix, benzenoid):
+    """The 'carbonylium'/'benzoylium' name of the acylium cation: the name of the acid with the same ring and substituents,
+    its 'carboxylic acid' or 'benzoic acid' ending turned into the acylium ending (P-73.2.3.1)."""
+    from .core import smiles_to_iupac
+
+    acid = Chem.RWMol(mol)
+    acid.GetAtomWithIdx(cation.GetIdx()).SetFormalCharge(0)
+    oxygen = acid.GetAtomWithIdx(chalcogen.GetIdx())
+    oxygen.SetFormalCharge(0)
+    oxygen.SetAtomicNum(8)
+    acid.GetBondBetweenAtoms(cation.GetIdx(), chalcogen.GetIdx()).SetBondType(Chem.BondType.DOUBLE)
+    acid.AddBond(cation.GetIdx(), acid.AddAtom(Chem.Atom(8)), Chem.BondType.SINGLE)
+    acid = acid.GetMol()
+    Chem.SanitizeMol(acid)
+    name = smiles_to_iupac(Chem.MolToSmiles(acid))
+    ending = "benzoic acid" if benzenoid else "carboxylic acid"
+    if not name.endswith(ending):
+        raise UnsupportedStructure("the acid of this acylium cation has no carboxylic acid name")
+    replacement = f"benzenecarbo{infix}ylium" if benzenoid and infix else "benzoylium" if benzenoid else f"carbo{infix}ylium" if infix else "carbonylium"
+    return name[: -len(ending)] + replacement
 
 
 def has_acylium_shape(mol) -> bool:

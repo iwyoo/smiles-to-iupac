@@ -153,24 +153,7 @@ from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_gr
 from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
-from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
-from ._carboxylic_acid_sulfonamide import (
-    has_carboxylic_acid_sulfonamide_shape,
-    name_carboxylic_acid_sulfonamide,
-)
-from ._carboxylic_acid_seleninic_acid import (
-    has_carboxylic_acid_seleninic_acid_shape,
-    name_carboxylic_acid_seleninic_acid,
-)
-from ._carboxylic_acid_sulfinic_acid import (
-    has_carboxylic_acid_sulfinic_acid_shape,
-    name_carboxylic_acid_sulfinic_acid,
-)
-from ._carboxylic_acid_sulfonic_acid import (
-    has_carboxylic_acid_sulfonic_acid_shape,
-    name_carboxylic_acid_sulfonic_acid,
-)
-from ._common import CITE_SKELETAL_LAMBDA, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -183,7 +166,7 @@ from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multipli
 from ._chain_multiplicative import has_chain_multiplicative_shape
 from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
 from ._steroid_named import name_steroid
-from ._polyfunctional import AMINIUM, CATION_RING_ATOM, RING_CENTER, name_polyfunctional
+from ._polyfunctional import AMINIUM, CATION_RING_ATOM, FORCED_PRINCIPAL, RING_CENTER, name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
 from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER, fused_ring_system_name
@@ -1590,6 +1573,22 @@ _FALLBACK_NAMERS = (
 )
 
 
+def _has_acid_beside_oxo_acid(mol):
+    return find_carboxylic_acid_carbon(mol) is not None and (
+        has_sulfonic_acid_shape(mol) or has_sulfinic_acid_shape(mol) or has_seleninic_acid_shape(mol) or has_sulfonamide_shape(mol)
+    )
+
+
+def _name_free_acid(mol):
+    """An acid is named as itself, whatever parent the molecule it was cut out of is being named around."""
+    tokens = [(AMINIUM, AMINIUM.set(False)), (RING_CENTER, RING_CENTER.set(False)), (FORCED_PRINCIPAL, FORCED_PRINCIPAL.set(None))]
+    try:
+        return name_polyfunctional(mol)
+    finally:
+        for var, token in reversed(tokens):
+            var.reset(token)
+
+
 def _run_fallbacks(smiles, original):
     mol = _parse_smiles(smiles)
     key = Chem.MolToSmiles(mol)
@@ -2101,11 +2100,10 @@ def _name_mol(mol) -> str:
         # as nitrate above, for the same N-O-R ester-oxygen reason.
         (has_nitrite_ester_shape, name_nitrite_ester),
         # Carbonic acid or one of its esters (P-65.2.1's O=C(OR)(OR')) has a
-        # central carbon with two -O-R/-OH oxygens neither `_ether.py` (which
-        # rejects an oxygen bonded to more than one heavy atom outright) nor
-        # `_carboxylic_acid.py` (which expects exactly one -OH, not two)
-        # expects -- routed here for the same early-ester reasoning as
-        # sulfate/nitrate above.
+        # central carbon with two -O-R/-OH oxygens that `_ether.py` (which
+        # rejects an oxygen bonded to more than one heavy atom outright)
+        # does not expect -- routed here for the same early-ester reasoning
+        # as sulfate/nitrate above.
         (has_carbonic_acid_shape, name_carbonic_acid),
         # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
         # has its own phosphorus-bonded oxygen.
@@ -2280,36 +2278,9 @@ def _name_mol(mol) -> str:
         # sulfur that neither `_sulfonic_acid.py` nor `_sulfonamide.py`'s own
         # validation would accept -- must be routed here first.
         (has_sulfonic_acid_sulfonamide_shape, name_sulfonic_acid_sulfonamide),
-        # A carboxylic acid coexisting with a sulfonic acid (P-41/P-43, see
-        # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
-        # would otherwise reject on sight of the extra sulfonic sulfur, and the
-        # same four-oxygen sulfonic sulfur `_sulfonic_acid.py` would otherwise
-        # reject on sight of the extra -COOH oxygens -- must be routed here
-        # first, before either single-group module.
-        (has_carboxylic_acid_sulfonic_acid_shape, name_carboxylic_acid_sulfonic_acid),
-        # A carboxylic acid coexisting with a sulfinic acid (P-41/P-43, see
-        # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
-        # would otherwise reject on sight of the extra sulfinic sulfur, and the
-        # same three-oxygen sulfinic sulfur `_sulfinic_acid.py` would otherwise
-        # reject on sight of the extra -COOH oxygens -- must be routed here
-        # first, before either single-group module.
-        (has_carboxylic_acid_sulfinic_acid_shape, name_carboxylic_acid_sulfinic_acid),
-        # A carboxylic acid coexisting with a seleninic acid (P-41/P-43, see
-        # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
-        # would otherwise reject on sight of the extra seleninic selenium, and
-        # the same three-oxygen-cluster seleninic selenium
-        # `_seleninic_acid.py` would otherwise reject on sight of the extra
-        # -COOH oxygens -- must be routed here first, before either
-        # single-group module.
-        (has_carboxylic_acid_seleninic_acid_shape, name_carboxylic_acid_seleninic_acid),
-        # A carboxylic acid coexisting with an unsubstituted sulfonamide
-        # (P-41/P-43, see `_seniority.py`) has the same -COOH carbon shape
-        # `_carboxylic_acid.py` would otherwise reject on sight of the extra
-        # sulfonamide sulfur, and the same four-oxygen-cluster sulfonamide
-        # sulfur `_sulfonamide.py` would otherwise reject on sight of the
-        # extra -COOH oxygens -- must be routed here first, before either
-        # single-group module.
-        (has_carboxylic_acid_sulfonamide_shape, name_carboxylic_acid_sulfonamide),
+        # A carboxylic acid is senior to a sulfonic, sulfinic or seleninic acid and to a sulfonamide (P-41, Table
+        # 3.3), which are then prefixes; the single-group modules below would reject the acid's own oxygens.
+        (_has_acid_beside_oxo_acid, _name_free_acid),
         # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
         # so it must be routed here before the plain "any O atom" branch below --
         # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
@@ -2622,25 +2593,23 @@ def _name_mol(mol) -> str:
         # group (Table 3.3's most senior suffix here) and must be routed
         # before the aldehyde/ketone/alcohol checks below, which would
         # otherwise misread its carbonyl or hydroxyl half in isolation.
-        if has_carboxylic_acid_shape(mol):
+        if find_carboxylic_acid_carbon(mol) is not None:
             # P-41/Table 3.3: 'oic acid' outranks 'al', so a carboxylic acid
             # that also carries one or more aldehydes names the acid as the
-            # suffix and demotes each aldehyde to an 'oxo' prefix instead of
-            # `_carboxylic_acid.py`'s own "coexisting oxygen" rejection.
+            # suffix and demotes each aldehyde to an 'oxo' prefix.
             if has_aldehyde_carboxylic_acid_shape(mol):
                 return name_aldehyde_carboxylic_acid(mol)
             # P-66.1.1.3.3: 'oic acid' also outranks 'amide', so a
             # carboxylic acid that also carries a coexisting primary amide
             # (an amic acid) names the acid as the suffix and demotes the
-            # amide to 'amino'+'oxo' prefixes instead of
-            # `_carboxylic_acid.py`'s own "coexisting nitrogen" rejection.
+            # amide to 'amino'+'oxo' prefixes.
             if has_carboxylic_acid_amide_shape(mol):
                 return name_carboxylic_acid_amide(mol)
             # P-103.1.1.1: histidine's imidazol-4-ylmethyl side chain gets its
             # own retained name + L/D descriptor.
             if has_histidine_shape(mol):
                 return name_histidine(mol)
-            return name_carboxylic_acid(mol)
+            return _name_free_acid(mol)
         # A carbon bearing both a carbonyl oxygen and a primary-amide
         # nitrogen (-CONH2) is an amide (junior only to the acid/ester
         # suffixes above in Table 3.3) and must be routed before the
