@@ -1246,7 +1246,7 @@ def _ring_group_name(
         multiplier = numerical_term(len(marker)) if len(marker) > 1 else ""
         word = _SUFFIXES[suffix[1]]
         if suffix[1] == "acyl halide":
-            word = f"carbonyl {suffix[2]}"
+            word = f"carbonyl {suffix[2]}".rstrip()
         if centre:
             return f"{text}{stem}-{centre}-ium-{locants}-{multiplier}{word}"
         return f"{text}{stem}e-{locants}-{multiplier}{word}"
@@ -1538,6 +1538,15 @@ def _senior_name(mol, graph, halogens, aromatic, an):
     placeholder = rw.AddAtom(Chem.Atom(53))
     rw.AddBond(attach, placeholder, Chem.BondType.SINGLE)
     rw.GetAtomWithIdx(placeholder).SetProp("_named_prefix", prefix)
+    if hetero.GetAtomicNum() == 6:
+        acyl = _ring_group_name(
+            kind,
+            prefixes,
+            saturated,
+            suffix=([pos], "acyl halide", ""),
+            cation=an.cation,
+        )
+        rw.GetAtomWithIdx(placeholder).SetProp("_named_acyl", acyl)
     for idx in sorted(set(range(mol.GetNumAtoms())) - (atoms - removed), reverse=True):
         rw.RemoveAtom(idx)
     out = rw.GetMol()
