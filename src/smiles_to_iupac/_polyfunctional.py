@@ -3905,7 +3905,6 @@ def _only_plain_hydrazines(mol):
             continue
         if bond.GetBondTypeAsDouble() != 1.0 or a.IsInRing() or b.IsInRing() or _is_azide_part(a):
             return False
-        ylidene_nitrogens = 0
         for atom in (a, b):
             for neighbor in atom.GetNeighbors():
                 if neighbor.GetAtomicNum() not in (6, 7):
@@ -3918,9 +3917,6 @@ def _only_plain_hydrazines(mol):
                         continue
                     if other.GetIdx() != atom.GetIdx():
                         return False
-                    ylidene_nitrogens += 1
-        if ylidene_nitrogens > 1:
-            return False
     return True
 
 
