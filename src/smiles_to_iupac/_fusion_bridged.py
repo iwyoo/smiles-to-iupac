@@ -25,6 +25,8 @@ _MAX_PARTS = 4
 _MAX_RINGS = _MAX_RINGS_IN_SYSTEM + _MAX_PARTS
 _MAX_DECOMPOSITIONS = 200
 PHANE_NODES = ContextVar("phane_nodes", default=6)
+GENERAL_BRIDGE_WORDS = ContextVar("general_bridge_words", default=False)
+_GENERAL_WORDS = {"S": "thio", "Se": "seleno", "Te": "telluro"}
 _NO_KEY = (-1, "", 0)
 _HYDRIDES = {
     "N": "azane", "O": "oxidane", "S": "sulfane", "Se": "selane", "Te": "tellane", "P": "phosphane", "As": "arsane",
@@ -173,6 +175,8 @@ def _hetero_word(mol, atoms, first):
         lambdas = (
             f"λ{odd[0][1]}-" if count == 1 else ",".join(f"{position}λ{valence}" for position, valence in odd) + "-"
         )  # P-25.4.2.1.4; the hyphen is not shown in an example
+    if GENERAL_BRIDGE_WORDS.get() and not odd and (symbol in _GENERAL_WORDS or (symbol == "N" and count == 1 and first)):
+        return ("epi" if first else "") + multiplier + (_GENERAL_WORDS.get(symbol) or "mino")
     if symbol == "N":
         orders = [_order(mol, a, b) for a, b in zip(atoms, atoms[1:])]
         if count == 1:
@@ -808,10 +812,11 @@ def _number_group(mol, atoms, fused, group, position, counter):
     return states
 
 
-def _assemble(mol, atoms, fused, order, fused_name, numbering, parts, hetero=None):
+def bridge_assemblies(mol, atoms, fused, numbering, parts):
+    """(ranking key, entries, numbering with the bridge atoms) of every way to number and word the bridges `parts` on the
+    fused atoms `fused` numbered by `numbering`; an entry is (word, cited locants, option, part)."""
     independent = [p for p in parts if p.independent]
     dependent = [p for p in parts if not p.independent]
-    results = []
     for position, counter in _number_group(mol, atoms, fused, independent, dict(numbering), _higher_number(numbering)):
         for settled, _ in _number_group(mol, atoms, fused, dependent, position, counter):
             def partner(x, settled=settled):
@@ -825,24 +830,30 @@ def _assemble(mol, atoms, fused, order, fused_name, numbering, parts, hetero=Non
                 # P-25.4.3.1 alphabetical order; the P-25.4.5.1 example cites diepoxy before benzeno, against that rule
                 entries.sort(key=lambda e: (e[3].independent, _citation_name(e[0]), tuple(_locant_key(str(l)) for l in e[1])))
                 key = (
-                    _replacement_prefix({a: s for a, s in (hetero or {}).items() if a in numbering}, numbering)[0],
                     tuple(sorted(_locant_key(str(l)) for e in entries for l in e[1])),
                     tuple(tuple(_locant_key(str(l)) for l in e[1]) for e in entries),
                 )
-                home, consumed = _consumed(mol, atoms, order, parts)
-                capable = frozenset(home)
-                replacement_key, replacement_text = _replacement_prefix(hetero, settled)
-                results.append(
-                    BridgedParent(
-                        replacement_text + _prefix_text(entries) + ("-" if fused_name[:1].isdigit() else "") + fused_name,
-                        dict(settled),
-                        capable,
-                        consumed,
-                        frozenset(a for p in parts for a in p.atoms),
-                        key + replacement_key + (_unsaturation_key(mol, capable, consumed),),
-                        tuple(parts),
-                    )
-                )
+                yield key, entries, settled
+
+
+def _assemble(mol, atoms, fused, order, fused_name, numbering, parts, hetero=None):
+    results = []
+    for key, entries, settled in bridge_assemblies(mol, atoms, fused, numbering, parts):
+        key = (_replacement_prefix({a: s for a, s in (hetero or {}).items() if a in numbering}, numbering)[0],) + key
+        home, consumed = _consumed(mol, atoms, order, parts)
+        capable = frozenset(home)
+        replacement_key, replacement_text = _replacement_prefix(hetero, settled)
+        results.append(
+            BridgedParent(
+                replacement_text + _prefix_text(entries) + ("-" if fused_name[:1].isdigit() else "") + fused_name,
+                dict(settled),
+                capable,
+                consumed,
+                frozenset(a for p in parts for a in p.atoms),
+                key + replacement_key + (_unsaturation_key(mol, capable, consumed),),
+                tuple(parts),
+            )
+        )
     return results
 
 

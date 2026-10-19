@@ -215,12 +215,13 @@ class Groups:
         self.classes.setdefault(cls, []).append((loc, atoms, extra or {}))
 
 
-def classify(cand, view, ignored=frozenset()):
-    """Groups on the skeleton atoms of a candidate; raises UnsupportedStructure for shapes not handled."""
+def classify(cand, view, ignored=frozenset(), bridge_atoms=None):
+    """Groups on the skeleton atoms of a candidate and on the atoms {locant: atom} of its bridges; raises
+    UnsupportedStructure for shapes not handled."""
     skel = cand.skel
-    mapping = cand.mapping
-    mapped = set(mapping.values())
-    ring_atoms = skel.ring_atoms()
+    mapped = set(cand.mapping.values())
+    mapping = {**cand.mapping, **(bridge_atoms or {})}
+    ring_atoms = skel.ring_atoms() | set(bridge_atoms or ())
     groups = Groups()
     mol = view.mol
     for loc, atom in mapping.items():
@@ -297,7 +298,7 @@ def _pair_acetals(view, mapping, groups):
         groups.add("diyl", members[0][0], {r for _, r in members}, {"carbon": carbon, "others": others, "second": members[1][0], "anchors": [r for _, r in members]})
 
 
-def alkyl_count(cand, view, groups):
+def alkyl_count(cand, view, groups, bridge_locants=()):
     """Number of carbon-chain substituent groups (modifications that compete with 'nor' and 'homo', P-101.3.7.1)."""
     count = 0
     ring_atoms = cand.skel.ring_atoms()
@@ -307,6 +308,8 @@ def alkyl_count(cand, view, groups):
         if any(view.elem[n] in "ONS" and view.order[frozenset((root, n))] >= 2 for n in view.adj[root]):
             continue
         if any(view.elem[n] == "N" and view.order[frozenset((root, n))] == 3 for n in view.adj[root]):
+            continue
+        if loc in bridge_locants:
             continue
         if loc not in ring_atoms:
             return None

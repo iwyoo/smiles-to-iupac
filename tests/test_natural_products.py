@@ -120,6 +120,9 @@ def test_fusion(smiles, expected):
 
 @pytest.mark.parametrize("smiles, expected", [
     ('C[C@@]12CCC[C@H]1[C@@]13CC[C@H]4C[C@@H](CC[C@]4(C)[C@H]1CC2)OO3', '3α,8-epidioxy-5α,8α-androstane'),
+    ('C[C@@]12CCC[C@H]1[C@@]13CC[C@H]4C[C@@H](CC[C@]4(C)[C@H]1CC2)OC3', '3α,8-(epoxymethano)-5α,8α-androstane'),
+    ('C[C@@]12CCC[C@H]1[C@@]13CC[C@H]4C[C@@H](CC[C@]4(C)[C@H]1CC2)C[C@@H](C)C3', '(21R)-21-methyl-3α,8-propano-5α,8α-androstane'),
+    ('C[C@@]12CCC[C@H]1[C@@]13CC[C@H]4C[C@@H](CC[C@]4(C)[C@H]1CC2)C=CC3', '3α,8-prop[1]eno-5α,8α-androstane'),
     ('CC[C@@]12S[C@@H]1C[C@H]1[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3CC[C@@]12C', '16α,17-epithio-5α-pregnane'),
     ('CC[C@H]1CC[C@H]2[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3[C@@H]3CCC[C@]12C3', '11α,18-ethano-5α,13α-pregnane'),
     pytest.param('CC(/C=C/C=C(\\C)C1C=C2C(C)(C)CCCC2(C)O1)=C\\C=C\\C=C(C)\\C=C\\C=C(/C)C1C=C2C(C)(C)CCCC2(C)O1', '5,8:5′,8′-diepoxy-5,8,5′,8′-tetrahydro-β,β-carotene', marks=pytest.mark.slow),

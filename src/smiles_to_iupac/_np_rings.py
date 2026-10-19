@@ -2,34 +2,18 @@
 
 from dataclasses import dataclass
 
+import networkx as nx
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
+from ._fusion_bridged import GENERAL_BRIDGE_WORDS, Part, _kekule, _prefix_text, _units_of, bridge_assemblies
 from ._np_core import FACES, loc_key
-from ._numerals import multiplying_prefix
-
-_BRIDGES = {
-    ("O",): "epoxy",
-    ("O", "O"): "epidioxy",
-    ("S",): "epithio",
-    ("S", "S"): "epidithio",
-    ("N",): "epimino",
-    ("C",): "methano",
-    ("C", "C"): "ethano",
-    ("C", "C", "C"): "propano",
-    ("C", "C", "C", "C"): "butano",
-}
 
 
 @dataclass
 class Component:
     atoms: set
     links: list
-
-
-def _numeric_key(locant):
-    primes, base, sup, letters = loc_key(locant)
-    return (base, sup, letters, primes)
 
 
 def components(view, mapped):
@@ -63,60 +47,80 @@ def _closes_acetal(comp, links, view):
     return shared[0] == shared[1] and len(shared[0]) == 1 and view.elem[next(iter(shared[0]))] == "C"
 
 
-def _path(comp, view):
-    """The atoms of an unbranched acyclic component from one attached end to the other."""
-    atoms = comp.atoms
-    ends = {n for _, n in comp.links}
-    if len(comp.links) != 2:
-        raise UnsupportedStructure("a ring added to a natural-product parent at more than two bonds is not supported")
-    if len(atoms) == 1:
-        return list(atoms)
-    inner = {a: [n for n in view.adj[a] if n in atoms] for a in atoms}
-    if any(len(v) > 2 for v in inner.values()) or sum(len(v) for v in inner.values()) // 2 != len(atoms) - 1:
-        raise UnsupportedStructure("a branched or cyclic added component is not supported")
-    start = sorted(ends)[0]
-    order, previous = [start], None
-    while True:
-        nxt = [n for n in inner[order[-1]] if n != previous]
-        if not nxt:
-            break
-        previous = order[-1]
-        order.append(nxt[0])
-    if len(order) != len(atoms):
-        raise UnsupportedStructure("a branched added component is not supported")
-    return order
+def _backbone(comp, view):
+    """The atoms of the bridge itself: the shortest chain between the atoms attached to the skeleton and every ring that
+    chain runs through; the other atoms of the component are substituents of the bridge."""
+    graph = nx.Graph([(a, b) for a in comp.atoms for b in view.adj[a] if b in comp.atoms])
+    graph.add_nodes_from(comp.atoms)
+    ends = sorted({n for _, n in comp.links})
+    through = set(nx.shortest_path(graph, ends[0], ends[-1]))
+    rings = []
+    for cycle in nx.cycle_basis(graph):
+        merged = set(cycle)
+        for ring in rings[:]:
+            if len(ring & merged) >= 2:
+                merged |= ring
+                rings.remove(ring)
+        rings.append(merged)
+    for ring in rings:
+        if len(ring & through) >= 2:
+            through |= ring
+    return through
 
 
-def bridge_prefixes(comps, cand, view, config, final):
+@dataclass
+class Bridges:
+    mol: Chem.Mol
+    atoms: set
+    entries: list
+    numbering: dict
+    backbone: set
+
+
+def bridge_layout(comps, cand, view, final):
+    """The words, attachment locants and atom numbers of the atomic bridges of a candidate, the bridge atoms numbered on
+    from the highest locant of the parent (P-101.5.2, P-25.4)."""
+    if not comps:
+        return Bridges(view.mol, set(), [], {}, set())
+    image = {a: loc for loc, a in cand.mapping.items()}
+    mapped = set(image)
+    if any(view.elem[a] == "C" for comp in comps for a in _backbone(comp, view)) and not _fused_ok(cand.parent):
+        raise UnsupportedStructure("a carbon bridge across an acyclic part of a parent that is not polycyclic")
+    kekule = _kekule(view.mol)
+    if kekule is None:
+        raise UnsupportedStructure("an added bridge whose bonds cannot be written with alternating double bonds")
+    graph = nx.Graph([(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in kekule.GetBonds()])
+    backbone = {}
+    parts = []
+    for comp in comps:
+        backbone[id(comp)] = _backbone(comp, view)
+        parts.append(Part(frozenset(backbone[id(comp)]), _units_of(kekule, graph, backbone[id(comp)]), True, 2))
+    atoms = mapped | set().union(*backbone.values())
+    position = {a: str(final(loc)) for a, loc in image.items()}
+    token = GENERAL_BRIDGE_WORDS.set(True)
+    try:
+        assemblies = list(bridge_assemblies(kekule, atoms, mapped, position, parts))
+    finally:
+        GENERAL_BRIDGE_WORDS.reset(token)
+    _, entries, numbering = min(assemblies, key=lambda found: found[0])
+    return Bridges(kekule, atoms, entries, numbering, set().union(*backbone.values()))
+
+
+def bridge_prefixes(layout, cand, view, config, final):
     """['3α,8-epidioxy', ...] for the atomic bridges of a candidate, grouped like P-101.5.2 and P-14.2."""
     parent = cand.parent
     image = {a: loc for loc, a in cand.mapping.items()}
-    grouped = {}
-    for comp in comps:
-        order = _path(comp, view)
-        elements = tuple(view.elem[a] for a in order)
-        word = _BRIDGES.get(elements)
-        if word is None:
-            raise UnsupportedStructure("this added bridge is not named")
-        if elements[0] == "C" and not _fused_ok(parent):
-            raise UnsupportedStructure("a carbon bridge needs a polycyclic parent")
-        for a in order:
-            extra = [n for n in view.adj[a] if n not in comp.atoms and n not in image]
-            if extra or (view.elem[a] == "N" and view.mol.GetAtomWithIdx(a).GetTotalNumHs() != 1):
-                raise UnsupportedStructure("a substituted bridge is not named")
-        texts = []
-        for end_atom, skeleton_atom in sorted(((n, a) for a, n in comp.links), key=lambda t: _numeric_key(final(image[t[1]]))):
-            loc = image[skeleton_atom]
-            stereo = view.mol.GetAtomWithIdx(skeleton_atom).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
-            face = config.faces.get(end_atom, "") if loc not in parent.centers and stereo else ""
-            texts.append(f"{final(loc)}{FACES.get(face, '')}")
-        grouped.setdefault(word, []).append(",".join(texts))
-    result = []
-    for word in sorted(grouped):
-        pairs = sorted(grouped[word], key=lambda t: _numeric_key(t.split(",")[0].rstrip("αβξ")))
-        mult = "" if len(pairs) == 1 else multiplying_prefix(len(pairs), compound=False)
-        result.append(f"{':'.join(pairs)}-{mult}{word}")
-    return result
+    entries = []
+    for text, locants, option, part in layout.entries:
+        cited = []
+        for token in option["cited"]:
+            loc = image[token.outer]
+            stereo = view.mol.GetAtomWithIdx(token.outer).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
+            face = config.faces.get(token.inner, "") if loc not in parent.centers and stereo else ""
+            cited.append(f"{final(loc)}{FACES.get(face, '')}")
+        entries.append((text, cited, option, part))
+    words = sorted({(not part.independent, text) for text, _, _, part in entries}, key=lambda k: (not k[0], k[1].lstrip("0123456789,[]")))
+    return [_prefix_text([e for e in entries if (not e[3].independent, e[0]) == word]) for word in words]
 
 
 def _fused_ok(parent):
@@ -125,8 +129,22 @@ def _fused_ok(parent):
     return _parent_facts(parent.name)[4] >= 3
 
 
+def _peri_fused(comp, image, sa, sb, cand, view):
+    """Whether an unsaturated component closes a ring on the two bonds at a ring-junction atom of the skeleton, which is
+    named by peri-fusion (P-25.3.1.3) rather than by a bridge."""
+    middle = cand.skel.adj[image[sa]] & cand.skel.adj[image[sb]]
+    if len(middle) != 1:
+        return False
+    junction = sum(1 for ring in nx.cycle_basis(nx.Graph([(a, b) for a, n in cand.skel.adj.items() for b in n])) if next(iter(middle)) in ring)
+    return junction >= 2 and any(
+        view.order[frozenset((a, b))] != 1 for a in comp.atoms | {sa, sb} for b in view.adj[a] if b in comp.atoms | {sa, sb} and a < b
+    )
+
+
 def split_components(comps, cand, view):
-    """(bridges, fused rings): a short unbranched chain is a bridge unless it closes a ring on adjacent atoms."""
+    """(bridges, fused rings): a component joining two nonadjacent skeleton atoms is a bridge unless it closes a ring on the
+    two bonds at a ring junction, as is a single oxygen or sulfur atom joining adjacent ones; any other component closes a
+    ring on the bond between adjacent atoms (P-101.5.2)."""
     image = {a: loc for loc, a in cand.mapping.items()}
     bridges, fused = [], []
     spiro = []
@@ -139,12 +157,9 @@ def split_components(comps, cand, view):
             raise UnsupportedStructure("an added ring attached at other than two skeleton atoms")
         sa, sb = sorted(skeleton)
         adjacent = image[sb] in cand.skel.adj[image[sa]]
-        try:
-            order = _path(comp, view)
-            elements = tuple(view.elem[a] for a in order)
-        except UnsupportedStructure:
-            elements = None
-        if elements in _BRIDGES and (not adjacent or elements in (("O",), ("S",))):
+        backbone = _backbone(comp, view)
+        single_atom = len(backbone) == 1 and view.elem[next(iter(backbone))] in ("O", "S")
+        if (not adjacent and not _peri_fused(comp, image, sa, sb, cand, view)) or (adjacent and single_atom):
             bridges.append(comp)
         else:
             ring_atoms = cand.skel.cycle_atoms()
