@@ -504,7 +504,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if name == "methoxy" or (mol is not None and _labelled_ether_oxygen(mol, root, labelled, name)):
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
-        if _ALKOXY_STEM.fullmatch(name) and name.count("oxy") == 1:
+        ether = mol is None or all(
+            mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and not _carbonyl_carbon(mol, n) for n in graph[root] if n != coming_from
+        )
+        if ether and _ALKOXY_STEM.fullmatch(name) and name.count("oxy") == 1:
             return text + name, compound
         cut = _ether_oxygen_cut(name, graph, root, coming_from, halogens, mol, aromatic_atoms, unsaturated, atoms)
         return name[:cut] + text + name[cut:], compound
@@ -626,6 +629,8 @@ def _ether_oxygen_cut(name, graph, root, coming_from, halogens, mol, aromatic_at
     """Index in the alkoxy prefix `name` of the part that holds the ether oxygen: the stem of the principal chain of a
     contracted alkoxy ('2-chloro(18O)ethoxy'), else the 'oxy' itself ('(propan-2-yl)(18O)oxy') (P-82.2.1)."""
     (carbon,) = (n for n in graph[root] if n != coming_from)
+    if mol.GetAtomWithIdx(carbon).GetAtomicNum() != 6 or _carbonyl_carbon(mol, carbon):
+        return name.rindex("oxy")
     if mol.GetAtomWithIdx(carbon).IsInRing():
         raise UnsupportedStructure("the nuclide of the oxygen of a substituted ring group oxy prefix is not supported yet")
     named = {**{a: "x" for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}, **(halogens or {})}
@@ -648,7 +653,7 @@ def _labelled_ether_oxygen(mol, root, labelled, name):
         and oxygen.GetAtomicNum() == 8
         and oxygen.GetDegree() == 2
         and name.endswith("oxy")
-        and all(n.GetAtomicNum() == 6 and not _carbonyl_carbon(mol, n.GetIdx()) for n in oxygen.GetNeighbors())
+        and not name.endswith("peroxy")
     )
 
 
@@ -801,13 +806,13 @@ _CENTRE_PREFIX_STEM = {
     13: "alumanyl",
     14: "silyl",
     15: "phosphanyl|phosphoryl|phosphorothioyl|phosphinoyl|phosphinothioyl|phosphono|phosphinico",
-    16: "sulfanyl|sulfo|sulfino|sulfonyl|sulfinyl|sulfamoyl",
+    16: "sulfanyl|sulfo|sulfino|sulfonyl|sulfinyl|sulfamoyl|sulfon(?:o|imid)(?:thio|seleno|telluro)yl|sulfin(?:o|imid)(?:thio|seleno|telluro)yl",
     32: "germyl",
     33: "arsanyl",
-    34: "selanyl|selenonyl|seleninyl",
+    34: "selanyl|selenonyl|seleninyl|selenono|selenino",
     50: "stannyl",
     51: "stibanyl",
-    52: "tellanyl|telluronyl|tellurinyl",
+    52: "tellanyl|telluronyl|tellurinyl|tellurono|tellurino",
 }
 
 
