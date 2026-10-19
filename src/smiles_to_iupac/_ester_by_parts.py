@@ -140,9 +140,12 @@ def _ester_locants(mol, acid, removed, matches, named_by_arm):
     for atom in acid.GetAtoms():
         atom.SetAtomMapNum(atom.GetIdx() + 1)
     try:
-        _, _, parts = _select(acid)
+        selected = _select(acid)
     except UnsupportedStructure:
+        selected = None
+    if selected is None:
         raise UnsupportedStructure("the locants of the ester groups are not available")
+    parts = selected[2]
     position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1: loc for i, loc in parts[4].items()}
     found = {}
     for arm, carbon in enumerate(carbons):
@@ -181,9 +184,12 @@ def _arms_in_parent(mol, matches):
         Chem.SanitizeMol(acid)
         for atom in acid.GetAtoms():
             atom.SetAtomMapNum(atom.GetIdx() + 1)
-        _, _, parts = _select(acid)
+        selected = _select(acid)
     except (UnsupportedStructure, ValueError):
         return None
+    if selected is None:
+        return None
+    parts = selected[2]
     if not (parts[1] or "").endswith(("oic", "carboxylic")):
         return None
     new_index = {old: new for new, old in enumerate(kept)}

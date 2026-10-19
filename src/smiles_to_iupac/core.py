@@ -785,6 +785,8 @@ def _name_labelled_substituents(mol):
                 except UnsupportedStructure as error:
                     failure = error if namer is _name_mol else failure
                     continue
+                if candidate is None:
+                    continue
                 if not set(labels) - context["consumed"]:
                     name, partial = candidate, None
                     break
@@ -1285,14 +1287,18 @@ def _name_unabridged_body(smiles: str) -> str:
                 return configured_spiro_union
             if not _has_ionic_centre(parsed) and has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed) and not has_inorganic_acid_derivative_shape(parsed):
                 try:
-                    return name_polyfunctional(parsed)
+                    name = name_polyfunctional(parsed)
                 except UnsupportedStructure:
-                    pass
+                    name = None
+                if name is not None:
+                    return name
             if _has_aromatic_oxo(parsed):
                 try:
-                    return name_polyfunctional(parsed)
+                    name = name_polyfunctional(parsed)
                 except UnsupportedStructure:
-                    pass
+                    name = None
+                if name is not None:
+                    return name
         hydro_fusion = parsed is not None and _has_hydro_fusion_system(parsed)
         try:
             name = _smiles_to_iupac_dispatch(smiles)
@@ -1594,10 +1600,13 @@ def _name_standalone(mol):
     """An acid or amide is named as itself, whatever parent the molecule it was cut out of is being named around."""
     tokens = [(AMINIUM, AMINIUM.set(False)), (RING_CENTER, RING_CENTER.set(False)), (FORCED_PRINCIPAL, FORCED_PRINCIPAL.set(None))]
     try:
-        return name_polyfunctional(mol)
+        name = name_polyfunctional(mol)
     finally:
         for var, token in reversed(tokens):
             var.reset(token)
+    if name is None:
+        raise UnsupportedStructure("this acid or amide has no parent hydride that the substitutive engine builds")
+    return name
 
 
 def _run_fallbacks(smiles, original):
@@ -1632,7 +1641,7 @@ def _run_fallbacks(smiles, original):
                 name = fallback(mol)
             except UnsupportedStructure:
                 continue
-            if not _drops_anionic_charge(mol, name, anywhere=True):
+            if name is not None and not _drops_anionic_charge(mol, name, anywhere=True):
                 return name
         name = _name_via_fallbacks(mol)
         if name is not None:

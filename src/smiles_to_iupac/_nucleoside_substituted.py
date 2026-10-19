@@ -1066,7 +1066,10 @@ def _acyl_nucleotide_name(mol, graph, an):
     except UnsupportedStructure:
         from ._polyfunctional import name_polyfunctional
 
-        return name_polyfunctional(out)
+        name = name_polyfunctional(out)
+        if name is None:
+            raise UnsupportedStructure("the nucleotide residue has no parent hydride that the substitutive engine builds")
+        return name
 
 
 def _retained_nucleotide(an):

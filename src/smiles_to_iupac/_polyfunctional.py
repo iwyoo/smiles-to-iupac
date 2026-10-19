@@ -25,6 +25,7 @@ from ._common import (
     assembly_join,
     alpha_sort_key,
     HALOGEN_PREFIXES,
+    InternalInvariantError,
     UnsupportedStructure,
     adjacency,
     group_substituents,
@@ -1106,7 +1107,8 @@ _ACID_OR_CARBOXYLIC_ESTER = [
 ]
 
 
-def name_polyfunctional(mol) -> str:
+def name_polyfunctional(mol) -> str | None:
+    """The name of `mol`, None when its parent is a heteroatom hydride that this engine does not build (P-44.1.2.2)."""
     from ._inorganic_ester_parent import has_inorganic_ester_parent
     from ._isotope_labels import split_isotopes
     from ._linear_phane import has_linear_phane_shape, name_linear_phane
@@ -1140,6 +1142,8 @@ def name_polyfunctional(mol) -> str:
     if amidinium is not None:
         with ion_stereo_carried(mol, amidinium):
             name = _name_labelled(amidinium, {})
+        if name is None:
+            return None
         return _cationic_group_suffix(name, "amidine", sum(a.GetFormalCharge() == 1 for a in mol.GetAtoms()))
     iminium = None if anionic_parent else _iminium_base(mol)
     if iminium is not None:
@@ -2073,6 +2077,8 @@ def _name_ring_group_cation(base, centre, kind, original=None):
     finally:
         CATION_CENTRES.reset(centres_token)
         AMINIUM.reset(token)
+    if name is None:
+        return None
     name = _cationic_group_suffix(name, kind)
     return re.sub(r"(\d)-ium(?![a-z])", r"\1-ylium", name, count=1) if nitrenium else name
 
@@ -2085,6 +2091,8 @@ def _name_aminium(base, labels=None, parent="amine", cationic=None):
     finally:
         CATION_PARENT.reset(cation_token)
         AMINIUM.reset(token)
+    if name is None:
+        return None
     return _cationic_group_suffix(
         name, parent, cationic or sum(a.HasProp("_cationic_amine") or (a.GetFormalCharge() == 1 and a.GetAtomicNum() == 7) for a in base.GetAtoms())
     )
@@ -2544,6 +2552,7 @@ def _hydride_centre_with_amino_groups(mol):
 
 
 def _name_labelled(mol, labels, finish=None):
+    """The name of `mol`, None when its parent is a heteroatom hydride this engine does not build."""
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
     mol = _demote_junior_groups(mol, labels)
@@ -2578,7 +2587,10 @@ def _name_labelled(mol, labels, finish=None):
         isotope_context.pop("cited", None)
         owned = set().union(*_principal_owned(mol)[1]) if stereo else frozenset()
         suffix_token = STEREO_SUFFIX.set((mol, owned) if owned else None)
-        _, name, parts = _select(mol, stereo=stereo)
+        selected = _select(mol, stereo=stereo)
+        if selected is None:
+            return None
+        _, name, parts = selected
         LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:
             name = _with_labels(
@@ -3163,8 +3175,8 @@ def _select(mol, attach=None, n_names=(), stereo=None):
 
 
 def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
-    """(key, name, parts) of the best parent. `attach`: an atom that carries a
-    free valence (a multiplicative unit); it takes the lowest locant after
+    """(key, name, parts) of the best parent, None when it is a heteroatom hydride this engine does not build.
+    `attach`: an atom that carries a free valence (a multiplicative unit); it takes the lowest locant after
     the principal groups and multiple bonds."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -3218,10 +3230,18 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
     imine_token = IMINE_PARENT.set(principal == "imine")
     try:
         results = [
-            _select_with_principal(mol, graph, halogens, aromatic_atoms, kept, kept_rings, principal, attach, n_names, stereo)
+            result
             for amidine_kept, amidine_rings in _diamidide_alternatives(mol, groups, ring_groups)
             for kept, kept_rings in _joined_imine_alternatives(mol, graph, amidine_kept, amidine_rings)
+            if (
+                result := _select_with_principal(
+                    mol, graph, halogens, aromatic_atoms, kept, kept_rings, principal, attach, n_names, stereo
+                )
+            )
+            is not None
         ]
+        if not results:
+            return None
         best = min(results, key=lambda result: result[0])
     finally:
         IMINE_PARENT.reset(imine_token)
@@ -3958,7 +3978,8 @@ def _ring_outranks_hydrides(mol, centers):
 
 def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     """Parent without a principal group: the monocycle when there is one
-    (P-44.1.2.2), else the longest chain, with every substituent a prefix."""
+    (P-44.1.2.2), else the longest chain, with every substituent a prefix. None when a heteroatom hydride is the
+    senior parent (P-44.1.2.2) that this engine does not build: the acid, boron and chalcogen-chain namers own it."""
     from ._hydride_chain import name_hydride_chain
 
     chain_name = name_hydride_chain(mol, graph, halogens, aromatic_atoms)
@@ -3995,7 +4016,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             cited = bool(centre_nuclides(center))
             return ((0,), name, (None, None, None, 0, {} if cited else {center: 1}, False))
     if centers:
-        raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
+        return None
     if (
         not ring_cation
         and not (any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms()) and _only_plain_hydrazines(mol))
@@ -4017,7 +4038,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         if sum(b.GetBondTypeAsDouble() == 1.0 and _is_acyclic_nn(b) for b in mol.GetBonds()) > 1:
             raise UnsupportedStructure("a chain of several nitrogen atoms is the parent but the chain namer cannot cite these substituents (P-68.3.2)")
     if not ring_cation and chalcogen_link_is_parent(mol):
-        raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
+        return None
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
     if len(rings) >= 2:
@@ -5209,11 +5230,14 @@ def amine_unit_name(unit, attach):
     chosen for it; None otherwise (P-15.3: identical parent structures are multiplied)."""
     token = PREFERRED_AMINE_ATOM.set(attach)
     try:
-        _, name, parts = _select(unit)
+        selected = _select(unit)
     except UnsupportedStructure:
         return None
     finally:
         PREFERRED_AMINE_ATOM.reset(token)
+    if selected is None:
+        return None
+    _, name, parts = selected
     locant = parts[4].get(attach) if isinstance(parts[4], dict) else None
     return None if locant is None or not name.endswith("amine") else (name, locant)
 
@@ -5329,6 +5353,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
                 result = _select(parent, None, n_names)
         finally:
             ISOTOPE_LABELS.reset(unlabelled)
+        if result is None:
+            continue
         if stereo_context:
             used_by[c] = set(stereo_context["used"]) - used_before
         if primaries and (mapped not in result[2][4] or any(name not in result[1] for name, *_ in n_names)):
@@ -5361,8 +5387,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             results.append(
                 (as_prefix[0][0], ring, _ring_rank(mol, anchor), (len(as_prefix[2][4]) if not ring else 0, 0), as_prefix, None)
             )
-        if not results:
-            raise UnsupportedStructure("no parent carries the amine groups of this substituted amine")
+    if not results:
+        raise UnsupportedStructure("no parent carries the amine groups of this substituted amine")
     preferred = PREFERRED_AMINE_ATOM.get()
     results.sort(
         key=lambda r: (
@@ -5393,6 +5419,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             try:
                 with _renumbered_branch_stereo(keep):
                     selected = _select(parent, None, n_names)
+                    if selected is None:
+                        raise InternalInvariantError("the parent chosen without nuclides has no parent hydride with them")
                     name = _with_labels(
                         parent, parent_labels, sub_context["consumed"], selected[1], selected[2],
                         lambda: _select(parent, None, n_names)[1:],
@@ -5573,6 +5601,8 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
         finally:
             ISOTOPE_LABELS.reset(unlabelled)
             SUBSTITUTED_AMINE_PREFIX.reset(token)
+        if result is None:
+            return None, set()
         missing = {i for i in cut if mapped[position_of_carbon[carbons[i]]] not in result[2][4]}
         if missing or any(name not in result[1] for name, *_ in n_names):
             return None, missing
@@ -5665,7 +5695,7 @@ def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, rin
                 continue
             finally:
                 SUBSTITUTED_AMINE_PREFIX.reset(token)
-            if mapped not in result[2][4]:
+            if result is None or mapped not in result[2][4]:
                 continue
             ring = parent.GetAtomWithIdx(mapped).IsInRing()
             kept = sorted(set(arm) | {n_idx})
@@ -5738,6 +5768,8 @@ def _boranyl_amines(mol, graph, halogens, aromatic_atoms):
     tagged = [(name, compound, ("N", mapped[number], n_idx)) for name, compound, number, n_idx in n_names]
     with _renumbered_branch_stereo(kept):
         result = _select(parent, None, tagged)
+    if result is None:
+        return None
     positions = result[2][4]
     if isinstance(positions, dict) and any(carbon not in positions for _, _, (_, carbon, _) in tagged):
         return None

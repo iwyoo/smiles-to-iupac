@@ -130,9 +130,12 @@ def name_didehydro_ring(mol) -> str:
 
     name, locants = find_didehydro_ring_core(mol)
     try:
-        return name_polyfunctional(mol)
+        hydro_name = name_polyfunctional(mol)
     except UnsupportedStructure:
-        return mark(
-            f"{locants[0]},{locants[1]}-didehydro{name}",
-            "hydro prefixes on the mancude ring give the preferred name; dehydro prefixes belong to general nomenclature (P-54.4.1)",
-        )
+        hydro_name = None
+    if hydro_name is not None:
+        return hydro_name
+    return mark(
+        f"{locants[0]},{locants[1]}-didehydro{name}",
+        "hydro prefixes on the mancude ring give the preferred name; dehydro prefixes belong to general nomenclature (P-54.4.1)",
+    )

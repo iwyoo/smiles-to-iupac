@@ -946,9 +946,12 @@ def _beats_substitutive(mol, heads, covered):
     if mol is None or heads is None:
         return False
     try:
-        key, _, _ = _select(mol)
+        selected = _select(mol)
     except UnsupportedStructure:
         return True
+    if selected is None:
+        return True
+    key = selected[0]
     return isinstance(key[0], int) and len(heads & covered) > -key[0]
 
 

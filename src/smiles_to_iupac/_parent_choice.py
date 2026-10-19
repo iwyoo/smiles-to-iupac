@@ -62,7 +62,9 @@ def name_one_of_several_groups(mol, centres, name_at, prefix_context):
 
     if has_chain_multiplicative_shape(mol):
         with contextlib.suppress(UnsupportedStructure), prefix_context():
-            return name_polyfunctional(mol)
+            name = name_polyfunctional(mol)
+            if name is not None:
+                return name
     names = [name_at(centre) for centre in centres]
     if len(set(names)) == 1:
         return mark(names[0], "identical parent structures joined by a symmetrical group are named multiplicatively (P-15.3.3.2.1)")

@@ -109,7 +109,9 @@ def name_polyammonium(mol) -> str:
     if named is None and functional:
         raise UnsupportedStructure("a carbonyl-type group beside the cations is cited as a prefix by the chain engine")
     if named is None:
-        return name_polyfunctional(mol)
+        named = name_polyfunctional(mol)
+    if named is None:
+        raise UnsupportedStructure("the cationic nitrogens of this structure have no parent hydride that the amine engine builds")
     return named
 
 
@@ -201,7 +203,10 @@ def name_ammonium(mol) -> str:
     if degree == 4 and mol.GetRingInfo().NumRings():
         raise UnsupportedStructure("a quaternary ammonium on or beside a ring is named by the ring-aware amine engine")
     if degree == 4:
-        return name_polyfunctional(mol)
+        quaternary = name_polyfunctional(mol)
+        if quaternary is None:
+            raise UnsupportedStructure("this ammonium has no parent hydride that the amine engine builds")
+        return quaternary
 
     neutral_rw = Chem.RWMol(mol)
     neutral_nitrogen = neutral_rw.GetAtomWithIdx(nitrogen.GetIdx())
@@ -214,6 +219,8 @@ def name_ammonium(mol) -> str:
     if sum(a.GetAtomicNum() == 7 for a in mol.GetAtoms()) > 1:
         raise UnsupportedStructure("a neutral amino group beside the ammonium group is a prefix of the aminium name")
     amine_name = name_polyfunctional(neutral_mol)
+    if amine_name is None:
+        raise UnsupportedStructure("the neutral amine of this cation has no parent hydride that the amine engine builds")
     if not amine_name.endswith(("amine", "aniline")) or not _cites_forced_prefixes(amine_name):
         raise UnsupportedStructure("the amine name of this cation does not cite every prefix supplied for a further onium group")
     return amine_name[:-1] + "ium"

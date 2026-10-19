@@ -302,6 +302,8 @@ def _name_substitutive(mol):
         try:
             name = name_polyfunctional(neutral)
         except UnsupportedStructure:
+            name = None
+        if name is None:
             try:
                 name = _multiplicative_neutral_name(neutral)
             except UnsupportedStructure:
