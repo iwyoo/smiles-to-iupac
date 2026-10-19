@@ -1035,6 +1035,7 @@ def test_cationic_hydrazine_outranks_a_neutral_acid():
         ("CN=C(O)OC", "methyl hydrogen N-methylcarbonimidate"),
         ("CCOC(=O)NCC", "ethyl ethylcarbamate"),
         ("COC(=O)OC(=O)OC", "dimethyl dicarbonate"),
+        ("[O-]C(=O)OC(=O)O", "hydrogen dicarbonate"),
         ("CCOC(=O)OC(=O)SC", "3-ethyl 1-S-methyl 1-thiodicarbonate"),
         ("CSC(=O)OC(=O)OC", "1-S,3-dimethyl 1-thiodicarbonate"),
         ("CSC(=O)OC(=O)O", "1-S-methyl 3-hydrogen 1-thiodicarbonate"),

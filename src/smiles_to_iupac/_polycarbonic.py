@@ -54,11 +54,14 @@ def _oxo_word(mol, center, substituted=False):
     return None, None
 
 
-def _dianion_name(mol):
-    """'1-thiodicarbonate': the name of the fully deprotonated acid, whose tautomer letters are no longer needed."""
+def _anion_name(mol):
+    """'1-thiodicarbonate', 'hydrogen dicarbonate': the anion of the acid with its tautomer letters dropped; the hydrogens
+    that remain on the acid groups are cited before the anion name (P-65.6.2.3.2)."""
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
-    if len(charged) != 2 or any(a.GetFormalCharge() != -1 or a.GetDegree() != 1 or a.GetAtomicNum() not in _SYMBOL for a in charged):
-        raise UnsupportedStructure("only the fully deprotonated polycarbonic acids are named as anions here")
+    if not 1 <= len(charged) <= 2 or any(
+        a.GetFormalCharge() != -1 or a.GetDegree() != 1 or a.GetAtomicNum() not in _SYMBOL for a in charged
+    ):
+        raise UnsupportedStructure("only the partly or fully deprotonated polycarbonic acids with one anionic group per end are named as anions")
     neutral = Chem.RWMol(mol)
     for atom in charged:
         target = neutral.GetAtomWithIdx(atom.GetIdx())
@@ -68,7 +71,13 @@ def _dianion_name(mol):
     Chem.SanitizeMol(neutral)
     name = name_polycarbonic(neutral)
     name = re.sub(r" (?:[A-Za-z]+\d+)(?:,[A-Za-z]+\d+)*-acid$", " acid", name)
-    return name[: -len("ic acid")] + "ate"
+    hydrogens = sum(
+        1
+        for a in neutral.GetAtoms()
+        if a.GetAtomicNum() in _SYMBOL and a.GetDegree() == 1 and a.GetTotalNumHs() == 1 and a.GetIdx() not in {c.GetIdx() for c in charged}
+    )
+    word = f"{multiplying_prefix(hydrogens) if hydrogens > 1 else ''}hydrogen " if hydrogens else ""
+    return word + name[: -len("ic acid")] + "ate"
 
 
 def _chain_setup(mol, substituted=False):
@@ -131,7 +140,7 @@ def name_polycarbonic(mol, numbered=None):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("several fragments")
     if any(a.GetFormalCharge() for a in mol.GetAtoms()):
-        return _dianion_name(mol)
+        return _anion_name(mol)
     graph, bridges, ends, n = _chain_setup(mol, substituted=True)
     found = []
     for start in ends:
