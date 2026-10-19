@@ -2591,12 +2591,9 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if principal is None or any(a not in owned for a in rest):
         raise UnsupportedStructure("an isotopically modified atom outside the parent and the principal group is not supported yet")
     elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in rest}
-    if len(elements) != 1:
-        raise UnsupportedStructure("isotopic modification of several elements of a characteristic group is not supported yet")
-    (element,) = elements
-    before_suffix = principal in _SUFFIX_WORD and element == _SUFFIX_ELEMENT.get(principal, 8)
+    before_suffix = principal in _SUFFIX_WORD and elements == {_SUFFIX_ELEMENT.get(principal, 8)}
     if not before_suffix and any(
-        a.GetAtomicNum() == element
+        a.GetAtomicNum() in elements
         and a.GetIdx() not in owned
         and a.GetIdx() not in rest
         and not (a.IsInRing() and a.GetIdx() in (parent_atoms or ()))
@@ -2604,37 +2601,35 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         for a in mol.GetAtoms()
     ):
         raise UnsupportedStructure("the modified atom of the characteristic group needs a locant that is not defined yet")
-    symbol = mol.GetAtomWithIdx(next(iter(rest))).GetSymbol()
     heavy = [a for a, e in rest.items() if e["skeleton"]]
-    if len(heavy) > 1 and not _same_label_on_every_group_atom(mol, rest, owned, element):
-        raise UnsupportedStructure("several isotopically modified atoms in one characteristic group are not supported yet")
+    if not before_suffix and len(elements) == 1 and len(heavy) > 1 and _same_label_on_every_group_atom(mol, rest, owned, next(iter(elements))):
+        return [(rest[heavy[0]]["skeleton"], None, len(heavy), False)], None
     if before_suffix:
         if principal == "peroxol" and any(mol.GetAtomWithIdx(a).GetDegree() != 1 for a in rest):
             raise UnsupportedStructure("the oxygen of a peroxol that is bonded to carbon has no defined descriptor")
         per_group = []
-        for entry in rest.values():
-            nuclides = [entry["skeleton"]] if entry["skeleton"] else []
-            nuclides.extend(n for n, c in entry["H"].items() for _ in range(c))
+        for group in owned_groups:
+            nuclides = []
+            for a in group:
+                if a in rest:
+                    nuclides.extend([rest[a]["skeleton"]] if rest[a]["skeleton"] else [])
+                    nuclides.extend(n for n, c in rest[a]["H"].items() for _ in range(c))
             per_group.append(tuple(sorted(nuclides, key=_nuclide_sort_key)))
-        identical = len(rest) == len(owned_groups) and len(set(per_group)) == 1
-        if len(owned_groups) != 1 and not (identical and all(sum(1 for a in rest if a in group) == 1 for group in owned_groups)):
-            raise UnsupportedStructure("this isotopically modified oxygen has no defined suffix descriptor")
-        nuclides = per_group[0]
-        if len(nuclides) != len(set(nuclides)) or (len(rest) != 1 and not identical):
-            raise UnsupportedStructure("several isotopically modified atoms at the suffix are not supported yet")
-        return [], ("(" + ",".join(nuclides) + ")", _SUFFIX_WORD[principal], len(owned_groups))
-    nitrogen = principal in _NITROGEN_LABEL_CLASSES and element == 7
+        nuclides = min(per_group, key=lambda found: (-len(found), [_nuclide_rank(n) for n in found]))
+        counted = [f"{n}{nuclides.count(n) if nuclides.count(n) > 1 else ''}" for n in dict.fromkeys(nuclides)]
+        return [], ("(" + ",".join(counted) + ")", _SUFFIX_WORD[principal], len(owned_groups))
     if principal == "nitrile" and any(e["H"] for e in rest.values()):
         raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
-    acid = (_is_acid_family(principal) or principal in ("amide", "hydrazide", *_CHALCOGEN_AMIDE_CLASSES)) and element in (8, 16, 34, 52)
-    acid = acid or (principal in ("sulfonamide", *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER) and element in (8, 16, 34, 52))
-    if not (nitrogen or acid):
+    nitrogen_atoms = {a for a in rest if principal in _NITROGEN_LABEL_CLASSES and mol.GetAtomWithIdx(a).GetAtomicNum() == 7}
+    chalcogen_classes = ("amide", "hydrazide", "sulfonamide", *_CHALCOGEN_AMIDE_CLASSES, *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER)
+    chalcogen_atoms = {
+        a for a in rest
+        if (_is_acid_family(principal) or principal in chalcogen_classes) and mol.GetAtomWithIdx(a).GetAtomicNum() in (8, 16, 34, 52)
+    }
+    if set(rest) - nitrogen_atoms - chalcogen_atoms:
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []
-    if len(heavy) > 1:
-        return [(rest[heavy[0]]["skeleton"], None, len(heavy), False)], None
-    several_atoms = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == element) > 1
-    only_heavy = not any(e["H"] for e in rest.values())
+    group_of = {a: k for k, group in enumerate(owned_groups) for a in group}
     hydrazide = principal == "hydrazide" or principal in _SULFONYL_HYDRAZIDE_ORDER
     centres = {
         n.GetIdx()
@@ -2643,16 +2638,23 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         for n in mol.GetAtomWithIdx(o).GetNeighbors()
     }
     roles = {}
-    if nitrogen and principal in (*_CHALCOGEN_IMIDAMIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values()):
+    if nitrogen_atoms and principal in (*_CHALCOGEN_IMIDAMIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values()):
         if len(owned_groups) != 1:
             raise UnsupportedStructure("several imidamide groups cannot be told apart by their N locants")
         roles = _labelled_imidamide_roles(mol, owned_groups[0], set(rest))
     for atom, entry in rest.items():
         heavy_label = entry["skeleton"]
-        locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
+        symbol = mol.GetAtomWithIdx(atom).GetSymbol()
+        nitrogen = atom in nitrogen_atoms
+        several_atoms = sum(1 for a in mol.GetAtoms() if a.GetSymbol() == symbol) > 1
+        only_heavy = not entry["H"]
+        locant = symbol
         letter = symbol
+        if len(owned_groups) > 1 and not nitrogen:
+            locant += "'" * group_of[atom]
+            letter += "'" * group_of[atom]
         if atom in roles:
-            locant = locant[: -len(symbol)] + roles[atom]
+            locant = roles[atom]
             letter = roles[atom]
         elif principal in _GROUP_LOCANTED_N_CLASSES and isinstance(parent_atoms, dict) and sum(
             any(_group_locant(mol, a, parent_atoms) is not None for a in g if mol.GetAtomWithIdx(a).GetAtomicNum() == 7)

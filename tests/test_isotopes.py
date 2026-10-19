@@ -251,6 +251,9 @@ def test_nuclides_on_the_acyl_group_of_a_prefix_beside_an_acid(smiles, expected)
         pytest.param("CC(=[18O])NC", "N-methyl(18O)acetamide", id="substituted_amide_oxygen"),
         pytest.param("CC(=[18O])Cl", "(18O)acetyl chloride", id="acid_halide_oxygen"),
         pytest.param("CC(=[18O])CC(=[18O])C", "pentane-2,4-di[(18O)one]", id="identically_labelled_ketones"),
+        pytest.param("CC(=[18O])N[2H]", "(N-2H1,18O)acetamide", id="amide_oxygen_and_nitrogen_hydrogen"),
+        pytest.param("CC(=O)[15NH][2H]", "(N-2H1,15N)acetamide", id="nitrogen_nuclide_and_hydrogen_nuclide"),
+        pytest.param("OC(=[18O])CC(=O)[18OH]", "(O,O'-18O2)propanedioic acid", id="one_oxygen_in_each_acid_group"),
     ],
 )
 def test_nuclide_on_the_carbonyl_oxygen_of_an_amide_acid_halide_or_several_ketones(smiles, expected):

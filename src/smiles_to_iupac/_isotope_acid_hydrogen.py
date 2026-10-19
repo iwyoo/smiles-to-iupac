@@ -31,6 +31,17 @@ def _is_oxoacid_centre(atom):
     )
 
 
+def _is_carbamic_or_cyanamide_centre(carbon):
+    """A carbon that bears the N-H of carbamic acid (a hydroxy group beside =O) or of cyanamide (C#N); an amide is no acid."""
+    if carbon.GetAtomicNum() != 6:
+        return False
+    return any(
+        (b.GetBondTypeAsDouble() == 3.0 and b.GetOtherAtom(carbon).GetAtomicNum() == 7)
+        or (b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(carbon).GetAtomicNum() == 8 and b.GetOtherAtom(carbon).GetTotalNumHs() > 0)
+        for b in carbon.GetBonds()
+    )
+
+
 def _labelled_group_atom(mol):
     """(mol without the nuclide of the acid hydrogen, its atom, the label entry, the atoms with the same label) for a
     structure whose only acid hydrogens modified are one nuclide on oxoacid O-H groups (or one N-H); the other nuclides
@@ -45,7 +56,7 @@ def _labelled_group_atom(mol):
         if entry["skeleton"] or sum(entry["H"].values()) != 1 or atom.GetAtomicNum() not in (7, 8):
             continue
         centres = [n for n in atom.GetNeighbors() if _is_oxoacid_centre(n)]
-        if len(centres) == 1 and (atom.GetAtomicNum() == 8 or centres[0].GetAtomicNum() == 6):
+        if len(centres) == 1 and (atom.GetAtomicNum() == 8 or _is_carbamic_or_cyanamide_centre(centres[0])):
             acid[index] = entry
     if not acid or len({tuple(entry["H"]) for entry in acid.values()}) != 1:
         return None
@@ -83,7 +94,7 @@ def _hydrogen_word_citation(name, nuclide, modified, atom):
     """The ester name with the nuclide in front of the word 'hydrogen' that holds the modified atom; a nuclide cited
     separately from the unmodified hydrogen, which follows it (P-82.2.2.1, P-82.2.4)."""
     word = _ACID_HYDROGEN_WORD.search(name)
-    if word is None or atom.GetAtomicNum() != 8:
+    if word is None:
         raise UnsupportedStructure("the parent acid of this isotopically modified structure is not delimited")
     present = 2 if word.group(1) else 1
     if modified > present:
