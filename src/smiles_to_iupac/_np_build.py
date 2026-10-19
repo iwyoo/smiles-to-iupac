@@ -54,30 +54,6 @@ class Built:
     skeletal: int = 0
 
 
-def _components(view, mapped):
-    seen, comps = set(mapped), []
-    for start in view.adj:
-        if start in seen:
-            continue
-        comp, stack = {start}, [start]
-        seen.add(start)
-        while stack:
-            for n in view.adj[stack.pop()]:
-                if n not in seen:
-                    seen.add(n)
-                    comp.add(n)
-                    stack.append(n)
-        comps.append(comp)
-    return comps
-
-
-def _check_single_attachment(view, mapped):
-    for comp in _components(view, mapped):
-        links = [(a, n) for n in comp for a in view.adj[n] if a in mapped]
-        if len(links) > 1:
-            raise UnsupportedStructure("a ring or bridge added to a natural-product parent is not supported")
-
-
 def nondetachable_cost(cand):
     return len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced)
 
