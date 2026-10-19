@@ -340,6 +340,8 @@ def test_unplaceable_isotope_label_is_never_dropped(smiles):
         pytest.param("[2H]OC(=O)NC", "methyl(O-2H)carbamic acid", id="carbamic_acid_oxygen"),
         pytest.param("[2H]OB(O)CC", "ethyl(O-2H)boronic acid", id="boronic_acid_oxygen"),
         pytest.param("[2H]OC(=O)O", "(O-2H)carbonic acid", id="carbonic_acid_oxygen"),
+        pytest.param("[2H]OP(=O)(O[2H])O[2H]", "(O,O',O''-2H3)phosphoric acid", id="phosphoric_acid_three_oxygens"),
+        pytest.param("[2H]OP(=O)(O[2H])OP(=O)(O)O", "(O1,O1'-2H2)diphosphoric acid", id="diphosphoric_acid_two_oxygens_on_one_centre"),
         pytest.param("[2H]OC#N", "(O-2H)cyanic acid", id="cyanic_acid_oxygen"),
         pytest.param("[2H]NC#N", "(N-2H1)cyanamide", id="cyanamide_nitrogen"),
         pytest.param("[2H]NNC", "1-methyl(2-2H1)hydrazine", id="substituted_hydrazine_cites_every_locant"),
