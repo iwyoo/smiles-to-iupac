@@ -1207,6 +1207,9 @@ def _bridged_numberings(mol, skeleton_atoms):
     from ._fusion_bridged import bridged_parents
 
     parents = bridged_parents(mol, set(skeleton_atoms))
+    unexpressed = {
+        a for a in skeleton_atoms if mol.GetAtomWithIdx(a).GetFormalCharge() or mol.GetAtomWithIdx(a).GetNumRadicalElectrons()
+    }
     oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
     suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
     out = []
@@ -1241,7 +1244,9 @@ def _bridged_numberings(mol, skeleton_atoms):
         modified -= {a for a in accommodated & capable if position_of[a] in ih}
         fully_saturated = bool(hydro) and capable <= modified
 
-        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, stem=stem, full=fully_saturated):
+        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, stem=stem, full=fully_saturated, position_of=position_of):
+            if any(position_of[a] not in locants for a in unexpressed if a in position_of):
+                raise UnsupportedStructure("a charged or radical atom of the bridged ring system is left out of the suffix")
             rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
             hydro_text = multiplied_word(len(hydro), "hydro") if full else _hydro_text(hydro)
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
