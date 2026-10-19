@@ -2,7 +2,6 @@
 
 [![PyPI](https://img.shields.io/pypi/v/smiles-to-iupac)](https://pypi.org/project/smiles-to-iupac/)
 [![Python](https://img.shields.io/pypi/pyversions/smiles-to-iupac)](https://pypi.org/project/smiles-to-iupac/)
-[![Tests](https://github.com/iwyoo/smiles-to-iupac/actions/workflows/test.yml/badge.svg)](https://github.com/iwyoo/smiles-to-iupac/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > **Alpha release.** Coverage of the Blue Book is incomplete and growing.
