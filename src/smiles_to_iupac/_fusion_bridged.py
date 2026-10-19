@@ -26,11 +26,12 @@ _MAX_RINGS = _MAX_RINGS_IN_SYSTEM + _MAX_PARTS
 _MAX_DECOMPOSITIONS = 200
 PHANE_NODES = ContextVar("phane_nodes", default=6)
 _NO_KEY = (-1, "", 0)
-_HETERO_WORDS = {"S": "sulfano", "Se": "selano", "Te": "tellano", "Si": "silano", "P": "phosphano", "B": "borano", "Sn": "stannano"}
 _HYDRIDES = {
     "N": "azane", "O": "oxidane", "S": "sulfane", "Se": "selane", "Te": "tellane", "P": "phosphane", "As": "arsane",
-    "Sb": "stibane", "Si": "silane", "B": "borane", "Ge": "germane", "Sn": "stannane",
+    "Sb": "stibane", "Bi": "bismuthane", "Si": "silane", "B": "borane", "Al": "alumane", "Ga": "gallane", "In": "indigane",
+    "Tl": "thallane", "Ge": "germane", "Sn": "stannane", "Pb": "plumbane",
 }
+_HETERO_WORDS = {symbol: hydride[:-1] + "o" for symbol, hydride in _HYDRIDES.items() if symbol not in ("N", "O")}
 _POLYVALENT = {
     ("C", (1, 2)): "metheno", ("C", (1, 1, 1)): "epimethanetriyl", ("N", (1, 2)): "azeno", ("N", (1, 1, 1)): "epinitrilo",
     ("P", (1, 2)): "phospheno", ("P", (1, 1, 1)): "epiphosphanetriyl", ("Si", (1, 1, 1, 1)): "episilanetetrayl",
@@ -146,30 +147,42 @@ def _chain_word(orders):
     return f"{stem}[{','.join(map(str, locants))}]{word}", locants
 
 
-_STANDARD_BONDING = {"N": 3, "P": 3, "As": 3, "Sb": 3, "Bi": 3, "B": 3, "O": 2, "S": 2, "Se": 2, "Te": 2, "Si": 4, "Ge": 4, "Sn": 4, "Pb": 4}
+_STANDARD_BONDING = {
+    "N": 3, "P": 3, "As": 3, "Sb": 3, "Bi": 3, "B": 3, "Al": 3, "Ga": 3, "In": 3, "Tl": 3,
+    "O": 2, "S": 2, "Se": 2, "Te": 2, "Si": 4, "Ge": 4, "Sn": 4, "Pb": 4,
+}
 
 
 def _hetero_word(mol, atoms, first):
     symbol = mol.GetAtomWithIdx(atoms[0]).GetSymbol()
     count = len(atoms)
     multiplier = numerical_term(count) if count > 1 else ""
-    odd = {mol.GetAtomWithIdx(a).GetTotalValence() for a in atoms if mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(symbol)}
+    odd = [
+        (i + 1, mol.GetAtomWithIdx(a).GetTotalValence())
+        for i, a in enumerate(atoms)
+        if mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(symbol)
+    ]
+    if odd and symbol not in _HETERO_WORDS:
+        raise UnsupportedStructure(f"the bridge atom {symbol} of nonstandard bonding number has no parent hydride word")
+    lambdas = ""
     if odd:
-        if count > 1 or symbol not in _HETERO_WORDS:
-            raise UnsupportedStructure("a heteroatom of nonstandard bonding number in a bridge chain")
-        return f"λ{odd.pop()}-" + _HETERO_WORDS[symbol]  # P-25.4.2.1.4; the hyphen is not shown in an example
+        lambdas = (
+            f"λ{odd[0][1]}-" if count == 1 else ",".join(f"{position}λ{valence}" for position, valence in odd) + "-"
+        )  # P-25.4.2.1.4; the hyphen is not shown in an example
     if symbol == "N":
         orders = [_order(mol, a, b) for a, b in zip(atoms, atoms[1:])]
         if count == 1:
-            return "azano"
+            return lambdas + "azano"
         if count == 2:
-            return "diazeno" if orders[0] == 2.0 else "diazano"
-        raise UnsupportedStructure("a nitrogen chain in a bridge")
+            return lambdas + ("diazeno" if orders[0] == 2.0 else "diazano")
+        enes = [i + 1 for i, order in enumerate(orders) if order == 2.0]
+        word = "azano" if not enes else f"az[{','.join(map(str, enes))}]" + ("eno" if len(enes) == 1 else numerical_term(len(enes)) + "eno")
+        return lambdas + ("epi" if first else "") + multiplier + word
     if symbol == "O":
         return ("ep" if count == 1 else "epi") * first + multiplier + "oxy"
     if symbol in _HETERO_WORDS:
-        return multiplier + _HETERO_WORDS[symbol]
-    raise UnsupportedStructure(f"a {symbol} bridge")
+        return lambdas + multiplier + _HETERO_WORDS[symbol]
+    raise UnsupportedStructure(f"a {symbol} atom has no parent hydride name for a bridge")
 
 
 _ring_cache = {}
@@ -410,7 +423,7 @@ def _substituent_word(mol, seq, singles, doubles, first):
             stem = alkane_name(n)[:-3] + ("a" if len(ene) > 1 else "") + f"[{','.join(map(str, ene))}]" + ("ene" if len(ene) == 1 else numerical_term(len(ene)) + "ene")
     else:
         if symbol not in _HYDRIDES or any(o != 1.0 for o in inner):
-            raise UnsupportedStructure(f"a polyvalent {symbol} bridge")
+            raise UnsupportedStructure(f"a polyvalent bridge of {symbol} atoms joined by multiple bonds has no substituent group name")
         ene = []
         stem = (numerical_term(n) if n > 1 else "") + _HYDRIDES[symbol]
     show = not (n == 1 or (n == 2 and sorted(singles + doubles) == [1, 2]))
