@@ -54,8 +54,7 @@
   a generalization of the single-center '-yl'/'-ylidene'/'-ylidyne' cases
   above: the parent's numbering is chosen to give the lowest *combined*
   locant set to both radical positions together (mirroring how
-  `_isotope.py`'s multi-position deuterium and `_alcohol.py`'s multi-
-  hydroxyl chains already pick numbering direction), and both locants are
+  `_alcohol.py`'s multi-hydroxyl chains already pick numbering direction), and both locants are
   always cited explicitly (e.g. 'ethane-1,2-diyl', 'propane-1,3-diyl',
   'butane-1,4-diyl'), never elided the way a single terminal '-yl' is --
   P-14.3.3's single-position omission never applies once there are two

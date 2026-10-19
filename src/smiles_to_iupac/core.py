@@ -258,18 +258,13 @@ from ._dipole_oxide import (
 )
 from ._isotope import (
     has_isotope_hydride_shape,
-    has_isotope_shape,
     has_isotope_substituted_hydride_shape,
-    name_isotope,
     name_isotope_hydride,
     name_isotope_substituted_hydride,
 )
 from ._isotope_steroid import has_isotope_steroid_shape, name_isotope_steroid
 from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
 from ._radical_group import has_group_cation_shape, has_radical_group_shape, name_group_cation, name_radical_group
-from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
-from ._isotope_carboxylic_acid import has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid
-from ._isotope_ketone import has_isotope_ketone_shape, name_isotope_ketone
 from ._isotope_one_carbon import has_isotope_one_carbon_shape, name_isotope_one_carbon
 from ._ketone import (
     has_five_membered_1_2_ring_ketone_shape,
@@ -762,10 +757,6 @@ def _name_isotope_label(mol) -> str:
         (has_isotope_substituted_hydride_shape, name_isotope_substituted_hydride),
         (has_isotope_one_carbon_shape, name_isotope_one_carbon),
         (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
-        (has_isotope_alcohol_shape, name_isotope_alcohol),
-        (has_isotope_ketone_shape, name_isotope_ketone),
-        (has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid),
-        (has_isotope_shape, name_isotope),
     ):
         if has_shape(mol):
             try:
@@ -1934,26 +1925,6 @@ def _name_mol(mol) -> str:
         (_has_isotope_label, _name_isotope_label),
         (has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine),
         (has_uronium_shape, name_uronium),
-        # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
-        # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
-        # here before `_isotope.py`'s own plain chain/methane path just below,
-        # which rejects any oxygen outright.
-        (has_isotope_alcohol_shape, name_isotope_alcohol),
-        # An isotopically labeled carbonyl oxygen and/or skeletal carbon
-        # combined with the '-one' suffix (P-82.5.1/P-82.5.2) must likewise be
-        # routed here before `_isotope.py`'s own plain path.
-        (has_isotope_ketone_shape, name_isotope_ketone),
-        # An isotopically labeled carboxyl oxygen and/or skeletal carbon
-        # combined with the '-oic acid' suffix (P-82.5.1/P-82.5.2) must
-        # likewise be routed here before `_isotope.py`'s own plain path.
-        (has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid),
-        # An isotopically labeled atom (P-82's isotope descriptor nomenclature)
-        # must be routed here before every other branch below: RDKit represents
-        # an isotopically substituted hydrogen (e.g. 2H) as its own explicit
-        # atom (atomic number 1), which none of the other branches recognize at
-        # all -- every one of them would reject it outright as an unsupported
-        # heteroatom.
-        (has_isotope_shape, name_isotope),
         # A radical ion on an ionic suffix group (P-75.3.1's 'aminiumyl'
         # radical cation) has both a charge and a radical electron on the
         # same nitrogen -- checked ahead of `has_radical_shape` below, whose

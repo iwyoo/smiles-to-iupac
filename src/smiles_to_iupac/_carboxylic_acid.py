@@ -332,10 +332,8 @@ def _best_acyclic_carboxylic_acid_candidate(
     required_atoms=frozenset(),
 ):
     """(best_name, best_position_of) -- the winning chain numbering and its
-    fully-formatted name, factored out of `_name_acyclic_carboxylic_acid`
-    (which just adds the stereo-descriptor prefix on top) so
-    `_isotope_carboxylic_acid.py` can reuse the identical numbering
-    decision, mirroring `_alcohol.py`'s/`_ketone.py`'s identical factoring.
+    fully-formatted name, without the stereo-descriptor prefix of
+    `_name_acyclic_carboxylic_acid`.
 
     `extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
