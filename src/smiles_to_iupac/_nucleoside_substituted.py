@@ -10,6 +10,7 @@ import re
 
 from rdkit import Chem
 
+from ._acid_derivatives import acyl_name
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._nucleoside import _NUCLEOSIDE_SMILES
@@ -1543,10 +1544,38 @@ def _senior_name(mol, graph, halogens, aromatic, an):
     try:
         return _name_mol(out)
     except UnsupportedStructure:
+        name = _acyl_halide_of_acid(out)
+        if name is not None:
+            return name
         name = _n_substituted_amide(out)
         if name is None:
             raise
         return name
+
+
+def _acyl_halide_of_acid(out):
+    """The acyl halide name of `out` (P-65.5.1): the acid with the halide turned into hydroxy is named, its ending read as
+    the acyl group (P-65.1.7), and the halide class name follows."""
+    from .core import _name_mol
+
+    halides = [
+        m[2]
+        for m in out.GetSubstructMatches(Chem.MolFromSmarts("[CX3](=O)[F,Cl,Br,I;X1]"))
+        if not out.GetAtomWithIdx(m[2]).HasProp("_named_prefix")
+    ]
+    if len(halides) != 1:
+        return None
+    word = _HALIDE_WORDS[out.GetAtomWithIdx(halides[0]).GetAtomicNum()]
+    acid = Chem.RWMol(out)
+    acid.GetAtomWithIdx(halides[0]).SetAtomicNum(8)
+    acid.GetAtomWithIdx(halides[0]).SetNoImplicit(False)
+    acid = acid.GetMol()
+    Chem.SanitizeMol(acid)
+    try:
+        name = _name_mol(acid)
+        return f"{acyl_name(name)} {word}"
+    except UnsupportedStructure:
+        return None
 
 
 def _acyl_oxygen_partner(mol, graph, nb):

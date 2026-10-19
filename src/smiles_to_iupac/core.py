@@ -19,7 +19,6 @@ from ._hetero_carboxylic import name_hetero_parent_acid
 from ._polycarbonic import name_polycarbonic
 from ._carbonic_ester_anion import name_carbonic_ester_anion
 from ._carbonic_family import name_carbonic_family
-from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._carbamate_ester import name_carbamate_ester
 from ._alcohol import name_alcohol
@@ -2703,13 +2702,6 @@ def _name_mol(mol) -> str:
         # a plain aldehyde.
         if has_imide_shape(mol):
             return name_imide(mol)
-        # A carbon bearing a carbonyl oxygen and a halogen (-C(=O)X) is an
-        # acyl halide, junior only to the acid/ester/amide suffixes above in
-        # Table 3.3; it must be routed before the generic carbonyl fallback
-        # below, which would otherwise misname it as a plain aldehyde/ketone
-        # and leave the halogen as an ordinary substituent prefix instead.
-        if has_acyl_halide_shape(mol):
-            return name_acyl_halide(mol)
         # A doubly-bonded, monovalent oxygen is carbonyl-shaped (aldehyde or
         # ketone, depending on how many carbon neighbors its carbon has);
         # anything else falls to the alcohol module, which itself rejects a

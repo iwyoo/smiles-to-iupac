@@ -45,7 +45,7 @@ electropositive component named by additive nomenclature)'. This is a
 organic-group-name-fused-to-metal word (identical to the single-
 substituent case), then a separate, space-delimited word for the halide's
 anion name (`HALIDE_WORDS`, the same `fluoride`/`chloride`/`bromide`/
-`iodide` dict `_acyl_halide.py` already uses), not the `fluoro`/`chloro`/
+`iodide` dict), not the `fluoro`/`chloro`/
 ... substituent-prefix form. Group 1 metals are monovalent, so an R-M-X
 shape isn't chemically possible for them (would need valence 2).
 PubChem's own registered entries for this shape are the same
