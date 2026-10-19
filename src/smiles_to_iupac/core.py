@@ -240,9 +240,6 @@ from ._radical_group import (
     name_radical_group,
 )
 from ._isotope_one_carbon import has_isotope_one_carbon_shape, name_isotope_one_carbon
-from ._thione import has_thione_shape, name_thione
-from ._selone import has_selone_shape, name_selone
-from ._tellone import has_tellone_shape, name_tellone
 from ._selenocyanate import has_selenocyanate_shape, name_selenocyanate
 from ._tellurocyanate import has_tellurocyanate_shape, name_tellurocyanate
 from ._thiocyanate import has_thiocyanate_shape, name_thiocyanate
@@ -321,14 +318,11 @@ from ._tellurone import has_tellurone_shape, name_tellurone
 from ._telluroxide import has_telluroxide_shape, name_telluroxide
 from ._diselenide import has_diselenide_shape, name_diselenide
 from ._selenide import has_selenide_shape, name_selenide
-from ._selenol import has_selenol_shape, name_selenol
 from ._ditelluride import has_ditelluride_shape, name_ditelluride
 from ._telluride import has_telluride_shape, name_telluride
-from ._tellurol import has_tellurol_shape, name_tellurol
 from ._selenoic_acid import has_selenoic_acid_shape, name_selenoic_acid
 from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
-from ._thiol import has_thiol_shape, name_thiol
 from ._hetero_chain import contract_hetero_groups_candidates, name_hetero_macrocycle, name_skeletal_chain
 from ._nitro_group import contract_nitro_groups
 from ._phosphanyl_group import PREFIX_PROP, contract_phosphanyl_groups
@@ -1531,6 +1525,7 @@ _FALLBACK_NAMERS = (
 
 
 _ACYCLIC_SULFONAMIDE = Chem.MolFromSmarts("[#6]S(=O)(=O)!@[NX3]")
+_CARBON_CHALCOGENOL = Chem.MolFromSmarts("[#6][SX2H1,SeX2H1,TeX2H1]")
 
 
 def _has_acid_senior_to_sulfonyl(mol):
@@ -2504,20 +2499,6 @@ def _name_mol(mol) -> str:
             if has_open_chain_2_ketose_shape(mol):
                 return name_open_chain_2_ketose(mol)
             return _name_standalone(mol)
-        # A real thiol/selenol coexisting with an oxygen that isn't
-        # a real alcohol at all (e.g. a furan ring substituent's own
-        # non-functional ring oxygen, now recognized by these modules
-        # themselves -- P-616 M4) has no coexisting-alcohol shape above to
-        # catch it, so it would otherwise fall through to the
-        # branch's own unconditional fallback -- must be routed here first, mirroring
-        # the nitrogen-gated branch's own thiol/selenol checks before its
-        # amine fallback below.
-        if has_thiol_shape(mol):
-            return name_thiol(mol)
-        if has_selenol_shape(mol):
-            return name_selenol(mol)
-        if has_tellurol_shape(mol):
-            return name_tellurol(mol)
         # One of the 9 retained-name inositol stereoisomers (P-104.2.1) is
         # itself a plain cyclohexane-1,2,3,4,5,6-hexol shape, so it must be
         # routed before the generic systematic fallback below, which would
@@ -2646,47 +2627,21 @@ def _name_mol(mol) -> str:
         # just above.
         if has_hetero_ring_amine_shape(mol):
             return name_hetero_ring_amine(mol)
-        # A thiol coexisting with a nitrogen that isn't a real amine at all
-        # (e.g. a heteroaromatic ring substituent's own pyridine/pyrrole
-        # nitrogen, now recognized by `_thiol.py` itself -- P-25 M2 step 1,
-        # #628) has no coexisting-amine shape above to catch it (those all
-        # require an actual primary amine), so it would otherwise fall
-        # through to the amine fallback's own unconditional rejection of a
-        # nitrogen-free molecule it doesn't recognize as amine-shaped at
-        # all -- must be routed here first.
-        if has_thiol_shape(mol):
-            return name_thiol(mol)
-        # A selenol coexisting with a nitrogen that isn't a real amine at
-        # all (e.g. a heteroaromatic ring substituent's own pyridine/
-        # pyrrole nitrogen) has no coexisting-amine shape above to catch
-        # it either -- same reasoning as the thiol check just above, one
-        # chalcogen row down.
-        if has_selenol_shape(mol):
-            return name_selenol(mol)
-        # A tellurol coexisting with a nitrogen that isn't a real amine at
-        # all has no coexisting-amine shape above to catch it either --
-        # same reasoning as the thiol/selenol checks just above, the next
-        # chalcogen row down.
-        if has_tellurol_shape(mol):
-            return name_tellurol(mol)
         return _name_standalone(mol)
     for has_shape, namer in (
         (has_chalcogen_peroxol_shape, name_hydroperoxide),
-        (has_thione_shape, name_thione),  # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only # reaches this branch once both are ruled out above. Its own shape # check is precise (a real C=S double bond), unlike thiol's/ # sulfide's own loose "any sulfur atom" checks, so it's safe to # check here regardless of order relative to them.
         (has_disulfide_shape, name_disulfide),  # A disulfide (R-S-S-R') has two sulfurs -- it would otherwise # look thiol-shaped to the check below (that check just looks for # the presence of any sulfur atom) -- must be routed here first.
         (has_sulfide_shape, name_sulfide),  # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed # here before has_thiol_shape below: _thiol.py's validation rejects # a degree-2 sulfur outright (not a monovalent -SH), so a sulfide # would otherwise raise the wrong error there instead of being named.
-        (has_thiol_shape, name_thiol),  # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches # this branch once both are ruled out above (a thiol coexisting # with an amine is instead routed inside the nitrogen-gated branch # above, before its own amine fallback).
-        (has_selone_shape, name_selone),  # A selone (C=Se, P-64.6.1) has the same precise-shape reasoning # as thione above (a real C=Se double bond), so it's safe to check # here regardless of order relative to the selenide/selenol chain.
         (has_diselenide_shape, name_diselenide),  # A diselenide (R-Se-Se-R') has two seleniums -- it would # otherwise look selenol-shaped to the check below (that check # just looks for the presence of any selenium atom) -- must be # routed here first.
         (has_selenide_shape, name_selenide),  # A plain -Se- selenide (P-63.2.1) has no suffix, so it must be # routed here before has_selenol_shape below for the same reason # as has_sulfide_shape above (that check doesn't look at degree # at all, so a degree-2 selenide would otherwise raise the wrong # error inside `name_selenol`'s degree-1 validation).
-        (has_selenol_shape, name_selenol),  # A selenol (-SeH, P-63.1.1) is the next chalcogen analogue after # a thiol -- has neither O, N, nor S, so it only reaches this # branch once all three are ruled out above.
-        (has_tellone_shape, name_tellone),  # A tellone (C=Te, P-64.6.1) has the same precise-shape reasoning # as thione/selone above, so it's safe to check here regardless of # order relative to the telluride/tellurol chain.
         (has_ditelluride_shape, name_ditelluride),  # A ditelluride (R-Te-Te-R') has two telluriums -- it would # otherwise look tellurol-shaped to the check below (that check # just looks for the presence of any tellurium atom) -- must be # routed here first.
         (has_telluride_shape, name_telluride),  # A plain -Te- telluride (P-63.2.1) has no suffix, so it must be # routed here before has_tellurol_shape below for the same reason # as has_selenide_shape above (that check doesn't look at degree # at all, so a degree-2 telluride would otherwise raise the wrong # error inside `name_tellurol`'s degree-1 validation).
-        (has_tellurol_shape, name_tellurol),  # A tellurol (-TeH, P-63.1.1) is the next chalcogen analogue after # a selenol -- has neither O, N, S, nor Se, so it only reaches # this branch once all four are ruled out above.
     ):
         if has_shape(mol):
             return namer(mol)
+
+    if mol.HasSubstructMatch(_CARBON_CHALCOGENOL):
+        return _name_standalone(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
