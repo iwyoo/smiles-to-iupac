@@ -7,7 +7,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   substitutively, as the N-acyl derivative of a primary amide -- one acyl
   branch supplies the '-amide' parent (`_amide.py`'s own suffix
   construction) and the other supplies an 'N-...oyl' acyl substituent
-  prefix (the same '-oyl' stem `_acyl_halide.py` builds), e.g.
+  prefix (the acyl stem of the acid-derivative engine), e.g.
   'N-acetylethanamide' for (CH3CO)2NH (a cyclic imide such as
   succinimide instead uses a completely different heterocyclic-dione axis,
   out of scope here, see the module the roadmap tracks it under). Since
