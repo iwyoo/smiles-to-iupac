@@ -3,7 +3,6 @@ fixes every locant, unsaturation is cited as 'ene' endings (estra-1,3,5(10)-trie
 configuration with α/β/ξ locants (cholest-5-en-3β-ol, 17β-hydroxy-5α-androstan-3-one). Configuration is read from a 3D
 embedding: β is the face from which the numbering of ring A runs anticlockwise."""
 
-import itertools
 from collections import Counter
 
 import numpy as np
@@ -12,8 +11,9 @@ from rdkit.Chem import AllChem
 
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
+from ._diester_anions import cite_anions
+from ._np_acyl import cite_alkyls, demote_acyl, majority_kind, o_acyl_anions
 from ._np_name import principal_groups_left_outside
-from ._numerals import multiplying_prefix
 from ._substituents import ISOTOPE_LABELS, cited_branch_stereo, format_substituent_prefixes, name_branch, skeleton_nuclides
 
 _RING_BONDS = [
@@ -35,7 +35,7 @@ _ATTACHED = {
 _ORDER = ["cholest", "chol", "pregn", "androst", "estr", "gon"]
 _RING_POSITIONS = {p for bond in _RING_BONDS for p in bond}
 _NATURAL_FACE = {8: "b", 9: "a", 10: "b", 13: "b", 14: "a"}
-_SUFFIX = {"ketone": "one", "alcohol": "ol", "amine": "amine", "ester_o": "yl"}
+_SUFFIX = {"ketone": "one", "alcohol": "ol", "amine": "amine", "ester_o": "yl", "aldehyde": "al"}
 _ACYL_SUFFIX = {
     ("acid", "c"): "carboxylic acid",
     ("acid", "o"): "oic acid",
@@ -43,10 +43,16 @@ _ACYL_SUFFIX = {
     ("ester", "o"): "oate",
     ("amide", "c"): "carboxamide",
     ("amide", "o"): "amide",
+    ("aldehyde", "c"): "carbaldehyde",
+    ("aldehyde", "o"): "al",
 }
-_PREFIX = {"alcohol": "hydroxy", "ketone": "oxo", "amine": "amino"}
-_SENIORITY = ["acid", "ester", "ester_o", "amide", "ketone", "alcohol", "amine"]
-_ACYL_CLASSES = ("acid", "ester", "ester_o", "amide")
+_PREFIX = {"alcohol": "hydroxy", "ketone": "oxo", "amine": "amino", "aldehyde": "oxo"}
+_SENIORITY = ["acid", "ester", "ester_o", "amide", "aldehyde", "ketone", "alcohol", "amine"]
+_DEMOTED = ("acid", "ester", "ester_o", "amide", "aldehyde")
+
+
+class SmallerParent(UnsupportedStructure):
+    """The groups on the chain call for a steroid parent with a shorter chain."""
 _FACES = {"a": "α", "b": "β", "x": "ξ"}
 
 
@@ -249,13 +255,16 @@ def name_steroid(mol):
         if found:
             try:
                 return _assemble(mol, stem, found, ring_atoms)
+            except SmallerParent:
+                continue
             except UnsupportedStructure:
                 return None
     return None
 
 
 def _carboxyl(mol, carbon, parent, mapped):
-    """('acid'|'ester'|'amide', ester alkyl carbon or None) when `carbon` is a C(=O)X group attached to `parent`."""
+    """('acid'|'ester'|'amide', ester oxygen and alkyl atom or None) when `carbon` is a C(=O)X group attached to `parent`;
+    an ester of a non-carbon alcohol component is no ester group here and is cited as a prefix (P-65.6.3.2.3)."""
     others = [n for n in mol.GetAtomWithIdx(carbon).GetNeighbors() if n.GetIdx() != parent]
     oxo = [n for n in others if n.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0]
     rest = [n for n in others if n not in oxo]
@@ -267,7 +276,7 @@ def _carboxyl(mol, carbon, parent, mapped):
     if x.GetAtomicNum() == 8 and x.GetDegree() == 2:
         alkyl = next(n for n in x.GetNeighbors() if n.GetIdx() != carbon)
         if alkyl.GetAtomicNum() != 6 or alkyl.GetIdx() in mapped:
-            raise UnsupportedStructure("a lactone or a non-carbon ester group on a steroid is not supported")
+            return None
         return "ester", (x.GetIdx(), alkyl.GetIdx())
     if x.GetAtomicNum() == 7 and x.GetDegree() == 1 and x.GetTotalNumHs() == 2:
         return "amide", None
@@ -295,6 +304,13 @@ def _acyl_oxygen(mol, oxygen, parent, mapped):
     raise UnsupportedStructure("an ester of an acid other than a carboxylic acid is named by its class, not as a prefix")
 
 
+def _terminal_oxo(mol, carbon):
+    return any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in carbon.GetNeighbors()
+    )
+
+
 def _groups(mol, mapping, terminals, parent_of):
     """({class: [(position, atoms, extra)]}, [(position, branch root)]) for the groups on the skeleton atoms."""
     mapped = set(mapping.values())
@@ -316,12 +332,11 @@ def _groups(mol, mapping, terminals, parent_of):
         ]
         hydroxyl = [n.GetIdx() for n in outside if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1]
         amino = [n.GetIdx() for n in outside if n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2]
-        if any(mol.GetBondBetweenAtoms(atom, n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in outside if n.GetIdx() not in oxo):
-            raise UnsupportedStructure("an exocyclic multiple bond on a steroid is not supported")
         if oxo:
-            if len(outside) != 1 or (position not in _RING_POSITIONS and center.GetTotalNumHs() > 0):
-                raise UnsupportedStructure("an aldehyde or acyl group on a steroid chain is not supported")
-            classes.setdefault("ketone", []).append((position, {oxo[0]}, {}))
+            if len(outside) != 1:
+                raise SmallerParent("an acyl group on the chain of a steroid needs a parent with a shorter chain")
+            kind = "aldehyde" if position not in _RING_POSITIONS and center.GetTotalNumHs() > 0 else "ketone"
+            classes.setdefault(kind, []).append((position, {oxo[0]}, {"kind": "o"} if kind == "aldehyde" else {}))
             continue
         for neighbor in outside:
             idx = neighbor.GetIdx()
@@ -332,6 +347,9 @@ def _groups(mol, mapping, terminals, parent_of):
             else:
                 if neighbor.GetAtomicNum() == 6 and position >= 22:
                     raise UnsupportedStructure("a carbon substituent on the side chain needs a larger steroid parent")
+                if neighbor.GetAtomicNum() == 6 and neighbor.GetDegree() == 2 and neighbor.GetTotalNumHs() == 1 and _terminal_oxo(mol, neighbor):
+                    classes.setdefault("aldehyde", []).append((position, {idx}, {"kind": "c", "anchor": idx, "root": idx}))
+                    continue
                 carboxyl = _carboxyl(mol, idx, atom, mapped) if neighbor.GetAtomicNum() == 6 else None
                 if carboxyl:
                     kind, alkyl = carboxyl
@@ -345,32 +363,6 @@ def _groups(mol, mapping, terminals, parent_of):
                     continue
                 branches.append((position, idx))
     return classes, branches
-
-
-def _acid_anion(mol, oxygen, acyl, mapped):
-    """The anion name of the acid part of an O-acyl group, e.g. 'ethanoate'."""
-    from .core import smiles_to_iupac
-
-    keep, stack = {acyl}, [acyl]
-    while stack:
-        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
-            if n.GetIdx() != oxygen and n.GetIdx() not in keep:
-                if n.GetIdx() in mapped:
-                    raise UnsupportedStructure("a ring-closing O-acyl group on a steroid is not supported")
-                keep.add(n.GetIdx())
-                stack.append(n.GetIdx())
-    editable = Chem.RWMol(mol)
-    ester_oxygen = editable.GetAtomWithIdx(oxygen)
-    ester_oxygen.SetNumExplicitHs(1)
-    ester_oxygen.SetNoImplicit(True)
-    for idx in sorted((a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in keep | {oxygen}), reverse=True):
-        editable.RemoveAtom(idx)
-    acid = editable.GetMol()
-    Chem.SanitizeMol(acid)
-    name = smiles_to_iupac(Chem.MolToSmiles(acid))
-    if not name.endswith("ic acid") or " " in name[: -len(" acid")]:
-        raise UnsupportedStructure("the acid part of this steroid ester is not a plain acid")
-    return name[: -len("ic acid")] + "ate"
 
 
 def _words(base_stem, ene, yne, principal_word, principal_locants):
@@ -416,14 +408,18 @@ def _assemble(mol, stem, mappings, ring_atoms):
     _, mapping, classes, branches, principal = best
     if principal not in ("ester_o",) and principal_groups_left_outside(mol, classes, principal, set(mapping.values())):
         raise UnsupportedStructure("a principal characteristic group outside the parent needs a multiplicative or other parent")
-    if "ester" in classes and "ester_o" in classes:
-        raise UnsupportedStructure("esters of both a steroid acid and a steroid alcohol are not supported")
-    for cls in _ACYL_CLASSES:
+    if principal in ("acid", "ester", "amide", "aldehyde") and len({extra["kind"] for _, _, extra in classes[principal]}) > 1:
+        keep = majority_kind(classes[principal], "o")
+        minority = [m for m in classes[principal] if m[2]["kind"] != keep]
+        classes[principal] = [m for m in classes[principal] if m[2]["kind"] == keep]
+        demote_acyl(principal, minority, classes, branches)
+    for cls in _DEMOTED:
         if cls in classes and cls != principal:
-            for position, _, extra in classes.pop(cls):
-                if "root" not in extra:
-                    raise UnsupportedStructure("a terminal acyl group below the principal group is not supported")
-                branches.append((position, extra["root"]))
+            members = classes.pop(cls)
+            terminal_aldehydes = [m for m in members if cls == "aldehyde" and "root" not in m[2]]
+            if terminal_aldehydes:
+                classes[cls] = terminal_aldehydes
+            demote_acyl(cls, [m for m in members if m not in terminal_aldehydes], classes, branches)
     position_of = {atom: p for p, atom in mapping.items()}
     double, triple = _bonds(mol, mapping, position_of)
     if not classes and not branches and not double and not triple:
@@ -437,14 +433,15 @@ def _assemble(mol, stem, mappings, ring_atoms):
     chain_descriptors = [text for _, text in sorted(side + _double_bond_descriptors(mol, position_of))]
 
     prefix_groups = {}
-    for cls, members in classes.items():
+    for cls, held in classes.items():
         if cls == principal:
             continue
-        for position, atoms, extra in members:
+        for position, atoms, extra in held:
             prefix_groups.setdefault(_PREFIX[cls], {"locants": [], "compound": False})["locants"].append(
                 Loc(position, _anchor_face(faces, atoms, extra))
             )
-    ester_roots = [extra["ester"][1] for _, _, extra in classes.get("ester", []) if principal == "ester"]
+    members = sorted(classes[principal], key=lambda m: m[0]) if principal is not None else []
+    ester_roots = [extra["ester"][1] for _, _, extra in members] if principal == "ester" else []
     with cited_branch_stereo(mol, graph, set(mapping.values()), [root for _, root in branches] + ester_roots):
         named = [
             (position, root, *name_branch(graph, root, mapping[position], halogens, frozenset(), mol=mol, unsaturated=True))
@@ -452,7 +449,7 @@ def _assemble(mol, stem, mappings, ring_atoms):
         ]
         ester_alkyls = [
             name_branch(graph, extra["ester"][1], extra["ester"][0], halogens, frozenset(), mol=mol, unsaturated=True)
-            for _, _, extra in classes.get("ester", [])
+            for _, _, extra in members
             if principal == "ester"
         ]
     repeats = Counter((position, name) for position, _, name, _ in named)
@@ -463,35 +460,15 @@ def _assemble(mol, stem, mappings, ring_atoms):
 
     word, locants, alkyl_word, anion = "", [], "", ""
     if principal is not None:
-        members = sorted(classes[principal], key=lambda m: m[0])
-        if principal in ("acid", "ester", "amide"):
-            if len({extra["kind"] for _, _, extra in members}) != 1:
-                raise UnsupportedStructure("a mix of ring and chain acyl groups on a steroid is not supported")
-            suffix = _ACYL_SUFFIX[(principal, members[0][2]["kind"])]
-        else:
-            suffix = _SUFFIX[principal]
+        suffix = _ACYL_SUFFIX.get((principal, members[0][2].get("kind")), _SUFFIX.get(principal))
         word = multiplied_word(len(members), suffix)
-        locants = [str(Loc(p, _anchor_face(faces, atoms, extra))) for p, atoms, extra in members]
+        cited = [Loc(p, _anchor_face(faces, atoms, extra)) for p, atoms, extra in members]
+        locants = [str(loc) for loc in cited]
         if principal == "ester":
-            alkyls = {}
-            for name, compound in ester_alkyls:
-                alkyls[name] = compound
-            if len(alkyls) != 1:
-                raise UnsupportedStructure("esters with different alkyl groups on a steroid are not supported")
-            ((name, compound),) = alkyls.items()
-            alkyl_word = name
-            if len(members) > 1:
-                alkyl_word = multiplying_prefix(len(members), compound=compound) + (f"({name})" if compound else name)
+            alkyl_word = cite_alkyls([(Loc(p), name, compound) for (p, _, _), (name, compound) in zip(members, ester_alkyls)])
         if principal == "ester_o":
-            mapped = set(mapping.values())
-            anions = {_acid_anion(mol, extra["anchor"], extra["acyl"], mapped) for _, _, extra in members}
-            if len(anions) != 1:
-                raise UnsupportedStructure("O-acyl groups from different acids on a steroid are not supported")
-            (anion,) = anions
-            if len(members) > 1:
-                if not anion.isalpha():
-                    raise UnsupportedStructure("a substituted acid part repeated on a steroid is not supported")
-                anion = multiplying_prefix(len(members), compound=False) + anion
+            anions = o_acyl_anions(mol, [(extra["anchor"], extra["acyl"]) for _, _, extra in members])
+            anion = cite_anions(anions, [Loc(p) for p, _, _ in members], True)
     core = _words(stem, [_ene_locant(b) for b in double], [_ene_locant(b) for b in triple], word, locants)
     descriptor = ",".join(parent_descriptors) + "-" if parent_descriptors else ""
     chain = f"({','.join(chain_descriptors)})-" if chain_descriptors else ""
@@ -518,12 +495,8 @@ def _bonds(mol, mapping, position_of):
         order = bond.GetBondTypeAsDouble()
         if bond.GetIsAromatic() or order == 1.0:
             continue
-        if a not in position_of and b not in position_of:
-            continue
         if a not in position_of or b not in position_of:
-            if order == 2.0 and (mol.GetAtomWithIdx(a).GetAtomicNum() == 8 or mol.GetAtomWithIdx(b).GetAtomicNum() == 8):
-                continue
-            raise UnsupportedStructure("an exocyclic multiple bond on a steroid is not supported")
+            continue
         pair = tuple(sorted((position_of[a], position_of[b])))
         (double if order == 2.0 else triple).add(pair)
     return sorted(double), sorted(triple)

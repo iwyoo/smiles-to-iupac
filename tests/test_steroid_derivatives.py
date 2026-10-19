@@ -142,3 +142,18 @@ def test_stereo_centre_inside_a_steroid_ester_alkyl_is_cited():
 )
 def test_cyclic_acetal_is_not_named_with_class_word_after_a_senior_carbonyl_component(smiles):
     assert "acetal" not in smiles_to_iupac(smiles)
+
+
+def test_o_acyl_groups_of_different_acids_are_cited_with_the_locants_of_the_diyl_groups():
+    smiles = "C[C@]12CC[C@H]3[C@@H](CC[C@H]4C[C@@H](OC(C)=O)CC[C@]34C)[C@@H]1CC[C@@H]2OC(=O)CC"
+    assert smiles_to_iupac(smiles) == "5α-androstane-3β,17β-diyl 3-acetate 17-propanoate"
+
+
+def test_esters_of_different_alkyl_groups_are_cited_alphanumerically_with_locants():
+    smiles = "C[C@]12CC[C@H]3[C@@H](CC[C@H]4C[C@@H](C(=O)OC)CC[C@]34C)[C@@H]1CC[C@@H]2C(=O)OCC"
+    assert smiles_to_iupac(smiles) == "17-ethyl 3-methyl 5α-androstane-3β,17β-dicarboxylate"
+
+
+def test_terminal_ester_below_the_principal_group_is_cited_as_alkoxy_and_oxo():
+    smiles = "C[C@]12CC[C@H]3[C@@H](CC[C@H]4C[C@@H](C(=O)O)CC[C@]34C)[C@@H]1CC[C@@H]2CC(=O)OC"
+    assert smiles_to_iupac(smiles) == "21-methoxy-21-oxo-5α-pregnane-3β-carboxylic acid"
