@@ -7,13 +7,14 @@ from dataclasses import dataclass
 from rdkit import Chem
 
 from ._common import assign_cip_labels
+from ._diester_anions import cite_anions
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
+from ._np_acyl import cite_alkyls, demote_acyl, majority_kind, o_acyl_anions
 from ._np_chain import chain_template
 from ._np_config import configuration
 from ._np_core import FACES, loc_key
 from ._np_match import skeleton_has_stereo
 from ._np_name import (
-    _ACYL_CLASSES,
     _ACYL_SUFFIX,
     _PREFIX,
     _SENIORITY,
@@ -21,7 +22,6 @@ from ._np_name import (
     _YLIDENE_CLASSES,
     Loc,
     Outranked,
-    _acid_anion,
     alkyl_count,
     classify,
     final_labels,
@@ -36,6 +36,7 @@ from ._numerals import multiplying_prefix
 from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
 
 
+_DEMOTED = ("acid", "ester", "ester_o", "amide", "nitrile")
 _MAX_UNSATURATION_CHANGES = 6
 _MAX_HYDRO_PAIRS = 3
 _MAX_TOTAL_COST = 5
@@ -121,8 +122,6 @@ def build(cand, view):
         if any(view.order[frozenset((root, mapping[loc]))] != 1 for loc, root in groups.branches):
             return None
         raise Outranked("a principal characteristic group outside the parent needs a multiplicative or other parent")
-    if "ester" in classes and "ester_o" in classes:
-        raise UnsupportedStructure("esters of both an acid and an alcohol of the parent are not supported")
     branches = list(groups.branches)
     for cls in _YLIDENE_CLASSES:
         if cls in classes and cls != principal:
@@ -130,18 +129,22 @@ def build(cand, view):
     imines = classes["imine"] if principal == "imine" else []
     if any(not plain_imine_substituent(view, n, extra["root"]) for _, _, extra in imines for n in imine_substituents(view, extra["root"], mapped)):
         raise Outranked("a group on the imine nitrogen that is not a hydrocarbon, hydroxy or alkoxy group ranks above the imine")
+    if principal in ("acid", "ester", "amide", "aldehyde") and len({extra.get("kind", "o") for _, _, extra in classes[principal]}) > 1:
+        keep = majority_kind(classes[principal], "o")
+        minority = [m for m in classes[principal] if m[2].get("kind", "o") != keep]
+        classes[principal] = [m for m in classes[principal] if m[2].get("kind", "o") == keep]
+        demote_acyl(principal, minority, classes, branches)
     if principal != "aldehyde" and "aldehyde" in classes:
         formyls = [m for m in classes["aldehyde"] if m[2].get("kind") == "c"]
         branches += [(loc, extra["root"]) for loc, _, extra in formyls]
         classes["aldehyde"] = [m for m in classes["aldehyde"] if m not in formyls]
         if not classes["aldehyde"]:
             del classes["aldehyde"]
-    for cls in _ACYL_CLASSES:
+    if "diyl" in classes and principal != "diyl":
+        raise UnsupportedStructure("a cyclic acetal below the principal group is not supported")
+    for cls in _DEMOTED:
         if cls in classes and cls != principal:
-            for loc, _, extra in classes.pop(cls):
-                if "root" not in extra:
-                    raise UnsupportedStructure("a terminal acyl group below the principal group is not supported")
-                branches.append((loc, extra["root"]))
+            demote_acyl(cls, classes.pop(cls), classes, branches)
 
     final = _primed(_final(skel), parent_prime)
     fused = [name_fused(c, cand, view, final, parent.centers, {}) for c in fused_comps]
@@ -227,50 +230,52 @@ def build(cand, view):
     suffix, locants, alkyl_word, anion = "", [], "", ""
     if principal is not None:
         members = sorted(classes[principal], key=lambda m: loc_key(m[0]))
+        kinds = {extra.get("kind") for _, _, extra in members}
         if principal == "yl":
             word = "yl"
         elif principal in ("acid", "ester", "amide", "nitrile"):
-            if len({extra["kind"] for _, _, extra in members}) != 1:
-                raise UnsupportedStructure("a mix of ring and chain acyl groups is not supported")
             word = _ACYL_SUFFIX[(principal, members[0][2]["kind"])]
-        elif principal == "aldehyde" and members[0][2].get("kind") == "c":
-            if any(extra.get("kind") != "c" for _, _, extra in members):
-                raise UnsupportedStructure("a mix of ring and chain aldehyde groups is not supported")
+        elif principal == "aldehyde" and kinds == {"c"}:
             word = "carbaldehyde"
         else:
             word = _SUFFIX[principal]
         suffix = multiplied_word(len(members), word)
-        locants = [str(Loc(final(loc), "" if extra.get("kind") == "o" else config.faces.get(extra.get("anchor", next(iter(sorted(atoms)))), ""))) for loc, atoms, extra in members]
+        cited = [
+            Loc(final(loc), "" if extra.get("kind") == "o" else config.faces.get(extra.get("anchor", next(iter(sorted(atoms)))), ""))
+            for loc, atoms, extra in members
+        ]
+        locants = [str(loc) for loc in cited]
         if principal == "ester":
-            alkyls_named = {}
             with cited_branch_stereo(view.mol, graph, mapped, [extra["ester"][1] for _, _, extra in members]):
-                for _, _, extra in members:
-                    oxygen, alkyl = extra["ester"]
-                    name, compound = name_branch(graph, alkyl, oxygen, halogens, frozenset(), mol=view.mol, unsaturated=True)
-                    alkyls_named[name] = compound
-            if len(alkyls_named) != 1:
-                raise UnsupportedStructure("esters with different alkyl groups are not supported")
-            ((name, compound),) = alkyls_named.items()
-            alkyl_word = name
-            if len(members) > 1:
-                alkyl_word = multiplying_prefix(len(members), compound=compound) + (f"({name})" if compound else name)
+                alkyls_named = [
+                    name_branch(graph, extra["ester"][1], extra["ester"][0], halogens, frozenset(), mol=view.mol, unsaturated=True)
+                    for _, _, extra in members
+                ]
+            alkyl_word = cite_alkyls([(Loc(final(loc)), name, compound) for (loc, _, _), (name, compound) in zip(members, alkyls_named)])
         if principal == "diyl":
-            if len(members) != 1:
-                raise UnsupportedStructure("several cyclic acetals on one parent are not supported")
-            loc, _, extra = members[0]
-            locants = sorted([str(Loc(final(loc), config.faces.get(extra["anchors"][0], ""))),
-                              str(Loc(final(extra["second"]), config.faces.get(extra["anchors"][1], "")))], key=lambda t: loc_key(t.rstrip("αβξ")))
-            suffix = "diyl"
-            anion, alkyl_word = _acetal_words(view, extra)
-        if principal == "ester_o":
-            anions = {_acid_anion(view, extra["anchor"], extra["acyl"], mapped) for _, _, extra in members}
-            if len(anions) != 1:
-                raise UnsupportedStructure("O-acyl groups from different acids are not supported")
-            (anion,) = anions
+            words = {_acetal_words(view, extra) for _, _, extra in members}
+            if len(words) != 1:
+                raise UnsupportedStructure("cyclic acetals of different carbonyl components on one parent are not supported")
+            pairs = sorted(
+                (
+                    sorted(
+                        [str(Loc(final(loc), config.faces.get(extra["anchors"][0], ""))), str(Loc(final(extra["second"]), config.faces.get(extra["anchors"][1], "")))],
+                        key=lambda t: loc_key(t.rstrip("αβξ")),
+                    )
+                    for loc, _, extra in members
+                ),
+                key=lambda pair: loc_key(pair[0].rstrip("αβξ")),
+            )
+            locants = [":".join(",".join(pair) for pair in pairs)]
+            suffix = multiplied_word(2 * len(members), "yl")
+            ((anion, alkyl_word),) = words
             if len(members) > 1:
-                if not anion.isalpha():
-                    raise UnsupportedStructure("a substituted acid part repeated on a natural product is not supported")
                 anion = multiplying_prefix(len(members), compound=False) + anion
+                if alkyl_word:
+                    alkyl_word = multiplying_prefix(len(members), compound=True) + f"({alkyl_word})"
+        if principal == "ester_o":
+            anions = o_acyl_anions(view.mol, [(extra["anchor"], extra["acyl"]) for _, _, extra in members])
+            anion = cite_anions(anions, [Loc(final(loc)) for loc, _, _ in members], True)
 
     stem_core = core_text(_parent_text_name(parent.name, cand.skel.ops), enes, ynes, suffix, locants)
     if spiro:

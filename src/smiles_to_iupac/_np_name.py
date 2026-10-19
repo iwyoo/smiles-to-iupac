@@ -176,30 +176,6 @@ def _acyl_oxygen(view, oxygen, parent, mapped):
     raise Outranked("an ester of an acid other than a carboxylic acid is named by its class, not as a prefix")
 
 
-def _acid_anion(view, oxygen, acyl, mapped):
-    from .core import smiles_to_iupac
-
-    keep, stack = {acyl}, [acyl]
-    while stack:
-        for n in view.adj[stack.pop()]:
-            if n != oxygen and n not in keep:
-                if n in mapped:
-                    raise UnsupportedStructure("a ring-closing O-acyl group is not supported")
-                keep.add(n)
-                stack.append(n)
-    editable = Chem.RWMol(view.mol)
-    editable.GetAtomWithIdx(oxygen).SetNumExplicitHs(1)
-    editable.GetAtomWithIdx(oxygen).SetNoImplicit(True)
-    for idx in sorted((i for i in view.adj if i not in keep | {oxygen}), reverse=True):
-        editable.RemoveAtom(idx)
-    acid = editable.GetMol()
-    Chem.SanitizeMol(acid)
-    name = smiles_to_iupac(Chem.MolToSmiles(acid))
-    if not name.endswith("ic acid") or " " in name[: -len(" acid")]:
-        raise UnsupportedStructure("the acid part of this ester is not a plain acid")
-    return name[: -len("ic acid")] + "ate"
-
-
 def _ylidene_class(view, atom, partner):
     """The class of the group a skeleton atom forms with `partner` by a double bond: an imine (P-62.3.1.1) or a chalcogen
     analogue of a ketone (P-64.6.1), else None for a ylidene prefix."""
