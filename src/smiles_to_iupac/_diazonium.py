@@ -431,7 +431,9 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
         except UnsupportedStructure:
             if shifted:
                 raise
-            name = smiles_to_iupac(Chem.MolToSmiles(surrogate))
+            from ._multiplicative import name_if_multiplicative
+
+            name = name_if_multiplicative(surrogate) or smiles_to_iupac(Chem.MolToSmiles(surrogate))
     finally:
         CATION_PARENT.reset(parent_token)
         AMINIUM.reset(token)

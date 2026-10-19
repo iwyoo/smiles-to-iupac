@@ -35,6 +35,7 @@ SUFFIX_RANKS = {
 }
 
 JUNIOR_RANK = 80
+CATION_RANK = 5  # cations rank above every class named by a suffix (P-41)
 
 KETONE_LIKE = {"ketone", "thione", "selone", "tellone"}
 
@@ -104,6 +105,7 @@ class Group:
     anchor: int
     atoms: frozenset
     ring_atom: object
+    cationic: bool = False
 
 
 def _single_bonded_linker(atom):
@@ -210,7 +212,9 @@ def classify(mol):
             group_atoms = frozenset(match)
             if name in KETONE_LIKE and len(match) == 4:
                 group_atoms = frozenset({match[1], match[2]})
-            groups.append(Group(name, SUFFIX_RANKS[name], anchor_atom, group_atoms, ring_atom))
+            nitrogen = mol.GetAtomWithIdx(anchor_atom)
+            cationic = name == "amine" and (nitrogen.GetFormalCharge() == 1 or nitrogen.HasProp("_cationic_amine"))
+            groups.append(Group(name, SUFFIX_RANKS[name], anchor_atom, group_atoms, ring_atom, cationic))
             covered.update(group_atoms)
     junior = _JUNIOR_QUERIES + [_THIOKETONE_QUERY] if any(g.rank < SUFFIX_RANKS["ketone"] for g in groups) else _JUNIOR_QUERIES
     if any(g.rank <= SUFFIX_RANKS["tellone"] for g in groups):
