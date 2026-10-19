@@ -35,14 +35,25 @@ def _pnictogen_anion(z, key):
     return stem + ("or" + name[len("phosph"):] if key[1] == 0 else name[len("phosph"):])
 
 
+def _alkoxide_host(mol, idx):
+    atom = mol.GetAtomWithIdx(idx)
+    return atom.GetAtomicNum() == 6 and not any(
+        b.GetBondTypeAsDouble() >= 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52) for b in atom.GetBonds()
+    )
+
+
 def oxoacid_center(mol):
-    """The single P or oxygen-only S atom bearing the anionic oxygen, else None."""
+    """The single P or oxygen-only S atom bearing the anionic oxygen, else None. Alkoxide groups elsewhere are cited as
+    'oxido' prefixes: the phosphorus acid anion is the senior parent (P-72.7(e))."""
     anions = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0]
     if not anions or any(a.GetAtomicNum() != 8 or a.GetDegree() != 1 or a.GetFormalCharge() != -1 for a in anions):
         return None
     hosts = {a.GetNeighbors()[0].GetIdx() for a in anions}
     if len(hosts) != 1:
-        return None
+        centers = {h for h in hosts if mol.GetAtomWithIdx(h).GetAtomicNum() in (15, 33, 51)}
+        if len(centers) != 1 or not all(_alkoxide_host(mol, h) for h in hosts - centers):
+            return None
+        hosts = centers
     center = mol.GetAtomWithIdx(next(iter(hosts)))
     if center.GetAtomicNum() in (5, 15, 33, 51):
         return center
