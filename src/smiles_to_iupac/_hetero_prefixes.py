@@ -1627,8 +1627,12 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     z = mol.GetAtomWithIdx(x).GetAtomicNum()
     if z in _ACYL_HALIDE_PREFIXES and mol.GetAtomWithIdx(x).GetDegree() == 1:
         placeholder = named_prefix(mol.GetAtomWithIdx(x))
+        if mol.GetAtomWithIdx(x).HasProp("_named_acyl"):
+            return mol.GetAtomWithIdx(x).GetProp("_named_acyl"), True
         if placeholder in ("nitro", "nitroso"):
             return placeholder + "formyl", True
+        if placeholder is not None:
+            return placeholder + "carbonyl", True
         return _ACYL_HALIDE_PREFIXES[z], False
     if z == 8:
         tail = [n for n in graph[x] if n != root]

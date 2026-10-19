@@ -452,3 +452,10 @@ def test_nucleoside_ring_ester_beside_other_groups_and_stereo_in_substituents(sm
 )
 def test_carboxylic_acid_anhydride_of_a_nucleoside_phosphate(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_nucleoside_base_acyl_group_on_an_amino_acid():
+    assert (
+        smiles_to_iupac("Nc1nc(C(=O)NC(C)C(=O)O)nc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O")
+        == "N-(6-amino-9-β-D-ribofuranosyl-9H-purine-2-carbonyl)alanine"
+    )
