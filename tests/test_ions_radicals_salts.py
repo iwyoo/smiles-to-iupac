@@ -463,6 +463,7 @@ def test_alkenyl_group_on_an_onium_centre_cites_its_double_bond_descriptor(smile
     "smiles,expected",
     [
         ("[Na+].[O-][N+](=O)[O-]", "sodium nitrate"),
+        ("N[Co+3](N)(N)(N)(N)N.[O-]C(C)=O.[O-]C(C)=O.[O-]C(C)=O", "hexaazanidocobalt(3+) triacetate"),
     ],
 )
 def test_polyatomic_anion_salt_name(smiles, expected):
