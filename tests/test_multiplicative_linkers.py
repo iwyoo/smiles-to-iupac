@@ -1167,3 +1167,18 @@ def test_aniline_units_joined_through_a_nitrogen_linker_that_is_not_an_amine(smi
 )
 def test_multiplied_units_with_nuclides_and_stereo_outside_their_parent_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)CC(CCl)COCC(CCl)CC(=O)O", "4,4'-oxybis[3-(chloromethyl)butanoic acid]", id="unit_with_parentheses"),
+        pytest.param(
+            "OC(=O)CC(C(F)Cl)COCC(C(F)Cl)CC(=O)O",
+            "4,4'-oxybis{3-[chloro(fluoro)methyl]butanoic acid}",
+            id="unit_with_parentheses_and_brackets",
+        ),
+    ],
+)
+def test_multiplied_unit_with_enclosing_marks_nests_them(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
