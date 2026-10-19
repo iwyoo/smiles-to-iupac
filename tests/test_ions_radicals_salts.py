@@ -1388,6 +1388,16 @@ def test_several_identical_cationic_centres(smiles, expected):
             "2,2'-[butanedioylbis(oxy)]bis(N,N,N-trimethylethan-1-aminium)",
             id="cation_outranks_the_ester_linker",
         ),
+        pytest.param(
+            "C[N+](C)(C)CCN(C)CC[N+](C)(C)C",
+            "2,2'-(methylazanediyl)bis(N,N,N-trimethylethan-1-aminium)",
+            id="neutral_amine_linker",
+        ),
+        pytest.param(
+            "C[N+](C)(C)CC[N+](C)(C)CC[N+](C)(C)C",
+            "2,2'-(dimethylazaniumdiyl)bis(N,N,N-trimethylethan-1-aminium)",
+            id="quaternary_ammonium_linker",
+        ),
     ],
 )
 def test_aminium_units_joined_multiplicatively(smiles, expected):

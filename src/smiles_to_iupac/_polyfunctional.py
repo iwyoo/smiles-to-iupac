@@ -2090,7 +2090,7 @@ def cationic_multiplied_units(name, cationic):
         return None
     start, prefix, unit, ending = found
     count = _UNIT_COUNT[prefix]
-    if cationic and count != cationic:
+    if cationic and count + len(re.findall(r"azaniumdiyl|nitrilo", name[:start])) * (cationic > count) != cationic:
         raise UnsupportedStructure("a neutral amino group beside the cationic units is not cited as a prefix of this parent")
     unit = re.sub(r"(?<!m)ethan$", "ethan-1-", unit)
     return f"{name[:start]}{_UNIT_WORD[count]}({unit}{ending[:-1]}ium)"
@@ -2565,9 +2565,26 @@ def _neutral_amine_beside_cation(mol, centres):
     """A neutral amino group beside the cationic nitrogens is a prefix of the aminium parent, not one of its units
     (P-41, class 6), so units that differ in this way are not identical."""
     cationic = {a.GetIdx() for a in centres}
+
+    def joins_cations(atom):
+        seen, arms = {atom.GetIdx()}, 0
+        for start in atom.GetNeighbors():
+            if start.GetIdx() in seen:
+                continue
+            component, stack = {start.GetIdx()}, [start]
+            while stack:
+                for n in stack.pop().GetNeighbors():
+                    if n.GetIdx() not in component and n.GetIdx() != atom.GetIdx():
+                        component.add(n.GetIdx())
+                        stack.append(n)
+            seen |= component
+            arms += bool(component & cationic)
+        return arms > 1
+
     return bool(cationic) and any(
         a.GetAtomicNum() == 7
         and a.GetIdx() not in cationic
+        and not joins_cations(a)
         and not a.GetFormalCharge()
         and not a.IsInRing()
         and not a.GetIsAromatic()
@@ -5120,7 +5137,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         and not primaries
         and not ISOTOPE_LABELS.get()
         and not SUBSTITUTED_AMINE_PREFIX.get()
-        and not any(a.GetFormalCharge() for a in amine_nitrogens)
+        and (AMINIUM.get() is True or not any(a.GetFormalCharge() for a in amine_nitrogens))
     ):
         named = _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens)
         if named is not None:
