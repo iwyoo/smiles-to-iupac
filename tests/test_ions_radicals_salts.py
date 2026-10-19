@@ -1099,6 +1099,7 @@ def test_nitrogen_and_peroxyl_radicals_beside_groups(smiles, expected):
         pytest.param("[CH2]c1ccc([CH2-])cc1", "(4-methanidylphenyl)methyl", id="carbanide_on_a_ring_beside_a_radical"),
         pytest.param("[CH2]c1cc([CH2])cc([CH2-])c1", "[3-methanidyl-5-(ylomethyl)phenyl]methyl", id="carbanide_on_a_ring_beside_two_radicals"),
         pytest.param("[CH2]C1CC[CH+]CC1", "(cyclohexan-4-ylium-1-yl)methyl", id="ring_carbocation_beside_a_radical"),
+        pytest.param("[CH2]C[C-]1CC[CH+]C1", "2-(cyclopentan-3-ylium-1-id-1-yl)ethyl", id="ring_ions_entered_through_an_ionic_atom_beside_a_radical"),
         pytest.param("[CH2]c1ccc([CH2-])c([CH2+])c1", "(4-methanidyl-3-methyliumylphenyl)methyl", id="carbanide_and_carbocation_beside_a_radical"),
         pytest.param("[CH2]C(C[CH-]C)C[CH+]C", "4-(propan-2-id-1-yl)pentan-2-ylium-5-yl", id="carbanide_arm_and_parent_carbocation_beside_a_radical"),
         pytest.param("[CH2]c1ccccc1[NH-]", "(2-azanidylphenyl)methyl", id="anionic_nitrogen_beside_a_radical"),

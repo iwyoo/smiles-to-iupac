@@ -3469,7 +3469,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         ring_needed = max(min(total_principal, chain_capacity), 1)
     if chain_error is not None and not (ring_count and ring_count >= ring_needed):
         raise chain_error
-    if ring_count and ring_count >= chain_count:
+    if ring_count and ring_count >= chain_count and not (attach is not None and principal == "ide" and chain_best is not None):
         if attach is not None:
             raise UnsupportedStructure("a ring parent inside a multiplicative unit is not supported yet")
         return _finish(ring_best[1])
