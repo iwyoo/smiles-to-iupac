@@ -45,7 +45,7 @@ urea core (hydantoin) and groups senior to urea (acids, esters, amides) are out 
 from rdkit import Chem
 
 from ._chalcogen_imide import ylidene_group_atoms
-from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first, unprimed_first_labelled
+from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first, unprimed_first_labelled
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents
 from ._isotope_labels import descriptor, modification_key, split_isotopes
 from ._parent_choice import senior_parent_name
@@ -111,8 +111,34 @@ def _urea_cores(mol, atomic_num=8):
         yield atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
 
 
+def _core_extent(mol, atomic_num, core):
+    """(the atoms of the urea group `core` with its hydrazine tails, the urea carbons ranking equal to or below it as the
+    parent): the part of the molecule that a group senior to the urea must lie outside of."""
+    carbon_idx, nitrogens = core
+    (chalcogen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == atomic_num)
+    atoms = {carbon_idx, chalcogen_idx, *nitrogens}
+    tails = _hydrazine_tails(mol, adjacency(mol), carbon_idx, nitrogens)
+    if all(t is not None for t in tails):
+        return atoms | set(tails), frozenset()
+    amino_idx = _semicarbazide_amino_nitrogen(mol, *nitrogens, carbon_idx)
+    if amino_idx is not None:
+        return atoms | {amino_idx}, frozenset()
+    return atoms, _junior_cores(mol, carbon_idx, set(nitrogens))
+
+
+def _parent_cores(mol, atomic_num=8):
+    """The urea groups that are the parent: those with no carboxylic or sulfonic acid derivative, amide or amidine outside
+    them, which outranks the urea (P-41, P-66.1.6.1.1.5)."""
+    parents = []
+    for core in _urea_cores(mol, atomic_num):
+        atoms, junior_cores = _core_extent(mol, atomic_num, core)
+        if not has_group_senior_to_urea(mol, atoms, junior_cores=junior_cores):
+            parents.append(core)
+    return parents
+
+
 def _urea_core(mol, atomic_num=8):
-    return next(_urea_cores(mol, atomic_num), None)
+    return next(iter(_parent_cores(mol, atomic_num)), None)
 
 
 def _is_sulfonyl_sulfur(atom):
@@ -294,7 +320,7 @@ def name_urea(mol, atomic_num=8) -> str:
 
 def name_cores(mol, atomic_num):
     """Name with the senior urea group of the chalcogen `atomic_num` as the parent (P-45.2.1, P-45.5)."""
-    cores = list(_urea_cores(mol, atomic_num))
+    cores = _parent_cores(mol, atomic_num)
     if not cores:
         raise UnsupportedStructure(
             "no urea (H2N-C(=O)-NH2 or an N-substituted derivative) shape "
@@ -348,8 +374,7 @@ def _core_name(mol, atomic_num, core):
         )
         return sum(map(len, names)), _hydrazinecarboxamide_name(*names, _AMIDE_ENDING[atomic_num])
     n1_names, n2_names = n_substituent_names(
-        mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx, junior_groups=True,
-        junior_cores=_junior_cores(mol, carbon_idx, {n1_idx, n2_idx}),
+        mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx, junior_groups=True
     )
     return len(n1_names) + len(n2_names), f"{n_prefix(n1_names, n2_names)}{_UREA_WORD[atomic_num]}"
 

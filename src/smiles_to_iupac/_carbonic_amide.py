@@ -110,7 +110,9 @@ def cyanamide_name(mol):
         if len(betas) > 1:
             continue
         if not betas:
-            if mol.HasSubstructMatch(_IMIDIC_DERIVATIVE):
+            if mol.HasSubstructMatch(_IMIDIC_DERIVATIVE) or has_group_senior_to_urea(
+                mol, {atom.GetIdx(), terminal.GetIdx(), amino.GetIdx()}
+            ):
                 continue
             try:
                 (names,) = n_substituent_names(
@@ -176,6 +178,8 @@ def carbonohydrazonic_diamide_name(mol):
         if any(n.GetAtomicNum() == 7 for amide in nitrogens[:2] for n in amide.GetNeighbors() if n.GetIdx() != carbon.GetIdx()):
             continue
         core = {carbon.GetIdx(), imine.GetIdx(), terminal.GetIdx(), *amides}
+        if has_group_senior_to_urea(mol, core):
+            continue
         try:
             found = n_substituent_names(
                 mol, graph, core, tuple(n.GetIdx() for n in nitrogens), carbon.GetIdx(), junior_groups=True

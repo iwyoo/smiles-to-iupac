@@ -45,6 +45,7 @@ from rdkit import Chem
 
 from ._chalcogenourea import (
     c_n_configuration,
+    has_group_senior_to_urea,
     is_core_substituent_root,
     is_urea_substituent_root,
     n_substituent_names,
@@ -133,6 +134,10 @@ def _guanidine_core(mol, hydrazine=False):
             if nn.GetIdx() != atom.GetIdx()
         ):
             continue
+        if has_group_senior_to_urea(
+            mol, {atom.GetIdx(), imino_n.GetIdx(), *(n.GetIdx() for n in amino), *tails}, hydrazide_junior=bool(hydrazine)
+        ):
+            continue
         return atom.GetIdx(), imino_n.GetIdx(), (amino[0].GetIdx(), amino[1].GetIdx())
     return None
 
@@ -188,7 +193,7 @@ def _hydrazine_polycarboximidamide_name(mol, graph, hydrazine, groups):
     for _, carbon, imino, amino in groups:
         core |= {carbon, imino, amino}
     nitrogens = (*hydrazine, *(n for _, _, imino, amino in groups for n in (amino, imino)))
-    names = n_substituent_names(mol, graph, core, nitrogens, groups[0][1], junior_groups=True, hydrazide_junior=True)
+    names = n_substituent_names(mol, graph, core, nitrogens, groups[0][1], junior_groups=True)
     on_hydrazine = dict(zip(hydrazine, names))
     on_group = [(names[2 + 2 * i], names[3 + 2 * i]) for i in range(len(groups))]
     rank = {}
@@ -252,7 +257,6 @@ def _hydrazinecarboximidamide_name(mol, core):
         (amide, imino_idx, alpha, tail),
         carbon_idx,
         junior_groups=True,
-        hydrazide_junior=True,
     )
     grouped = group_substituents({k: v for k, v in zip(("N", "N'", 1, 2), names) if v})
     numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])

@@ -43,7 +43,15 @@ def _halogen_amide_nitrogen(mol):
 
 
 def has_halogen_amide_shape(mol):
-    return _halogen_amide_nitrogen(mol) is not None
+    from ._chalcogenourea import has_group_senior_to_urea
+
+    nitrogen = _halogen_amide_nitrogen(mol)
+    if nitrogen is None:
+        return False
+    owned = {nitrogen.GetIdx()}
+    for halogen in (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum()):
+        owned |= {halogen.GetIdx(), *(o.GetIdx() for o in _oxo_oxygens(halogen, nitrogen) or ())}
+    return not has_group_senior_to_urea(mol, owned)
 
 
 def name_halogen_amide(mol) -> str:
