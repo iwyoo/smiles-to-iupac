@@ -156,7 +156,9 @@ def name_polyammonium(mol) -> str:
         CATIONIC_AMINES.reset(token)
     named = cationic_multiplied_units(multiplicative, sum(1 for a in mol.GetAtoms() if a.GetFormalCharge())) if multiplicative else None
     if named is None:
-        raise UnsupportedStructure("the polycation is not named as a multiple amine parent")
+        from ._polyfunctional import name_polyfunctional
+
+        return name_polyfunctional(mol)
     return named
 
 
