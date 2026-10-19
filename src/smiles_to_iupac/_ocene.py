@@ -351,9 +351,10 @@ def _name_phane(mol, units, graph, parent):
                     chain_subs.setdefault(c, []).append(n)
     if len(link_at) != 2 * count:
         return None
-    for a, x in ring_subs:
-        if _suffix_kind(mol, graph, a, x) or _component_kind(mol, graph, comps[x]):
-            return None
+    kinds = {(a, x): _suffix_kind(mol, graph, a, x) for a, x in ring_subs}
+    if any(not kinds[(a, x)] and _component_kind(mol, graph, comps[x]) for a, x in ring_subs):
+        return None
+    principal = min((k for k in kinds.values() if k), key=_SUFFIX_ORDER.index, default=None)
 
     seq, unit, ring = [], 0, 0
     while True:
@@ -369,6 +370,7 @@ def _name_phane(mol, units, graph, parent):
 
     forward = seq
     backward = [(seq[i][0], 1 - seq[i][1], seq[i - 1][2][::-1]) for i in range(count - 1, -1, -1)]
+    suffix_roots = {r for r, kind in kinds.items() if principal and kind == principal}
     best = None
     for stations in (forward, backward):
         for start in range(count):
@@ -394,18 +396,21 @@ def _name_phane(mol, units, graph, parent):
                             loc = {}
                             loc.update(_ring_locants(graph, rs[unprimed], link_atoms[unprimed], d0, 0))
                             loc.update(_ring_locants(graph, rs[1 - unprimed], link_atoms[1 - unprimed], d1, 1))
-                            named = [(loc[a], namer.name(x, a)) for a, x in local]
-                            options.append((sorted((l, n[0]) for l, n in named), named))
+                            suffix = [loc[a] for a, x in local if principal and kinds[(a, x)] == principal]
+                            named = [(loc[a], _root_name(namer, kinds, (a, x))) for a, x in local if (a, x) not in suffix_roots]
+                            options.append(((sorted(suffix), sorted((l, n[0]) for l, n in named)), named, suffix))
                 unit_choice[u] = min(options, key=lambda o: o[0])
-            ring_entries = [(node_of[u], l, n) for u, (_, named) in unit_choice.items() for l, n in named]
+            ring_entries = [(node_of[u], l, n) for u, (_, named, _) in unit_choice.items() for l, n in named]
+            suffix_entries = [(node_of[u], l) for u, (_, _, suffix) in unit_choice.items() for l in suffix]
             key = (
                 positions,
+                sorted((node, k, primes) for node, (k, primes) in suffix_entries),
                 sorted([p[0] for p in subs] + [e[0] for e in ring_entries]),
                 sorted([(p[0], 0, 0) for p in subs] + [(e[0], e[1][0], e[1][1]) for e in ring_entries]),
             )
             if best is None or key < best[0]:
-                best = (key, positions, subs, ring_entries)
-    _, positions, subs, ring_entries = best
+                best = (key, positions, subs, ring_entries, suffix_entries)
+    _, positions, subs, ring_entries, suffix_entries = best
     grouped = {}
     for loc, (name, compound) in subs:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(str(loc))
@@ -417,7 +422,10 @@ def _name_phane(mol, units, graph, parent):
     prefixes = format_substituent_prefixes(grouped) if grouped else ""
     mult = multiplying_prefix(count)
     stem = parent[:-1] + "a"
-    return f"{prefixes}{'-' if prefixes else ''}{','.join(map(str, positions))}(1,1{_PRIME})-{mult}{stem}cyclo{numerical_term(total)}phane"
+    core = f"{','.join(map(str, positions))}(1,1{_PRIME})-{mult}{stem}cyclo{numerical_term(total)}phane"
+    if principal:
+        core = _suffix_text(core, principal, sorted((f"{node}^{k}", primes) for node, (k, primes) in suffix_entries))
+    return f"{prefixes}{'-' if prefixes else ''}{core}"
 
 
 def _name_paired_ocenes(mol, units, graph):
