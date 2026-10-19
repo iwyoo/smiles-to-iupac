@@ -997,6 +997,9 @@ def test_von_baeyer_exocyclic_double_bond_is_an_ylidene_prefix(smiles, expected)
         pytest.param("C1CC2CC1C[N+]23CC4CCC3C4", "2λ5,2′-spirobi[2-azabicyclo[2.2.1]heptan]-2-ylium", id="cationic_nitrogen_between_two_replacement_parents"),
         pytest.param("C1=CC2CC[N+]3(CCCC3)CC1C2", "1′λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-7-en-1′-ylium", id="double_bond_of_a_polycyclic_spiro_cation"),
         pytest.param("C1CC[N+]2(C1)CC[N+]3(CC2)CC4CCC3C4", "1′λ5,1′′λ5-dispiro[2-azabicyclo[2.2.1]heptane-2,1′-piperazine-4′,1′′-pyrrolidine]-1′,1′′-bis(ylium)", id="two_cationic_spiro_atoms"),
+        pytest.param("C/C=C/C1CC[N+]2(CC1)CC1CCC2C1", "4′-[(1E)-prop-1-en-1-yl]-1′λ5-spiro[2-azabicyclo[2.2.1]heptane-2,1′-piperidin]-1′-ylium", id="stereo_of_a_substituent_on_a_spiro_cation_cited_once_as_ylium"),
+        pytest.param("C1CC[Al-]2(C1)CC1CCC2C1", "1′-aluminaspiro[bicyclo[2.2.1]heptane-2,1′-cyclopentan]-1′-uide", id="group_13_anionic_spiro_atom"),
+        pytest.param("C1#CCCCc2ccccc2C12CCCC2", "6,7-didehydro-9,10-dihydro-8H-spiro[benzo[8]annulene-5,1′-cyclopentane]", id="ring_triple_bond_of_a_fused_spiro_component"),
         pytest.param("C1CC[B-]2(C1)CC1CCC2C1", "1′-boraspiro[bicyclo[2.2.1]heptane-2,1′-cyclopentan]-1′-uide", id="anionic_spiro_boron"),
     ],
 )
