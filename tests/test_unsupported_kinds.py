@@ -39,3 +39,8 @@ def test_implementation_gap_is_not_rule_undefined(smiles):
     with pytest.raises(UnsupportedStructure) as raised:
         name(smiles)
     assert not isinstance(raised.value, RuleUndefinedStructure)
+
+
+def test_substituted_fullerene_without_defined_numbering_is_rule_undefined():
+    with pytest.raises(RuleUndefinedStructure, match="P-27.3"):
+        name("CC12C3C4C5C1C1C6C2C2C3C3C4C4C5C1C1C6C2C3C41")

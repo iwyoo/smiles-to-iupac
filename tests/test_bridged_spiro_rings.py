@@ -1,7 +1,7 @@
 import pytest
 from rdkit import Chem
 from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
+from smiles_to_iupac._common import RuleUndefinedStructure, UnsupportedStructure
 from smiles_to_iupac._fullerene import (
     _C84_D6H_ISOMER_24_SMILES,
     _FULLERENE_C60_SMILES,
@@ -904,7 +904,7 @@ def test_fullerene_derivative_outside_the_numbered_cages_stops():
     from smiles_to_iupac._fullerene import _FULLERENE_C76_SMILES
 
     # atoms 0 and 1 of the C76 reference SMILES are bonded
-    with pytest.raises(UnsupportedStructure, match="Fu-3.1"):
+    with pytest.raises(RuleUndefinedStructure, match="P-27.3"):
         smiles_to_iupac(_fullerene_derivative(_FULLERENE_C76_SMILES, {1: _ACETIC, 2: None}, numbered=False))
 
 

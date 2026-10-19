@@ -8,7 +8,7 @@ from functools import lru_cache
 import networkx as nx
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import RuleUndefinedStructure, UnsupportedStructure
 from ._fullerene_spiral import match_c84_isomer
 from ._fullerene_symmetry import read_cage
 from ._pin import mark
@@ -137,9 +137,12 @@ def numbered_cage_stem(mol, atoms):
     return None
 
 
+UNDEFINED_NUMBERING = (
+    "the locants of a fullerene other than (C60-Ih)[5,6]fullerene and (C70-D5h(6))[5,6]fullerene are not given by the "
+    "rules (P-27.0, P-27.3, P-27.7)"
+)
+
+
 def require_defined_fullerene_numbering(mol, atoms):
     if is_fullerene_cage(mol, atoms) and numbered_cage_stem(mol, atoms) is None:
-        raise UnsupportedStructure(
-            "fullerene locants cannot be derived: Fu-3.1 states its rules suffice only for the C60-Ih and "
-            "C70-D5h(6) cages and that more rules are needed for other fullerenes"
-        )
+        raise RuleUndefinedStructure(UNDEFINED_NUMBERING)

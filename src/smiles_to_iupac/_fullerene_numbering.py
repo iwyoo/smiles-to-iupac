@@ -158,16 +158,13 @@ def _paths(cage, feature):
 def cage_numberings(mol, pool, attach):
     """`Numbering`s of a C60-Ih/C70-D5h(6) cage as a parent or a group with free valences (P-29.3.4.1), its
     saturated atoms as added hydrogen and hydro prefixes, e.g. '(C60-Ih)[5,6]fulleren-1(9H)-yl'."""
-    from ._common import UnsupportedStructure
-    from ._fullerene import _cage_graph, numbered_cage_stem
+    from ._common import RuleUndefinedStructure, UnsupportedStructure
+    from ._fullerene import UNDEFINED_NUMBERING, _cage_graph, numbered_cage_stem
     from ._ring_diyl_numbering import Numbering
 
     stem = numbered_cage_stem(mol, pool)
-    if stem is None:  # Fu-3.1 gives rules only for C60-Ih and C70-D5h(6); the CAS rules for other cages are external
-        raise UnsupportedStructure(
-            "fullerene locants cannot be derived: Fu-3.1 states its rules suffice only for the C60-Ih and "
-            "C70-D5h(6) cages and that more rules are needed for other fullerenes"
-        )
+    if stem is None:
+        raise RuleUndefinedStructure(UNDEFINED_NUMBERING)
     free = set(attach)
     saturated = {
         a for a in pool
