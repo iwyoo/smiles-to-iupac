@@ -296,7 +296,7 @@ def _hub_layouts(spiro, names, count):
     return layouts
 
 
-def _unit_component(mol, comp):
+def _unit_component(mol, comp, hidden=frozenset()):
     members = comp["unit"]
     if any(m["rings"] != 1 for m in members):
         raise UnsupportedStructure("a spiro unit of rings with several ring systems is not supported yet")
@@ -352,7 +352,7 @@ def _unit_component(mol, comp):
     (parent,) = parents
 
     def text(numbering):
-        return (_replacement_prefixes(mol, hetero, numbering) if hetero else "") + parent
+        return (_replacement_prefixes(mol, hetero, numbering, hidden=hidden) if hetero else "") + parent
 
     return {
         "name": parent,
@@ -438,7 +438,7 @@ def _analyse(mol, atoms=None, outer=frozenset()):
         if "system" in c:
             named.append(_system_component(mol, c, outer_atoms))
         elif "unit" in c:
-            named.append(_unit_component(mol, c))
+            named.append(_unit_component(mol, c, frozenset(s for s, members in spiro.items() if i in members)))
         else:
             named.append(None)
     for n in named:
@@ -456,21 +456,9 @@ def _analyse(mol, atoms=None, outer=frozenset()):
         if mol.GetAtomWithIdx(s).GetAtomicNum() != 6 and not info[s][0]:
             if any(comps[m]["von_baeyer"] for m in members):
                 forced.update(members)
-            elif not all(comps[m]["rings"] >= 2 for m in members):
-                raise UnsupportedStructure("a standard-valence heteroatom at the spiro atom is not supported without a von Baeyer or fused component")
     for i, c in enumerate(comps):
         if named[i] is None:
             named[i] = _component(mol, c, i in forced, {s for s, members in spiro.items() if i in members} | (outer & c["atoms"]))
-    if any("unit" in c for c in comps) and any(
-        mol.GetAtomWithIdx(s).GetAtomicNum() != 6 and info[s][0] and any("unit" in comps[m] for m in members)
-        for s, members in spiro.items()
-    ):
-        raise UnsupportedStructure("a nonstandard spiro heteroatom of a spiro unit is not supported yet")
-    if any(
-        mol.GetAtomWithIdx(s).GetAtomicNum() != 6 and not info[s][0] and any("own_hetero" in named[m] for m in members)
-        for s, members in spiro.items()
-    ):
-        raise UnsupportedStructure("a standard-valence spiro heteroatom of an adamantane component is not supported yet")
 
     inner = defaultdict(list)
     for s, members in spiro.items():
@@ -478,8 +466,6 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             if any("own_hetero" in named[m] and s in named[m]["own_hetero"] for m in members):
                 continue
             replaced = [m for m in members if named[m]["replacement"]]
-            if len(replaced) > 1:
-                raise UnsupportedStructure("a nonstandard spiro heteroatom between two skeletal replacement components is not supported yet")
             for m in replaced:
                 inner[m].append(s)
     names = {}
@@ -702,8 +688,13 @@ def _body(ctx, mol, sol, front=True, hidden=frozenset()):
     opening, closing = ("{", "}") if any("unit" in c or "system" in c for c in comps) else ("[", "]")
     kind = layout["kind"]
     identical_pair = kind == "chain" and len(comps) == 2 and len(set(ctx.names.values())) == 1
-    if ctx.extra_lambda and (kind == "hub_ter" or identical_pair or (kind == "chain" and len(comps) == 3 and len(set(ctx.names.values())) == 1)):
-        raise UnsupportedStructure("a nonstandard bonding number beside identical spiro components is not supported yet")
+    extra_front = ",".join(
+        f"{lowest}λ{ctx.extra_lambda[s]}"
+        for lowest, s in sorted(
+            ((min((locant_in(s, m) for m in ctx.lam_members[s]), key=_lk), s) for s in ctx.extra_lambda),
+            key=lambda pair: _lk(pair[0]),
+        )
+    ) if front else ""
     identical_chain = kind == "chain" and len(comps) == 3 and len(set(ctx.names.values())) == 1
     if kind == "hub_ter":
         hub = layout["hub"]
@@ -711,26 +702,30 @@ def _body(ctx, mol, sol, front=True, hidden=frozenset()):
         lam = info[hub][0]
         last = shown(flat[0])
         body = f"{','.join([f'{locants[0]}λ{lam}' if lam else locants[0], *locants[1:]])}-spiroter{opening}{last}{closing}"
+        if extra_front:
+            body = f"{extra_front}-{body}"
     elif identical_pair:
         first, second = flat
         spiro_atom = next(iter(spiro))
         lam = info[spiro_atom][0]
         last = shown(first)
         body = f"{locant_in(spiro_atom, first)}{f'λ{lam}' if lam else ''},{locant_in(spiro_atom, second)}-spirobi{opening}{last}{closing}"
+        if extra_front:
+            body = f"{extra_front}-{body}"
     elif identical_chain:
-        if lam_front:
-            raise UnsupportedStructure("a nonstandard spiro atom in three identical components is not supported yet")
         pairs = ":".join(pair_text(gi) for gi in sorted(blocks))
         last = shown(flat[0])
         body = f"{pairs}-{count}spiroter{opening}{last}{closing}"
+        if lam_front:
+            body = f"{lam_front}-{body}"
     else:
         parts = []
         for gi, group in enumerate(groups):
             if gi:
                 parts.append(pair_text(gi))
             text = group_text(group)
-            if gi and ("unit" in comps[group[0]] or "system" in comps[group[0]]) and text[0].isdigit():
-                text = re.sub(r"^([^-]+)-", r"[\1]", text)
+            if gi and text[0].isdigit():
+                text = re.sub(r"^([^-]+)-", lambda m: "[" + m.group(1).replace("\u2032", "") + "]", text)
             parts.append(text)
         last = parts[-1]
         if kind == "hub_different":

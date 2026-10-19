@@ -244,7 +244,11 @@ def _von_baeyer_ene(mol, sub, atoms, locants):
 
 
 def _adamantane_component(mol, comp, atoms, orders, spiro_atoms):
-    hetero = sorted(a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6)
+    hetero = sorted(
+        a
+        for a in comp["atoms"]
+        if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and not (a in spiro_atoms and _spiro_atom(mol, a)[0] is None)
+    )
 
     def text(numbering):
         prefix = _replacement_prefixes(mol, hetero, numbering, hidden=spiro_atoms, bracketed=True) if hetero else ""
