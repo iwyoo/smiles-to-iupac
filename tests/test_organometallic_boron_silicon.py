@@ -501,6 +501,18 @@ def test_two_metal_atoms_raises__group1_2_organometallic():
         smiles_to_iupac("[Li]C.[Na]CC")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)(C)O[K]", "(2-methylpropan-2-olato)potassium", id="alkoxide"),
+        pytest.param("[Li]N([Si](C)(C)C)[Si](C)(C)C", "[bis(trimethylsilyl)azanido]lithium", id="silylated_amide"),
+        pytest.param("C[Si](C)(C)[Li]", "(trimethylsilyl)lithium", id="silyl"),
+    ],
+)
+def test_group1_metal_bonded_through_a_heteroatom(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_group1_metal_with_substituted_alkyl():
     assert smiles_to_iupac("[Li]CO") == "hydroxymethyllithium"
 

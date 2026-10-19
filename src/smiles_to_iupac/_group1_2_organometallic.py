@@ -85,7 +85,10 @@ _ELEMENT_NAMES = {**_GROUP1_ELEMENTS, **_GROUP2_ELEMENTS}
 
 
 def has_group1_2_organometallic_shape(mol) -> bool:
-    return any(atom.GetAtomicNum() in _ELEMENT_NAMES for atom in mol.GetAtoms())
+    """A structure with another heteroatom takes its ligands from the additive coordination naming (P-69.1)."""
+    return any(atom.GetAtomicNum() in _ELEMENT_NAMES for atom in mol.GetAtoms()) and all(
+        atom.GetAtomicNum() in (6, *_ELEMENT_NAMES, *HALOGEN_PREFIXES) for atom in mol.GetAtoms()
+    )
 
 
 def name_group1_2_organometallic(mol) -> str:
@@ -133,11 +136,6 @@ def name_group1_2_organometallic(mol) -> str:
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
         is_metal_halogen = has_halide and idx == halogen_neighbors[0].GetIdx()
-        if atom.GetAtomicNum() not in (atomic_num, 6) and not is_metal_halogen:
-            raise UnsupportedStructure(
-                f"heteroatoms other than the {element_name} atom itself are "
-                "not supported yet (see P-69.3)"
-            )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in phenyl_atoms:

@@ -60,9 +60,9 @@ def _ate(z):
 def _is_metal(atom) -> bool:
     z = atom.GetAtomicNum()
     if z in _S_BLOCK_NAMES:
-        donors = sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() in (7, 8, 15, 16))
+        donors = sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() in (7, 8, 14, 15, 16))
         covalent = sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() in (1, 6))
-        return donors >= 2 or covalent >= 1 or (atom.GetTotalNumHs() > 0 and atom.GetDegree() > 0)
+        return donors >= 1 or covalent >= 1 or (atom.GetTotalNumHs() > 0 and atom.GetDegree() > 0)
     return z in _METAL_NAMES
 
 
@@ -282,7 +282,7 @@ def _ligand_fragment_name(mol, donor, atoms, cap_atomic_num, cap_bond=Chem.BondT
 
 def _alkoxido_name(mol, metal, donor, atoms):
     alcohol = _ligand_fragment_name(mol, donor, atoms, 1)
-    if not alcohol.endswith("ol") or any(ch.isdigit() for ch in alcohol[-4:]):
+    if not alcohol.endswith("ol") or (any(ch.isdigit() for ch in alcohol[-4:]) and not re.search(r"-\d+-ol$", alcohol)):
         raise UnsupportedStructure("this alkoxide ligand is not supported yet")
     return alcohol[:-2] + "olato"
 
@@ -439,14 +439,18 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
         elif atomic_num == 6 and mol.GetBondBetweenAtoms(metal.GetIdx(), donor.GetIdx()).GetBondTypeAsDouble() >= 2.0:
             label = _ylidene_name(mol, metal, donor, atoms, graph)
             organic.add(label)
-        elif atomic_num == 6:
+        elif atomic_num in (6, 14):
             try:
+                if atomic_num == 14:
+                    raise UnsupportedStructure("a silyl ligand is named as a substituent group")
                 label = _carbon_ligand_name(mol, graph, metal, donor, atoms)
             except UnsupportedStructure:
                 from ._prefix_groups import PrefixNamer
 
                 ligand_graph = {a: [n for n in graph[a] if n in atoms] for a in atoms}
-                label = PrefixNamer(mol, ligand_graph).name(donor.GetIdx(), metal.GetIdx())[0]
+                label, compound = PrefixNamer(mol, ligand_graph).name(donor.GetIdx(), metal.GetIdx())
+                if compound and atomic_num == 14:
+                    neutral.add(label)
             organic.add(label)
         else:
             label = _neutral_ligand_name(mol, metal, donor, atoms)
