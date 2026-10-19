@@ -31,6 +31,8 @@ from ._spiro_union import (
     _primed,
     _replacement_prefixes,
     _spiro_atom,
+    TRIPLE_MARK,
+    unsaturation_locants,
 )
 from ._substituents import format_substituent_prefixes
 
@@ -300,9 +302,6 @@ def _unit_component(mol, comp, hidden=frozenset()):
     members = comp["unit"]
     if any(m["rings"] != 1 for m in members):
         raise UnsupportedStructure("a spiro unit of rings with several ring systems is not supported yet")
-    for bond_idx in comp["bonds"]:
-        if mol.GetBondWithIdx(bond_idx).GetBondTypeAsDouble() != 1.0:
-            raise UnsupportedStructure("unsaturated monocyclic spiro units are not supported yet")
     internal = comp["internal"]
     atom_rings = [m["atoms"] for m in members]
     if len(internal) != len(members) - 1:
@@ -325,6 +324,11 @@ def _unit_component(mol, comp, hidden=frozenset()):
     graph = adjacency(mol)
     hetero = [a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
     prefix = numerical_term(len(chain_atoms)) + "spiro" if len(chain_atoms) > 1 else "spiro"
+    multiple = [
+        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), bond.GetBondTypeAsDouble())
+        for bond in (mol.GetBondWithIdx(i) for i in comp["bonds"])
+        if bond.GetBondTypeAsDouble() != 1.0
+    ]
     best, candidates = None, []
     for ring_order, spiros in _chain_direction_candidates(tuple(order), chain_atoms, atom_rings):
         options = _arc_choice_options(graph, atom_rings, ring_order, spiros)
@@ -342,11 +346,12 @@ def _unit_component(mol, comp, hidden=frozenset()):
                     )
                     parent = f"{prefix}[{descriptor_text}]{alkane_name(len(seq))}"
                     hetero_locants = sorted(int(locants[a]) for a in hetero)
-                    key = (sorted(int(locants[x]) for x in spiros), tuple(descriptor), hetero_locants)
-                    candidates.append((key, locants, parent))
-    best = min(k for k, _, _ in candidates)
-    kept = [(loc, parent) for k, loc, parent in candidates if k == best]
-    parents = {parent for _, parent in kept}
+                    ene = unsaturation_locants(multiple, locants)
+                    key = (sorted(int(locants[x]) for x in spiros), tuple(descriptor), hetero_locants, sorted(_lk(x) for x in ene))
+                    candidates.append((key, locants, parent, ene))
+    best = min(k for k, _, _, _ in candidates)
+    kept = [(loc, parent, ene) for k, loc, parent, ene in candidates if k == best]
+    parents = {parent for _, parent, _ in kept}
     if len(parents) != 1:
         raise UnsupportedStructure("this spiro unit has no unique descriptor")
     (parent,) = parents
@@ -356,7 +361,7 @@ def _unit_component(mol, comp, hidden=frozenset()):
 
     return {
         "name": parent,
-        "numberings": [(loc, ()) for loc, _ in kept],
+        "numberings": [(loc, ene) for loc, _, ene in kept],
         "replacement": False,
         "fused": False,
         "unit": True,
@@ -625,9 +630,15 @@ _BIS = {2: "bis", 3: "tris", 4: "tetrakis"}
 def _ending_text(ene, ending):
     endings = ending if isinstance(ending, list) else ([ending] if ending else [])
     text, initial = "", ""
-    if ene:
-        word = multiplied_word(len(ene), "ene")
-        text, initial = f"-{','.join(sorted(ene, key=_lk))}-{word[:-1] if endings else word}", word[0]
+    enes = [x for x in ene if not x.endswith(TRIPLE_MARK)]
+    ynes = [x[:-1] for x in ene if x.endswith(TRIPLE_MARK)]
+    if enes:
+        word = multiplied_word(len(enes), "ene")
+        text, initial = f"-{','.join(sorted(enes, key=_lk))}-{word[:-1] if endings or ynes else word}", word[0]
+    if ynes:
+        word = multiplied_word(len(ynes), "yne")
+        text += f"-{','.join(sorted(ynes, key=_lk))}-{word[:-1] if endings else word}"
+        initial = initial or word[0]
     for index, found in enumerate(endings):
         if found[0] == "ylium":
             locants = found[1]
@@ -891,8 +902,11 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
             if a not in ctx.capable or b not in ctx.capable or bond.GetIdx() not in ctx.polycyclic_bonds:
                 raise UnsupportedStructure("a double bond outside the polycyclic spiro components is not supported yet")
             doubled |= {a, b}
+        elif bond.GetBondTypeAsDouble() == 3.0:
+            if bond.GetIdx() not in ctx.monocyclic_bonds:
+                raise UnsupportedStructure("a triple bond outside the monocyclic and von Baeyer spiro components is not supported yet")
         elif bond.GetBondTypeAsDouble() != 1.0:
-            raise UnsupportedStructure("this bond order is not supported in a spiro system")
+            raise UnsupportedStructure("a fractional bond order of a spiro system has no ene or yne locant")
     saturated = ctx.capable - doubled
     skeleton = nx.Graph()
     skeleton.add_nodes_from(ctx.capable)
@@ -934,7 +948,7 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
             position_of,
             text,
             pre_key=(*_ranked(ctx, mol, sol), ih),
-            unsat_key=(tuple(sorted(SpiroLocant(x) for x in sol.ene)), added, hydro),
+            unsat_key=(tuple(sorted(SpiroLocant(re.match(r"\d+\u2032*[a-z]*\d*", x).group()) for x in sol.ene)), added, hydro),
             ih=ih,
         )
         numbering.hydro, numbering.added = tuple(hydro), tuple(added)
