@@ -2377,7 +2377,10 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         name, parts, suffix_text = _carbon_group_label(mol, rest, reselect)
         front = []
     else:
-        front, suffix_text = _group_atom_labels(mol, rest, parts[4]) if rest else ([], None)
+        cited_by_group = _group_atom_labels(mol, rest, parts[4]) if rest else ([], None)
+        if cited_by_group is None:
+            return name
+        front, suffix_text = cited_by_group
     if suffix_text and suffix_text[1] == "al" and suffix_text[2] == 1 and name.endswith("aldehyde"):
         # a retained aldehyde name has no 'al' suffix to modify: the nuclide stands in front of the parent as for an amide
         front = [(nuclide, None, 1, False) for nuclide in suffix_text[0].strip("()").split(",")]
@@ -2679,7 +2682,7 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     characteristic group: an amide or amine nitrogen and the oxygens of an acid are cited in front of the parent
     with a letter locant (P-82.2.4, P-82.2.5, P-82.6.2); a hydroxy, oxo or aldehyde oxygen is inserted before the
     suffix (P-82.2.1, P-82.6.1.1). Atoms of the same element in the substituents of the parent do not make the
-    letter locant ambiguous; those inside `parent_atoms` do."""
+    letter locant ambiguous; those inside `parent_atoms` do. None when a nuclide sits outside the group."""
     from ._isotope_labels import _nuclide_sort_key
 
     principal, owned_groups = _principal_owned(mol)
@@ -2689,7 +2692,7 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
             principal, owned_groups = "amine", [*owned_groups, *substituted]
     owned = set().union(*owned_groups) if owned_groups else set()
     if principal is None or any(a not in owned for a in rest):
-        raise UnsupportedStructure("an isotopically modified atom outside the parent and the principal group is not supported yet")
+        return None
     elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in rest}
     before_suffix = principal in _SUFFIX_WORD and elements == {_SUFFIX_ELEMENT.get(principal, 8)}
     if not before_suffix and any(
