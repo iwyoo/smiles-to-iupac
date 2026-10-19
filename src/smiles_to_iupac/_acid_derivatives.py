@@ -1634,16 +1634,22 @@ _PSEUDOHALIDE_WORDS = {
 
 
 def _class_words(mol, links):
+    """The halide words of an acyl or sulfonyl halide, a modified halogen cited in front of the word that holds it and
+    before the unmodified ones (P-82.2.4)."""
     counts = {}
     for l in links:
+        far = mol.GetAtomWithIdx(l.far)
         if l.kind == "halide":
-            word = _HALIDES[mol.GetAtomWithIdx(l.far).GetAtomicNum()]
+            word = _HALIDES[far.GetAtomicNum()]
         else:
             word = _PSEUDOHALIDE_WORDS[pseudohalide_at(mol, l.far, l.center)]
-        counts[word] = counts.get(word, 0) + 1
+        nuclide = f"{far.GetIsotope()}{far.GetSymbol()}" if far.GetIsotope() else ""
+        counts[(word, nuclide)] = counts.get((word, nuclide), 0) + 1
     words = []
-    for word in sorted(counts, key=alpha_sort_key):
-        words.append(multiplying_prefix(counts[word]) + word if counts[word] > 1 else word)
+    for word, nuclide in sorted(counts, key=lambda key: (alpha_sort_key(key[0]), not key[1])):
+        count = counts[(word, nuclide)]
+        text = multiplying_prefix(count) + word if count > 1 else word
+        words.append(f"({nuclide}{count if count > 1 else ''}){text}" if nuclide else text)
     return " ".join(words)
 
 
@@ -1749,7 +1755,7 @@ _LEADING_HYDROGEN_NUCLIDES = re.compile(r"^\((?:[\d,]+-)?(\d+H)(\d*)\)")
 
 def has_isotope_acyl_halide_shape(mol):
     """A single acyl or sulfonyl halide group whose isotopic labels all sit on carbon or hydrogen atoms, the centre of the
-    group or its doubly bonded oxygens."""
+    group, its doubly bonded oxygens or its halogens."""
     if not any(a.GetIsotope() for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) != 1:
         return False
     links, acid = find_links(_without_nuclides(mol))
@@ -1757,8 +1763,10 @@ def has_isotope_acyl_halide_shape(mol):
         return False
     carbonyl_oxygens = {n.GetIdx() for l in links for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetAtomicNum() == 8}
     centres = {l.center for l in links}
+    halogens = {l.far for l in links}
     return all(
-        a.GetAtomicNum() in (1, 6) or a.GetIdx() in carbonyl_oxygens or a.GetIdx() in centres
+        a.GetAtomicNum() in (1, 6) or a.GetIdx() in carbonyl_oxygens or a.GetIdx() in centres or a.GetIdx() in halogens
+        or (a.GetAtomicNum() in _HALIDES and a.GetDegree() == 1)
         for a in mol.GetAtoms()
         if a.GetIsotope()
     )
@@ -1776,13 +1784,20 @@ def name_isotope_acyl_halide(mol):
     halogen; deuterium on the only hydrogen-bearing atom needs no locant, because the acid's O-H is not there."""
     from .core import _require_isotopes_cited, smiles_to_iupac
 
-    links, _ = find_links(_without_nuclides(mol))
+    plain = _without_nuclides(mol)
+    amide = _halocarbonic_amide(plain, adjacency(plain))
+    if amide is not None:
+        labelled = _labelled_halocarbonic_amide(mol, amide)
+        if labelled is not None:
+            return labelled
+    links, _ = find_links(plain)
     editable = Chem.RWMol(mol)
     graph = adjacency(mol)
     dropped = set()
     for l in links:
         atom = editable.GetAtomWithIdx(l.far)
         atom.SetAtomicNum(8)
+        atom.SetIsotope(0)
         atom.SetNumExplicitHs(1)
         atom.SetNoImplicit(True)
         atom.SetFormalCharge(0)
@@ -1805,6 +1820,26 @@ def name_isotope_acyl_halide(mol):
     only_hydrogen = all(a.GetAtomicNum() == 1 for a in mol.GetAtoms() if a.GetIsotope())
     if found and only_hydrogen and len(hydrogen_bearing) == 1:
         name = f"({found.group(1)}{found.group(2)})" + name[found.end():]
+    _require_isotopes_cited(mol, name)
+    return name
+
+
+def _labelled_halocarbonic_amide(mol, amide):
+    """'carbono(36Cl)chloridic amide', 'N-methyl(13C)carbonochloridic amide': the nuclide of the halogen stands in front of
+    the infix that names it and that of the carbon in front of the acid name (P-82.2.1); None when another atom is modified."""
+    from .core import _require_isotopes_cited
+
+    halogens = [a for a in mol.GetAtoms() if is_halide_ligand(a) and a.GetNeighbors()[0].GetAtomicNum() == 6]
+    modified = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsotope()}
+    for halogen in halogens:
+        carbon = halogen.GetNeighbors()[0]
+        if modified == {i for i in (halogen.GetIdx(), carbon.GetIdx()) if mol.GetAtomWithIdx(i).GetIsotope()} and halogen.GetIsotope():
+            break
+    else:
+        return None
+    infix = re.search(r"carbono(\w+?id)ic amide$", amide)
+    carbon_nuclide = f"({carbon.GetIsotope()}C)" if carbon.GetIsotope() else ""
+    name = amide[: infix.start()] + carbon_nuclide + f"carbono({halogen.GetIsotope()}{halogen.GetSymbol()}){infix.group(1)}ic amide"
     _require_isotopes_cited(mol, name)
     return name
 

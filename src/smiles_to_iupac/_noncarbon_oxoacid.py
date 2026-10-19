@@ -23,6 +23,7 @@ from ._oxoacid_acyl import senior_centres
 from ._phosphate import format_ester_words
 from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import (
+    ISOTOPE_LABELS,
     centre_nuclides,
     cited_stereo_around,
     format_mononuclear_prefixes,
@@ -206,7 +207,7 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
         return None
     if z in _HALIDE and order == 1.0 and neighbor.GetDegree() == 1:
         infix, term = _HALIDE[z]
-        return {"role": "single", "kind": "halide", "infix": infix, "term": term, "H": False}
+        return {"role": "single", "kind": "halide", "infix": infix, "term": term, "H": False, "atom": neighbor.GetIdx()}
     if z != 7 or neighbor.IsInRing():
         return None
     if order == 3.0 and neighbor.GetDegree() == 1 and not neighbor.GetTotalNumHs():
@@ -593,7 +594,7 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
             raise UnsupportedStructure("an acid centre with no replaceable class is not named here")
         if any(s["term"] in _ANHYDRIDE_PSEUDOHALIDES for s in class_members):
             raise UnsupportedStructure("cyanates and thiocyanates are anhydrides of cyanic acids, not acid pseudohalides")
-        class_terms = sorted((s["term"] for s in class_members), key=lambda t: (_CLASS_ORDER.index(t) if t in _CLASS_ORDER else 99, t))
+        class_terms = sorted((_labelled_term(s) for s in class_members), key=_term_key)
 
     groups = [p for p in (*ylidenes, *singles) if p["kind"] in ("amide", "imide", "hydrazide", "hydrazone")]
     n_substituted = any(any(sub for sub in p["subs"]) for p in groups)
@@ -632,11 +633,37 @@ def _name_from_parts(mol, parts, descriptor="") -> str:
     return prefix + (body + " " + locants + "-acid" if locants else body + " acid")
 
 
+_CITED_TERM = re.compile(r"\((\d+[A-Z][a-z]?)\)(.*)")
+
+
+def _labelled_term(member):
+    """The halide word of `member` with the descriptor of a modified halogen in front of it (P-82.2.4)."""
+    context = ISOTOPE_LABELS.get()
+    entry = context["labels"].get(member.get("atom")) if context else None
+    if member["kind"] != "halide" or entry is None or not entry["skeleton"] or entry["H"]:
+        return member["term"]
+    context["consumed"].add(member["atom"])
+    return f"({entry['skeleton']}){member['term']}"
+
+
+def _term_key(term):
+    found = _CITED_TERM.fullmatch(term)
+    plain = found.group(2) if found else term
+    return (_CLASS_ORDER.index(plain) if plain in _CLASS_ORDER else 99, plain, not found)
+
+
 def _class_phrase(terms):
     counts = {}
     for term in terms:
         counts[term] = counts.get(term, 0) + 1
-    return " ".join((numerical_term(c) if c > 1 else "") + t for t, c in sorted(counts.items(), key=lambda it: (_CLASS_ORDER.index(it[0]) if it[0] in _CLASS_ORDER else 99, it[0])))
+    words = []
+    for term, count in sorted(counts.items(), key=lambda item: _term_key(item[0])):
+        found = _CITED_TERM.fullmatch(term)
+        if found:
+            words.append(f"({found.group(1)}{count if count > 1 else ''})" + (numerical_term(count) if count > 1 else "") + found.group(2))
+        else:
+            words.append((numerical_term(count) if count > 1 else "") + term)
+    return " ".join(words)
 
 
 def _acyl_class_name(parts, members, terms):
