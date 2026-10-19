@@ -299,7 +299,7 @@ def test_ring_substituent_chain_and_related(smiles, expected):
     "smiles, expected",
     [
         pytest.param("c1ccccc1S(=O)N", "benzenesulfinamide", id="benzenesulfinamide"),
-        pytest.param("Cc1ccc(cc1)S(=O)NC", "N,4-dimethylbenzenesulfinamide", id="substituted_benzenesulfinamide_n_alkyl"),
+        pytest.param("Cc1ccc(cc1)S(=O)NC", "N,4-dimethylbenzene-1-sulfinamide", id="substituted_benzenesulfinamide_n_alkyl"),
     ],
 )
 def test_benzenesulfinamide_and_related(smiles, expected):
@@ -418,7 +418,7 @@ def test_unsaturated_ring_sulfonamide_with_substituent():
         pytest.param("NS(=O)(=O)CC1CCCCC1", "cyclohexylmethanesulfonamide", id="ring_substituent_chain_sulfonamide"),
         pytest.param("NS(=O)(=O)CC1CCC(C)CC1", "(4-methylcyclohexyl)methanesulfonamide", id="ring_substituent_chain_sulfonamide_ring_with_substituent"),
         pytest.param("c1ccccc1S(=O)(=O)N", "benzenesulfonamide", id="benzenesulfonamide"),
-        pytest.param("Cc1ccc(cc1)S(=O)(=O)NC", "N,4-dimethylbenzenesulfonamide", id="substituted_benzenesulfonamide_n_alkyl"),
+        pytest.param("Cc1ccc(cc1)S(=O)(=O)NC", "N,4-dimethylbenzene-1-sulfonamide", id="substituted_benzenesulfonamide_n_alkyl"),
         pytest.param("c1ccccc1CCCS(=O)(=O)NC", "N-methyl-3-phenylpropane-1-sulfonamide", id="phenyl_chain_sulfonamide_n_alkyl"),
         pytest.param("Clc1ccc(CCCS(=O)(=O)N)cc1", "3-(4-chlorophenyl)propane-1-sulfonamide", id="phenyl_chain_sulfonamide_ring_halogen"),
         pytest.param("CCc1ccc(cc1)CS(N)(=O)=O", "(4-ethylphenyl)methanesulfonamide", id="phenyl_chain_sulfonamide_ring_ethyl"),

@@ -67,11 +67,9 @@ siblings all have no oxygen when the substituent is plain alkyl); the
 oxygen-gated branch ahead of `has_ether_shape`, for the N,O morpholine
 sibling with a plain-alkyl substituent (morpholine's ring oxygen would
 otherwise look like a perfectly ordinary ether oxygen to that check); and
--- via the narrower `has_ring_amine_sulfonyl_shape` -- ahead of
-`has_sulfonamide_shape`, near the very start of `core.py`'s dispatch, for
-*any* ring shape with a sulfonyl substituent (which brings its own
-oxygen along regardless of ring type, and would otherwise be misclaimed
-by that earlier, ring-unaware check). Never collides with
+-- via the narrower `has_ring_amine_sulfonyl_shape` -- for *any* ring
+shape with a sulfonyl substituent (which brings its own oxygen along
+regardless of ring type). Never collides with
 `_hidden_amide_ketone.py`'s acyl-on-ring-nitrogen path -- that module's
 shape requires the substituent's own carbonyl oxygen and is routed
 separately, and `has_ring_amine_sulfonyl_shape`'s extra sulfonyl check
@@ -295,10 +293,7 @@ def has_ring_amine_sulfonyl_shape(mol) -> bool:
     """True if `mol` fits `_ring_amine_shape`/`_two_hetero_ring_amine_shape`
     *and* the ring nitrogen's one substituent is specifically a sulfonyl
     group. Exposed separately (narrower than `has_ring_amine_shape`) so
-    `core.py` can route it ahead of `has_sulfonamide_shape` -- which would
-    otherwise misclaim this exact shape (a sulfonyl group on a plain ring
-    nitrogen looks like an ordinary, but ring-unaware, sulfonamide to that
-    check) -- without also preempting `_hidden_amide_ketone.py`'s
+    `core.py` can route it early without also preempting `_hidden_amide_ketone.py`'s
     acyl-on-ring-nitrogen shape, which `has_ring_amine_shape` alone can't
     distinguish from any other single N-substituent (it only checks that
     exactly one exists, not what it is)."""
