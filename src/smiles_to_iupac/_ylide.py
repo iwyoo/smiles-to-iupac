@@ -148,6 +148,8 @@ def name_nitrogen_ylide(mol) -> str:
     amine = editable.GetMol()
     Chem.SanitizeMol(amine)
     amine_name = name_polyfunctional(amine)
+    if amine_name is None:
+        raise UnsupportedStructure("the amine of this nitrogen ylide has no parent hydride that the amine engine builds")
     if not amine_name.endswith("amine"):
         raise UnsupportedStructure("the amine of this nitrogen ylide is not named with an amine suffix")
     aminium_name = amine_name[:-1] + "ium"

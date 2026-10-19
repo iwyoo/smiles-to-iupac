@@ -295,7 +295,7 @@ def _substituted_aminyl_name(healed, multiplier, count, suffix):
         name = name_polyfunctional(healed)
     except UnsupportedStructure:
         return None
-    if not name.endswith(multiplier + "amine"):
+    if name is None or not name.endswith(multiplier + "amine"):
         return None
     return f"{name[: -len(multiplier + 'amine')]}{_MULTIPLIER_WORDS[count]}(amin{suffix})"
 

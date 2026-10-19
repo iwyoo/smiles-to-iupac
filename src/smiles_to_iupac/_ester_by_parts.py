@@ -113,7 +113,7 @@ def _acid_with_labels(original, index_map, removed, matches, group_labelled):
 def _ester_locants(mol, acid, removed, matches, named_by_arm):
     """{alkyl name: sorted locants of its ester groups} in the substitutive name of the acid, or {} when the ester carbons
     are equivalent in the acid and the bare name is unambiguous (P-65.6.3.2.2, P-14.3.4.4)."""
-    from ._polyfunctional import _select
+    from ._polyfunctional import _try_select
 
     kept = [i for i in range(mol.GetNumAtoms()) if i not in removed]
     new_index = {old: new for new, old in enumerate(kept)}
@@ -140,9 +140,12 @@ def _ester_locants(mol, acid, removed, matches, named_by_arm):
     for atom in acid.GetAtoms():
         atom.SetAtomMapNum(atom.GetIdx() + 1)
     try:
-        _, _, parts = _select(acid)
+        selected = _try_select(acid)
     except UnsupportedStructure:
+        selected = None
+    if selected is None:
         raise UnsupportedStructure("the locants of the ester groups are not available")
+    parts = selected[2]
     position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1: loc for i, loc in parts[4].items()}
     found = {}
     for arm, carbon in enumerate(carbons):
@@ -160,7 +163,7 @@ def _ester_locants(mol, acid, removed, matches, named_by_arm):
 def _arms_in_parent(mol, matches):
     """The ester groups whose acid carbon is a suffix of the parent acid; the others are cited as prefixes of a
     monoester (P-65.6.3.3.2.2.2). None when the parent cannot be determined."""
-    from ._polyfunctional import _select
+    from ._polyfunctional import _try_select
 
     graph = adjacency(mol)
     removed = set()
@@ -181,9 +184,12 @@ def _arms_in_parent(mol, matches):
         Chem.SanitizeMol(acid)
         for atom in acid.GetAtoms():
             atom.SetAtomMapNum(atom.GetIdx() + 1)
-        _, _, parts = _select(acid)
+        selected = _try_select(acid)
     except (UnsupportedStructure, ValueError):
         return None
+    if selected is None:
+        return None
+    parts = selected[2]
     if not (parts[1] or "").endswith(("oic", "carboxylic")):
         return None
     new_index = {old: new for new, old in enumerate(kept)}

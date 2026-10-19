@@ -1314,7 +1314,7 @@ class _UnlocatedGroups(UnsupportedStructure):
 def _locants_of(mol, atoms, centers, with_symmetry=False):
     """{centre: locant} of the acid groups `centers` in the substitutive name of the acid made of `atoms`;
     with `with_symmetry` also whether all the centres are equivalent in that acid (then no locants are needed)."""
-    from ._polyfunctional import _check_scope, _select
+    from ._polyfunctional import _check_scope, _try_select
 
     editable = Chem.RWMol(mol)
     for center in centers:
@@ -1334,7 +1334,10 @@ def _locants_of(mol, atoms, centers, with_symmetry=False):
         ranks = Chem.CanonicalRankAtoms(plain, breakTies=False)
         if len({ranks[mapped[c]] for c in centers if c in mapped}) == 1:
             return {}, True
-    _, _, parts = _select(acid, stereo=_check_scope(acid))
+    selected = _try_select(acid, stereo=_check_scope(acid))
+    if selected is None:
+        raise _UnlocatedGroups("the locants of the anhydride groups are not available", list(centers))
+    parts = selected[2]
     position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1: loc for i, loc in parts[4].items()}
     found, unlocated = {}, []
     for center in centers:
@@ -1354,7 +1357,7 @@ def _locants_of(mol, atoms, centers, with_symmetry=False):
 def _located_acid_word(mol, atoms, centers):
     """The acid word of the component made of `atoms` with every locant cited, for a core whose acid groups are
     told apart by locants (P-65.7.6.2)."""
-    from ._polyfunctional import FORCE_LOCANTS, _select
+    from ._polyfunctional import FORCE_LOCANTS, _try_select
 
     editable = Chem.RWMol(mol)
     for center in centers:
@@ -1366,9 +1369,12 @@ def _located_acid_word(mol, atoms, centers):
     Chem.SanitizeMol(acid)
     token = FORCE_LOCANTS.set(True)
     try:
-        return acid_word(_select(acid)[1])
+        selected = _try_select(acid)
     finally:
         FORCE_LOCANTS.reset(token)
+    if selected is None:
+        raise UnsupportedStructure("the acid groups of this core are told apart by locants that the parent hydride does not give")
+    return acid_word(selected[1])
 
 
 def _multiplied_word(word, count):
@@ -1956,20 +1962,26 @@ def name_acid_derivative(mol):
         from ._multiplicative import name_if_multiplicative
         from ._polyfunctional import name_polyfunctional
 
+        failure = None
         try:
-            return name_if_multiplicative(mol) or name_polyfunctional(mol)
-        except UnsupportedStructure:
-            # an ester of a senior acid (P-41 class 7a, 7b) is the parent beside the hydrogen esters of a noncarbon acid, but
-            # a free acid group, an anion or a cation outranks every ester
-            hydrogen_esters = {l.center for l in esters}
-            if (
-                esters
-                and all(c in hydrogen_esters and _center(mol, c)[0] in ("carbonic", "inorganic") for c in acid)
-                and all(l.kind in ("ester", "halide") for l in links)
-                and not any(a.GetFormalCharge() for a in mol.GetAtoms())
-            ):
-                return name_ester(mol, links)
-            raise
+            name = name_if_multiplicative(mol) or name_polyfunctional(mol)
+        except UnsupportedStructure as error:
+            name, failure = None, error
+        if name is not None:
+            return name
+        # an ester of a senior acid (P-41 class 7a, 7b) is the parent beside the hydrogen esters of a noncarbon acid, but
+        # a free acid group, an anion or a cation outranks every ester
+        hydrogen_esters = {l.center for l in esters}
+        if (
+            esters
+            and all(c in hydrogen_esters and _center(mol, c)[0] in ("carbonic", "inorganic") for c in acid)
+            and all(l.kind in ("ester", "halide") for l in links)
+            and not any(a.GetFormalCharge() for a in mol.GetAtoms())
+        ):
+            return name_ester(mol, links)
+        if failure is not None:
+            raise failure
+        raise UnsupportedStructure("an acid group outranks the esters and no supported parent carries them")
     kinds = {l.kind for l in links}
     if "anhydride" in kinds:
         return name_anhydride(mol, links)

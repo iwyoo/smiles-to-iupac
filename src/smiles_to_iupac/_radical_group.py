@@ -410,6 +410,8 @@ def _name_aminyl(mol, centre):
             continue
         finally:
             FORCED_PRINCIPAL.reset(token)
+        if name is None:
+            continue
         if amide and name.endswith("amide"):
             return name[:-1] + suffix
         if not amide and name.endswith(("amine", "imine")):
