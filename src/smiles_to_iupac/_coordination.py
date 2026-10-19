@@ -482,10 +482,59 @@ def _cp_charge(frag):
     return None
 
 
+_S_BLOCK_VALENCE = {z: 1 for z in (3, 11, 19, 37, 55)} | {z: 2 for z in (4, 12, 20, 38, 56)}
+
+
+def _is_organometallic_s_block(frag):
+    return any(
+        a.GetAtomicNum() in _S_BLOCK_VALENCE and any(n.GetAtomicNum() == 6 for n in a.GetNeighbors()) for a in frag.GetAtoms()
+    )
+
+
+def _ionic_halide(frag):
+    """The metal ion and halide ions of a fragment that holds only a Group 1 or 2 metal and the halogens bonded to it."""
+    metals = [a for a in frag.GetAtoms() if a.GetAtomicNum() in _S_BLOCK_VALENCE]
+    if len(metals) != 1 or frag.GetNumAtoms() != 1 + frag.GetNumBonds() or frag.GetNumAtoms() < 2:
+        return None
+    (metal,) = metals
+    if any(n.GetAtomicNum() not in _HALIDO for n in metal.GetNeighbors()) or metal.GetDegree() != frag.GetNumAtoms() - 1:
+        return None
+    if metal.GetDegree() != _S_BLOCK_VALENCE[metal.GetAtomicNum()]:
+        return None
+    ions = [f"[{metal.GetSymbol()}+{metal.GetDegree() if metal.GetDegree() > 1 else ''}]"]
+    ions += [f"[{n.GetSymbol()}-]" for n in metal.GetNeighbors()]
+    return ions
+
+
+def _without_structural_solvent(frags):
+    """The fragments of an organometallic compound of Group 1 or 2 without its structural solvent, a neutral molecule holding
+    no metal, and with its bare metal halides as ions: the name rests on the stoichiometric composition (P-69.3); None
+    when nothing changes."""
+    if len(frags) < 2 or not any(_is_organometallic_s_block(f) for f in frags):
+        return None
+    kept, changed = [], False
+    for frag in frags:
+        if not any(a.GetAtomicNum() in _METAL_NAMES or a.GetFormalCharge() for a in frag.GetAtoms()):
+            changed = True
+            continue
+        ions = _ionic_halide(frag)
+        if ions is not None:
+            changed = True
+            kept.extend(ions)
+        else:
+            kept.append(Chem.MolToSmiles(frag))
+    return ".".join(kept) if changed and kept else None
+
+
 def name_coordination(mol) -> str:
     frags = Chem.GetMolFrags(mol, asMols=True)
     if len(frags) == 1:
         return _name_complex(mol)
+    composition = _without_structural_solvent(frags)
+    if composition is not None:
+        from .core import smiles_to_iupac
+
+        return smiles_to_iupac(composition)
     complexes = [f for f in frags if has_coordination_shape(f)]
     if len(complexes) != 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -498,6 +547,11 @@ def name_coordination(mol) -> str:
     name = _name_complex(complex_mol, {_CP_LABEL: cp_count} if cp_count else None, charge)
     if not others:
         return name
+    if charge == 0 and others and not any(a.GetFormalCharge() for f in others for a in f.GetAtoms()):
+        from ._adduct import name_adduct
+        from .core import smiles_to_iupac
+
+        return name_adduct(mol, smiles_to_iupac)
     words = _counter_ion_words(others)
     if charge == 0:
         raise UnsupportedStructure("a neutral complex with counter-ions is not supported")
