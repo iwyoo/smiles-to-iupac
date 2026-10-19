@@ -127,6 +127,8 @@ def nitroso_atoms(mol):
     return found
 
 
+_FREE_CARBOXY = Chem.MolFromSmarts("[CX3](=O)[OX2H1]")
+_MULTIPLIED_ACID = re.compile(r"(?:di|tri|tetra)carboxylic acid$|(?:di|tri|tetra)oic acid$")
 _CARBOXYLIC_CLASS = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N)]")
 
 
@@ -185,8 +187,16 @@ def _acyl_prefix(mol, subtree, root, parent):
     centre_token = RING_CENTER.set(False)
     acid = Chem.Mol(sub)
     acid.GetAtomWithIdx(sorted(subtree).index(root)).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+    others = [match[0] for match in acid.GetSubstructMatches(_FREE_CARBOXY) if match[0] != sorted(subtree).index(root)]
     try:
-        probe = smiles_to_iupac(Chem.MolToSmiles(acid)) if own_acid is None else _name_with_principal(acid, own_acid)
+        if own_acid is not None:
+            probe = _name_with_principal(acid, own_acid)
+        elif others:
+            probe = _name_with_free_carboxy(acid, others) or smiles_to_iupac(Chem.MolToSmiles(acid))
+            if probe != "oxalic acid" and _MULTIPLIED_ACID.search(probe):
+                raise UnsupportedStructure("a further carboxylic acid group would become a second acyl group of the prefix")
+        else:
+            probe = smiles_to_iupac(Chem.MolToSmiles(acid))
     finally:
         RING_CENTER.reset(centre_token)
         ISOTOPE_LABELS.reset(labels_token)
@@ -199,6 +209,23 @@ def _acyl_prefix(mol, subtree, root, parent):
         context["consumed"].update(labelled)
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
     return "oxalo" if name == "oxalyl" else name
+
+
+def _name_with_free_carboxy(acid, others):
+    """The acid name in which the carboxylic acid groups at `others` stay 'carboxy' prefixes, so that the acyl group
+    made from it has one acyl position only (P-65.1.7); None when the structure has no such name."""
+    from ._polyfunctional import AMINIUM, FORCED_PRINCIPAL, JUNIOR_GROUP, name_polyfunctional
+
+    for index in others:
+        acid.GetAtomWithIdx(index).SetBoolProp(JUNIOR_GROUP, True)
+    aminium_token, forced_token = AMINIUM.set(False), FORCED_PRINCIPAL.set(None)
+    try:
+        return name_polyfunctional(acid)
+    except UnsupportedStructure:
+        return None
+    finally:
+        FORCED_PRINCIPAL.reset(forced_token)
+        AMINIUM.reset(aminium_token)
 
 
 def _imido_acid_class(sub, root):
