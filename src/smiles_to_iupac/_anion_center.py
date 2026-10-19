@@ -61,7 +61,6 @@ def name_center_anion(mol):
     if ring_cations:
         if len(ring_cations) == 1 and ring_cations[0].IsInRing() and ring_cations[0].GetFormalCharge() == 1 and all(a.IsInRing() for a in centers):
             return _name_ring_zwitterion(mol, centers, ring_cations[0])
-        raise UnsupportedStructure("this combination of cationic and anionic centers is not named as a prefixed anion")
     if any(a.IsInRing() for a in centers):
         if len(centers) > 1 and not all(a.IsInRing() for a in centers):
             raise UnsupportedStructure("ring and chain anionic centers together are not supported yet")
