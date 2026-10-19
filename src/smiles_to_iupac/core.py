@@ -662,7 +662,7 @@ def _name_keeping_labels(mol, namer):
 _NONCARBON_PEROXY_ESTER = Chem.MolFromSmarts("[#5,#14,#15,#16,#33,#34,#51,#52]OO[#6]")
 
 
-def _name_isotope_label(mol) -> str:
+def _name_isotope_label(mol) -> str | None:
     from ._isotope_labels import split_isotopes
 
     split = split_isotopes(mol)
@@ -745,8 +745,8 @@ def _name_isotope_label(mol) -> str:
     if name is None and mol.HasSubstructMatch(_NONCARBON_PEROXY_ESTER):
         with contextlib.suppress(UnsupportedStructure):
             name = _labelled_namer(name_acid_derivative, oxygens=True)(mol)
-    if name is None:
-        raise error or UnsupportedStructure("this isotopically modified structure is not supported yet")
+    if name is None and error is not None:
+        raise error
     return name
 
 
@@ -913,7 +913,7 @@ def _labelled_namer(namer, oxygens=False):
             and not (clean.GetAtomWithIdx(a).GetAtomicNum() in HALOGEN_PREFIXES and clean.GetAtomWithIdx(a).GetDegree() == 1)
             for a in labels
         ):
-            raise UnsupportedStructure("a nuclide on a heteroatom is cited with a letter locant, not by the parts of the name")
+            return None
         isotopic = {}
         if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
             isotopic = _isotopic_centres(mol, clean, index)
@@ -1997,7 +1997,10 @@ def _name_mol(mol) -> str:
         (has_amine_imide_shape, name_amine_imide),
     ):
         if has_shape(mol):
-            return namer(mol)
+            name = namer(mol)
+            if name is None:
+                raise UnsupportedStructure("no supported name cites every nuclide of this structure")
+            return name
 
     # A charged ammonium nitrogen (P-73.1.1.2's hydron-addition cation
     # naming) must be routed here before every other branch below: none of
