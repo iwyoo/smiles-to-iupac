@@ -112,7 +112,6 @@ from ._urea import has_urea_shape, name_urea
 from ._amidine import has_amidine_shape, name_amidine
 from ._chalcogenourea import carries_only_element_hydride_groups
 from ._guanidine import has_carbonic_amide_parent, has_guanidine_shape, name_guanidine
-from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._hetero_ring_amine import has_hetero_ring_amine_shape, name_hetero_ring_amine
 from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, name_ring_amine
@@ -152,7 +151,7 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, has_amide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, has_amide_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -2567,13 +2566,10 @@ def _name_mol(mol) -> str:
             return name_guanidine(mol)
         if has_amide_shape(mol):
             return _name_standalone(mol)
-        # A one-H nitrogen bridging two carbonyl carbons (-C(=O)-NH-C(=O)-)
-        # is an imide, junior only to the acid/ester/amide suffixes above
-        # in Table 3.3; it must be routed before the generic carbonyl
-        # fallback below, which would otherwise misname each acyl carbon as
-        # a plain aldehyde.
+        # An imide (-C(=O)-NH-C(=O)-) is named as an N-acyl amide; it must be routed before the generic carbonyl
+        # fallback below, which would otherwise misname each acyl carbon as a plain aldehyde.
         if has_imide_shape(mol):
-            return name_imide(mol)
+            return _name_standalone(mol)
         # A doubly-bonded, monovalent oxygen is carbonyl-shaped (aldehyde or
         # ketone, depending on how many carbon neighbors its carbon has);
         # anything else falls to the alcohol module, which itself rejects a

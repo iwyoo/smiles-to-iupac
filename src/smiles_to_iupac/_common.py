@@ -2106,3 +2106,15 @@ def has_amide_shape(mol) -> bool:
         if has_amide_n:
             return True
     return False
+
+
+def has_imide_shape(mol) -> bool:
+    """A one-hydrogen nitrogen between two carbonyl carbons, -C(=O)-NH-C(=O)-."""
+    return any(
+        atom.GetAtomicNum() == 7
+        and atom.GetDegree() == 2
+        and atom.GetTotalNumHs() == 1
+        and all(n.GetAtomicNum() == 6 and _is_carbonyl_carbon(mol, n) for n in atom.GetNeighbors())
+        and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds())
+        for atom in mol.GetAtoms()
+    )
