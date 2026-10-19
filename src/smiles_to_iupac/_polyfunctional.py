@@ -2258,11 +2258,19 @@ def _nuclide_rank(nuclide):
     return -table.GetAtomicNumber(symbol), -int("".join(ch for ch in nuclide if ch.isdigit()))
 
 
+_OXALIC_ACID = Chem.MolFromSmarts("[OX2H1]C(=O)C(=O)[OX2H1]")
+
+
+def _is_oxalic_acid(mol):
+    """The retained name oxalic acid holds both acid groups in the parent, so none of them can be a prefix (P-65.1.1.1)."""
+    return mol.GetNumAtoms() == 6 and mol.HasSubstructMatch(_OXALIC_ACID)
+
+
 def _demote_junior_groups(mol, labels):
     """Characteristic groups that are modified in different ways cannot be multiplied: the group with the most
     modifications, then the nuclide of higher atomic number and mass number, stays the suffix and the others are cited
     as prefixes (P-82.2.2.2)."""
-    if not labels:
+    if not labels or _is_oxalic_acid(mol):
         return mol
     principal, owned_groups = _principal_owned(mol)
     found = {frozenset(g) for g in owned_groups}
@@ -2721,7 +2729,7 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if set(rest) - nitrogen_atoms - chalcogen_atoms:
         raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
     items = []
-    group_of = {a: k for k, group in enumerate(owned_groups) for a in group}
+    group_of = {a: k for k, group in enumerate(sorted(owned_groups, key=lambda g: not any(a in rest for a in g))) for a in group}
     hydrazide = principal == "hydrazide" or principal in _SULFONYL_HYDRAZIDE_ORDER
     centres = {
         n.GetIdx()
