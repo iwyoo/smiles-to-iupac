@@ -70,7 +70,7 @@ def _multi_centres(mol):
         return None
     if (
         len(radicals) > 1
-        and not any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms())
+        and not any((a.GetFormalCharge() and a.GetAtomicNum() != 6) or a.GetIsotope() for a in mol.GetAtoms())
         and all(
             (a.GetAtomicNum() == 6 and a.GetNumRadicalElectrons() <= 3)
             or (a.GetAtomicNum() in (8, 16) and a.GetNumRadicalElectrons() == 1 and a.GetDegree() == 1 and a.GetTotalNumHs() == 0)
@@ -86,7 +86,10 @@ def _multi_centres(mol):
 def _centre(mol):
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
     if len(radicals) > 1:
-        return radicals[0] if not any(a.GetIsotope() for a in mol.GetAtoms()) and not sum(a.GetFormalCharge() for a in mol.GetAtoms()) else None
+        ions_fit = not sum(a.GetFormalCharge() for a in mol.GetAtoms()) or all(
+            a.GetAtomicNum() == 6 for a in mol.GetAtoms() if a.GetFormalCharge()
+        )
+        return radicals[0] if not any(a.GetIsotope() for a in mol.GetAtoms()) and ions_fit else None
     if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() not in (1, 2, 3):
         return None
     centre = radicals[0]

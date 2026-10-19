@@ -176,7 +176,7 @@ def _prefixed_name(mol, radicals, anions, cations):
     cationic centres are read from the name of the anionic analogue with 'ide' changed to 'ylium' (P-73.2.2.1)."""
     from ._radical_group import name_radical_group
 
-    if len(radicals) != 1 or (anions and cations):
+    if anions and cations:
         return None
     analogue = Chem.RWMol(mol)
     for atom in cations:
@@ -276,5 +276,5 @@ def name_skeleton_radical_ion(mol) -> str:
     if named is None:
         named = _prefixed_name(mol, radicals, anions, cations)
     if named is None:
-        raise UnsupportedStructure("this radical ion has no supported name yet")
+        raise UnsupportedStructure("anionic and cationic centres beside a radical outside one parent hydride cannot be told apart in the analogue name")
     return named
