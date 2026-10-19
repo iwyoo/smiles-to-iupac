@@ -127,7 +127,7 @@ def nitroso_atoms(mol):
     return found
 
 
-_FREE_CARBOXY = Chem.MolFromSmarts("[CX3](=O)[OX2H1]")
+_FREE_CARBOXY = Chem.MolFromSmarts("[$([CX3](=O)[OX2H1]),$([CX3;!R](=[O,S])[O,N,S,F,Cl,Br,I]),$([CX3H1;!R]=O)]")
 _MULTIPLIED_ACID = re.compile(r"(?:di|tri|tetra)carboxylic acid$|(?:di|tri|tetra)oic acid$")
 _CARBOXYLIC_CLASS = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N)]")
 
@@ -196,7 +196,7 @@ def _acyl_prefix(mol, subtree, root, parent):
             if probe != "oxalic acid" and _MULTIPLIED_ACID.search(probe):
                 raise UnsupportedStructure("a further carboxylic acid group would become a second acyl group of the prefix")
         else:
-            probe = smiles_to_iupac(Chem.MolToSmiles(acid))
+            probe = _name_without_cation_context(acid) if not zwitterion else smiles_to_iupac(Chem.MolToSmiles(acid))
     finally:
         RING_CENTER.reset(centre_token)
         ISOTOPE_LABELS.reset(labels_token)
@@ -209,6 +209,19 @@ def _acyl_prefix(mol, subtree, root, parent):
         context["consumed"].update(labelled)
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
     return "oxalo" if name == "oxalyl" else name
+
+
+def _name_without_cation_context(acid):
+    """The name of an acid that holds no cation, outside the cationic-parent context of the molecule it was cut from."""
+    from ._polyfunctional import AMINIUM, FORCED_PRINCIPAL
+    from .core import smiles_to_iupac
+
+    aminium_token, forced_token = AMINIUM.set(False), FORCED_PRINCIPAL.set(None)
+    try:
+        return smiles_to_iupac(Chem.MolToSmiles(acid))
+    finally:
+        FORCED_PRINCIPAL.reset(forced_token)
+        AMINIUM.reset(aminium_token)
 
 
 def _name_with_free_carboxy(acid, others):
