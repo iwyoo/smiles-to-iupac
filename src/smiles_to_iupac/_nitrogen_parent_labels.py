@@ -7,13 +7,14 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    find_hydrazone,
     group_substituents,
     halogen_substituents,
+    has_hydrazone_shape,
     specified_double_bond_stereo,
     substituent_locant_set_and_citation,
 )
 from ._diazene import _azo_pairs, check_diazene_scope, has_diazene_shape, pair_substituents
-from ._hydrazone import has_hydrazone_shape
 from ._isotope_labels import descriptor, modification_key, split_isotopes
 from ._multiplicative_text import enclose
 from ._substituents import ISOTOPE_LABELS, format_substituent_prefixes
@@ -139,13 +140,19 @@ def name_labelled_azoxy(mol):
 
 
 def name_labelled_hydrazone(mol):
-    from ._hydrazone import _name_hydrazone_carbon, _validate_and_find_hydrazone
+    from ._substituents import name_branch
 
     clean, labels = _split(mol)
-    carbon, imine_nitrogen = _validate_and_find_hydrazone(clean)
+    found = find_hydrazone(clean)
+    if found is None:
+        raise UnsupportedStructure("no hydrazone group to cite nuclides on")
+    carbon, imine_nitrogen = found
     (amino,) = [n.GetIdx() for n in clean.GetAtomWithIdx(imine_nitrogen).GetNeighbors() if n.GetIdx() != carbon]
     name, parent_labels = _named_with_labels(
-        clean, labels, {imine_nitrogen, amino}, lambda: _name_hydrazone_carbon(clean, carbon, imine_nitrogen)
+        clean,
+        labels,
+        {imine_nitrogen, amino},
+        lambda: name_branch(adjacency(clean), carbon, imine_nitrogen, halogen_substituents(clean), mol=clean)[0],
     )
     group = enclose(name) if any(ch.isdigit() or ch in "(-" for ch in name) else name
     text = f"1-{group}{_locant_text(clean, parent_labels, {imine_nitrogen: 1, amino: 2})}hydrazine"

@@ -866,7 +866,7 @@ def test_halogens_on_hydrazine_nitrogen_and_fully_substituted_hydrazines(smiles,
 
 
 def test_hydrazone_unspecified_stereocenter_unaffected():
-    assert smiles_to_iupac("CCC(C)C(C)=NN") == "3-methylpentan-2-ylidenehydrazine"
+    assert smiles_to_iupac("CCC(C)C(C)=NN") == "(3-methylpentan-2-ylidene)hydrazine"
 
 
 def test_hydrazone_specified_chain_stereocenter_is_cited():

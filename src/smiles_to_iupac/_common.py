@@ -2175,3 +2175,32 @@ def has_simple_imine_shape(mol) -> bool:
         )
         for bond in mol.GetBonds()
     )
+
+
+def find_hydrazone(mol):
+    """(carbon, nitrogen) indices of the one C=N bond of an R2C=N-NH2 group, else None."""
+    bonds = [
+        b
+        for b in mol.GetBonds()
+        if b.GetBondTypeAsDouble() == 2.0 and {b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()} == {6, 7}
+    ]
+    if len(bonds) != 1:
+        return None
+    a, b = bonds[0].GetBeginAtom(), bonds[0].GetEndAtom()
+    carbon, nitrogen = (a, b) if a.GetAtomicNum() == 6 else (b, a)
+    others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
+    if nitrogen.GetDegree() != 2 or nitrogen.GetFormalCharge() or len(others) != 1:
+        return None
+    (other,) = others
+    if (
+        other.GetAtomicNum() != 7
+        or other.GetDegree() != 1
+        or other.GetFormalCharge()
+        or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), other.GetIdx()).GetBondTypeAsDouble() != 1.0
+    ):
+        return None
+    return carbon.GetIdx(), nitrogen.GetIdx()
+
+
+def has_hydrazone_shape(mol) -> bool:
+    return find_hydrazone(mol) is not None

@@ -150,7 +150,7 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, has_hydrazone_shape, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -264,7 +264,6 @@ from ._diazene import has_diazene_shape, name_diazene
 from ._azine import has_azine_shape, name_azine
 from ._hydrazine import has_hydrazine_aminooxy_shape, has_hydrazine_shape, name_hydrazine, name_hydrazine_with_heteroatom_groups
 from ._hydrazine_multiplicative import has_hydrazine_multiplicative_shape, name_hydrazine_multiplicative
-from ._hydrazone import has_hydrazone_shape, name_hydrazone
 from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
 from ._isocyanide import has_isocyanide_shape, name_isocyanide
@@ -2685,7 +2684,7 @@ def _name_mol(mol) -> str:
         # be routed here first.
         if has_hydrazone_shape(mol):
             try:
-                return name_hydrazone(mol)
+                return _name_standalone(mol)
             except UnsupportedStructure:
                 pass
         # A hydrazine skeleton (H2N-NH2, P-68.3.1.2.1) has its own two
