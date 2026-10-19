@@ -102,14 +102,11 @@ def _carbonic_acid_carbons(mol):
 
 
 def has_carbonic_acid_shape(mol) -> bool:
-    return bool(_carbonic_acid_carbons(mol))
+    return len(_carbonic_acid_carbons(mol)) == 1
 
 
 def name_carbonic_acid(mol) -> str:
-    carbons = _carbonic_acid_carbons(mol)
-    if len(carbons) != 1:
-        raise UnsupportedStructure("more than one carbonic-acid-shaped carbon is not supported yet")
-    (carbon,) = carbons
+    (carbon,) = _carbonic_acid_carbons(mol)
 
     group_atom_idxs = {carbon.GetIdx()} | {n.GetIdx() for n in carbon.GetNeighbors() if n.GetAtomicNum() == _OXYGEN}
     anion_oxygens = {i for i in group_atom_idxs if mol.GetAtomWithIdx(i).GetFormalCharge() == -1}
