@@ -559,7 +559,8 @@ def _name_checked(smiles: str) -> str:
     name = cite_spiro_stereo(smiles, cite_axial_stereo(smiles, _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))))
     mol = _parse_smiles(smiles)
     if mol is not None:
-        _require_isotopes_cited(mol, name)
+        if not nuclides_cited(mol, name):
+            raise UnsupportedStructure("this isotopically modified structure is not supported yet")
         _require_radicals_cited(mol, name)
         _require_ring_triple_bonds_cited(mol, name)
         _require_cumulated_ring_atoms_cited(mol, name)
@@ -652,12 +653,7 @@ def _has_isotope_label(mol) -> bool:
 def _name_keeping_labels(mol, namer):
     """The name of `mol`, or None when `mol` has nuclide labels that this name leaves uncited."""
     name = namer(mol)
-    if _has_isotope_label(mol):
-        try:
-            _require_isotopes_cited(mol, name)
-        except UnsupportedStructure:
-            return None
-    return name
+    return name if nuclides_cited(mol, name) else None
 
 
 def _name_isotope_label(mol) -> str:
@@ -676,9 +672,11 @@ def _name_isotope_label(mol) -> str:
         or has_functional_replacement_oxoacid_shape(split[0])
     ):
         try:
-            return _name_labelled_substituents(mol)
+            name = _name_labelled_substituents(mol)
         except UnsupportedStructure:
-            pass
+            name = None
+        if name is not None:
+            return name
     if has_isotope_acid_hydrogen_shape(mol):
         try:
             return name_isotope_acid_hydrogen(mol)
@@ -709,14 +707,27 @@ def _name_isotope_label(mol) -> str:
         (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
     ):
         if has_shape(mol):
+            error = None
             try:
-                return namer(mol)
-            except UnsupportedStructure as error:
-                try:
-                    return _name_labelled_substituents(mol)
-                except UnsupportedStructure:
+                name = namer(mol)
+            except UnsupportedStructure as caught:
+                name, error = None, caught
+            if name is not None:
+                return name
+            try:
+                name = _name_labelled_substituents(mol)
+            except UnsupportedStructure:
+                if error is not None:
                     raise error from None
-    return _name_labelled_substituents(mol)
+                raise
+            if name is not None:
+                return name
+            if error is not None:
+                raise error
+    name = _name_labelled_substituents(mol)
+    if name is None:
+        raise UnsupportedStructure("this isotopically modified structure is not supported yet")
+    return name
 
 
 def _same_descriptors(mol, clean, index):
@@ -789,8 +800,7 @@ def _name_labelled_substituents(mol):
         name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"]) or name
     if isotopic and not _cites_every_stereo_element(mol, name):
         raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
-    _require_isotopes_cited(mol, name)
-    return name
+    return name if nuclides_cited(mol, name) else None
 
 
 def _oxoacid_name(clean):
@@ -868,7 +878,7 @@ def _cite_parent_atom_nuclide(name, clean, labels, open_atoms):
 
 def _labelled_namer(namer, oxygens=False):
     """`namer` applied to the unlabelled structure, its organyl groups citing their nuclides and its acid parts named
-    with theirs (P-82.2.4); raises unless every nuclide appears in the name."""
+    with theirs (P-82.2.4); None unless every nuclide appears in the name."""
 
     def name(mol):
         from ._isotope_labels import split_isotopes
@@ -896,8 +906,7 @@ def _labelled_namer(namer, oxygens=False):
             ISOTOPE_LABELS.reset(token)
         if isotopic and not _cites_every_stereo_element(mol, result):
             raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
-        _require_isotopes_cited(mol, result)
-        return result
+        return result if nuclides_cited(mol, result) else None
 
     return name
 
@@ -961,14 +970,15 @@ def _cited_nuclides(name):
     return cited
 
 
-def _require_isotopes_cited(mol, name):
+def nuclides_cited(mol, name):
+    """Whether `name` cites every nuclide label of `mol`, as often as the structure carries it."""
     expected = {}
     for atom in mol.GetAtoms():
         if atom.GetIsotope():
             key = f"{atom.GetIsotope()}{atom.GetSymbol()}"
             expected[key] = expected.get(key, 0) + 1
     if not expected:
-        return
+        return True
     cited = _cited_nuclides(name)
     forced = FORCED_BRANCH_NAMES.get()
     given_names = [a.GetProp(PREFIX_PROP) for a in mol.GetAtoms() if a.HasProp(PREFIX_PROP)]
@@ -977,11 +987,7 @@ def _require_isotopes_cited(mol, name):
         if given in name:
             for key, count in _cited_nuclides(given).items():
                 cited[key] = cited.get(key, 0) - count
-    for key, count in expected.items():
-        if key not in name:
-            raise UnsupportedStructure(f"the name does not cite the {key} nuclide label")
-        if cited.get(key, 0) != count:
-            raise UnsupportedStructure(f"the name does not cite every {key} nuclide label")
+    return all(key in name and cited.get(key, 0) == count for key, count in expected.items())
 
 
 _NESTED_NAMES: dict = {}
@@ -1129,7 +1135,9 @@ def _name_unabridged_body(smiles: str) -> str:
                 return name_boron_acid(parsed)
             if _has_isotope_label(parsed):
                 with contextlib.suppress(UnsupportedStructure):
-                    return _labelled_namer(name_boron_acid, oxygens=True)(parsed)
+                    name = _labelled_namer(name_boron_acid, oxygens=True)(parsed)
+                    if name is not None:
+                        return name
         if parsed is not None:
             diacylamine = diacylamine_name(parsed)
             if diacylamine is not None:
@@ -1216,8 +1224,9 @@ def _name_unabridged_body(smiles: str) -> str:
             ):
                 try:
                     candidate = namer(parsed)
-                    _require_isotopes_cited(parsed, candidate)
                 except UnsupportedStructure:
+                    continue
+                if candidate is None or not nuclides_cited(parsed, candidate):
                     continue
                 # these namers do not cite stereodescriptors, so a flat name would silently drop the stereo
                 if stereo_specified and namer is not name_acid_salt and not _cites_every_stereo_element(parsed, candidate):
