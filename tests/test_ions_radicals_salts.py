@@ -1222,6 +1222,7 @@ def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
         pytest.param("c1ccccc1C#[N+]", "benzonitriliumyl", id="nitrilium_radical_cation"),
         pytest.param("c1ccccc1[NH2+]", "benzenaminiumyl", id="aminiumyl_on_benzene_is_not_anilinium"),
         pytest.param("Cc1ccc(cc1)[NH2+]", "4-methylbenzenaminiumyl", id="substituted_benzenaminiumyl"),
+        pytest.param("c1ccccc1[NH+]", "benzenaminylium", id="hydride_loss_cation_of_an_arylamine"),
         pytest.param("CC[N+](CC)(CC)[BH2-]", "(N,N-diethylethanaminiumyl)boranuidyl", id="zwitterionic_radical_on_boron"),
         pytest.param("C[Si](C)(C)[N-][N+]=NC", "3-methyl-1-(trimethylsilyl)triaz-2-en-2-ium-1-id-2-yl", id="zwitterionic_radical_on_the_cationic_atom"),
         pytest.param("[S-]1CC1", "1\u03bb4-thiiran-1-id-1-yl", id="ring_chalcogen_with_both_centres"),

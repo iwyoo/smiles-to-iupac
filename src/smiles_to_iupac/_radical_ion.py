@@ -211,6 +211,8 @@ def _ylium_yl_radical(mol):
         return None
     if not neutral_name.endswith(("amide", "amine", "imine", "aniline")):
         return None
+    if neutral_name.endswith("aniline"):
+        neutral_name = neutral_name[: -len("aniline")] + "benzenamine"
     # P-73.2.3.2: a nitrogen with two missing valences is the hydride-loss cation (acetamidylium); the third is a radical
     return neutral_name[:-1] + "ylium" + ("yl" if radical.GetNumRadicalElectrons() == 3 else "")
 
