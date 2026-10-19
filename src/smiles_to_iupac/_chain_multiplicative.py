@@ -70,7 +70,16 @@ def _acyl_branch(graph, carbon, nitrogen):
 def _is_linker_atom(mol, atom, acyl_prefixes=frozenset()):
     """`acyl_prefixes`: the carbons that a nitrogen linker may carry as acyl groups, cited as prefixes of the linker
     because a group senior to the amide is the principal one (P-41, P-65.1)."""
-    if atom.GetAtomicNum() not in _LINKER_ELEMENTS or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+    from ._polyfunctional import AMINIUM
+
+    onium_linker = (
+        AMINIUM.get() is True
+        and atom.GetAtomicNum() == 7
+        and atom.GetFormalCharge() == 1
+        and atom.GetDegree() == 4
+        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
+    )
+    if atom.GetAtomicNum() not in _LINKER_ELEMENTS or atom.IsInRing() or atom.GetIsotope() or (atom.GetFormalCharge() and not onium_linker):
         return False
     if atom.GetDegree() < 2 or atom.GetNumRadicalElectrons():
         return False
@@ -1416,7 +1425,7 @@ def _chain_multiplicative_name(mol, stereo):
                 return name
         return None
     principal, anchors, heads = found
-    from ._polyfunctional import _SENIORITY
+    from ._polyfunctional import _SENIORITY, AMINIUM
 
     acyl_prefixes = (
         frozenset(
@@ -1433,7 +1442,8 @@ def _chain_multiplicative_name(mol, stereo):
     linkers = {
         a.GetIdx()
         for a in mol.GetAtoms()
-        if _is_linker_atom(mol, a, acyl_prefixes) and not (principal == "amine" and a.GetAtomicNum() == 7)
+        if _is_linker_atom(mol, a, acyl_prefixes)
+        and not (principal == "amine" and a.GetAtomicNum() == 7 and (AMINIUM.get() is not True or (a.GetIdx() in anchors and not a.GetFormalCharge())))
     }
     candidates, nitrogen, amine_nitrogen = {}, {}, {}
     for r in range(mol.GetNumAtoms()):

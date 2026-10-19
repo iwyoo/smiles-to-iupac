@@ -299,13 +299,15 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             return Part(format_mononuclear_prefixes(entries) + stem, True, False)
     if z in _SUBSTITUTABLE_WORDS:
         divalent, trivalent = _SUBSTITUTABLE_WORDS[z]
+        if z == 7 and mol.GetAtomWithIdx(atoms[0]).GetFormalCharge() == 1:
+            divalent = "azaniumdiyl"
         if count == 3 and not pend:
             return Part(trivalent, False, False)
         if count != 2:
             raise UnsupportedStructure("this heteroatom linker is not supported")
         entries = [_entry(mol, atoms[0], root, ctx) for _, root in pend]
         prefix = format_mononuclear_prefixes(entries) if entries else ""
-        cited = _lambda_citation(mol, atoms[0], prefix)
+        cited = "" if mol.GetAtomWithIdx(atoms[0]).GetFormalCharge() else _lambda_citation(mol, atoms[0], prefix)
         return Part(prefix + cited + divalent, bool(entries or cited), False)
     if count != 2:
         raise UnsupportedStructure("this heteroatom linker is not supported")
