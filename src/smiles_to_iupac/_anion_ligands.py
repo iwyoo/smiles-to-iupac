@@ -48,8 +48,8 @@ def _prefixed(mol, graph, donor, metal_idx, suffix, atoms):
     for n in graph[donor]:
         if n == metal_idx:
             continue
-        if mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetAtomWithIdx(n).GetIsAromatic():
-            raise UnsupportedStructure("only alkyl substituents are supported on this anionic donor")
+        if mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 14) or mol.GetAtomWithIdx(n).GetIsAromatic():
+            raise UnsupportedStructure("only alkyl and silyl substituents are supported on this anionic donor")
         entries.append(name_branch(graph, n, donor, {}, mol=mol))
     return (format_mononuclear_prefixes(entries) if entries else "") + suffix
 
