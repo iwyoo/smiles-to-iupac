@@ -94,6 +94,7 @@ def require_plain_chalcogen_kids(mol, z, kids):
 
 CATION_PARENT = contextvars.ContextVar("cation_parent", default=False)
 RADICAL_PARENT = contextvars.ContextVar("radical_parent", default=False)
+RADICAL_CENTRE = contextvars.ContextVar("radical_centre", default=None)
 
 
 _IMINE_NITROGEN_CHALCOGEN = Chem.MolFromSmarts("[CX3]=[NX2]-[S,Se,Te]")
@@ -1205,6 +1206,8 @@ def _hydrazido(graph, root, others, mol):
     from ._polyfunctional import _carbonic_ether_oxygen, name_polyfunctional
 
     if len(others) != 1 or mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 7 or mol.GetAtomWithIdx(root).IsInRing():
+        return None
+    if RADICAL_CENTRE.get() == root:
         return None
     alpha = others[0]
     onward = [n for n in graph[alpha] if n != root]

@@ -220,7 +220,9 @@ _ACID_ENDINGS = (
     ("sulfinic acid", "sulfinyl"),
     ("sulfonic acid", "sulfonyl"),
 )
-_NITROGEN_ENDINGS = ("carboxamide", "amide", "imine")
+_NITROGEN_ENDINGS = (
+    "carboxamide", "sulfonamide", "sulfinamide", "selenonamide", "seleninamide", "telluronamide", "tellurinamide", "amide", "imine",
+)
 _MULTIPLIER_WORDS = {2: "bis", 3: "tris", 4: "tetrakis"}
 
 
