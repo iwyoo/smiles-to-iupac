@@ -46,6 +46,7 @@ from ._chalcogen_polychain import name_polychalcogen_hydride
 from ._carbonic_amide import (
     carbonohydrazonic_diamide_name,
     cyanamide_name,
+    name_labelled_cyanamide,
     diazenecarbohydrazide_name,
     hydrazine_dicarboxamide_name,
     name_polycarbonic_amide,
@@ -133,6 +134,7 @@ from ._benzenide import has_benzenide_shape, name_benzenide
 from ._cyclopentadienide import has_cyclopentadienide_shape, name_cyclopentadienide
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, has_isotope_diazonium_shape, name_diazonium, name_isotope_diazonium
+from ._radical_hetero import hetero_radical_name
 from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
@@ -657,6 +659,9 @@ def _name_keeping_labels(mol, namer):
     return name if nuclides_cited(mol, name) else None
 
 
+_NONCARBON_PEROXY_ESTER = Chem.MolFromSmarts("[#5,#14,#15,#16,#33,#34,#51,#52]OO[#6]")
+
+
 def _name_isotope_label(mol) -> str:
     from ._isotope_labels import split_isotopes
 
@@ -666,6 +671,10 @@ def _name_isotope_label(mol) -> str:
             return name_guanidine(mol)
         except UnsupportedStructure:
             pass
+    if split is not None:
+        name = name_labelled_cyanamide(mol)
+        if name is not None:
+            return name
     if split is not None and (
         has_amino_acid_shape(split[0])
         or has_inorganic_acid_derivative_shape(split[0])
@@ -708,6 +717,7 @@ def _name_isotope_label(mol) -> str:
         (has_isotope_substituted_hydride_shape, name_isotope_substituted_hydride),
         (has_isotope_one_carbon_shape, name_isotope_one_carbon),
         (has_isotope_acyl_halide_shape, name_isotope_acyl_halide),
+        (has_radical_shape, hetero_radical_name),
     ):
         if has_shape(mol):
             error = None
@@ -727,9 +737,16 @@ def _name_isotope_label(mol) -> str:
                 return name
             if error is not None:
                 raise error
-    name = _name_labelled_substituents(mol)
+    error = None
+    try:
+        name = _name_labelled_substituents(mol)
+    except UnsupportedStructure as caught:
+        name, error = None, caught
+    if name is None and mol.HasSubstructMatch(_NONCARBON_PEROXY_ESTER):
+        with contextlib.suppress(UnsupportedStructure):
+            name = _labelled_namer(name_acid_derivative, oxygens=True)(mol)
     if name is None:
-        raise UnsupportedStructure("this isotopically modified structure is not supported yet")
+        raise error or UnsupportedStructure("this isotopically modified structure is not supported yet")
     return name
 
 

@@ -132,13 +132,14 @@ def descriptor(labels, position_of, single_position, extra=(), capacity=None, so
     return "(" + ",".join(groups) + ")"
 
 
-def nitrogen_hydrogen_descriptor(mol, labelled):
+def nitrogen_hydrogen_descriptor(mol, labelled, unlocated=None):
     """'(N-2H1)', '(N-15N)': the descriptor of nuclides on the nitrogens of a characteristic group, each cited with its
-    letter locant in front of the parent it modifies (P-82.2.5). `labelled`: {nitrogen: (locant, label entry)}."""
+    letter locant in front of the parent it modifies (P-82.2.5). `labelled`: {nitrogen: (locant, label entry)};
+    `unlocated`: {atom: label entry} of the atoms of the parent itself, cited without a locant."""
     items = []
     for atom, (locant, entry) in labelled.items():
         if entry["skeleton"]:
             items.append((entry["skeleton"], locant, 1, False))
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, mol.GetAtomWithIdx(atom).GetTotalNumHs() > 1))
-    return descriptor({}, {}, False, extra=items)
+    return descriptor(unlocated or {}, {a: 1 for a in unlocated or {}}, bool(unlocated), extra=items)
