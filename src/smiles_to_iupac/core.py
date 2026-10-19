@@ -20,7 +20,6 @@ from ._polycarbonic import name_polycarbonic
 from ._carbonic_ester_anion import name_carbonic_ester_anion
 from ._carbonic_family import name_carbonic_family
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
-from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._carbamate_ester import name_carbamate_ester
 from ._alcohol import name_alcohol
@@ -2540,12 +2539,6 @@ def _name_mol(mol) -> str:
         # it must be routed here too, right alongside its R-O-O-R' cousin.
         if has_hydroperoxide_shape(mol):
             return name_hydroperoxide(mol)
-        # An anhydride's bridging oxygen (-C(=O)-O-C(=O)-) is also
-        # ester-shaped from either acyl carbon's point of view (a carbonyl
-        # oxygen plus a second, carbon-bonded oxygen), so it must be routed
-        # before has_ester_shape below, which would otherwise misname it.
-        if has_anhydride_shape(mol):
-            return name_anhydride(mol)
         # A carbamate's carbon (R-O-C(=O)-NH2) is simultaneously
         # ester-shaped (carbonyl + a second, carbon-bonded oxygen) and
         # amide-shaped (carbonyl + a primary -NH2) on the very same carbon,
