@@ -534,6 +534,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if benzyl and set(labelled) == {root}:
         context["consumed"].add(root)
         return (benzyl.group(1) or "") + "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
+    pseudohalide = _labelled_pseudohalide(name, graph, root, coming_from, labelled)
+    if pseudohalide is not None:
+        context["consumed"].update(labelled)
+        return pseudohalide, compound
     sulfonyl = _labelled_sulfonyl(name, graph, root, coming_from, mol, labelled)
     if sulfonyl is not None:
         context["consumed"].update(labelled)
@@ -750,6 +754,43 @@ def _labelled_sulfonyl_centre(name, mol, root, labelled, capacity):
     from ._isotope_labels import descriptor
 
     return name[: match.start()] + descriptor(labelled, {root: 1}, True, capacity=capacity) + name[match.start() :]
+
+
+_PSEUDOHALIDE_STEMS = {8: "cyan", 16: "thi", 34: "selen", 52: "tellur"}
+
+
+def _labelled_pseudohalide(name, graph, root, coming_from, labelled):
+    """'(1-15N)azido', '(15N)isocyanato', 'iso(13C)cyanato', 'iso(34S)thiocyanato': a nuclide on an atom of an azido,
+    isocyano or isocyanato group stands in front of the part of the name that denotes that atom, the nitrogen in front of
+    the group (P-82.2.1, P-82.6.3.3)."""
+    from ._isotope_labels import descriptor
+
+    if name not in ("azido", "isocyano", "isocyanato", "isothiocyanato", "isoselenocyanato", "isotellurocyanato"):
+        return None
+    mol = ISOTOPE_LABELS.get()["mol"]
+    chain, previous = [root], coming_from
+    while True:
+        onward = [n for n in graph[chain[-1]] if n != previous]
+        if not onward:
+            break
+        previous = chain[-1]
+        chain.append(onward[0])
+    if any(a not in chain or e["H"] or not e["skeleton"] for a, e in labelled.items()):
+        return None
+    if name == "azido":
+        return descriptor(labelled, {a: i + 1 for i, a in enumerate(chain)}, False) + name
+    at = {}
+    for atom in labelled:
+        if atom == root:
+            offset = 0
+        elif atom == chain[-1] and len(chain) == 3 and mol.GetAtomWithIdx(atom).GetAtomicNum() in (16, 34, 52):
+            offset = name.index(_PSEUDOHALIDE_STEMS[mol.GetAtomWithIdx(atom).GetAtomicNum()])
+        else:
+            offset = name.index("cyan")
+        at.setdefault(offset, {})[atom] = labelled[atom]
+    for offset in sorted(at, reverse=True):
+        name = name[:offset] + descriptor(at[offset], {a: 1 for a in at[offset]}, True) + name[offset:]
+    return name
 
 
 _CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")

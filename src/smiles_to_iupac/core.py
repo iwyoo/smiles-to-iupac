@@ -811,11 +811,35 @@ _PARENT_ATOM_STEM = {
 }
 
 
+_CYANATE_ANIONS = {"cyanate": 8, "thiocyanate": 16, "selenocyanate": 34, "tellurocyanate": 52}
+_CYANATE_STEM = {16: "thi", 34: "selen", 52: "tellur"}
+
+
+def _cite_cyanate_nuclides(name, clean, labels, open_atoms):
+    """The nuclide of the chalcogen of a (thio)cyanate stands in front of its 'thio', 'seleno' or 'telluro' part, that of
+    the carbon, nitrogen or the oxygen of cyanate in front of 'cyan' (P-82.2.1)."""
+    from ._isotope_labels import descriptor
+
+    chalcogen = _CYANATE_ANIONS[name]
+    if any(labels[a]["H"] or not labels[a]["skeleton"] for a in open_atoms):
+        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+    at = {}
+    for atom in open_atoms:
+        is_chalcogen = clean.GetAtomWithIdx(atom).GetAtomicNum() == chalcogen
+        offset = name.index(_CYANATE_STEM[chalcogen]) if is_chalcogen and chalcogen != 8 else name.index("cyan")
+        at.setdefault(offset, {})[atom] = labels[atom]
+    for offset in sorted(at, reverse=True):
+        name = name[:offset] + descriptor(at[offset], {a: 1 for a in at[offset]}, True) + name[offset:]
+    return name
+
+
 def _cite_parent_atom_nuclide(name, clean, labels, open_atoms):
     """`name` with the nuclide of the one atom of its element, the atom the parent name is built on, in front of the stem
     that names that element (P-82.2.1, P-82.6.1.1); a name that does not delimit that stem exactly once is refused."""
     from ._isotope_labels import descriptor
 
+    if name in _CYANATE_ANIONS:
+        return _cite_cyanate_nuclides(name, clean, labels, open_atoms)
     if len(open_atoms) != 1:
         raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
     (atom,) = open_atoms

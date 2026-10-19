@@ -4021,7 +4021,9 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         return _choose_isolated(candidates, key=lambda c: c[0])[1]
 
     eligible = {
-        a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not is_functional_carbon(mol, a.GetIdx())
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 6 and not is_functional_carbon(mol, a.GetIdx()) and not _is_isocyanide_carbon(mol, a)
     }
     from ._substituents import ISOTOPE_LABELS
 
@@ -6586,6 +6588,18 @@ def _is_azide_part(atom):
 def _is_azide_bond_end(first, second):
     """The bond joining a nitrogen to the charged middle nitrogen of an azido group."""
     return any(_is_azide_part(a) and a.GetFormalCharge() == 1 for a in (first, second))
+
+
+def _is_isocyanide_carbon(mol, atom):
+    """The terminal carbon of -N(+)#C(-), a prefix of its own rather than a chain atom."""
+    return (
+        atom.GetFormalCharge() == -1
+        and atom.GetDegree() == 1
+        and any(
+            n.GetAtomicNum() == 7 and n.GetFormalCharge() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 3.0
+            for n in atom.GetNeighbors()
+        )
+    )
 
 
 def _is_isocyanate_carbon(atom):

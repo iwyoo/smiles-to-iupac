@@ -1088,3 +1088,16 @@ def test_nuclide_in_a_zwitterion_with_an_olate_parent(smiles, expected):
 )
 def test_nuclide_on_an_oxygen_of_an_acid_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.3.3: a nuclide on an atom of a pseudohalide group stands in front of the part of the name that denotes the atom
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CN=C=[18O]", "iso(18O)cyanatomethane", id="isocyanato_group"),
+        pytest.param("C[N+]#[15N]", "methane(15N)diazonium", id="diazonium_group"),
+        pytest.param("N#C[18O-]", "(18O)cyanate", id="cyanate_anion"),
+    ],
+)
+def test_nuclide_on_an_atom_of_a_pseudohalide_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
