@@ -527,13 +527,8 @@ def _best_acyclic_ketone_candidate(
     mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
 ):
     """(best_name, best_position_of) -- the winning chain numbering and its
-    fully-formatted name, factored out of `_name_acyclic_ketone` (which
-    just adds the stereo-descriptor prefix on top) so `_isotope_ketone.py`
-    can reuse the identical numbering decision: P-82.5.1 states the
-    presence of isotopic nuclides is "considered last" among numbering
-    criteria, so an isotope label never changes which candidate wins here,
-    and that module only needs `best_position_of` to independently compute
-    its own isotope descriptor's locant.
+    fully-formatted name, without the stereo-descriptor prefix of
+    `_name_acyclic_ketone`.
 
     `extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
