@@ -1071,6 +1071,10 @@ def test_ester_class_names(smiles, expected):
             "4-[4-(acetyloxy)-4-oxobutanoic] 2-methylbutanedioic 1-propanoic dianhydride",
         ),
         ("CC(=O)OC(=O)c1cc(C(=O)OC(C)=O)c(C(=O)OC(=O)CC)cc1", "2,4-diacetic 1-propanoic benzene-1,2,4-tricarboxylic trianhydride"),
+        (
+            "CCC(=O)OC(=O)c1cc2c(cc1C(=O)OC(C)=O)cc(C(=O)OC(C)=O)cc2CC(=O)OC(C)=O",
+            "3,6-diacetic 2-propanoic 8-[2-(acetyloxy)-2-oxoethyl]naphthalene-2,3,6-tricarboxylic trianhydride",
+        ),
         ("O=C(Cl)c1ccc(C(=O)Cl)cc1", "benzene-1,4-dicarbonyl dichloride"),
         ("NC(=O)C(=O)Br", "oxamoyl bromide"),
         ("ClC(=S)C1CCCCC1", "cyclohexanecarbothioyl chloride"),
