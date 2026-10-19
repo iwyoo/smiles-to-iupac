@@ -325,8 +325,6 @@ from ._spiro_heteroatom import (
 )
 from ._disulfide import has_disulfide_shape, name_disulfide
 from ._sulfide import has_sulfide_shape, name_sulfide
-from ._sulfinamide import has_sulfinamide_shape, name_sulfinamide
-from ._sulfonamide import has_sulfonamide_shape, name_sulfonamide
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
 from ._selenone import has_selenone_shape, name_selenone
@@ -1551,11 +1549,14 @@ _FALLBACK_NAMERS = (
 )
 
 
+_ACYCLIC_SULFONAMIDE = Chem.MolFromSmarts("[#6]S(=O)(=O)!@[NX3]")
+
+
 def _has_acid_senior_to_sulfonyl(mol):
     """A sulfonic, sulfinic, selenonic, seleninic, telluronic or tellurinic acid, or a carboxylic acid beside a sulfonamide."""
     return any(
         acid_group_at(mol, atom.GetIdx()) is not None for atom in mol.GetAtoms() if atom.GetAtomicNum() in (16, 34, 52)
-    ) or (find_carboxylic_acid_carbon(mol) is not None and has_sulfonamide_shape(mol))
+    ) or (find_carboxylic_acid_carbon(mol) is not None and mol.HasSubstructMatch(_ACYCLIC_SULFONAMIDE))
 
 
 def _name_standalone(mol):
@@ -2244,22 +2245,11 @@ def _name_mol(mol) -> str:
         # Table 3.3), so the engine names these acids.
         (_has_acid_senior_to_sulfonyl, _name_standalone),
         # A sulfonyl group on a plain saturated ring nitrogen (e.g.
-        # 1-methylsulfonylpiperidine) looks sulfonamide-shaped to
-        # `has_sulfonamide_shape` below, which doesn't know about this
-        # ring-as-parent construction and would misclaim/reject it -- must be
-        # routed here first (narrower than `has_ring_amine_shape` alone, so it
+        # 1-methylsulfonylpiperidine) is a ring-as-parent construction
+        # the sulfonyl checks below do not know -- must be routed here first (narrower than `has_ring_amine_shape` alone, so it
         # doesn't also preempt `_hidden_amide_ketone.py`'s unrelated
         # acyl-on-ring-nitrogen shape further down).
         (has_ring_amine_sulfonyl_shape, name_ring_amine),
-        # A sulfonamide (-SO2NH2, P-65.3.1) has two oxygens on its own sulfur,
-        # the same reasoning as sulfonic acid above, plus a nitrogen that would
-        # otherwise be mistaken for a plain amine -- so it too must be routed
-        # before both the "any O atom" and "any N atom" branches below.
-        (has_sulfonamide_shape, name_sulfonamide),
-        # A sulfinamide (-S(=O)NH2, P-65.3.1) has one oxygen and one nitrogen on
-        # its own sulfur -- the same reasoning as sulfonamide above -- so it too
-        # must be routed before both the "any O atom" and "any N atom" branches.
-        (has_sulfinamide_shape, name_sulfinamide),
         # A sulfone (-SO2-, P-63.6) has two oxygens on its own sulfur, just like
         # a sulfinic/sulfonic acid's cluster above, so it must be routed here for
         # the same reason -- before it, since a sulfone's sulfur has two carbon
