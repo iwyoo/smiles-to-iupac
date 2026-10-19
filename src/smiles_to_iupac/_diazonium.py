@@ -93,8 +93,6 @@ def _diazonium_nitrogens(mol):
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() != 1 or atom.GetDegree() != 2:
             continue
-        if atom.GetIsotope() != 0:
-            continue
         neighbors = atom.GetNeighbors()
         carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
         nitrogens = [n for n in neighbors if n.GetAtomicNum() == 7]
@@ -106,7 +104,7 @@ def _diazonium_nitrogens(mol):
             continue
         if mol.GetBondBetweenAtoms(atom.GetIdx(), terminal_n.GetIdx()).GetBondTypeAsDouble() != _YNE_ORDER:
             continue
-        if terminal_n.GetDegree() != 1 or terminal_n.GetFormalCharge() != 0 or terminal_n.GetIsotope() != 0:
+        if terminal_n.GetDegree() != 1 or terminal_n.GetFormalCharge() != 0:
             continue
         matches.append(atom)
     return matches
@@ -416,8 +414,9 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
         target.SetBoolProp("_cationic_amine", True)
         target.SetBoolProp("_diazonium_surrogate", True)
         editable.GetBondBetweenAtoms(atom.GetIdx(), terminal).SetBondType(Chem.BondType.SINGLE)
-    if labels and any(a.GetIdx() in labels or n.GetIdx() in labels for a in nitrogens for n in a.GetNeighbors() if n.GetAtomicNum() == 7):
-        raise UnsupportedStructure("a nuclide on the nitrogen of a diazonium group is not supported yet")
+    group_atoms = {a.GetIdx() for a in nitrogens} | {n.GetIdx() for a in nitrogens for n in a.GetNeighbors() if n.GetAtomicNum() == 7}
+    group_labels = {i: entry for i, entry in (labels or {}).items() if i in group_atoms}
+    labels = {i: entry for i, entry in (labels or {}).items() if i not in group_atoms}
     for index in sorted(remove, reverse=True):
         editable.RemoveAtom(index)
     surrogate = editable.GetMol()
@@ -442,7 +441,14 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
     finally:
         CATION_PARENT.reset(parent_token)
         AMINIUM.reset(token)
-    return result if result is not None else _diazynium_name(mol, nitrogens, bool(shifted))
+    if result is None:
+        return _diazynium_name(mol, nitrogens, bool(shifted or group_labels))
+    if group_labels and len(nitrogens) == 1 and result.endswith("diazonium"):
+        from ._isotope_labels import descriptor
+
+        cut = len(result) - len("diazonium")
+        result = result[:cut] + descriptor(group_labels, {i: 1 for i in group_labels}, True) + result[cut:]
+    return result
 
 
 def _diazynium_name(mol, nitrogens, labelled):
