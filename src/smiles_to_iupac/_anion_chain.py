@@ -1,7 +1,7 @@
 """Anionic centers on an unbranched chain of one repeated heteroatom (P-72.2.2.1,
 P-72.2.2.2.4, P-72.6.3): hydrazine-1,1-diide, trioxidanide, disulfanidyl, ... The 'ide'
-centers take the lowest locants, then the free valence and the substituent prefixes
-(P-31.1.4); locants that cannot be ambiguous are omitted (P-14.3.4).
+centers and the free valence take the lowest locants together, the free valence first (P-75.2), then the
+substituent prefixes (P-31.1.4); locants that cannot be ambiguous are omitted (P-14.3.4).
 """
 
 from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents, multiplied_word
@@ -86,8 +86,9 @@ def _compose(neutral, chain, centers, z, free):
         ene = [i + 1 for i, order in enumerate(orders) if order == 2.0]
         yne = [i + 1 for i, order in enumerate(orders) if order == 3.0]
         key = (
-            tuple(locants),
+            sorted([*locants, free_locant]) if free else locants,
             free_locant,
+            tuple(locants),
             ene,
             yne,
             sorted(loc for info in grouped.values() for loc in info["locants"]),

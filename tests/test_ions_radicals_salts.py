@@ -1234,6 +1234,8 @@ def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
         pytest.param("C[Si](C)(C)[N-][N+]=NC", "3-methyl-1-(trimethylsilyl)triaz-2-en-2-ium-1-id-2-yl", id="zwitterionic_radical_on_the_cationic_atom"),
         pytest.param("[S-]1CC1", "1\u03bb4-thiiran-1-id-1-yl", id="ring_chalcogen_with_both_centres"),
         pytest.param("COC(=O)[C-]", "(methoxycarbonyl)methanidylidene", id="carbanidylidene_with_an_ester_prefix"),
+        pytest.param("C[N-][NH]", "2-methylhydrazin-2-id-1-yl", id="radical_nitrogen_takes_the_lowest_locant_before_the_anion"),
+        pytest.param("c1ccccc1[N-][N]", "2-phenylhydrazin-2-id-1-ylidene", id="two_radical_electrons_of_a_nitrogen_beside_an_anion"),
         pytest.param("CC[N+]1C(=O)C=CC=C1", "1-ethyl-2-oxopyridin-1-ium-1(2H)-yl", id="added_hydrogen_beside_the_ring_oxo"),
         pytest.param("[CH2]C#[O+]", "2-(oxidaniumylidyne)ethyl", id="cationic_prefix_on_a_radical_parent"),
         pytest.param("CC[n+]1c(sc2ccccc12)C=C[CH]C=Cc1sc2ccccc2[n+]1CC", "1,5-bis(3-ethyl-1,3-benzothiazol-3-ium-2-yl)penta-1,4-dien-3-yl", id="two_cationic_rings_on_a_radical_parent"),
