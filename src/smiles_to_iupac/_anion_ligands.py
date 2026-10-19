@@ -74,6 +74,10 @@ def monodentate_anion(mol, metal, donor, atoms):
                 return "nitrato"
             if len(others) == 1 and sym(others[0]) == 8 and _bond(mol, x, others[0]) == 2.0:
                 return f"nitrito-{_K}O"
+    if z == 7 and donor.GetFormalCharge() == 1 and len(own) == 2 and hydrogens == 0 and all(
+        sym(n) == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 for n in own
+    ):
+        return f"nitrito-{_K}N"
     if z == 7:
         chain = [n for n in own if sym(n) == 7]
         if len(own) == 1 and len(chain) == 1:

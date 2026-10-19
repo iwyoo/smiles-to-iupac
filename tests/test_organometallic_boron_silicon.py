@@ -188,6 +188,9 @@ def test_boron_acids_of_different_units_choose_the_parent(smiles, expected):
     "smiles,expected",
     [
         ("C[Re]([OH2])Cl", "aquachlorido(methyl)rhenium"),
+        ("C[N+](C)(C)CC[Pd]Cl", "chlorido[2-(trimethylazaniumyl)ethyl]palladium(1+)"),
+        ("[O-]C(=O)CC[Pd]Cl", "(2-carboxylatoethyl)chloridopalladate(1-)"),
+        ("COC(=O)C(=O)[Fe]", "[methoxy(oxo)acetyl]iron"),
     ],
 )
 def test_coordination_name(smiles, expected):
