@@ -42,7 +42,7 @@ def _unit(mol, centre, centres):
     return tuple(sorted(unit))
 
 
-def senior_parent_name(mol, centres, build):
+def senior_parent_name(mol, centres, build, prefix_context=contextlib.nullcontext):
     """The name of the candidate with the most substituent prefixes, then the alphanumerically earlier name; `build(centre)`
     gives (prefix count, name). Identically substituted groups are identical parents, named multiplicatively (P-15.3.1.1)."""
     groups = [_group_atoms(mol, c) for c in centres]
@@ -50,7 +50,7 @@ def senior_parent_name(mol, centres, build):
         raise UnsupportedStructure("acid groups sharing an atom are not separate parent candidates")
     units = [_unit(mol, c, centres) for c in centres]
     if len(set(units)) != len(units):
-        raise UnsupportedStructure("identical parent structures are named multiplicatively")
+        return name_one_of_several_groups(mol, centres, lambda centre: build(centre)[1], prefix_context)
     return min((build(c) for c in centres), key=lambda built: (-built[0], alpha_sort_key(built[1])))[1]
 
 

@@ -375,15 +375,14 @@ def nitrogen_locants(mol):
     return {unprimed: "N", primed: "N'"}, f"{prefixes}urea"
 
 
-def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide", nuclides="", inner=""):
+def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide", nuclides="", inner="", numbered=False):
     """Substituted hydrazinecarboxamide (P-66.1.1.1.1.3, P-66.3.5): N on the amide nitrogen, 1 and 2 on the
     hydrazine nitrogens."""
     positions = {"N": amide_names, 1: alpha_names, 2: beta_names}
     grouped = group_substituents({k: v for k, v in positions.items() if v})
-    if not grouped:
-        return f"{nuclides}hydrazine{inner}{ending}"
-    numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
-    return f"{format_substituent_prefixes(grouped)}{nuclides}hydrazine{'-1-' if numbered else ''}{inner}{ending}"
+    numbered = numbered or any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
+    prefixes = format_substituent_prefixes(grouped) if grouped else ""
+    return f"{prefixes}{nuclides}hydrazine{'-1-' if numbered else ''}{inner}{ending}"
 
 
 _HYDRAZIDE_ENDING = {8: "carbohydrazide", 16: "carbothiohydrazide", 34: "carboselenohydrazide", 52: "carbotellurohydrazide"}

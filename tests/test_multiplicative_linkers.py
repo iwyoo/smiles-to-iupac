@@ -283,6 +283,8 @@ def test_amine_suffix_name_is_preferred_to_the_skeletal_replacement_name():
         pytest.param("CNC(=O)NCCNC(=O)NC", "N,N''-(ethane-1,2-diyl)bis(N'-methylurea)", id="far_nitrogen_substituent"),
         pytest.param("NC(=O)N(C)CCN(C)C(N)=O", "N,N''-(ethane-1,2-diyl)bis(N-methylurea)", id="joined_nitrogen_substituent"),
         pytest.param("NC(=S)Nc1ccc(NC(N)=S)cc1", "N,N''-(1,4-phenylene)bis(thiourea)", id="thioureas_take_bis"),
+        pytest.param("NC(=O)NN=C(C)CC(C)=NNC(N)=O", "2,2'-(pentane-2,4-diylidene)di(hydrazine-1-carboxamide)", id="semicarbazones"),
+        pytest.param("NC(=O)NN(C)CCN(C)NC(N)=O", "2,2'-(ethane-1,2-diyl)bis(2-methylhydrazine-1-carboxamide)", id="semicarbazides_with_a_substituent"),
     ],
 )
 def test_identical_functional_parent_units_on_one_skeleton_are_multiplied(smiles, expected):
