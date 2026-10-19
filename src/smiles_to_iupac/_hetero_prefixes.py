@@ -11,7 +11,7 @@ import re
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
+from ._common import InternalInvariantError, nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._nitro_group import nitro_or_nitroso_group
@@ -384,19 +384,24 @@ def phosphoryl_name(parts, group=("phosphono", "phosphoryl")):
 
 def _phosphoryloxy(graph, phosphorus, oxygen, halogens, aromatic_atoms, mol):
     """'phosphonooxy' or '[(X)(Y)phosphoryl]oxy' for O-P(=O)(X)(Y)."""
-    atom = mol.GetAtomWithIdx(phosphorus)
-    if atom.GetFormalCharge() or atom.IsInRing():
-        raise UnsupportedStructure("this phosphorus-bearing substituent is not supported yet")
+    if mol.GetAtomWithIdx(phosphorus).GetFormalCharge():
+        return None
     others = [n for n in graph[phosphorus] if n != oxygen]
     found = _pnictogen_oxo_group(graph, phosphorus, halogens, aromatic_atoms, mol, others)
     if found is None:
-        raise UnsupportedStructure("this phosphorus-bearing substituent is not supported yet")
+        return None
     group, compound = found
     if group == "phosphono":
         return "phosphonooxy", True
     if "phospho" in group.replace("phosphoryl", ""):
         mark(None, POLYACID_SUBSTITUENT_REASON)
     return _enclose(group, compound) + "oxy", True
+
+
+def _ring_substituent(mol, graph, root, parent):
+    from ._diester_ring_diyl import ring_substituent_name
+
+    return ring_substituent_name(mol, graph, root, parent)
 
 
 def _alkoxy(rname, compound=False):
@@ -845,17 +850,17 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         named = named_prefix(mol.GetAtomWithIdx(other))
         if named is not None:
             return ("ylooxidanyl" if named == "ylo" else named + "oxy"), True
+        if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES and mol.GetAtomWithIdx(other).IsInRing():
+            ring, _ = _ring_substituent(mol, graph, other, root)
+            return _enclose(ring, True) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() == 15 and any(
             mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(other, n).GetBondTypeAsDouble() == 2.0
             for n in graph[other]
         ):
-            return _phosphoryloxy(graph, other, root, halogens, aromatic_atoms, mol)
+            phosphoryloxy = _phosphoryloxy(graph, other, root, halogens, aromatic_atoms, mol)
+            if phosphoryloxy is not None:
+                return phosphoryloxy
         if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
-            if mol.GetAtomWithIdx(other).IsInRing():
-                from ._diester_ring_diyl import ring_substituent_name
-
-                ring, ring_compound = ring_substituent_name(mol, graph, other, root)
-                return _enclose(ring, True) + "oxy", True
             silyl, compound = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, compound) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
@@ -889,6 +894,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             raise UnsupportedStructure("this chalcogen-linked group is not supported yet")
         if not others:
             return word, False
+        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES and mol.GetAtomWithIdx(others[0]).IsInRing():
+            ring, _ = _ring_substituent(mol, graph, others[0], root)
+            return _enclose(ring, True) + word, True
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
             silyl, silyl_compound = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, silyl_compound) + word, True
@@ -2179,7 +2187,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     atom = mol.GetAtomWithIdx(root)
     _, base, valence = MONONUCLEAR_HYDRIDES[atom.GetAtomicNum()]
     if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
-        raise UnsupportedStructure("this mononuclear group is not supported yet")
+        raise InternalInvariantError("a ring, charged or isotopic centre is named before the mononuclear group")
     order = int(mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble())
     others = [n for n in graph[root] if n != coming_from]
     if order > 1:
