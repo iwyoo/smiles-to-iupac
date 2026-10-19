@@ -1724,7 +1724,14 @@ def _branch_has_anionic_carbon(graph, root, coming_from, mol):
                 continue
             seen.add(n)
             stack.append(n)
-    return any(i != root and mol.GetAtomWithIdx(i).HasProp("_anion") and mol.GetAtomWithIdx(i).GetAtomicNum() == 6 for i in seen)
+    chain = not mol.GetAtomWithIdx(root).IsInRing()
+    return any(
+        i != root
+        and mol.GetAtomWithIdx(i).HasProp("_anion")
+        and mol.GetAtomWithIdx(i).GetAtomicNum() == 6
+        and not (chain and mol.GetAtomWithIdx(i).IsInRing())
+        for i in seen
+    )
 
 
 def _anionic_chain_prefix(graph, root, coming_from, mol):
@@ -1740,10 +1747,10 @@ def _anionic_chain_prefix(graph, root, coming_from, mol):
     order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
     ending = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}[order]
     cited = f"-{locant}-" if locant is not None else ""
-    centres = [a for a in unit.GetAtoms() if a.HasProp("_anion")]
-    cationic = [a for a in centres if a.HasProp("_cationic_site")]
     positions = parts[4]
-    if cationic and locant is not None and all(a.GetIdx() in positions for a in centres):
+    centres = [a for a in unit.GetAtoms() if a.HasProp("_anion") and a.GetIdx() in positions]
+    cationic = [a for a in centres if a.HasProp("_cationic_site")]
+    if cationic and locant is not None:
         from ._radical_ion_skeleton import assemble_ions
 
         stem = re.sub(r"-?\d+(?:,\d+)*-(?:di|tri|tetra)?ide$", "", body)

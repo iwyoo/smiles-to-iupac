@@ -217,6 +217,8 @@ def _prefixed_name(mol, radicals, anions, cations):
         )
         if not anions and _ANION_LEFT.search(name):
             return None
+    if _cited_count(_CITED_CATION, name) + _cited_count(_CITED_ANION, name) != len(anions) + len(cations):
+        return None
     return name
 
 
