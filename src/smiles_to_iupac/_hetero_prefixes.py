@@ -859,8 +859,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             silyl, compound = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, compound) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
-            acyl, acyl_compound = _sulfur_oxo_group(graph, other, root, halogens, aromatic_atoms, mol)
-            return _enclose(acyl, acyl_compound) + "oxy", True
+            group = _sulfur_oxo_group(graph, other, root, halogens, aromatic_atoms, mol)
+            if group is not None:
+                return _enclose(*group) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS:
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
         if mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
@@ -876,7 +877,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         rname, rcomp = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)
         return _alkoxy(rname, rcomp)
     if z in (16, 34, 52) and atom.GetDegree() > 2:
-        return _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+        group = _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+        if group is not None:
+            return group
     if z in CHALCOGEN_PREFIXES:
         word = CHALCOGEN_PREFIXES[z]
         require_plain_chalcogen_kids(mol, z, others)
@@ -890,8 +893,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             silyl, silyl_compound = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, silyl_compound) + word, True
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, others[0], root):
-            acyl, acyl_compound = _sulfur_oxo_group(graph, others[0], root, halogens, aromatic_atoms, mol)
-            return _enclose(acyl, acyl_compound) + word, True
+            group = _sulfur_oxo_group(graph, others[0], root, halogens, aromatic_atoms, mol)
+            if group is not None:
+                return _enclose(*group) + word, True
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS:
             return _chalcogen_chain_group(graph, root, others[0], halogens, aromatic_atoms, mol)
         from ._substituents import name_branch
@@ -1907,13 +1911,15 @@ def _imido_symbol(mol, nitrogen):
 
 def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """Prefixes of the acyl groups of sulfonic, sulfinic, selenonic ... acids (P-65.3.2): 'sulfo', 'sulfamoyl',
-    'benzenesulfonyl', 'methoxysulfonyl', 'chlorosulfinyl', 'trithiosulfo'."""
+    'benzenesulfonyl', 'methoxysulfonyl', 'chlorosulfinyl', 'trithiosulfo'. None when the centre is no such prefix here (a
+    charged, ylidene or hydrogen-bearing centre, or a group that is named as the acid derivative itself outside the
+    extended prefixes), leaving the refusal of the chalcogen-linked group to the caller."""
     from ._acid_lexicon import acyl_suffix, make_spec
     from ._substituents import name_branch
 
     atom = mol.GetAtomWithIdx(root)
     if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0 or atom.GetFormalCharge():
-        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+        return None
     center = _E_SYMBOL[atom.GetAtomicNum()]
     others = [n for n in graph[root] if n != coming_from]
     oxo = [
@@ -1923,12 +1929,12 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     ]
     rest = [n for n in others if n not in {n for n, _ in oxo}]
     if len(rest) != 1 or len(oxo) not in (1, 2):
-        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+        return None
     x = rest[0]
     zx = mol.GetAtomWithIdx(x).GetAtomicNum()
     acid_amide = zx == 7 and all(e == "O" for _, e in oxo)
     if not EXTENDED_PREFIXES.get() and not acid_amide and ((center != "S" and zx != 6) or any(e not in ("O", "NH") for _, e in oxo)):
-        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+        return None
     symbols = [e for _, e in oxo]
     if zx == 8 and mol.GetAtomWithIdx(x).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, x).GetBondTypeAsDouble() == 1.0:
         base = _E_ACID_PREFIX[(center, len(oxo))]
@@ -1972,7 +1978,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
         return _amino_stem(name) + "sulfamoyl", True
     if zx != 6 and not EXTENDED_PREFIXES.get() and not acid_amide:
-        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+        return None
     spec = make_spec(center, symbols, ("O",))
     acyl = acyl_suffix(spec, chain=False, count=1)
     if zx == 6:
