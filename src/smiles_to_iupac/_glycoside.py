@@ -2,7 +2,8 @@
 
 Each pyranose or furanose ring with its carbon tail is a unit. Units are cut at their bridging oxygens, named as plain
 monosaccharides, and joined by glycosyl names with linkage locants; an anomeric aglycone, or an anomeric-anomeric bond,
-turns the parent into a glycoside (ending 'ide').
+turns the parent into a glycoside (ending 'ide'). A unit with several donors or groups on its oxygens is named as a
+substituted monosaccharide with the donors as O-glycosyl prefixes.
 """
 
 from rdkit import Chem
@@ -181,9 +182,10 @@ def _glycoside_ending(unit):
 
 
 def _bridges(mol, graph, units):
-    """({bridging oxygen: (unit, carbon, other unit, other carbon)}, (unit, oxygen, aglycone root, atoms) or None)."""
+    """({bridging oxygen: (unit, carbon, other unit, other carbon)}, (unit, oxygen, aglycone root, atoms) or None, [(unit,
+    carbon, oxygen, root)] of the groups on the other oxygens of the units)."""
     owner = {c: u for u in units for c in u.carbons}
-    bridges, aglycone = {}, None
+    bridges, aglycone, held = {}, None, []
     for u in units:
         for c in u.carbons:
             for n in mol.GetAtomWithIdx(c).GetNeighbors():
@@ -201,62 +203,144 @@ def _bridges(mol, graph, units):
                 elif c == u.anomeric and aglycone is None and _aglycone_ok(mol, graph, other, o):
                     aglycone = (u, o, other, subtree(graph, other, o))
                 else:
-                    raise UnsupportedStructure("a substituent on an oxygen of a sugar unit")
-    return bridges, aglycone
+                    held.append((u, c, o, other))
+    return bridges, aglycone, held
+
+
+def _unit_molecule(mol, graph, unit, groups, children):
+    """(molecule, forced names) of `unit` with the groups on its oxygens (`groups`: (oxygen, root)) and a stand-in carbon
+    for each glycosyl donor (`children`: (oxygen, text, compound)), the anomeric group turned into hydroxy."""
+    editable = Chem.RWMol(mol)
+    for atom in editable.GetAtoms():
+        atom.SetIntProp("_orig", atom.GetIdx())
+    keep = set(unit.atoms)
+    for oxygen, root in groups:
+        keep |= subtree(graph, root, oxygen)
+    forced = {}
+    for k, (oxygen, text, compound) in enumerate(children):
+        stand_in = editable.AddAtom(Chem.Atom(6))
+        editable.GetAtomWithIdx(stand_in).SetIntProp("_orig", -1 - k)
+        editable.AddBond(oxygen, stand_in, Chem.BondType.SINGLE)
+        forced[-1 - k] = (text, compound)
+    for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
+        editable.RemoveAtom(index)
+    for atom in editable.GetAtoms():
+        if atom.GetIntProp("_orig") == unit.exo and unit.exo_kind != "oxygen":
+            atom.SetAtomicNum(8)
+        if atom.GetIntProp("_orig") not in unit.carbons and atom.GetIntProp("_orig") in keep:
+            atom.SetNoImplicit(False)
+            atom.SetNumExplicitHs(0)
+    sub = editable.GetMol()
+    Chem.SanitizeMol(sub)
+    return sub, {a.GetIntProp("_orig"): a.GetIdx() for a in sub.GetAtoms()}, forced
+
+
+def _substituted_name(mol, graph, unit, groups, children, ester_prefixes):
+    from ._substituents import FORCED_BRANCH_NAMES
+    from ._sugar_substituted import _substituted_sugar_name
+
+    sub, index, forced = _unit_molecule(mol, graph, unit, groups, children)
+    token = FORCED_BRANCH_NAMES.set((sub.GetNumAtoms(), {index[k]: v for k, v in forced.items()}))
+    try:
+        name = _substituted_sugar_name(sub, ester_prefixes=ester_prefixes)
+    except (ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+        name = None
+    finally:
+        FORCED_BRANCH_NAMES.reset(token)
+    if name is None:
+        raise UnsupportedStructure("the groups on the oxygens of a sugar unit are not cited by any supported name")
+    return name
+
+
+def _reachable(unit, children):
+    found, stack = {id(unit)}, [unit]
+    while stack:
+        for donor, _, _, _ in children.get(id(stack.pop()), []):
+            found.add(id(donor))
+            stack.append(donor)
+    return found
 
 
 def _name_tree(mol, graph, units):
-    bridges, aglycone = _bridges(mol, graph, units)
+    """(name, atoms of the groups the name cites besides the units, whether the name is a glycoside) of sugar units joined
+    by glycosyl links (P-102.7); a link between two nonadjacent positions makes the unit beyond it a group of the unit
+    on this side (P-102.6.2)."""
+    bridges, aglycone, held = _bridges(mol, graph, units)
     if len(bridges) != len(units) - 1:
         raise UnsupportedStructure("the sugar units are not joined as a tree")
-    if len(units) > 1 and any(u.exo_kind != "oxygen" for u in units):
-        raise UnsupportedStructure("a glycosyl halide or amine of an oligosaccharide")
-    parent_of, pair = {}, None
-    for u, c, v, n in bridges.values():
+    parent_of, pair, ethers = {}, None, []
+    for o, (u, c, v, n) in bridges.items():
         donor_u, donor_v = c == u.anomeric, n == v.anomeric
         if donor_u and donor_v:
             if pair is not None:
                 raise UnsupportedStructure("more than one anomeric-anomeric bond")
             pair = (u, v)
         elif donor_u:
-            parent_of[id(u)] = (v, n, u)
+            parent_of[id(u)] = (v, n, u, o)
         elif donor_v:
-            parent_of[id(v)] = (u, c, v)
+            parent_of[id(v)] = (u, c, v, o)
         else:
-            raise UnsupportedStructure("a link between two non-anomeric positions")
+            ethers.append((o, u, c, v, n))
     children = {}
-    for parent, carbon, donor in parent_of.values():
-        children.setdefault(id(parent), []).append((donor, parent, carbon))
-    if any(len(below) > 1 for below in children.values()):
-        raise UnsupportedStructure("branched oligosaccharide")
+    for parent, carbon, donor, oxygen in parent_of.values():
+        children.setdefault(id(parent), []).append((donor, parent, carbon, oxygen))
+    extra = set(aglycone[3]) if aglycone is not None else set()
     partner = word = None
+    tops = [u for u in units if id(u) not in parent_of and u.exo_kind != "substituted amine" and mol.GetAtomWithIdx(u.exo).GetDegree() == 1]
     if aglycone is not None:
         root = aglycone[0]
         word = cited_group(mol, graph, aglycone[2], aglycone[1])[0]
     elif pair is not None:
         root, partner = sorted(pair, key=_parent_key)
+    elif tops:
+        functional = [u for u in tops if u.exo_kind != "oxygen"]
+        if len(functional) > 1:
+            raise UnsupportedStructure("more than one glycosyl halide or amine")
+        root = functional[0] if functional else min(tops, key=_parent_key)
     else:
-        free = [u for u in units if id(u) not in parent_of and len(mol.GetAtomWithIdx(u.exo).GetNeighbors()) == 1]
-        if len(free) != 1:
-            raise UnsupportedStructure("no unique reducing unit")
-        root = free[0]
+        raise UnsupportedStructure("no unique reducing unit")
     if id(root) in parent_of:
         raise UnsupportedStructure("the parent unit is also a glycosyl donor")
+    main = _reachable(root, children) | (_reachable(partner, children) if partner is not None else set())
+    groups, stood_in = {}, {}
+    for u, c, o, other in held:
+        groups.setdefault(id(u), []).append((o, other))
+        extra |= subtree(graph, other, o)
+    for o, u, c, v, n in ethers:
+        host, link = (u, n) if id(u) in main else (v, c)
+        stood_in.setdefault(id(host), []).append((o, *cited_group(mol, graph, link, o)))
+        extra |= subtree(graph, link, o)
 
-    def chain(unit, role):
-        ending = {"glycoside": _glycoside_ending, "glycose": _glycose, "glycosyl": _glycosyl}[role](unit)
-        below = children.get(id(unit))
-        if not below:
-            return ending
-        donor, parent, carbon = below[0]
-        return f"{chain(donor, 'glycosyl')}-({donor.locant(donor.anomeric)}→{parent.locant(carbon)})-{ending}"
+    def ending(unit, role, plain=(), links=()):
+        if not plain and not links:
+            return {"glycoside": _glycoside_ending, "glycose": _glycose, "glycosyl": _glycosyl}[role](unit)
+        if unit.uronic:
+            raise UnsupportedStructure("a uronic acid unit with groups on its oxygens")
+        name = _substituted_name(mol, graph, unit, plain, links, role != "glycose")
+        if role == "glycosyl":
+            return name[: -len("e")] + "yl"
+        return name[: -len("ose")] + "oside" if role == "glycoside" else name
 
-    text = chain(root, "glycose" if aglycone is None and partner is None else "glycoside")
+    def text_of(unit, role):
+        kids = children.get(id(unit), [])
+        own = groups.get(id(unit), [])
+        if len(kids) == 1 and not own and id(unit) not in stood_in:
+            donor, parent, carbon, _ = kids[0]
+            return f"{text_of(donor, 'glycosyl')}-({donor.locant(donor.anomeric)}→{parent.locant(carbon)})-{ending(unit, role)}"
+        links = [(o, t, "-(" in t or " " in t) for donor, _, _, o in kids for t in [text_of(donor, "glycosyl")]]
+        return ending(unit, role, own, links + stood_in.get(id(unit), []))
+
+    glycosidic = aglycone is not None or partner is not None
+    if root.exo_kind == "amine":
+        return text_of(root, "glycosyl") + "amine", extra, False, bool(groups or stood_in)
+    if root.exo_kind == "halide":
+        return f"{text_of(root, 'glycosyl')} {_HALIDES[mol.GetAtomWithIdx(root.exo).GetAtomicNum()]}", extra, False, bool(groups or stood_in)
+    text = text_of(root, "glycoside" if glycosidic else "glycose")
     if partner is not None:
-        text = f"{chain(partner, 'glycosyl')} {text}"
+        text = f"{text_of(partner, 'glycosyl')} {text}"
     if word is not None:
         text = f"{word} {text}"
-    return text, (aglycone[3] if aglycone is not None else set())
+    return text, extra, glycosidic, bool(groups or stood_in)
 
 
 def _c_glycosyl_ring(mol, graph):
@@ -343,10 +427,10 @@ def glycoside_name(mol):
                     return None
                 return f"N-{cited_group(mol, graph, root, unit.exo)[0]}-{_glycosyl(unit)}amine"
             return f"{_glycosyl(unit)} {_HALIDES[mol.GetAtomWithIdx(unit.exo).GetAtomicNum()]}"
-        text, aglycone_atoms = _name_tree(mol, graph, units)
-        if len(units) == 1 and not aglycone_atoms and not units[0].uronic:
+        text, outside, glycosidic, grouped = _name_tree(mol, graph, units)
+        if len(units) == 1 and (grouped or (not glycosidic and not units[0].uronic)):
             return None
-        return text if covered | aglycone_atoms == set(range(mol.GetNumAtoms())) else None
+        return text if covered | outside == set(range(mol.GetNumAtoms())) else None
     except UnsupportedStructure:
         return None
 
