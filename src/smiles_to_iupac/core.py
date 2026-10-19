@@ -683,9 +683,11 @@ def _name_isotope_label(mol) -> str:
         except UnsupportedStructure:
             pass
     try:
-        return name_polyfunctional(mol)
+        name = name_polyfunctional(mol)
     except UnsupportedStructure:
-        pass
+        name = None
+    if name is not None and nuclides_cited(mol, name):
+        return name
     from ._nitrogen_parent_labels import (
         has_labelled_azoxy,
         has_labelled_diazene,
