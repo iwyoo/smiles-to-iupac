@@ -306,7 +306,7 @@ def _name_multivalent_centre(mol, centre):
     target.SetNoImplicit(True)
     target.SetNumExplicitHs(centre.GetTotalNumHs() + extra)
     monovalent = capped.GetMol()
-    Chem.SanitizeMol(monovalent)
+    _sanitize(monovalent)
     monovalent.GetAtomWithIdx(centre.GetIdx()).SetNumRadicalElectrons(1)
     name = _name_radical_group(monovalent)
     if not name.endswith("yl"):

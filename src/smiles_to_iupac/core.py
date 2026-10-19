@@ -620,7 +620,7 @@ def _require_radicals_cited(mol, name):
         raise UnsupportedStructure("the name does not cite the radical centre of a skeletal heteroatom")
     if (
         not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
-        or any(a.GetFormalCharge() for a in mol.GetAtoms())
+        or any(a.GetFormalCharge() > 0 for a in mol.GetAtoms())
         or len(Chem.GetMolFrags(mol)) > 1
         or any(b.GetBondType() == Chem.BondType.DATIVE for b in mol.GetBonds())
         or has_nonstandard_hydride_shape(mol)
