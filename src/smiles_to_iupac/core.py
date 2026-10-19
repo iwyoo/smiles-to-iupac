@@ -113,7 +113,6 @@ from ._urea import has_urea_shape, name_urea
 from ._amidine import has_amidine_shape, name_amidine
 from ._chalcogenourea import carries_only_element_hydride_groups
 from ._guanidine import has_carbonic_amide_parent, has_guanidine_shape, name_guanidine
-from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._hetero_ring_amine import has_hetero_ring_amine_shape, name_hetero_ring_amine
@@ -2565,23 +2564,11 @@ def _name_mol(mol) -> str:
         # nitrogens, the same shape `has_amide_shape` looks for -- routing
         # it first here lets `_urea.py` claim it before `_amide.py` would
         # otherwise (correctly, but unhelpfully) reject it as "not exactly
-        # one nitrogen". It must also be checked before the hydrazide check
-        # below: semicarbazide (H2N-NH-C(=O)-NH2) is urea-shaped but its
-        # amino nitrogen also happens to match hydrazide's -CO-NH-NH2
-        # pattern (hydrazide's shape check doesn't look at the carbonyl
-        # carbon's other substituents), so urea must claim it first.
+        # one nitrogen".
         if has_urea_shape(mol):
             return name_urea(mol)
         if has_guanidine_shape(mol):
             return name_guanidine(mol)
-        # A hydrazide carbon (-CO-NH-NH2, P-66.3.1.1) has a carbonyl plus
-        # a two-nitrogen chain that has_amide_shape's own single-nitrogen
-        # check doesn't match (its first nitrogen has degree 2, not 1), so
-        # it wouldn't collide with the amide check below either way -- but
-        # routing it first here keeps the two suffix-shaped carbonyl
-        # groups together.
-        if has_hydrazide_shape(mol):
-            return name_hydrazide(mol)
         if has_amide_shape(mol):
             # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
             # carries one or more ketones names the amide as the suffix and
