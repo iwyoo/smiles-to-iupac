@@ -431,11 +431,11 @@ def _analyse(mol, atoms=None, outer=frozenset()):
     if any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in inside):
         raise UnsupportedStructure("isotopes and radicals of a spiro union are not supported yet")
     if any(
-        b.GetStereo() != Chem.BondStereo.STEREONONE
+        b.GetStereo() != Chem.BondStereo.STEREONONE and not b.IsInRing()
         for b in mol.GetBonds()
         if atoms is None or (b.GetBeginAtomIdx() in scope and b.GetEndAtomIdx() in scope)
     ):
-        raise UnsupportedStructure("double-bond stereo of a spiro union is not supported yet")
+        raise UnsupportedStructure("double-bond stereo outside the rings of a spiro union is cited by the substituent route")
     info = {s: _spiro_atom(mol, s) for s in spiro}
     outer_atoms = set(spiro)
     named = []
@@ -867,16 +867,27 @@ def _ionic_endings(ctx, sol):
 
 
 def _spiro_descriptor(mol, locant_of, name):
-    """P-93.5.3.1: the configuration of a stereogenic spiro atom is cited with its locant, '(1R)-5'H-spiro[...]'."""
-    from ._common import specified_stereocenters
+    """P-93.5.3.1, P-93.5.1.4.1: the configuration of a stereogenic spiro atom and the E/Z of a ring double bond of eight
+    or more members are cited with their locants, '(1R,7Z)-spiro[...]'."""
+    from ._common import specified_stereo_elements
 
-    centres = specified_stereocenters(mol)
-    if centres is None:
+    elements = specified_stereo_elements(mol)
+    if elements is None:
         return name
-    if any(atom not in locant_of for atom, _ in centres):
-        raise UnsupportedStructure("a specified stereocentre outside the rings of a spiro union is not supported yet")
-    cited = sorted(((locant_of[atom], code) for atom, code in centres), key=lambda item: _lk(item[0]))
-    return f"({','.join(f'{locant}{code}' for locant, code in cited)})-{name}"
+    cited = []
+    for kind, index, code in elements:
+        if kind == "atom":
+            atoms = (index,)
+        else:
+            bond = mol.GetBondWithIdx(index)
+            atoms = (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+        if any(atom not in locant_of for atom in atoms):
+            raise UnsupportedStructure("a specified stereo element outside the rings of a spiro union is not supported yet")
+        locants = sorted((locant_of[atom] for atom in atoms), key=_lk)
+        locant = locants[0] if kind == "atom" or _lk(locants[1])[0] == _lk(locants[0])[0] + 1 else f"{locants[0]}({locants[1]})"
+        cited.append((locants[0], f"{locant}{code}"))
+    cited.sort(key=lambda item: _lk(item[0]))
+    return f"({','.join(text for _, text in cited)})-{name}"
 
 
 def spiro_union_numberings(mol, graph, skeleton_atoms):

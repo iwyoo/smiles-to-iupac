@@ -988,6 +988,7 @@ def test_von_baeyer_exocyclic_double_bond_is_an_ylidene_prefix(smiles, expected)
         pytest.param("C1[N+]2(C=CC3=CC=CC=C13)C=CN4C=CC=CC4=C2", "1H-2λ5-spiro[isoquinoline-2,2′-pyrido[1,2-a]pyrazin]-2-ylium", id="cationic_spiro_atom_of_different_components"),
         pytest.param("C1=CC=C2C(=C1)C[N+]3(C2)CC4=CC=CC=C4C3", "1,1′,3,3′-tetrahydro-2λ5,2′-spirobi[isoindol]-2-ylium", id="cationic_spiro_atom_of_identical_components"),
         pytest.param("C1CC[Si]2(C1)CC1=CC=CC=C1C2", "1,3-dihydrospiro[[2]benzosilole-2,1′-silolane]", id="silicon_joining_a_fused_component_and_a_monocycle"),
+        pytest.param("C1/C=C\\CCCCC12CC1CCC2C1", "(3′Z)-spiro[bicyclo[2.2.1]heptane-2,1′-cyclooctan]-3′-ene", id="cis_double_bond_of_a_large_spiro_ring"),
         pytest.param("C1CC2CC1CC23COCCOC=CCOCC3", "3′,6′,10′-trioxaspiro[bicyclo[2.2.1]heptane-2,1′-cyclododecan]-7′-ene", id="ene_of_a_replacement_ring"),
         pytest.param("C1C#CCCCC2(C1)CC1CCC2C1", "spiro[bicyclo[2.2.1]heptane-2,1′-cyclooctan]-4′-yne", id="triple_bond_of_a_spiro_ring"),
         pytest.param("C1CC=CC2(C1)CCC3(CC2)CC4CCC3C4", "dispiro[bicyclo[2.2.1]heptane-2,1′-cyclohexane-4′,1′′-cyclohexan]-2′′-ene", id="ene_in_a_spiro_unit"),
