@@ -1,7 +1,7 @@
 import pytest
 from rdkit import Chem
 from rdkit.Chem import Atom, BondType, RWMol
-from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
+from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._phane_general import phane_seniority_key
 from smiles_to_iupac._ring_system_seniority import ring_seniority_key
@@ -864,9 +864,8 @@ def test_fusion_needs_two_rings_of_five_or_more_members(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_fusion_name_without_two_large_rings_is_kept_with_a_warning_when_von_baeyer_cannot_carry_the_group():
-    with pytest.warns(NonPreferredNameWarning, match="P-52.2.4.1"):
-        assert smiles_to_iupac("OC(=O)C1Cc2ccccc12") == "1,2-dihydrocyclobutabenzene-1-carboxylic acid"
+def test_two_ring_system_without_two_large_rings_is_named_by_von_baeyer_with_a_suffix():
+    assert smiles_to_iupac("OC(=O)C1Cc2ccccc12") == "bicyclo[4.2.0]octa-1,3,5-triene-7-carboxylic acid"
 
 
 @pytest.mark.parametrize(

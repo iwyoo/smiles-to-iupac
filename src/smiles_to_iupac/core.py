@@ -21,7 +21,6 @@ from ._carbonic_ester_anion import name_carbonic_ester_anion
 from ._carbonic_family import name_carbonic_family
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._carbamate_ester import name_carbamate_ester
-from ._alcohol import name_alcohol
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._acetyl_names import acetyl_names
 from ._anion import name_anion
@@ -2303,7 +2302,7 @@ def _name_mol(mol) -> str:
         # branch further down expect, so it must be routed before both -- a
         # nitro-bearing molecule always has an oxygen atom, so it would
         # otherwise be swallowed by the "any O atom" branch's unconditional
-        # `name_alcohol` fallback and never even reach the nitrogen branch.
+        # oxygen-branch fallback and never even reach the nitrogen branch.
         (has_nitro_shape, name_nitro),
         # A nitroso group (-N=O, P-61.5.1's sibling prefix) has the same "own
         # oxygen" issue as nitro above, so it must be routed here for the same
@@ -2319,7 +2318,7 @@ def _name_mol(mol) -> str:
     # its own oxygen the ether/carbonyl/alcohol checks below don't expect
     # at all, so it must be routed before the "any O atom" branch for the
     # same reason as nitro/isocyanate above -- it would otherwise be
-    # swallowed by that branch's unconditional `name_alcohol` fallback and
+    # swallowed by that branch's unconditional fallback and
     # never reach the nitrogen branch further down. Gated on an oxygen
     # actually being present so this doesn't preempt a diazo group's own
     # C=N bond (checked later, in the nitrogen branch) -- diazo has no
@@ -2404,8 +2403,8 @@ def _name_mol(mol) -> str:
         if has_seven_membered_1_2_ring_ketone_shape(mol):
             return name_ketone(mol)
         # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
-        # oxygen none of the neutral-oxygen checks below (or `name_alcohol`'s
-        # own fallback) expect, so it must be routed first in this branch.
+        # oxygen none of the neutral-oxygen checks below (or the
+        # branch's own fallback) expect, so it must be routed first in this branch.
         if has_alkoxide_shape(mol):
             return name_alkoxide(mol)
         # Hydroxylamine (H2N-OH, P-68.3.1.1.1) and its O-substituted
@@ -2442,7 +2441,7 @@ def _name_mol(mol) -> str:
             return name_peroxide(mol)
         # A hydroperoxide (R-O-O-H, P-56.1) has a 'peroxol' suffix rather
         # than no suffix at all, but its degree-1 terminal oxygen doesn't
-        # match any check above or `name_alcohol`'s own fallback below, so
+        # match any check above or the branch's own fallback below, so
         # it must be routed here too, right alongside its R-O-O-R' cousin.
         if has_hydroperoxide_shape(mol):
             return name_hydroperoxide(mol)
@@ -2607,8 +2606,8 @@ def _name_mol(mol) -> str:
         # a real alcohol at all (e.g. a furan ring substituent's own
         # non-functional ring oxygen, now recognized by these modules
         # themselves -- P-616 M4) has no coexisting-alcohol shape above to
-        # catch it, so it would otherwise fall through to `name_alcohol`'s
-        # own unconditional fallback -- must be routed here first, mirroring
+        # catch it, so it would otherwise fall through to the
+        # branch's own unconditional fallback -- must be routed here first, mirroring
         # the nitrogen-gated branch's own thiol/selenol checks before its
         # `name_amine` fallback below.
         if has_nitrile_shape(mol):
@@ -2627,7 +2626,7 @@ def _name_mol(mol) -> str:
         # before-generic-fallback pattern above.
         if has_inositol_shape(mol):
             return name_inositol(mol)
-        return name_alcohol(mol)
+        return _name_standalone(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
         # An aminide anion (-NH(-), P-72.2.2.2.3) has a formal-charge -1
         # nitrogen none of the neutral-nitrogen checks below (or
