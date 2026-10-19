@@ -220,6 +220,8 @@ def name_hydrazine(mol) -> str:
     pseudohalide = _pseudohalide_atoms(mol)
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aminooxy | pseudohalide:
+            if _is_azine(mol, n1.GetIdx(), n2.GetIdx()):
+                return name_hydrazine_with_heteroatom_groups(mol)
             raise UnsupportedStructure(
                 "heteroatoms other than the hydrazine's own two nitrogens "
                 "(P-68.3.1.2.1) and halogen substituents (P-35.2.1) are "
@@ -321,8 +323,14 @@ def name_hydrazine_with_heteroatom_groups(mol) -> str:
             raise UnsupportedStructure("an alcohol, peroxol or chalcogen analogue on carbon is senior to the hydrazine class")
         if atom.GetAtomicNum() == 7 and atom.GetIdx() not in (n1.GetIdx(), n2.GetIdx()):
             raise UnsupportedStructure("a further nitrogen group is not handled here")
-    if any(b.GetBondTypeAsDouble() != 1.0 and not b.GetIsAromatic() for b in mol.GetBonds()):
-        raise UnsupportedStructure("an unsaturated group is not handled here")
+    unsaturated = False
+    for bond in mol.GetBonds():
+        if bond.GetBondTypeAsDouble() == 1.0 or bond.GetIsAromatic():
+            continue
+        ends = (bond.GetBeginAtom(), bond.GetEndAtom())
+        if not all(a.GetAtomicNum() == 6 or a.GetIdx() in (n1.GetIdx(), n2.GetIdx()) for a in ends) or all(a.GetAtomicNum() == 7 for a in ends):
+            raise UnsupportedStructure("an unsaturated group is not handled here")
+        unsaturated = True
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    return hydrazine_with_substituents(mol, n1.GetIdx(), n2.GetIdx(), aromatic_atoms)
+    return hydrazine_with_substituents(mol, n1.GetIdx(), n2.GetIdx(), aromatic_atoms, unsaturated=unsaturated)
 
