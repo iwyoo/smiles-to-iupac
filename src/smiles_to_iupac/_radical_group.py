@@ -13,6 +13,7 @@ from ._common import (
     assign_cip_labels,
     halogen_substituents,
     match_cip_labels,
+    phantom_capped,
     refuse_specified_stereo,
     specified_stereo_elements,
 )
@@ -213,7 +214,8 @@ def _name_radical_group(mol) -> str:
         raise UnsupportedStructure("this radical is not a single radical centre on a plain skeleton")
     if labels and centre.GetAtomicNum() != 6:
         raise UnsupportedStructure("isotopic modification of this radical is not supported yet")
-    stereo = specified_stereo_elements(mol)
+    phantom = phantom_capped(mol)
+    stereo = specified_stereo_elements(phantom)
     if stereo and labels:
         raise UnsupportedStructure("isotopic modification of a radical with stereo elements is not supported yet")
     if any(
@@ -247,13 +249,15 @@ def _name_radical_group(mol) -> str:
     hydride, hydrogen = _hydride(mol, centre)
     stereo_token = None
     if stereo:
-        match_cip_labels(mol, hydride)
-        probe = Chem.Mol(hydride)
-        assign_cip_labels(probe)
+        match_cip_labels(phantom, hydride)
+        reference = Chem.Mol(phantom)
+        assign_cip_labels(reference)
         cited = {
-            "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")},
+            "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in reference.GetAtoms() if a.HasProp("_CIPCode")},
             "bonds": {
-                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
+                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+                for b in reference.GetBonds()
+                if b.HasProp("_CIPCode")
             },
             "used": set(),
         }
@@ -440,7 +444,7 @@ def _name_polyradical(mol):
         target.SetFormalCharge(-1)
     anionic = anionic.GetMol()
     Chem.SanitizeMol(anionic)
-    match_cip_labels(mol, anionic)
+    match_cip_labels(phantom_capped(mol), anionic)
     name = name_anion(anionic)
     for ending in ("diide", "triide", "tetraide"):
         if name.endswith(ending) and "-" in name[: -len(ending)]:

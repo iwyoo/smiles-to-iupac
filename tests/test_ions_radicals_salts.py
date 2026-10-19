@@ -481,10 +481,17 @@ def test_nitrogen_radical_beside_a_heteroatom_group(smiles, expected):
         pytest.param("[CH2][C@H](Cl)CC", "(2S)-2-chlorobutyl", id="stereocentre_of_a_radical_group"),
         pytest.param("C/C=C/C(=O)[CH2]", "(3E)-2-oxopent-3-en-1-yl", id="double_bond_of_a_radical_group"),
         pytest.param("[CH2][C@H](Cl)C[CH2]", "(2S)-2-chlorobutane-1,4-diyl", id="stereocentre_of_a_polyradical"),
+        pytest.param("[CH2][C@H](C)CC", "(2R)-2-methylbutyl", id="centre_stereogenic_only_through_the_radical_centre"),
+        pytest.param("[CH2][C@@H](C)CC", "(2S)-2-methylbutyl", id="opposite_configuration_of_the_same_group"),
     ],
 )
 def test_stereo_elements_of_a_radical_are_cited(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_polyradical_stereocentre_is_never_dropped():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[CH2][C@H](C)C[CH2]")
 
 
 @pytest.mark.parametrize(
