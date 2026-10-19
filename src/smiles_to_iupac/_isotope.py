@@ -5,7 +5,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, group_substituents, substituent_locant_set_and_citation
+from ._common import InternalInvariantError, UnsupportedStructure, group_substituents, substituent_locant_set_and_citation
 from ._substituents import format_substituent_prefixes
 
 _MONONUCLEAR_HYDRIDES = {
@@ -148,13 +148,26 @@ def has_isotope_substituted_hydride_shape(mol) -> bool:
         return False
     clean, labels, _ = split
     found = _substituted_hydride(clean)
-    return found is not None and all(a in found[0] for a in labels)
+    if found is None or not all(a in found[0] for a in labels):
+        return False
+    try:
+        return _labelled_hydride_name(mol) is not None
+    except UnsupportedStructure:
+        return False
 
 
 def name_isotope_substituted_hydride(mol) -> str:
     """'1-methyl(2-2H1)hydrazine', 'methyl(2H1)phosphane', 'trimethyl(31P)phosphane': the unmodified name with the descriptor of
     the hydride's own atoms and hydrogens in front of the parent hydride, after the prefixes; once the descriptor needs
     locants every locant is cited (P-82.2.1, P-82.6.1.1, P-82.5.2)."""
+    name = _labelled_hydride_name(mol)
+    if name is None:
+        raise InternalInvariantError("the substituted hydride shape was accepted for a structure named in another way")
+    return name
+
+
+def _labelled_hydride_name(mol):
+    """The name of `name_isotope_substituted_hydride`, or None when the unmodified structure is named in another way."""
     from .core import smiles_to_iupac
     from ._common import adjacency, halogen_substituents
     from ._isotope_labels import descriptor, split_isotopes
@@ -184,5 +197,5 @@ def name_isotope_substituted_hydride(mol) -> str:
     text = descriptor(labels, positions, len(chain) == 1, capacity=capacity)
     name = prefixes + text + parent
     if _letters(smiles_to_iupac(Chem.MolToSmiles(clean))) != _letters(prefixes + parent):
-        raise UnsupportedStructure("the substituted hydride is named in another way when unmodified")
+        return None
     return name

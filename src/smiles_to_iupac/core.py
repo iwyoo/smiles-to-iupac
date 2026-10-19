@@ -786,7 +786,7 @@ def _name_labelled_substituents(mol):
         ISOTOPIC_CIP.reset(cip_token)
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
-        name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"])
+        name = _cite_parent_atom_nuclide(name, clean, labels, set(labels) - context["consumed"]) or name
     if isotopic and not _cites_every_stereo_element(mol, name):
         raise UnsupportedStructure("the stereocentre made by the nuclides is not cited by this name")
     _require_isotopes_cited(mol, name)
@@ -823,7 +823,7 @@ def _cite_cyanate_nuclides(name, clean, labels, open_atoms):
 
     chalcogen = _CYANATE_ANIONS[name]
     if any(labels[a]["H"] or not labels[a]["skeleton"] for a in open_atoms):
-        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+        return None
     at = {}
     for atom in open_atoms:
         is_chalcogen = clean.GetAtomWithIdx(atom).GetAtomicNum() == chalcogen
@@ -836,13 +836,14 @@ def _cite_cyanate_nuclides(name, clean, labels, open_atoms):
 
 def _cite_parent_atom_nuclide(name, clean, labels, open_atoms):
     """`name` with the nuclide of the one atom of its element, the atom the parent name is built on, in front of the stem
-    that names that element (P-82.2.1, P-82.6.1.1); a name that does not delimit that stem exactly once is refused."""
+    that names that element (P-82.2.1, P-82.6.1.1); None when the labelled atoms are not the one atom of that element, the
+    uncited nuclides then being refused by the final check; a name that does not delimit that stem exactly once is refused."""
     from ._isotope_labels import descriptor
 
     if name in _CYANATE_ANIONS:
         return _cite_cyanate_nuclides(name, clean, labels, open_atoms)
     if len(open_atoms) != 1:
-        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+        return None
     (atom,) = open_atoms
     z = clean.GetAtomWithIdx(atom).GetAtomicNum()
     entry = labels[atom]
@@ -852,7 +853,7 @@ def _cite_parent_atom_nuclide(name, clean, labels, open_atoms):
         or not entry["skeleton"]
         or sum(1 for a in clean.GetAtoms() if a.GetAtomicNum() == z) != 1
     ):
-        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+        return None
     depth, outside = 0, []
     for char in name:
         depth += char in "([{"
