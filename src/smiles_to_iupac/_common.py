@@ -42,6 +42,11 @@ class UnsupportedStructure(NotImplementedError):
     pass
 
 
+# The code contradicted itself; no input is declined by it, so it is deliberately not an UnsupportedStructure.
+class InternalInvariantError(RuntimeError):
+    pass
+
+
 # The recommendations give no single name for this structure (undefined or self-contradictory); any other UnsupportedStructure is an implementation gap.
 class RuleUndefinedStructure(UnsupportedStructure):
     pass
