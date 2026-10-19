@@ -14,6 +14,7 @@ from ._isotope_labels import restore_labels, split_isotopes
 _ACID_PARENT = re.compile(
     r"(?:(?:phosph|ars|stib)[a-z]*(?:ic|ous)|sulfur\w*(?:ic|ous)|sulfamic|bor(?:on|in)?ic|carbamic|carbonic|oxalic|cyanic) acid$|cyanamide$"
 )
+_POLY_STEM = re.compile(r"(?<![a-z])(?:di|tri|tetra)$")
 _ACID_HYDROGEN_WORD = re.compile(r"(?<![a-z])(di)?hydrogen(?= )")
 
 
@@ -99,15 +100,58 @@ def name_isotope_acid_hydrogen(mol) -> str:
     named = _named_group(mol)
     if named is None:
         raise UnsupportedStructure("no labelled hydrogen on an oxoacid group")
-    (_, atom, entry, modified), name = named
+    (mol_clean, atom, entry, modified), name = named
     (nuclide,) = entry["H"]
     match = _ACID_PARENT.search(name)
     if match is None:
         return _hydrogen_word_citation(name, nuclide, len(modified), atom)
-    if len(modified) > 1 or re.search(r"(?<![a-z])(?:di|tri|tetra)$", name[: match.start()]):
-        raise UnsupportedStructure("several modified acid hydrogens are not cited on this acid yet")
-    count = "1" if atom.GetTotalNumHs() > 1 else ""
-    return f"{name[: match.start()]}({atom.GetSymbol()}-{nuclide}{count}){name[match.start():]}"
+    stem = _POLY_STEM.search(name[: match.start()])
+    locants = _letter_locants(mol_clean, modified)
+    count = str(len(modified)) if len(modified) > 1 else "1" if atom.GetTotalNumHs() > 1 else ""
+    start = stem.start() if stem else match.start()
+    return f"{name[:start]}({','.join(locants)}-{nuclide}{count}){name[start:]}"
+
+
+def _letter_locants(mol, modified):
+    """The letter locants of the modified atoms (P-82.6.2): the element symbol, primed for each further atom on one
+    centre; on an acid of several centres joined through oxygen the symbol takes the number of its centre, the centres
+    numbered 1, 3, 5 along the chain from the end that gives the modified atoms the lowest locants."""
+    centre = {a: next(n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if _is_oxoacid_centre(n)) for a in modified}
+    chain = _centre_chain(mol, centre[modified[0]])
+    options = [{c: 2 * i + 1 for i, c in enumerate(order)} for order in (chain, chain[::-1])] if len(chain) > 1 else [{}]
+    number = min(options, key=lambda numbering: sorted(numbering.get(centre[a], 0) for a in modified))
+    seen = {}
+    located = []
+    for a in sorted(modified, key=lambda a: (number.get(centre[a], 0), a)):
+        primes = seen[centre[a]] = seen.get(centre[a], -1) + 1
+        located.append(f"{mol.GetAtomWithIdx(a).GetSymbol()}{number.get(centre[a], '')}{"'" * primes}")
+    return located
+
+
+def _centre_chain(mol, first):
+    """The acid centres of the same element joined through bridging oxygens to `first`, in order along the chain."""
+    element = mol.GetAtomWithIdx(first).GetAtomicNum()
+
+    def joined(c):
+        return [
+            other.GetIdx()
+            for o in mol.GetAtomWithIdx(c).GetNeighbors()
+            if o.GetAtomicNum() == 8 and o.GetDegree() == 2
+            for other in o.GetNeighbors()
+            if other.GetIdx() != c and other.GetAtomicNum() == element and _is_oxoacid_centre(other)
+        ]
+
+    component, queue = [first], [first]
+    while queue:
+        for other in joined(queue.pop()):
+            if other not in component:
+                component.append(other)
+                queue.append(other)
+    end = next((c for c in component if len(joined(c)) <= 1), first)
+    order = [end]
+    while len(order) < len(component):
+        order.append(next(n for n in joined(order[-1]) if n not in order))
+    return order
 
 
 def _hydrogen_word_citation(name, nuclide, modified, atom):
