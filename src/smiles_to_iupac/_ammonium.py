@@ -128,6 +128,16 @@ def _heteroatom_acyl(mol, carbon) -> bool:
     return len(oxo) == 1 and carbon.GetDegree() == 3 and len(hetero) == 1
 
 
+def _nitrile_carbon(mol, carbon) -> bool:
+    """A carbon bearing only a nitrile nitrogen besides the cation: the cyano prefix of 'azanium'."""
+    if carbon.GetAtomicNum() != 6 or carbon.IsInRing() or carbon.GetDegree() != 2:
+        return False
+    return any(
+        n.GetAtomicNum() == 7 and not n.GetFormalCharge() and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 3.0
+        for n in carbon.GetNeighbors()
+    )
+
+
 def name_ammonium(mol) -> str:
     from ._polyfunctional import name_polyfunctional
 
@@ -157,7 +167,8 @@ def name_ammonium(mol) -> str:
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
 
     if (
-        any(_heteroatom_acyl(mol, n) or n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors()) and not nitrogen.IsInRing()
+        any(_heteroatom_acyl(mol, n) or _nitrile_carbon(mol, n) or n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors())
+        and not nitrogen.IsInRing()
     ):
         return onium_name(mol, nitrogen, "azanium")
 
