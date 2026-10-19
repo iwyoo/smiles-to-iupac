@@ -54,6 +54,8 @@ or more diazonium groups, and a diazonium group on a carbon that is also
 part of a C=C/C#C bond.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._common import (
@@ -393,7 +395,6 @@ def name_isotope_diazonium(mol) -> str:
 def _name_via_amine_surrogate(mol, labels=None) -> str:
     """P-73.2.2.3: the diazonium groups are suffixes in the position of the amine suffix (cations rank above acids and
     ketones), so the skeleton is named with each -N2+ read as -NH2 and 'amine' becomes 'diazonium'."""
-    import re
     from rdkit import Chem
 
     from ._hetero_prefixes import CATION_PARENT
@@ -413,6 +414,7 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
         target.SetFormalCharge(0)
         target.SetNoImplicit(False)
         target.SetBoolProp("_cationic_amine", True)
+        target.SetBoolProp("_diazonium_surrogate", True)
         editable.GetBondBetweenAtoms(atom.GetIdx(), terminal).SetBondType(Chem.BondType.SINGLE)
     if labels and any(a.GetIdx() in labels or n.GetIdx() in labels for a in nitrogens for n in a.GetNeighbors() if n.GetAtomicNum() == 7):
         raise UnsupportedStructure("a nuclide on the nitrogen of a diazonium group is not supported yet")
@@ -434,12 +436,26 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
         CATION_PARENT.reset(parent_token)
         AMINIUM.reset(token)
     count = len(nitrogens)
-    if count == 1 and name.endswith("aniline"):
-        return name[: -len("aniline")] + "benzenediazonium"
-    match = re.search(r"(?P<multiplier>di|tri|tetra)?amine$", name)
-    if match is None or (count > 1) != bool(match.group("multiplier")):
+    cited = _SURROGATE_ENDING.search(name)
+    multiplied = _MULTIPLIED_SURROGATE_ENDING.search(name)
+    suffixed = 0
+    if multiplied:
+        suffixed = _MULTIPLIER_COUNT[multiplied.group("multiplier")]
+    elif cited:
+        suffixed = _MULTIPLIER_COUNT[cited.group("multiplier")]
+    if not suffixed or (suffixed < count) != ("diazyn-1-ium-1-yl" in name):
         raise UnsupportedStructure("this diazonium skeleton has no amine surrogate name")
-    head = name[: match.start()]
+    if multiplied:
+        inner = _diazonium_head(multiplied.group("inner"), 1)
+        return name[: multiplied.start()] + _MULTIPLYING_WORD[suffixed] + f"({inner})"
+    if cited.group("ending") == "aniline":
+        if suffixed > 1:
+            return name[: cited.start()] + _MULTIPLYING_WORD[suffixed] + "(benzenediazonium)"
+        return name[: cited.start()] + "benzenediazonium"
+    return _diazonium_head(name[: cited.start()], suffixed)
+
+
+def _diazonium_head(head, count):
     if head.endswith("-"):
         cut = head.rfind("-", 0, len(head) - 1)
         stem, locants = head[:cut], head[cut:]
@@ -447,10 +463,15 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
         stem, locants = head, ""
     if not stem.endswith("e"):
         stem += "e"
-    head = stem + locants
     if count == 1:
-        return head + "diazonium"
-    return head + {2: "bis", 3: "tris", 4: "tetrakis"}[count] + "(diazonium)"
+        return stem + locants + "diazonium"
+    return stem + locants + _MULTIPLYING_WORD[count] + "(diazonium)"
+
+
+_MULTIPLIER_COUNT = {None: 1, "di": 2, "tri": 3, "tetra": 4}
+_MULTIPLYING_WORD = {2: "bis", 3: "tris", 4: "tetrakis"}
+_SURROGATE_ENDING = re.compile(r"(?P<multiplier>di|tri|tetra)?(?P<ending>amine|aniline)$")
+_MULTIPLIED_SURROGATE_ENDING = re.compile(r"(?P<multiplier>di|tri|tetra)\((?P<inner>[^()]*)amine\)$")
 
 
 def _name_diazonium_skeleton(mol) -> str:

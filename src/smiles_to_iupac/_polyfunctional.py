@@ -1049,7 +1049,10 @@ def _group_of(mol, carbon):
         senior = min((cls for cls, _ in sulfonyls), key=lambda cls: _group_rank(cls))
         same = [owned for cls, owned in sulfonyls if cls == senior]
         return senior, set().union(*same)
-    for name, found in _hydroxy_type_groups(mol, carbon):
+    hydroxy_type = _hydroxy_type_groups(mol, carbon)
+    if AMINIUM.get() is True:
+        hydroxy_type.sort(key=lambda entry: entry[0] != "amine")
+    for name, found in hydroxy_type:
         if found:
             return name, set(found)
     for n in mol.GetAtomWithIdx(carbon).GetNeighbors():

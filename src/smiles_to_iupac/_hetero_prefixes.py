@@ -920,7 +920,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     oxidized = _oxidized_nitrogen_prefix(graph, root, order, others, halogens, aromatic_atoms, mol)
     if oxidized is not None:
         return oxidized
-    if order == 1.0 and is_diazonium_nitrogen(atom):
+    if order == 1.0 and (is_diazonium_nitrogen(atom) or atom.HasProp("_diazonium_surrogate")):
         return "diazyn-1-ium-1-yl", True
     if (
         z == 7
