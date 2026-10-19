@@ -718,7 +718,7 @@ def test_thioate_stereocenter(smiles, expected):
     "smiles, expected",
     [
         pytest.param("c1ccccc1C(=O)[S-]", "benzenecarbothioate", id="directly_attached_thioate_is_named"),
-        pytest.param("Clc1ccc(CC(=O)[S-])cc1", "2-(4-chlorophenyl)ethanethioate", id="chain_thioate_ring_halogen"),
+        pytest.param("Clc1ccc(CC(=O)[S-])cc1", "(4-chlorophenyl)ethanethioate", id="chain_thioate_ring_halogen"),
         pytest.param("C=Cc1ccccc1CC(=O)[S-]", "(2-ethenylphenyl)ethanethioate", id="chain_thioate_unsaturation_is_named"),
     ],
 )

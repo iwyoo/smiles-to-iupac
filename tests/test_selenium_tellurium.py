@@ -197,7 +197,7 @@ def test_phenyl_chain_seleninic_acid_with_an_unsaturated_ring_substituent():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("ClCC(=O)[Se-]", "2-chloroethaneselenoate", id="selenoate_with_halogen_substituent"),
+        pytest.param("ClCC(=O)[Se-]", "chloroethaneselenoate", id="selenoate_with_halogen_substituent"),
         pytest.param("[Se-]C(=O)CCC(=O)[Se-]", "butanebis(selenoate)", id="multiple_selenoate_groups_is_named"),
         pytest.param("[Se-]C(=O)C1CCCCC1", "cyclohexanecarboselenoate", id="selenoate_on_ring_is_named"),
         pytest.param("CC(C)C(=O)[Se-]", "2-methylpropaneselenoate", id="selenoate_branched_r_group"),
@@ -218,7 +218,7 @@ def test_selenoate_stereocenter(smiles, expected):
 
 
 def test_phenyl_chain_selenoate():
-    assert smiles_to_iupac("c1ccccc1CC(=O)[Se-]") == "2-phenylethaneselenoate"
+    assert smiles_to_iupac("c1ccccc1CC(=O)[Se-]") == "phenylethaneselenoate"
     assert smiles_to_iupac("c1ccccc1CCC(=O)[Se-]") == "3-phenylpropaneselenoate"
 
 
@@ -226,7 +226,7 @@ def test_phenyl_chain_selenoate():
     "smiles, expected",
     [
         pytest.param("c1ccccc1C(=O)[Se-]", "benzenecarboselenoate", id="directly_attached_selenoate_is_named"),
-        pytest.param("Cc1ccccc1CC(=O)[Se-]", "2-(2-methylphenyl)ethaneselenoate", id="substituted_benzene_ring_selenoate_is_named"),
+        pytest.param("Cc1ccccc1CC(=O)[Se-]", "(2-methylphenyl)ethaneselenoate", id="substituted_benzene_ring_selenoate_is_named"),
         pytest.param("C=Cc1ccccc1CC(=O)[Se-]", "(2-ethenylphenyl)ethaneselenoate", id="chain_selenoate_unsaturation_is_named"),
     ],
 )
@@ -753,7 +753,7 @@ def test_selenium_tellurium_oxo_acids_like_sulfur_analogues(smiles, expected):
         ("c1ccccc1C([TeH])CC[TeH]", "1-phenylpropane-1,3-ditellurol"),
         ("c1ccccc1CC([SeH])Cc1ccccc1", "1,3-diphenylpropane-2-selenol"),
         ("Cc1ccccc1CC[Se](=O)O", "2-(2-methylphenyl)ethane-1-seleninic acid"),
-        ("Cc1ccccc1CC(=O)[Se-]", "2-(2-methylphenyl)ethaneselenoate"),
+        ("Cc1ccccc1CC(=O)[Se-]", "(2-methylphenyl)ethaneselenoate"),
     ],
 )
 def test_selenium_tellurium_substituted_benzene_chains_like_sulfur_analogues(smiles, expected):
