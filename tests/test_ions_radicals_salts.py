@@ -1653,15 +1653,24 @@ def test_cationic_centres_on_characteristic_groups_and_hydride_losses(smiles, ex
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("C[n+]1ccccc1CC[n+]1ccccc1", id="units_differ"),
-        pytest.param("C[n+]1ccc(OCc2cc[n+](C)cc2)cc1", id="unsymmetrical_linking_group"),
+        pytest.param("C[n+]1ccccc1CC[n+]1ccccc1", "1-[2-(1-methylpyridin-1-ium-2-yl)ethyl]pyridin-1-ium", id="units_differ"),
+        pytest.param(
+            "C[n+]1ccc(OCc2cc[n+](C)cc2)cc1",
+            "1-methyl-4-[(1-methylpyridin-1-ium-4-yl)methoxy]pyridin-1-ium",
+            id="unsymmetrical_linking_group",
+        ),
+        pytest.param(
+            "C[n+]1ccc(CC[P+](C)(C)C)cc1", "1-methyl-4-[2-(trimethylphosphaniumyl)ethyl]pyridin-1-ium", id="ring_cation_senior_to_phosphonium"
+        ),
+        pytest.param(
+            "C[n+]1ccc(/C=C/c2cc[n+](C)cc2)cc1", "4,4'-[(1E)-ethene-1,2-diyl]bis(1-methylpyridin-1-ium)", id="stereo_double_bond_of_the_linking_group"
+        ),
     ],
 )
-def test_cations_that_are_not_a_multiplicative_assembly(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_cations_that_are_not_a_multiplicative_assembly(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
