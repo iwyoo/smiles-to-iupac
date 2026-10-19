@@ -85,7 +85,8 @@ from ._common import (
     halogen_substituents,
     non_single_bonds,
 )
-from ._numerals import multiplying_prefix
+
+from ._numerals import multiplied_ester_word, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
@@ -220,5 +221,5 @@ def _name_on_pair(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx):
     if name_a == name_b:
         if compound_a:
             return f"{multiplying_prefix(2, compound=True)}({name_a})diazene"
-        return multiplying_prefix(2) + name_a + "diazene"
+        return multiplied_ester_word(2, name_a) + name_a + "diazene"
     return format_mononuclear_prefixes([(name_a, compound_a), (name_b, compound_b)]) + "diazene"
