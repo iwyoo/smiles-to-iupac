@@ -242,14 +242,6 @@ from ._radical_group import (
     name_radical_group,
 )
 from ._isotope_one_carbon import has_isotope_one_carbon_shape, name_isotope_one_carbon
-from ._ketone import (
-    has_five_membered_1_2_ring_ketone_shape,
-    has_five_membered_1_3_ring_ketone_shape,
-    has_hetero_ring_ketone_shape,
-    has_seven_membered_1_2_ring_ketone_shape,
-    has_seven_membered_1_3_ring_ketone_shape,
-    name_ketone,
-)
 from ._thione import has_thione_shape, name_thione
 from ._selone import has_selone_shape, name_selone
 from ._tellone import has_tellone_shape, name_tellone
@@ -2337,13 +2329,8 @@ def _name_mol(mol) -> str:
         # An acyl group bonded directly to the nitrogen of an otherwise-
         # plain saturated monocyclic ring (e.g. 1-acetylpiperidine) is a
         # P-64.1.2.1(b) 'pseudoketone'/'hidden amide' -- it must be routed
-        # before `has_hetero_ring_ketone_shape` below, which claims any
-        # single-heteroatom saturated ring alongside any oxygen in the
-        # molecule without checking the ring itself actually contains a
-        # ketone (it would otherwise misname this shape's acyl branch as
-        # an "N-alkyl substituent"), and before `has_amide_shape` further
-        # down, whose `name_amide` unconditionally rejects any non-
-        # benzene ring.
+        # before `has_amide_shape` further down, whose `name_amide`
+        # unconditionally rejects any non-benzene ring.
         if has_hidden_amide_shape(mol):
             return name_hidden_amide_ketone(mol)
         # A plain 1,4-N,O saturated six-membered ring whose nitrogen
@@ -2357,39 +2344,6 @@ def _name_mol(mol) -> str:
         # oxygen-free "any nitrogen" branch further down.
         if has_ring_amine_shape(mol):
             return name_ring_amine(mol)
-        # A ketone carbonyl sitting directly between two ring heteroatoms
-        # in a five-membered 1,3-related saturated ring (e.g.
-        # 1,3-dioxolan-2-one, imidazolidin-2-one) looks ether-, acetal-,
-        # or carbamate-shaped (depending on the element pair) to several
-        # checks below and would otherwise be misnamed by their
-        # acyclic-only constructions -- `_ketone.py` already names this
-        # narrow ring shape correctly, so claim it here first, ahead of
-        # every other oxygen-containing check in this branch. Unlike
-        # `has_hetero_ring_ketone_shape` below, this shape can never
-        # collide with a cyclic anhydride (see that function's own
-        # docstring), so routing it this early is safe.
-        if has_five_membered_1_3_ring_ketone_shape(mol):
-            return name_ketone(mol)
-        # Same reasoning for the 7-membered 1,3-related shape (e.g.
-        # 1,3-diazepan-2-one) -- an O+N pair here looks carbamate-shaped
-        # (N-C(=O)-O) instead, but the collision-safety argument is
-        # identical.
-        if has_seven_membered_1_3_ring_ketone_shape(mol):
-            return name_ketone(mol)
-        # Same reasoning for the five-membered 1,2-related shape (e.g.
-        # pyrazolidin-3-one) -- it looks aldehyde- or ether-shaped
-        # depending on the element pair instead, but the collision-safety
-        # argument is identical.
-        if has_five_membered_1_2_ring_ketone_shape(mol):
-            return name_ketone(mol)
-        # Same reasoning for the 7-membered 1,2-related shape (e.g.
-        # 1,2-diazepan-3-one) -- the collision-safety argument is
-        # identical, and empirically this shape falls all the way through
-        # to the generic aldehyde/ketone fallback further below (misnamed
-        # as an aldehyde, or rejected by its heteroatom check) if not
-        # claimed here first.
-        if has_seven_membered_1_2_ring_ketone_shape(mol):
-            return name_ketone(mol)
         # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
         # oxygen none of the neutral-oxygen checks below (or the
         # branch's own fallback) expect, so it must be routed first in this branch.
@@ -2448,42 +2402,22 @@ def _name_mol(mol) -> str:
         if has_sulfonate_shape(mol):
             return name_sulfonate(mol)
         # A D-aldohexopyranose ring (a hemiacetal, no actual ring C=O
-        # anywhere) still matches `has_hetero_ring_ketone_shape` below --
-        # that check claims any saturated single-heteroatom 5/6/7-membered
-        # ring purely by shape, regardless of whether a ketone is actually
-        # present, so a plain pyranose would otherwise fall into
-        # `_ketone.py`'s hetero-ring-ketone path and have its hydroxyls
-        # rejected as unrecognized substituents. Must be routed first.
+        # anywhere) is named as a sugar, not by the generic parent choice.
         if has_cyclic_aldopyranose_shape(mol):
             return name_cyclic_aldopyranose(mol)
-        # Same reasoning for a furanose (5-membered) ring -- one of
-        # `has_hetero_ring_ketone_shape`'s own accepted ring sizes too.
+        # Same reasoning for a furanose (5-membered) ring.
         if has_cyclic_aldofuranose_shape(mol):
             return name_cyclic_aldofuranose(mol)
         # A D-2-ketohexopyranose ring (e.g. fructopyranose) is a hemiketal,
-        # not an actual ring ketone either -- same `has_hetero_ring_ketone_shape`
-        # false-claim reasoning as the aldopyranose/aldofuranose checks above.
+        # not an actual ring ketone either.
         if has_cyclic_ketohexopyranose_shape(mol):
             return name_cyclic_ketohexopyranose(mol)
         if has_cyclic_ketohexofuranose_shape(mol):
             return name_cyclic_ketohexofuranose(mol)
         # Proline's pyrrolidine ring (P-103.1.2) is a plain secondary
-        # cyclic amine, not an actual ring ketone either -- same
-        # `has_hetero_ring_ketone_shape` false-claim reasoning as the
-        # sugar-ring checks above.
+        # cyclic amine with its own retained name.
         if has_proline_shape(mol):
             return name_proline(mol)
-        # A ketone carbonyl directly bonded to a saturated single- or
-        # 1,4-two-heteroatom ring's own O/S heteroatom (a lactone, e.g.
-        # oxan-2-one/1,4-dioxan-2-one) looks ester-shaped to
-        # `has_ester_shape` below (carbonyl + a second, carbon-bonded
-        # oxygen) and would otherwise be misnamed by `_ester.py`'s
-        # acyclic-only construction -- `_ketone.py` already names this
-        # narrow ring shape correctly (heteroatom always locant 1, ketone
-        # locant set minimized), so claim it here first, mirroring the
-        # same routing already used ahead of `has_amide_shape`.
-        if has_hetero_ring_ketone_shape(mol):
-            return name_ketone(mol)
         # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded
         # oxygen is an ester (-COO-), which must be routed before the
         # carboxylic-acid/aldehyde/ketone checks below: its carbonyl half
@@ -2589,7 +2523,7 @@ def _name_mol(mol) -> str:
             # carbohydrate name.
             if has_open_chain_2_ketose_shape(mol):
                 return name_open_chain_2_ketose(mol)
-            return name_ketone(mol)
+            return _name_standalone(mol)
         # A real thiol/selenol coexisting with an oxygen that isn't
         # a real alcohol at all (e.g. a furan ring substituent's own
         # non-functional ring oxygen, now recognized by these modules
@@ -2739,8 +2673,7 @@ def _name_mol(mol) -> str:
         # require an actual primary amine), so it would otherwise fall
         # through to the amine fallback's own unconditional rejection of a
         # nitrogen-free molecule it doesn't recognize as amine-shaped at
-        # all -- must be routed here first, mirroring `_ketone.py`'s own
-        # unconditional fallback regardless of a coexisting non-functional nitrogen.
+        # all -- must be routed here first.
         if has_thiol_shape(mol):
             return name_thiol(mol)
         # A selenol coexisting with a nitrogen that isn't a real amine at
