@@ -30,7 +30,7 @@ from ._np_name import (
     principal_groups_left_outside,
 )
 from ._np_fusion import assign_primes, fusion_text, hydro_texts, indicated_texts, name_fused
-from ._np_rings import bridge_prefixes, components, name_spiro, split_components
+from ._np_rings import bridge_layout, bridge_prefixes, components, name_spiro, split_components
 from ._np_text import core_text, locant_pair, op_prefixes, unsaturation
 from ._numerals import multiplying_prefix
 from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
@@ -78,9 +78,15 @@ def build(cand, view):
             parent_prime = "′"
         else:
             ring_prime = "′"
-    groups = classify(cand, view, bridge_atoms)
-    groups.branches = [(loc, root) for loc, root in groups.branches if root not in bridge_atoms]
-    alkyls = alkyl_count(cand, view, groups)
+    base_final = _primed(_final(skel), parent_prime)
+    layout = bridge_layout(bridge_comps, cand, view, base_final)
+    bridge_locants = {str(layout.numbering[a]): a for a in layout.backbone}
+    final = lambda loc: loc if loc in bridge_locants else base_final(loc)
+    mapping = {**mapping, **bridge_locants}
+    bridge_substituents = {n for comp in bridge_comps for n in comp.atoms} - layout.backbone
+    groups = classify(cand, view, bridge_atoms - bridge_substituents, bridge_locants)
+    groups.branches = [(loc, root) for loc, root in groups.branches if root not in bridge_atoms - bridge_substituents]
+    alkyls = alkyl_count(cand, view, groups, bridge_locants)
     if alkyls is None:
         raise UnsupportedStructure("an alkyl group on an acyclic part of the parent")
     cost = nondetachable_cost(cand) + alkyls + len(ring_comps)
@@ -89,12 +95,12 @@ def build(cand, view):
     principal = next((c for c in _SENIORITY if c in classes), None)
     chain = None
     if principal is None:
-        chain = chain_template(cand, view, groups.branches)
+        chain = chain_template(cand, view, [b for b in groups.branches if b[0] not in bridge_locants])
         if chain is not None:
             groups.branches = [b for b in groups.branches if b[1] != chain[1]]
             classes["yl"] = [(chain[0], {chain[1]}, {"anchor": chain[1], "root": chain[1]})]
             principal = "yl"
-    if principal not in ("yl", "diyl", "ester_o") and principal_groups_left_outside(view.mol, classes, principal, set(cand.mapping.values())):
+    if principal not in ("yl", "diyl", "ester_o") and principal_groups_left_outside(view.mol, classes, principal, set(cand.mapping.values()) | layout.backbone):
         if any(view.order[frozenset((root, mapping[loc]))] != 1 for loc, root in groups.branches):
             return None
         raise Outranked("a principal characteristic group outside the parent needs a multiplicative or other parent")
@@ -122,7 +128,6 @@ def build(cand, view):
         if cls in classes and cls != principal:
             demote_acyl(cls, classes.pop(cls), classes, branches)
 
-    final = _primed(_final(skel), parent_prime)
     fused = [name_fused(c, cand, view, final, parent.centers, {}) for c in fused_comps]
     fusion_atoms = frozenset(loc for f in fused for loc in f.fusion_locs)
     enes_bonds, hydro, dehydro, retro = unsaturation(cand, view, fusion_atoms)
@@ -155,7 +160,7 @@ def build(cand, view):
     enes.sort(key=lambda t: loc_key(t.split("(")[0]))
     ynes.sort(key=lambda t: loc_key(t.split("(")[0]))
 
-    config = configuration(cand, view)
+    config = configuration(cand, view, bridge_locants)
     config.parent = [(key, _locant_through(text, final)) for key, text in config.parent]
     config.side = [(key, _locant_through(text, final)) for key, text in config.side]
     if spiro:
@@ -274,7 +279,7 @@ def build(cand, view):
     replacement = _replacement_text(cand, final, view)
     if replacement:
         ops = [replacement] + ops
-    bridges = bridge_prefixes(bridge_comps, cand, view, config, final)
+    bridges = bridge_prefixes(layout, cand, view, config, final)
     if nondetachable_cost(cand) + len(ring_comps) > _MAX_SKELETAL_MODIFICATIONS:
         raise UnsupportedStructure("too many skeletal modifications")
     fused_prefix = fusion_text(groups) if fused else ""

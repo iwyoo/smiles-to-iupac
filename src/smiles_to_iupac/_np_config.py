@@ -68,7 +68,7 @@ def _cip(mol, atom):
     return center.GetProp("_CIPCode")
 
 
-def configuration(cand, view):
+def configuration(cand, view, bridge_atoms=None):
     mol = view.mol
     skel, mapping, parent = cand.skel, cand.mapping, cand.parent
     mapped = set(mapping.values())
@@ -82,7 +82,8 @@ def configuration(cand, view):
         and (b.GetBeginAtomIdx() in mapped or b.GetEndAtomIdx() in mapped)
         and b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)
     ]
-    if not (specified & mapped) and not bond_stereo:
+    bridge_centres = {loc: atom for loc, atom in (bridge_atoms or {}).items() if atom in specified}
+    if not (specified & mapped) and not bond_stereo and not bridge_centres:
         return config
     assign_cip_labels(mol)
     for bond in bond_stereo:
@@ -93,6 +94,8 @@ def configuration(cand, view):
             raise UnsupportedStructure("a chain double bond has no E/Z label")
         low = min(ends, key=loc_key)
         config.side.append((loc_key(low), f"{low}{bond.GetProp('_CIPCode')}"))
+    for loc, atom in bridge_centres.items():
+        config.side.append((loc_key(loc), f"{loc}{_cip(mol, atom)}"))
     if not (specified & mapped):
         return config
     mol_h = Chem.AddHs(mol)
