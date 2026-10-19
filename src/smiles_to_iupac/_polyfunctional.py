@@ -1291,43 +1291,86 @@ def _without_marker(name, locant, word):
     return text
 
 
-def _attach_oxides(name, placed, centers):
+def _oxide_word(count, nuclides):
+    if not nuclides:
+        return multiplied_word(count, "oxide")
+    word = f"({','.join(nuclides)})oxide"
+    return word if count == 1 else multiplied_word(count, f"[{word}]")
+
+
+def _attach_oxides(name, placed, centers, oxide_labels=None):
+    """`name` followed by the oxide words: oxides modified in the same way are multiplied, those modified differently
+    are cited separately with the modified ones first (P-82.2.2.2, P-82.2.4)."""
     from ._pin import mark
     from ._substituents import _locant_sort_key
 
     locants = [placed.get(c) for c in centers]
     if None in locants or " " in name:
         raise UnsupportedStructure("the ring nitrogens are not numbered in the parent hydride")
-    word = {2: "dioxide", 3: "trioxide", 4: "tetraoxide"}.get(len(centers))
-    if word is None:
+    if len(centers) > 4:
         raise UnsupportedStructure("this many N-oxides are not named here")
-    text = ",".join(str(x) for x in sorted(locants, key=_locant_sort_key))
-    return mark(f"{name} {text}-{word}", "the Blue Book generates the preferred name of two or more amine oxides by the lambda-convention (P-74.2.1.2)")
+    groups = {}
+    for center, locant in zip(centers, locants):
+        groups.setdefault((oxide_labels or {}).get(center, ()), []).append(locant)
+    words = []
+    for nuclides in sorted(groups, key=lambda found: (-len(found), [_nuclide_rank(n) for n in found])):
+        text = ",".join(str(x) for x in sorted(groups[nuclides], key=_locant_sort_key))
+        words.append(f"{text}-{_oxide_word(len(groups[nuclides]), nuclides)}")
+    return mark(f"{name} {' '.join(words)}", "the Blue Book generates the preferred name of two or more amine oxides by the lambda-convention (P-74.2.1.2)")
 
 
-def _attach(name, placed, center, kind):
+def _attach(name, placed, center, kind, oxide_labels=None):
     locant = placed.get(center)
     if locant is None or " " in name:
         raise UnsupportedStructure("the ring nitrogen is not numbered in the parent hydride")
     if kind == "oxide":
-        return f"{name} {locant}-oxide"
+        return f"{name} {locant}-{_oxide_word(1, (oxide_labels or {}).get(center, ()))}"
     if not name.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
     return f"{name[:-1]}-{locant}-ium"
 
 
 def _name_labelled_ring_center(clean, labels, found):
+    from ._isotope_labels import _nuclide_sort_key
+
     base, center, kind, probe = found
-    if isinstance(center, list):
-        raise UnsupportedStructure("an isotopic modification of several N-oxides is not supported yet")
-    shift = clean.GetNumAtoms() - base.GetNumAtoms()
-    removed = next((a.GetIdx() for a in clean.GetAtoms() if a.GetFormalCharge() == -1 and a.GetAtomicNum() == 8), None)
-    if shift and removed is None:
-        raise UnsupportedStructure("the isotopic modification of this ring cation is not supported")
-    if STEREO_OF_ISOTOPOLOGUE.get() or removed in labels:
-        raise UnsupportedStructure("an isotopic modification of the oxide group or the stereo of the centre is not supported yet")
-    moved = labels if probe is not None else {i - (1 if shift and i > removed else 0): e for i, e in labels.items()}
-    return _name_ring_center(base, center, kind, probe, moved)
+    oxides = sorted(
+        o.GetIdx()
+        for o in clean.GetAtoms()
+        if kind == "oxide"
+        and o.GetAtomicNum() == 8
+        and o.GetFormalCharge() == -1
+        and o.GetDegree() == 1
+        and o.GetNeighbors()[0].GetAtomicNum() == 7
+        and o.GetNeighbors()[0].IsInRing()
+    )
+
+    def moved(index):
+        return index if probe is not None else index - sum(1 for o in oxides if o < index)
+
+    atom_labels = {moved(i): e for i, e in labels.items() if i not in oxides}
+    by_oxide = {
+        moved(n.GetIdx()): tuple(sorted(_modifications(labels[o]), key=_nuclide_sort_key))
+        for o in oxides
+        if o in labels
+        for n in clean.GetAtomWithIdx(o).GetNeighbors()
+    }
+    located = STEREO_OF_ISOTOPOLOGUE.get()
+    if located and oxides and probe is None:
+        token = STEREO_OF_ISOTOPOLOGUE.set(
+            [
+                (kind_, moved(idx) if kind_ == "atom" else tuple(moved(i) for i in idx), code)
+                for kind_, idx, code in located
+                if kind_ == "bond" or idx not in oxides
+            ]
+        )
+    else:
+        token = None
+    try:
+        return _name_ring_center(base, center, kind, probe, atom_labels, by_oxide)
+    finally:
+        if token is not None:
+            STEREO_OF_ISOTOPOLOGUE.reset(token)
 
 
 def _mancude_ring(ring):
@@ -1496,17 +1539,15 @@ def _ylium_inserted(name, base, center, placed):
     return f"{name[:start]}-{locant}-ylium{tail}"
 
 
-def _name_ring_center(base, center, kind, probe=None, labels=None):
+def _name_ring_center(base, center, kind, probe=None, labels=None, oxide_labels=None):
     from ._diester_ring_diyl import _system_of
 
     if isinstance(center, list):
-        if labels:
-            raise UnsupportedStructure("an isotopic modification of several N-oxides is not supported yet")
         token = RING_CENTER.set(True)
         cation_token = CATION_PARENT.set(True)
-        atom_token = CATION_RING_ATOM.set(center[0])
+        atom_token = CATION_RING_ATOM.set(None)
         try:
-            return _name_labelled(base, {}, lambda name, placed: _attach_oxides(name, placed, center))
+            return _name_labelled(base, labels or {}, lambda name, placed: _attach_oxides(name, placed, center, oxide_labels))
         finally:
             CATION_RING_ATOM.reset(atom_token)
             CATION_PARENT.reset(cation_token)
@@ -1523,20 +1564,20 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
                 raise
             name = None
         if name is not None:
-            return _attach(name, placed, center, kind)
+            return _attach(name, placed, center, kind, oxide_labels)
     token = RING_CENTER.set(True)
     cation_token = CATION_PARENT.set(True)
     atom_token = CATION_RING_ATOM.set(center)
     try:
         if probe is None:
-            return _name_labelled(base, labels or {}, lambda name, placed: _attach(name, placed, center, kind))
+            return _name_labelled(base, labels or {}, lambda name, placed: _attach(name, placed, center, kind, oxide_labels))
         marked, marked_center, word = probe
 
         def attach_marked(name, placed):
             locant = placed.get(marked_center)
             if locant is None:
                 raise UnsupportedStructure("the ring nitrogen is not numbered in the parent hydride")
-            return _attach(_without_marker(name, locant, word), {marked_center: locant}, marked_center, kind)
+            return _attach(_without_marker(name, locant, word), {marked_center: locant}, marked_center, kind, oxide_labels)
 
         return _name_labelled(marked, labels or {}, attach_marked)
     finally:
