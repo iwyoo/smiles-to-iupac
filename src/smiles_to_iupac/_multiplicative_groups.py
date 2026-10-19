@@ -37,6 +37,8 @@ SUFFIX_RANKS = {
 JUNIOR_RANK = 80
 CATION_RANK = 5  # cations rank above every class named by a suffix (P-41)
 
+_ISOCYANATE = Chem.MolFromSmarts("[NX2;!R](=[CX2;!R]=[O,S,Se,Te;X1])")
+
 KETONE_LIKE = {"ketone", "thione", "selone", "tellone"}
 
 _ALLOWED_ELEMENTS = {1, 5, 6, 7, 8, 9, 13, 14, 15, 16, 17, 31, 32, 33, 34, 35, 49, 50, 51, 52, 53, 81, 82, 83}
@@ -226,6 +228,8 @@ def classify(mol):
 
     for chain in mol.GetSubstructMatches(FORMAZAN_SKELETON):
         covered.update(chain)
+    for match in mol.GetSubstructMatches(_ISOCYANATE):
+        covered.update(match)
     for atom in mol.GetAtoms():
         ligands = chalcogen_linker_ligands(atom)
         if ligands is not None:
@@ -235,6 +239,7 @@ def classify(mol):
             terminal = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() in (7, 8, 16, 34, 52) and n.GetDegree() == 1]
             if any(mol.GetBondBetweenAtoms(atom.GetIdx(), t).GetBondTypeAsDouble() == 2.0 for t in terminal):
                 covered.update(terminal)
+    unplaced = False
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
         z = atom.GetAtomicNum()
@@ -247,7 +252,8 @@ def classify(mol):
             and not _hydroxy_on_nitrogen(atom)
             and not _hydrazinediylidene_nitrogen(atom)
         ):
-            return None
+            unplaced = True
+            continue
         if z == 6 and any(
             b.GetBondTypeAsDouble() >= 2
             and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52)
@@ -257,4 +263,6 @@ def classify(mol):
             return None
         if atom.GetFormalCharge() and idx not in covered:
             return None
+    if unplaced and min((CATION_RANK if g.cationic else g.rank for g in groups), default=JUNIOR_RANK) > SUFFIX_RANKS["ketone"]:
+        return None
     return groups

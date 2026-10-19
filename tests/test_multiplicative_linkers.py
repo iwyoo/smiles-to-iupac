@@ -27,6 +27,7 @@ def test_heteroatom_and_concatenated_linkers_between_chain_parents(smiles, expec
             "CC(=O)[C@H]1CC=C(CC)C[C@@H]1C(C)=O",
             "1,1'-[(1S,2S)-4-ethylcyclohex-4-ene-1,2-diyl]di(ethan-1-one)",
         ),
+        ("OC(=O)c1ccc(cc1)C(NN)c1ccc(cc1)C(O)=O", "4,4'-(hydrazinylmethylene)dibenzoic acid"),
     ],
 )
 def test_ring_and_assembly_components_inside_a_linker(smiles, expected):
