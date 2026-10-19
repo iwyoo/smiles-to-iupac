@@ -24,7 +24,7 @@ from ._common import (
     unsaturation_suffix,
 )
 from ._multiplicative_groups import KETONE_LIKE, SUFFIX_RANKS
-from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, subtree
+from ._multiplicative_prefix import SIMPLE_PREFIXES, consume_labels, labels_in, prefix_name, probe_name, subtree
 from ._numerals import alkane_name
 from ._substituents import ISOTOPE_LABELS, format_substituent_prefixes
 
@@ -286,7 +286,7 @@ def _prefix_entries(mol, roots, groups, suffix_group, name_function):
     entries = []
     for r, n in roots:
         group = _group_at(mol, groups, r, n)
-        if group is not None and group.name in SIMPLE_PREFIXES:
+        if group is not None and group.name in SIMPLE_PREFIXES and not labels_in(subtree(mol, n, r)):
             entries.append((r, SIMPLE_PREFIXES[group.name], False))
         else:
             name, compound = prefix_name(mol, n, r, suffix_group, name_function, groups)
@@ -318,9 +318,12 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     principal = principal_rank_of(groups, unit_atoms)
     suffix_name = None
     suffix_atoms = []
+    suffix_group_atoms = set()
     hydroxy_nitrogens = []
     prefix_roots = []
     amine_roots = []
+    labels = labels_in(unit_atoms)
+    ring_labels = {a: e for a, e in labels.items() if a in spec.cycle}
     for r, n in _ring_roots(mol, spec, {(junction, linker_atom)}):
         group = _group_at(mol, groups, r, n)
         if group is None and principal == SUFFIX_RANKS["amine"]:
@@ -332,6 +335,7 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
                 return None
             suffix_name = group.name
             suffix_atoms.append(r)
+            suffix_group_atoms |= group.atoms - {r}
             if group.name == "amidine" and any(mol.GetAtomWithIdx(a).GetAtomicNum() == 8 for a in group.atoms):
                 hydroxy_nitrogens.append(r)
         else:
@@ -350,6 +354,7 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
             locants[junction],
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
+            modification_key(ring_labels, locants) if ring_labels else (),
         )
         if best is None or key < best[0]:
             best = (key, locants)
@@ -359,12 +364,51 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
         core, has_locants = _suffix_text(parent_text(spec, locants), suffix_name, [locants[a] for a in suffix_atoms], spec)
     else:
         core, has_locants = parent_text(spec, locants), False
+    cited = ""
+    if labels:
+        core, cited = _cite_unit_labels(mol, spec, locants, labels, ring_labels, suffix_group_atoms, core)
     nitrogen_entries = _nitrogen_entries(mol, amine_roots, len(suffix_atoms), locants, groups, name_function)
     nitrogen_entries += [("N'" if len(suffix_atoms) == 1 else f"N'{locants[r]}", "hydroxy", False) for r in hydroxy_nitrogens]
     prefix_text = _prefix_text(entries, locants, nitrogen_entries)
     return UnitText(
-        _join(prefix_text, core), locants[junction], bool(prefix_text), has_locants or any(ch.isdigit() for ch in core)
+        _join(prefix_text, cited + core),
+        locants[junction],
+        bool(prefix_text),
+        has_locants or any(ch.isdigit() for ch in core) or bool(cited or labels),
     )
+
+
+def _cite_unit_labels(mol, spec, locants, labels, ring_labels, group_atoms, core):
+    """(parent text with the suffix modified, descriptor text before the parent) for the nuclides of a multiplied monocyclic
+    unit: ring atoms by their locants, the atoms of the principal group before the suffix or by letter locants
+    (P-82.2.1, P-82.2.4, P-82.6.2); nuclides in the substituents are cited by their own prefixes."""
+    from ._isotope_labels import descriptor
+    from ._polyfunctional import _before_suffix, _group_atom_labels
+
+    group_labels = {a: e for a, e in labels.items() if a in group_atoms}
+    front, suffix_text = [], None
+    if group_labels:
+        unit_atoms = set(spec.cycle) | group_atoms
+        editable = Chem.RWMol(mol)
+        for idx in sorted(set(range(mol.GetNumAtoms())) - unit_atoms, reverse=True):
+            editable.RemoveAtom(idx)
+        new_of = {old: new for new, old in enumerate(sorted(unit_atoms))}
+        unit = editable.GetMol()
+        Chem.SanitizeMol(unit)
+        found = _group_atom_labels(
+            unit, {new_of[a]: e for a, e in group_labels.items()}, {new_of[a] for a in spec.cycle}
+        )
+        if found is None:
+            raise UnsupportedStructure("a nuclide of this characteristic group is not cited by a supported name")
+        front, suffix_text = found
+    text = ""
+    if ring_labels or front:
+        capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in ring_labels}
+        text = descriptor(ring_labels, locants, False, front, capacity)
+    if suffix_text:
+        core = _before_suffix(core, *suffix_text)
+    consume_labels(set(ring_labels) | set(group_labels))
+    return core, text + ("-" if text and core[:1].isdigit() else "")
 
 
 def _branch_key(mol, ring_atoms, root):
@@ -394,8 +438,6 @@ def name_ring_component(
     ]
     spec = spec_of(mol, ring_atoms)
     if spec is None:
-        if isotope_atoms:
-            raise UnsupportedStructure("an isotopically modified ring system as a linker is not supported yet")
         return _ring_system_component(mol, ring_atoms, attachments, directed, first)
     ring_labels = {atom: entry for atom, entry in ISOTOPE_LABELS.get()["labels"].items() if atom in isotope_atoms} if isotope_atoms else {}
     free_atoms = [a for a, _ in attachments]
@@ -446,6 +488,7 @@ def name_ring_component(
         capacity = {atom: mol.GetAtomWithIdx(atom).GetTotalNumHs() for atom in ring_labels}
         text = descriptor(ring_labels, locants, False, capacity=capacity)
         body = text + ("-" if body[:1].isdigit() else "") + body
+        consume_labels(ring_labels)
     prefix_text = _prefix_text(entries, locants)
     name = _join(prefix_text, body)
     if stereo:
@@ -470,7 +513,7 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
     blocked = {external for _, external in attachments}
     if len(free_atoms) not in _VALENCE_COUNTS:
         return None
-    found = evaluate_skeleton(mol, adjacency(mol), "ring", rings, atoms, free_atoms, blocked, "yl")
+    found = evaluate_skeleton(mol, adjacency(mol), "ring", rings, atoms, free_atoms, blocked, "yl", nuclides=True)
     if found is None:
         return None
     substituted = any(
@@ -479,6 +522,9 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
         for n in mol.GetAtomWithIdx(a).GetNeighbors()
     )
     name = found[1]
+    cited = labels_in(atoms)
+    if cited and all(n in name for e in cited.values() for n in ([e["skeleton"]] if e["skeleton"] else []) + list(e["H"])):
+        consume_labels(cited)
     if first is not None and first in found[2]:
         tail = re.search(r"-(\d+[a-z]?(?:,\d+[a-z]?)+)-(?:di|tri|tetra)yl$", name)
         locants = tail.group(1).split(",") if tail else []
@@ -507,11 +553,22 @@ def ring_pseudoketone_oxygens(mol, ring_atoms):
     return found
 
 
+def _restore_unit_labels(editable, mol, atoms):
+    """The nuclides of the unit `atoms` put back on the probe, which cites them in its name (P-82.2.1)."""
+    from ._isotope_labels import restore_labels
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if context:
+        restore_labels(editable, mol, context["labels"], skip=set(context["labels"]) - set(atoms))
+
+
 def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=None, substituted=None):
     """UnitText for a fused/bridged/spiro ring system with substituents and suffix groups: the unit is named with an
     iodo prefix at the junction, which is then read off and removed (the junction takes the lowest locant left
     after the principal groups, P-15.3.1.3)."""
     rw = Chem.RWMol(mol)
+    _restore_unit_labels(rw, mol, atoms)
     iodine = rw.AddAtom(Chem.Atom(53))
     rw.AddBond(junction, iodine, Chem.BondType.SINGLE)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms) - {iodine}, reverse=True):
@@ -520,6 +577,7 @@ def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=
     Chem.SanitizeMol(probe)
     Chem.RemoveStereochemistry(probe)
     name = probe_name(Chem.MolToSmiles(probe), name_function)
+    consume_labels(atoms)
     matches = list(re.finditer(r"(?<![\w,])(\d+[a-z]?)-iodo(-?)", name))
     if len(matches) != 1:
         raise UnsupportedStructure(f"could not read the junction locant from {name!r}")
@@ -549,6 +607,7 @@ def bare_polycyclic_unit(mol, atoms, junction, name_function=None):
             )
             if lost:
                 atom.SetNumExplicitHs(atom.GetNumExplicitHs() + lost)
+    _restore_unit_labels(rw, mol, atoms)
     iodine = rw.AddAtom(Chem.Atom(53))
     rw.AddBond(junction, iodine, Chem.BondType.SINGLE)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
@@ -557,6 +616,7 @@ def bare_polycyclic_unit(mol, atoms, junction, name_function=None):
     Chem.SanitizeMol(probe)
     Chem.RemoveStereochemistry(probe)
     name = probe_name(Chem.MolToSmiles(probe), name_function)
+    consume_labels(atoms)
     match = re.fullmatch(r"(\d+[a-z]?)-iodo-?(.+)", name)
     if match is None:
         raise UnsupportedStructure(f"could not read the junction locant from {name!r}")

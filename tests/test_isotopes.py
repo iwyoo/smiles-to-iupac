@@ -518,6 +518,9 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
         pytest.param("[13CH3]OC(=O)CCC(=O)O[13CH3]", "di[(13C)methyl] butanedioate", id="identical_modified_alkyl_groups_of_a_diester_are_multiplied_with_marks"),
         pytest.param("[13CH3]OS(=O)(=O)OS(=O)(=O)O[13CH3]", "di[(13C)methyl] disulfate", id="identical_modified_alkyl_groups_of_a_dinuclear_acid_ester"),
         pytest.param("[13CH3]OP(=O)(O[13CH3])OP(=O)(O[13CH3])O[13CH3]", "tetra[(13C)methyl] diphosphate", id="free_acid_of_a_labelled_ester_is_named_without_the_outer_labels"),
+        pytest.param("[2H]Oc1ccc(Oc2ccc(O[2H])cc2)cc1", "4,4'-oxydi[phen(2H)ol]", id="multiplied_ring_units_cite_the_modified_hydroxy_hydrogen"),
+        pytest.param("[2H]Oc1ccc2ccccc2c1[13CH2]c1c(O[2H])ccc2ccccc12", "1,1'-[(13C)methylene]di[naphthalen-2-(2H)ol]", id="multiplied_fused_units_and_a_modified_linker_carbon"),
+        pytest.param("Oc1ccc(cc1)c1[13cH]ccc2c1cccc2c1ccc(O)cc1", "4,4'-[(2-13C)naphthalene-1,5-diyl]diphenol", id="modified_atom_of_a_fused_ring_linker"),
     ],
 )
 def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):
