@@ -3839,17 +3839,26 @@ def _hydroxylamine_parent(mol, graph, halogens, aromatic_atoms):
     return min(candidates)[1]
 
 
+def _is_acyclic_nn(bond):
+    return bond.GetBeginAtom().GetAtomicNum() == bond.GetEndAtom().GetAtomicNum() == 7 and not bond.IsInRing()
+
+
+def _carries_oxo(nitrogen):
+    """A nitrogen with a double bond to oxygen or sulfur (nitro, nitroso): its N-N bond joins no hydrazine."""
+    return any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(nitrogen).GetAtomicNum() in (8, 16) for b in nitrogen.GetBonds())
+
+
 def _hydrazine_parent(mol, aromatic_atoms):
     """The hydrazine as the parent of a molecule without a principal group and without a ring that contains nitrogen
     (P-44.1.2, P-68.3.1.2.1): one plain acyclic N-N bond whose nitrogens carry only carbon groups."""
     from ._hydrazine import hydrazine_with_substituents
 
-    if any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms()) or not _only_plain_hydrazines(mol):
+    if any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms()):
         return None
     pairs = [
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
         for b in mol.GetBonds()
-        if b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing()
+        if b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing() and b.GetBondTypeAsDouble() == 1.0
     ]
     if len(pairs) != 1:
         return None
@@ -3970,7 +3979,9 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
 
             cited = bool(centre_nuclides(center))
             return ((0,), name, (None, None, None, 0, {} if cited else {center: 1}, False))
-    if centers or (
+    if centers:
+        raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
+    if (
         not ring_cation
         and not (any(a.GetAtomicNum() == 7 and a.IsInRing() for a in mol.GetAtoms()) and _only_plain_hydrazines(mol))
         and any(
@@ -3983,10 +3994,13 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             for b in mol.GetBonds()
         )
     ):
-        hydrazine = None if centers else _hydrazine_parent(mol, aromatic_atoms)
+        if any(_carries_oxo(a) for b in mol.GetBonds() if _is_acyclic_nn(b) for a in (b.GetBeginAtom(), b.GetEndAtom())):
+            raise UnsupportedStructure("a nitramide or nitrous amide is named by its own namer, not as a hydrazine (P-66.1.5)")
+        hydrazine = _hydrazine_parent(mol, aromatic_atoms)
         if hydrazine is not None:
             return ((0,), hydrazine, (None, None, None, 0, {}, False))
-        raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
+        if sum(b.GetBondTypeAsDouble() == 1.0 and _is_acyclic_nn(b) for b in mol.GetBonds()) > 1:
+            raise UnsupportedStructure("a chain of several nitrogen atoms is the parent but the chain namer cannot cite these substituents (P-68.3.2)")
     if not ring_cation and chalcogen_link_is_parent(mol):
         raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
     ring_info = mol.GetRingInfo()
