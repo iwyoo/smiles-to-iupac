@@ -168,7 +168,11 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         return name, is_compound_acyl(name)
     if zn == 7:
         subs = [n for n in graph[z_idx] if n != root]
-        if mol.GetAtomWithIdx(z_idx).GetFormalCharge() or any(_bond(mol, z_idx, n) != 1.0 for n in subs):
+        if (
+            mol.GetAtomWithIdx(z_idx).GetFormalCharge()
+            or mol.GetAtomWithIdx(z_idx).HasProp("_cationic_amine")
+            or any(_bond(mol, z_idx, n) != 1.0 for n in subs)
+        ):
             return None
         if mol.GetAtomWithIdx(z_idx).IsInRing() and not (subs and (x in ("O", "S") or (x == "NH" and not n_entries))):
             return None

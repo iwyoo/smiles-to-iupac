@@ -231,6 +231,10 @@ def classify(mol):
         if ligands is not None:
             covered.add(atom.GetIdx())
             covered.update(a for _, atoms in ligands for a in atoms)
+        if atom.GetAtomicNum() in (15, 33, 51) and not atom.IsInRing() and not atom.GetFormalCharge():
+            terminal = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() in (7, 8, 16, 34, 52) and n.GetDegree() == 1]
+            if any(mol.GetBondBetweenAtoms(atom.GetIdx(), t).GetBondTypeAsDouble() == 2.0 for t in terminal):
+                covered.update(terminal)
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
         z = atom.GetAtomicNum()

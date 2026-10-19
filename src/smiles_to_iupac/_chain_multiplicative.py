@@ -105,7 +105,7 @@ def _is_linker_atom(mol, atom, acyl_prefixes=frozenset()):
         if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen and not sulfonyl_oxygen:
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()) and not imine_nitrogen:
-            acyl_prefix = atom.GetAtomicNum() == 7 and other.GetIdx() in acyl_prefixes
+            acyl_prefix = (atom.GetAtomicNum() == 7 or (atom.GetAtomicNum() == 8 and AMINIUM.get() is True)) and other.GetIdx() in acyl_prefixes
             if not acyl_prefix and not _diacyl_carbon(mol, other, atom):
                 return False
     return True
@@ -149,7 +149,7 @@ def _diacyl_carbon(mol, carbon, linker):
 
 
 def _principal_atoms(mol):
-    from ._polyfunctional import _SENIORITY, _group_of, _ring_occurrences, _substituted_amine_nitrogen
+    from ._polyfunctional import AMINIUM, _SENIORITY, _group_of, _ring_occurrences, _substituted_amine_nitrogen
 
     groups = {}
     for atom in mol.GetAtoms():
@@ -160,7 +160,7 @@ def _principal_atoms(mol):
             groups.setdefault("amine", {})[atom.GetIdx()] = {atom.GetIdx()}
     ring_groups = _ring_occurrences(mol)
     classes = set(groups) | {c for c, _, _ in ring_groups}
-    principal = next((name for name in _SENIORITY if name in classes), None)
+    principal = "amine" if AMINIUM.get() is True and "amine" in classes else next((name for name in _SENIORITY if name in classes), None)
     if principal is None:
         return None
     atoms = set(groups.get(principal, {}))
@@ -418,7 +418,11 @@ def _context_element(mol, element):
 
 def _unit_group_name(mol, principal, heads):
     """The name of the principal group of the multiplied chains in the vocabulary of the linker namer: an ester when no
-    carboxyl group of the chains keeps its hydroxy group."""
+    carboxyl group of the chains keeps its hydroxy group; a cationic amine is a cation, which outranks every acid."""
+    from ._polyfunctional import AMINIUM
+
+    if principal == "amine" and AMINIUM.get() is True:
+        return "cation"
     if principal != "acid":
         return principal
     free = any(
@@ -1427,16 +1431,18 @@ def _chain_multiplicative_name(mol, stereo):
     principal, anchors, heads = found
     from ._polyfunctional import _SENIORITY, AMINIUM
 
+    cationic_parent = principal == "amine" and AMINIUM.get() is True
     acyl_prefixes = (
         frozenset(
             a.GetIdx()
             for a in mol.GetAtoms()
             if _acyl_carbon(a)
-            and not any(
-                _acyl_branch(graph, a.GetIdx(), n.GetIdx()) & anchors for n in a.GetNeighbors() if n.GetAtomicNum() == 7
+            and (
+                cationic_parent
+                or not any(_acyl_branch(graph, a.GetIdx(), n.GetIdx()) & anchors for n in a.GetNeighbors() if n.GetAtomicNum() == 7)
             )
         )
-        if _SENIORITY.index(principal) < _SENIORITY.index("amide")
+        if _SENIORITY.index(principal) < _SENIORITY.index("amide") or cationic_parent
         else frozenset()
     )
     linkers = {

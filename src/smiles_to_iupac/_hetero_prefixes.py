@@ -1643,6 +1643,10 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         nitro = nitro_or_nitroso_group(mol, mol.GetAtomWithIdx(x))
         if nitro is not None:
             return nitro[0] + "formyl", True
+        cationic = mol.GetAtomWithIdx(x)
+        if cationic.HasProp("_cationic_amine") and not cationic.GetFormalCharge() and not subs:
+            cation, cation_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
+            return _enclose(cation, cation_compound) + "carbonyl", True
         if not subs:
             return "carbamoyl", False
         if mol.GetAtomWithIdx(x).IsInRing():

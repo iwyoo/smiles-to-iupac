@@ -177,9 +177,16 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
     for idx in sorted((a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in keep), reverse=True):
         editable.RemoveAtom(idx)
     new_centre = sum(1 for a in mol.GetAtoms() if a.GetIdx() < centre and a.GetIdx() in keep)
+    cationic = [a for a in keep if mol.GetAtomWithIdx(a).HasProp("_cationic_amine") and not mol.GetAtomWithIdx(a).GetFormalCharge()]
     for _ in range(3 - len(acid_ligands)):
         oxygen = editable.AddAtom(Chem.Atom(8))
         editable.AddBond(new_centre, oxygen, Chem.BondType.SINGLE)
+    if cationic:
+        from ._functional_prefixes import _restore_cation
+
+        for a in cationic:
+            _restore_cation(editable, sum(1 for k in keep if k < a))
+        editable.GetAtomWithIdx(oxygen).SetFormalCharge(-1)
     acid = editable.GetMol()
     from ._phosphonic_acid import _SENIOR_ACIDS
 
@@ -196,6 +203,8 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
         name = smiles_to_iupac(Chem.MolToSmiles(acid))
     except (UnsupportedStructure, ValueError, Chem.rdchem.KekulizeException, Chem.rdchem.AtomValenceException):
         return None
+    if cationic and name.endswith("ate"):
+        name = name.removeprefix("hydrogen ")[: -len("ate")] + "ic acid"
     stem = _ACID_TAIL.sub("", name)
     if stem == name or " " in stem:
         return None
