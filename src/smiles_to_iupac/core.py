@@ -537,11 +537,13 @@ def smiles_to_iupac(smiles: str) -> str:
     Chem.SetUseLegacyStereoPerception(False)
     nested = _NAMING.get()
     token = _NAMING.set(True)
+    labels_token = ISOTOPE_LABELS.set(None)
     try:
         with rdBase.BlockLogs():
             name = _name_checked(smiles)
         return name if nested else _group_primes(name)
     finally:
+        ISOTOPE_LABELS.reset(labels_token)
         _NAMING.reset(token)
         Chem.SetUseLegacyStereoPerception(legacy)
 

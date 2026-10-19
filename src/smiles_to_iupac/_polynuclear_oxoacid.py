@@ -19,6 +19,7 @@ from ._substituents import (
     format_mononuclear_prefixes,
     format_substituent_prefixes,
     name_branch,
+    prefix_multiplier,
 )
 
 _CENTER_ELEMENTS = {5, 14, 15, 16, 33, 34, 51, 52}
@@ -502,10 +503,6 @@ def _anion(base):
     raise UnsupportedStructure("a polyacid name without an 'ic' or 'ous' ending has no anion name")
 
 
-def _bis(count):
-    return {2: "bis", 3: "tris", 4: "tetrakis"}.get(count, "bis")
-
-
 def _homogeneous(centers, links):
     signatures = {_signature(c) for c in centers}
     direct = {not link.elements for link in links}
@@ -658,8 +655,8 @@ def _ester_name(esters, hydrogens, items, base, n_prefix="", located=False, ambi
     words = []
     for (name, compound), where in sorted(grouped.items(), key=lambda kv: kv[0][0]):
         count = len(where)
-        multiplied = ((numerical_term(count) if not compound else _bis(count)) if count > 1 else "")
-        shown = f"({name})" if compound and count > 1 else name
+        multiplied, enclosed = prefix_multiplier(count, name, compound) if count > 1 else ("", False)
+        shown = enclose(name) if enclosed else name
         letters = ""
         if cite_locants:
             letters = ",".join(f"{e}{p}" for e, p in sorted(where, key=lambda w: (_ELEMENT_ORDER[w[0]], w[1]))) + "-"
@@ -930,8 +927,8 @@ def _substitutive_name(mol, centers, links):
         grouped[key] = grouped.get(key, 0) + 1
     words = []
     for (name, compound), count in sorted(grouped.items(), key=lambda kv: kv[0][0]):
-        multiplied = ((_bis(count) if compound else numerical_term(count)) if count > 1 else "")
-        words.append(multiplied + (f"({name})" if compound and count > 1 else name))
+        multiplied, enclosed = prefix_multiplier(count, name, compound) if count > 1 else ("", False)
+        words.append(multiplied + (enclose(name) if enclosed else name))
     if hydrogens:
         words.append((numerical_term(hydrogens) if hydrogens > 1 else "") + "hydrogen")
     return " ".join(words) + " " + substituent + _anion(acid[1])

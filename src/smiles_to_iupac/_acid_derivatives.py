@@ -18,10 +18,10 @@ from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, citation_order_key, halogen_substituents, is_halide_ligand
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._multiplicative_text import enclose
-from ._numerals import multiplied_ester_word, multiplying_prefix
+from ._numerals import multiplying_prefix
 from ._isotope_labels import restore_labels
 from ._hetero_prefixes import EXTENDED_PREFIXES
-from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch
+from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch, prefix_multiplier
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CENTERS = {6: "C", 16: "S", 34: "Se", 52: "Te"}
@@ -560,8 +560,8 @@ def _multiplied(entries):
     parts = []
     for name, compound, count, letters in sorted(entries, key=lambda e: citation_order_key(e[0])):
         if count > 1:
-            multiplier = multiplied_ester_word(count, name, compound=compound and not _plain(name))
-            text = f"{multiplier}{enclose(name)}" if compound else f"{multiplier}{name}"
+            multiplier, enclosed = prefix_multiplier(count, name, compound and not _plain(name))
+            text = multiplier + (enclose(name) if enclosed or compound else name)
         else:
             text = enclose(name) if compound and any(letters) else name
         parts.append((f"{','.join(sorted(letters, key=lambda t: (len(t.split('-')[0]), t)))}-" if any(letters) else "") + text)
@@ -897,11 +897,14 @@ def _suffix_links(mol, links, keep, cap_of):
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
+    token = ISOTOPE_LABELS.set(None)
     try:
         Chem.SanitizeMol(acid)
         selected = _try_select(acid)
     except Exception:
         return list(links)
+    finally:
+        ISOTOPE_LABELS.reset(token)
     if selected is None:
         return list(links)
     position_of = selected[2][4]

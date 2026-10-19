@@ -13,9 +13,8 @@ from ._carbonic_amide import _carbonic_carbon
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._isotope_labels import restore_labels
-from ._numerals import multiplied_ester_word, multiplying_prefix
 from ._polycarbonic import chain_numbering
-from ._substituents import BRANCH_STEREO, name_branch
+from ._substituents import BRANCH_STEREO, multiplied_prefix, name_branch
 
 _ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
 _PEROXY_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][OX2;!R][#6]")
@@ -363,14 +362,11 @@ def _name_ester_parts(mol, labels, original=None) -> str:
         if name in located:
             locants = located[name]
             compound = grouped[name][0][2]
-            word = multiplying_prefix(len(locants), compound=compound) if len(locants) > 1 else ""
-            text = f"{word}({name})" if compound and len(locants) > 1 else word + name
+            text = multiplied_prefix(len(locants), name, compound) if len(locants) > 1 else name
             parts.append(f"{','.join(locants)}-{text}")
             continue
         for locant, count, compound in sorted(grouped[name]):
-            text = name if count == 1 else (
-                f"{multiplied_ester_word(count, name, compound=compound)}({name})" if compound else f"{multiplied_ester_word(count, name, compound=compound)}{name}"
-            )
+            text = name if count == 1 else multiplied_prefix(count, name, compound)
             if locant:
                 text = f"{','.join([locant] * count)}-{text}"
             parts.append(text)
