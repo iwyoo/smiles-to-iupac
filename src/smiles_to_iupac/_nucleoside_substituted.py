@@ -15,6 +15,7 @@ from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._nucleoside import _NUCLEOSIDE_SMILES
 from ._numerals import numerical_term
 from ._phosphorus_chain import chain_anion_name, parse_chain
+from ._multiplicative_text import enclose
 from ._pin import mark
 from ._substituents import BRANCH_STEREO, cited_branch_stereo, name_branch, wrap_marks
 
@@ -1636,7 +1637,44 @@ def _best_found(mol):
     return _CACHE[key]
 
 
+_ACYL_PHOSPHATE = Chem.MolFromSmarts("[#6][CX3](=[OX1])[OX2][PX4]")
+
+
+def _phosphate_anhydride(mol):
+    """(name, None) of a carboxylic acid whose acyl group sits on a phosphate group of the nucleotide: a mixed anhydride,
+    named by the two acids in alphanumerical order with 'monoanhydride' for the polybasic one (P-65.7.2, P-65.7.1)."""
+    from .core import smiles_to_iupac
+
+    matches = mol.GetSubstructMatches(_ACYL_PHOSPHATE)
+    if len(matches) != 1:
+        return None
+    r_atom, carbon, _, oxygen, _ = matches[0]
+    editable = Chem.RWMol(mol)
+    editable.RemoveBond(carbon, oxygen)
+    editable.GetAtomWithIdx(oxygen).SetNoImplicit(False)
+    editable.GetAtomWithIdx(oxygen).SetNumExplicitHs(0)
+    editable.AddBond(carbon, editable.AddAtom(Chem.Atom(8)), Chem.BondType.SINGLE)
+    atom_groups = Chem.GetMolFrags(editable)
+    if len(atom_groups) != 2:
+        return None
+    names = []
+    for group, piece in zip(atom_groups, Chem.GetMolFrags(editable, asMols=True, sanitizeFrags=False)):
+        piece.UpdatePropertyCache(strict=False)
+        Chem.SanitizeMol(piece)
+        names.append((carbon in group, smiles_to_iupac(Chem.MolToSmiles(piece))))
+    (acid_name,) = (name for is_acid, name in names if is_acid)
+    (other,) = (name for is_acid, name in names if not is_acid)
+    if not acid_name.endswith(" acid") or " " in acid_name[: -len(" acid")]:
+        return None
+    components = [acid_name[: -len(" acid")], other[: -len(" acid")] if other.endswith(" acid") else enclose(other)]
+    components.sort(key=lambda text: re.sub(r"[^a-z]", "", text.lower()))
+    return f"{components[0]} {components[1]} monoanhydride", None
+
+
 def _compute(mol):
+    anhydride = _phosphate_anhydride(mol)
+    if anhydride is not None:
+        return anhydride
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
