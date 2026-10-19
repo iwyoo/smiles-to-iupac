@@ -119,9 +119,26 @@ def _chain_name_is(group_name, expected, aldehyde):
     if match is None:
         return aldehyde and group_name.endswith("yl") and expected == group_name[:-2] + "anal"
     stem, multiplier = match.group("stem"), match.group("multiplier")
+    stems = (stem, _without_prefix_locants(stem))
     if aldehyde:
-        return expected == f"{stem}{multiplier}al"
-    return expected == f"{stem}-{match.group('locants')}-{multiplier}one"
+        return any(expected == f"{s}{multiplier}al" for s in stems)
+    return any(expected == f"{s}-{match.group('locants')}-{multiplier}one" for s in stems)
+
+
+def _without_prefix_locants(stem):
+    """`stem` with the locants of its outermost substituent prefixes removed, as when they carry no information
+    (P-14.3.4.5)."""
+    depth, pieces, current = 0, [], ""
+    for char in stem:
+        depth += char in "([{"
+        depth -= char in ")]}"
+        if char == "-" and depth == 0:
+            pieces.append(current)
+            current = ""
+        else:
+            current += char
+    pieces.append(current)
+    return "-".join(piece for piece in pieces if not re.fullmatch(r"\d+(?:,\d+)*", piece))
 
 
 def _with_symmetry(parent, numberings):

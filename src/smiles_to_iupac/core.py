@@ -24,7 +24,6 @@ from ._carbamate_ester import name_carbamate_ester
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._acetyl_names import acetyl_names
 from ._anion import name_anion
-from ._aldehyde import name_aldehyde
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
@@ -84,7 +83,6 @@ from ._aldehyde_carboxylic_acid import (
     name_aldehyde_carboxylic_acid,
 )
 from ._carboxylic_acid_amide import has_carboxylic_acid_amide_shape, name_carboxylic_acid_amide
-from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._carbohydrate import (
     has_cyclic_aldofuranose_shape,
     has_cyclic_aldopyranose_shape,
@@ -350,13 +348,6 @@ from ._von_baeyer_heteroatom import (
     name_von_baeyer_heteroatom_multi_polycyclic,
     name_von_baeyer_heteroatom_polycyclic,
 )
-
-
-def _is_aldehyde_shaped(carbonyl_oxygen):
-    (carbon,) = carbonyl_oxygen.GetNeighbors()
-    if carbon.GetAtomicNum() != 6 or sum(1 for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6) != 1:
-        return False
-    return not any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(carbon).GetAtomicNum() == 6 for b in carbon.GetBonds())
 
 
 _NO_PIN_ADDUCT = "the Blue Book assigns no PIN to Lewis adducts, whose preferred names are coordination names (P-68.1.6.2)"
@@ -2472,9 +2463,7 @@ def _name_mol(mol) -> str:
         # A carbon bearing both a carbonyl oxygen and a primary-amide
         # nitrogen (-CONH2) is an amide (junior only to the acid/ester
         # suffixes above in Table 3.3) and must be routed before the
-        # aldehyde/ketone checks below: an amide carbon looks
-        # aldehyde-shaped to `_is_aldehyde_shaped` (it counts only carbon
-        # neighbors, ignoring the nitrogen).
+        # aldehyde/ketone checks below.
         # Urea (H2N-C(=O)-NH2) has a carbonyl carbon with two qualifying
         # nitrogens, the same shape `has_amide_shape` looks for -- routing
         # it first here lets `_urea.py` claim it before the amide branch.
@@ -2499,13 +2488,6 @@ def _name_mol(mol) -> str:
             if atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetBonds()[0].GetBondTypeAsDouble() == 2.0
         ]
         if carbonyl_oxygens:
-            # P-41/Table 3.3: 'al' outranks 'one', so a molecule combining a
-            # terminal aldehyde with one or more ketones names the aldehyde
-            # as the suffix and demotes each ketone to an 'oxo' prefix
-            # instead of raising the "coexisting carbonyl" rejection either
-            # single-shape module would otherwise hit on its own.
-            if has_aldehyde_ketone_shape(mol):
-                return name_aldehyde_ketone(mol)
             # A plain open-chain aldose (P-102.5.1/P-102.5.2.2, #1039 M1
             # step 1) is itself aldehyde-shaped (a terminal -CHO), so it
             # must be routed before the generic aldehyde fallback below,
@@ -2513,8 +2495,6 @@ def _name_mol(mol) -> str:
             # aldehyde substitutive name instead of its carbohydrate name.
             if has_open_chain_aldose_shape(mol):
                 return name_open_chain_aldose(mol)
-            if any(_is_aldehyde_shaped(o) for o in carbonyl_oxygens):
-                return name_aldehyde(mol)
             # A plain open-chain 2-ketose (P-102.5.2.1/P-102.5.2.2, #1039
             # M1 step 2) is itself ketone-shaped (a non-terminal
             # carbonyl), so it must be routed before the generic ketone

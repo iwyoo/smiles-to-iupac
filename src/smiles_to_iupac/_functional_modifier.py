@@ -84,11 +84,11 @@ def functional_modifier_names(mol, name_parent):
         return [_azine_name(context, groups[0], name_parent)]
     parent, converted = _restore(mol, groups)
     principal = _principal_carbonyls(parent, converted)
-    display, systematic = _parent_names(parent, name_parent)
+    in_modifier = _locants_required(parent, converted, principal) or len({group.unit for group in groups}) > 1
+    display, systematic = _parent_names(parent, name_parent, cited=in_modifier)
     labels = {group.carbons[0]: group.stereo for group in groups if group.stereo}
     if labels:
         _require_citable_stereo(mol, groups)
-    in_modifier = _locants_required(parent, converted, principal) or len({group.unit for group in groups}) > 1
     in_descriptor = bool(labels) and len(_descriptor_items(display)) + len(labels) > 1
     locants = _choose_locants(parent, groups, principal, systematic) if in_modifier or in_descriptor else None
     name = _with_descriptors(display, labels, locants)
@@ -434,10 +434,17 @@ def _inequivalent(parent, principal):
     return len({ranks[a] for a in principal}) > 1
 
 
-def _parent_names(parent, name_parent):
-    """(name cited in the result, systematic name): general nomenclature keeps acetone and the like (P-64.2.1.2)."""
+def _parent_names(parent, name_parent, cited=False):
+    """(name cited in the result, systematic name): general nomenclature keeps acetone and the like (P-64.2.1.2);
+    `cited`: the modifier cites parent locants, so the parent cites its own as well."""
+    from ._polyfunctional import FORCE_LOCANTS
+
     smiles = Chem.MolToSmiles(parent)
-    systematic = name_parent(smiles)
+    token = FORCE_LOCANTS.set(cited)
+    try:
+        systematic = name_parent(smiles)
+    finally:
+        FORCE_LOCANTS.reset(token)
     return _GENERAL_NAMES.get(smiles) or systematic, systematic
 
 
