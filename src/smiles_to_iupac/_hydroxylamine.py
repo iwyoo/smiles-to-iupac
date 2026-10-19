@@ -24,13 +24,12 @@ returning False, or fall through to another module):
 - Any N-substitution (nitrogen degree != 1) -- different PIN mechanism, see
   above.
 - A branched (compound) O-substituent -- mirrors `_ether.py`'s scope limit.
-- Any unsaturation, any ring, or any heteroatom other than the hydroxylamine's
-  own N and O.
+- Any unsaturation or any ring other than a plain benzene O-substituent.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, is_plain_benzene_ring, non_single_bonds
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_plain_benzene_ring, non_single_bonds
 from ._substituents import name_branch
 
 
@@ -87,12 +86,6 @@ def name_hydroxylamine(mol) -> str:
     ring_atoms = _plain_benzene_o_substituent_ring(mol, n.GetIdx(), o) or frozenset()
 
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (6, 7, 8):
-            raise UnsupportedStructure(
-                "heteroatoms other than hydroxylamine's own nitrogen and "
-                "oxygen are not supported yet (P-68.3.1.1.1 is restricted "
-                "to a plain hydroxylamine skeleton here)"
-            )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in ring_atoms:
@@ -117,7 +110,7 @@ def name_hydroxylamine(mol) -> str:
     n_idx, o_idx = n.GetIdx(), o.GetIdx()
     r_root = next(nbr.GetIdx() for nbr in o.GetNeighbors() if nbr.GetIdx() != n_idx)
     graph = adjacency(mol)
-    r_name, r_compound = name_branch(graph, r_root, o_idx, {}, ring_atoms, mol=mol)
+    r_name, r_compound = name_branch(graph, r_root, o_idx, halogen_substituents(mol), ring_atoms, mol=mol)
     if r_compound:
         raise UnsupportedStructure(
             "a branched O-substituent is not supported yet (mirrors "

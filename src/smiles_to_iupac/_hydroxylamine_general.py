@@ -4,18 +4,30 @@ carbon skeleton are 'O,O'-(ethane-1,2-diyl)bis(hydroxylamine)'. The group R is n
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._substituents import cited_whole_stereo, format_substituent_prefixes, name_branch
 
 _PARENT = {8: ("O", "hydroxylamine"), 16: ("S", "thiohydroxylamine"), 34: ("Se", "selenohydroxylamine"), 52: ("Te", "tellurohydroxylamine")}
 
 
+def _chalcogen_run(chalcogen, root):
+    """The atoms of the chalcogen chain that starts at `root`, past `chalcogen`, up to its last chalcogen."""
+    run, previous, atom = [], chalcogen, root
+    while atom.GetAtomicNum() in _PARENT and not atom.GetFormalCharge() and not atom.IsInRing() and atom.GetDegree() <= 2:
+        run.append(atom.GetIdx())
+        onward = [n for n in atom.GetNeighbors() if n.GetIdx() != previous.GetIdx()]
+        if not onward:
+            break
+        previous, atom = atom, onward[0]
+    return run or [root.GetIdx()]
+
+
 def _groups(mol):
     """[(nitrogen, chalcogen, carbon)] of every H2N-X-C group, or None when the molecule is anything else."""
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
-    found = []
+    found, chained = [], []
     for nitrogen in (a for a in mol.GetAtoms() if a.GetAtomicNum() == 7):
         if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 2 or nitrogen.GetFormalCharge():
             return None
@@ -23,17 +35,20 @@ def _groups(mol):
         if chalcogen.GetAtomicNum() not in _PARENT or chalcogen.GetDegree() != 2 or chalcogen.GetFormalCharge() or chalcogen.IsInRing():
             return None
         root = next(n for n in chalcogen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx())
-        if root.GetAtomicNum() not in (6, 16) or (
-            root.GetAtomicNum() == 16
-            and (chalcogen.GetAtomicNum() != 8 or not any(n.GetAtomicNum() == 6 for n in root.GetNeighbors()))
-        ):
+        z = root.GetAtomicNum()
+        acyl = z == 16 and chalcogen.GetAtomicNum() == 8 and any(n.GetAtomicNum() == 6 for n in root.GetNeighbors())
+        linked = not acyl and (z in _PARENT or (z in HALOGEN_PREFIXES and root.GetDegree() == 1))
+        if not (z == 6 or acyl or linked):
             return None
         found.append((nitrogen, chalcogen, root))
-    if not found or len({c.GetAtomicNum() for _, c, _ in found}) != 1:
+        chained.append(linked)
+    if not found or len({c.GetAtomicNum() for _, c, _ in found}) != 1 or (len(found) > 1 and any(chained)):
         return None
     members = {a.GetIdx() for n, c, _ in found for a in (n, c)}
-    for _, _, root in found:
-        if root.GetAtomicNum() == 16:
+    for (_, chalcogen, root), linked in zip(found, chained):
+        if linked:
+            members.update(_chalcogen_run(chalcogen, root))
+        elif root.GetAtomicNum() == 16:
             oxo = [n for n in root.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
             members.update([root.GetIdx(), *(n.GetIdx() for n in oxo)])
     if any(
