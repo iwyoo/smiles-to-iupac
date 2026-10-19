@@ -634,17 +634,8 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
         raise UnsupportedStructure("this chalcogen chain is not supported yet")
     organyl = None
     if tail:
-        end = mol.GetAtomWithIdx(tail[0])
-        hydride_end = end.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not end.IsInRing()
         if halogens and tail[0] in halogens:
             organyl = (halogens[tail[0]], False)
-        elif (end.GetAtomicNum() != 6 and not hydride_end) or (
-            end.GetAtomicNum() == 6
-            and is_functional_carbon(mol, tail[0])
-            and not _thioacyl(mol, tail[0])
-            and not (_is_cyanide_carbon(mol, tail[0], run[-1]) and atoms[-1].GetAtomicNum() == atoms[-2].GetAtomicNum())
-        ):
-            raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
         else:
             organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
     runs = [[atom.GetAtomicNum(), 0] for atom in atoms[:1]]
