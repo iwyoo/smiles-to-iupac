@@ -109,7 +109,6 @@ from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
 from ._tellurourea import has_tellurourea_shape, name_tellurourea
 from ._urea import has_urea_shape, name_urea
-from ._amidine import has_amidine_shape, name_amidine
 from ._chalcogenourea import carries_only_element_hydride_groups
 from ._guanidine import has_carbonic_amide_parent, has_guanidine_shape, name_guanidine
 from ._amine import name_amine
@@ -151,7 +150,7 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, has_amide_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -2721,21 +2720,12 @@ def _name_mol(mol) -> str:
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
-        # An amidine carbon (-C(=NH)NH2, P-66.4.1.1) has a C=N double bond
-        # that would otherwise look imine-shaped to the check below (a
-        # different, unrelated interpretation of the same C=N bond) -- must
-        # be routed here first.
-        # Guanidine (HN=C(NH2)2, P-66.4.1) has a carbon with the same
-        # imino+amino nitrogen shape `has_amidine_shape` looks for (just
-        # with two amino nitrogens instead of one) -- `_amidine.py`'s own
-        # docstring explicitly anticipates this "geminal diamidine" shape
-        # as one its validation rejects, so it must be routed here first
-        # to let `_guanidine.py` claim it before that (correct, but
-        # unhelpful) rejection.
+        # An amidine carbon (-C(=NH)NH2, P-66.4.1.1) has a C=N double bond that would otherwise look imine-shaped to
+        # the check below; guanidine has the same imino+amino nitrogen shape and is claimed first.
         if has_guanidine_shape(mol):
             return name_guanidine(mol)
         if has_amidine_shape(mol):
-            return name_amidine(mol)
+            return _name_standalone(mol)
         # A plain (non-oxime) imine (C=N, P-62.3) has no oxygen, so it
         # reaches this branch alongside plain amines -- an oxime (which
         # does have an oxygen) is already caught by the has_simple_imine_shape

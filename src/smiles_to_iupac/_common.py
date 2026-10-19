@@ -2118,3 +2118,39 @@ def has_imide_shape(mol) -> bool:
         and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds())
         for atom in mol.GetAtoms()
     )
+
+
+def has_amidine_shape(mol) -> bool:
+    """True if some carbon carries a doubly-bonded nitrogen and a singly-bonded nitrogen, an amidine-family -C(=N-)N< pattern."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6:
+            continue
+        has_imino_like = any(
+            n.GetAtomicNum() == 7
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in atom.GetNeighbors()
+        )
+        has_amino_like = any(
+            n.GetAtomicNum() == 7
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            for n in atom.GetNeighbors()
+        )
+        if has_imino_like and has_amino_like:
+            return True
+    return False
+
+
+def format_n_prefix(entries):
+    """entries: [("N"/"N'", name), ...] -> the assembled "N-"/"N'-" prefix string, grouping identically-named substituents
+    under one shared multiplying prefix: [("N", "phenyl"), ("N", "phenyl")] -> "N,N-diphenyl" (P-66.4.1.4.1)."""
+    if not entries:
+        return ""
+    grouped = {}
+    for locant, name in entries:
+        grouped.setdefault(name, []).append(locant)
+    parts = []
+    for name in sorted(grouped, key=alpha_sort_key):
+        locants = sorted(grouped[name])
+        multiplier = multiplying_prefix(len(locants)) if len(locants) > 1 else ""
+        parts.append(f"{','.join(locants)}-{multiplier}{name}")
+    return "-".join(parts)

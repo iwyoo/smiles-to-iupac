@@ -54,8 +54,7 @@ _C_TERMINAL_AMIDE = Chem.MolFromSmarts("[CX4]-[CX3;!R](=O)-[NX3;!R]")
 def _amide_residue(piece):
     """'N-methyl-L-alaninamide': the C-terminal residue whose carboxy group is a plain or N-alkylated amide; the name of the
     amino acid with the amide group closed to a hydroxy group, its final 'e' changed to 'amide' (P-103.2.7)."""
-    from ._amidine import _format_n_prefix
-    from ._common import adjacency, halogen_substituents
+    from ._common import adjacency, format_n_prefix, halogen_substituents
     from ._substituents import name_branch
     from .core import smiles_to_iupac
 
@@ -94,7 +93,7 @@ def _amide_residue(piece):
         return None
     if not residue.endswith("ine") or " " in residue:
         return None
-    prefix = _format_n_prefix(names)
+    prefix = format_n_prefix(names)
     return (f"{prefix}-" if prefix else "") + residue[:-1] + "amide"
 
 
