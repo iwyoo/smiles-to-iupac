@@ -7,6 +7,7 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    alpha_sort_key,
     find_hydrazone,
     group_substituents,
     halogen_substituents,
@@ -49,11 +50,11 @@ def has_labelled_azoxy(mol):
     return _shape_of_unlabelled(mol, lambda clean: _azoxy(clean, adjacency(clean)) is not None)
 
 
-def _named_with_labels(clean, labels, parent, build):
+def _named_with_labels(clean, labels, parent, build, require_parent_labels=True):
     """`build()` run with the nuclides outside `parent` available to the substituent namers, and the nuclides of `parent`
     returned; every other nuclide must have been cited."""
     parent_labels = {a: e for a, e in labels.items() if a in parent}
-    if not parent_labels:
+    if not parent_labels and require_parent_labels:
         raise UnsupportedStructure("no nuclide on the nitrogen atoms of the parent")
     context = {"labels": {a: e for a, e in labels.items() if a not in parent}, "consumed": set(), "mol": clean}
     token = ISOTOPE_LABELS.set(context if context["labels"] else None)
@@ -86,19 +87,34 @@ def _orientation(substituents, parent_labels, first, second):
 
 
 def name_labelled_diazene(mol):
+    from ._hetero_prefixes import DIAZENYL_PREFIX
+
     clean, labels = _split(mol)
     pairs = _azo_pairs(clean)
-    if len(pairs) != 1:
-        raise UnsupportedStructure("only a single N=N pair is named with nuclides on its nitrogens")
     aromatic = check_diazene_scope(clean, pairs)
-    first, second = (a.GetIdx() for a in pairs[0])
     graph = adjacency(clean)
-    substituents, parent_labels = _named_with_labels(
-        clean, labels, {first, second},
-        lambda: pair_substituents(clean, graph, halogen_substituents(clean), aromatic, first, second),
-    )
-    locant_of, grouped = _orientation(substituents, parent_labels, first, second)
-    return format_substituent_prefixes(grouped) + _locant_text(clean, parent_labels, locant_of) + "diazene"
+    halogens = halogen_substituents(clean)
+    found = []
+    token = DIAZENYL_PREFIX.set(len(pairs) > 1)
+    try:
+        for pair in pairs:
+            first, second = (a.GetIdx() for a in pair)
+            try:
+                substituents, parent_labels = _named_with_labels(
+                    clean, labels, {first, second},
+                    lambda: pair_substituents(clean, graph, halogens, aromatic, first, second),
+                )
+            except UnsupportedStructure:
+                if len(pairs) == 1:
+                    raise
+                continue
+            locant_of, grouped = _orientation(substituents, parent_labels, first, second)
+            found.append(format_substituent_prefixes(grouped) + _locant_text(clean, parent_labels, locant_of) + "diazene")
+    finally:
+        DIAZENYL_PREFIX.reset(token)
+    if not found:
+        raise UnsupportedStructure("no azo group of this molecule can be the diazene parent")
+    return min(found, key=alpha_sort_key)
 
 
 def name_labelled_azoxy(mol):
@@ -116,8 +132,9 @@ def name_labelled_azoxy(mol):
     ):
         raise UnsupportedStructure("this azoxy compound is not named with nuclides on its nitrogens")
     oxide_nitrogen, other_nitrogen, oxygen = (a.GetIdx() for a in unit)
-    if oxygen in labels:
-        raise UnsupportedStructure("a labelled oxide oxygen is not supported yet")
+    oxide = labels.get(oxygen)
+    if oxide is not None and (oxide["H"] or not oxide["skeleton"]):
+        raise UnsupportedStructure("only a heavy nuclide is cited on the oxide oxygen of an azoxy compound")
 
     def groups():
         found = {}
@@ -126,7 +143,9 @@ def name_labelled_azoxy(mol):
             found[nitrogen] = _group(clean, graph, root, nitrogen)
         return found
 
-    substituents, parent_labels = _named_with_labels(clean, labels, {oxide_nitrogen, other_nitrogen}, groups)
+    substituents, parent_labels = _named_with_labels(
+        clean, {a: e for a, e in labels.items() if a != oxygen}, {oxide_nitrogen, other_nitrogen}, groups, require_parent_labels=oxide is None
+    )
     if substituents[oxide_nitrogen] == substituents[other_nitrogen]:
         locant_of = min(
             ({oxide_nitrogen: 1, other_nitrogen: 2}, {other_nitrogen: 1, oxide_nitrogen: 2}),
@@ -136,7 +155,8 @@ def name_labelled_azoxy(mol):
     else:
         locant_of, grouped = _orientation(substituents, parent_labels, oxide_nitrogen, other_nitrogen)
     prefixes = format_substituent_prefixes(grouped)
-    return f"{prefixes}{_locant_text(clean, parent_labels, locant_of)}diazene {locant_of[oxide_nitrogen]}-oxide"
+    cited = f"({oxide['skeleton']})" if oxide else ""
+    return f"{prefixes}{_locant_text(clean, parent_labels, locant_of) if parent_labels else ''}diazene {locant_of[oxide_nitrogen]}-{cited}oxide"
 
 
 def name_labelled_hydrazone(mol):

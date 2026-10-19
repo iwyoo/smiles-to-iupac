@@ -5,7 +5,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, group_substituents
+from ._common import UnsupportedStructure, group_substituents, substituent_locant_set_and_citation
 from ._substituents import format_substituent_prefixes
 
 _MONONUCLEAR_HYDRIDES = {
@@ -123,12 +123,19 @@ def _substituted_hydride(mol):
             if n.GetIdx() in chain_atoms or n.GetAtomicNum() == 1:
                 continue
             bond = mol.GetBondBetweenAtoms(i, n.GetIdx())
-            if n.GetAtomicNum() != 6 or bond.GetBondTypeAsDouble() != 1.0 or bond.IsInRing():
+            ylidene = z == 7 and bond.GetBondTypeAsDouble() == 2.0
+            if n.GetAtomicNum() != 6 or (bond.GetBondTypeAsDouble() != 1.0 and not ylidene) or bond.IsInRing():
                 return None
             roots.setdefault(i, []).append(n.GetIdx())
-    if not roots or any(b.GetBondTypeAsDouble() != 1.0 for i in order for b in mol.GetAtomWithIdx(i).GetBonds()):
+    chain_bonds = (mol.GetBondBetweenAtoms(a, b) for a, b in zip(order, order[1:]))
+    if not roots or any(b.GetBondTypeAsDouble() != 1.0 for b in chain_bonds):
         return None
     return order, roots
+
+
+def _letters(name):
+    """The letters of a name: locants, hyphens and enclosing marks differ between the cited and the bare form."""
+    return re.sub(r"[^A-Za-z]", "", name)
 
 
 def has_isotope_substituted_hydride_shape(mol) -> bool:
@@ -161,21 +168,21 @@ def name_isotope_substituted_hydride(mol) -> str:
     z = clean.GetAtomWithIdx(chain[0]).GetAtomicNum()
     stem = _MONONUCLEAR_HYDRIDES[z]
     parent = stem if len(chain) == 1 else "hydrazine" if z == 7 and len(chain) == 2 else multiplying_prefix(len(chain)) + stem
+    named = {a: [name_branch(graph, root, a, halogens, mol=clean) for root in group] for a, group in roots.items()}
     best = None
     for candidate in (chain, chain[::-1]):
         positions = {atom: place for place, atom in enumerate(candidate, start=1)}
-        key = (sorted(positions[a] for a in roots for _ in roots[a]), sorted(positions[a] for a in labels))
+        grouped = group_substituents({positions[a]: entries for a, entries in named.items()})
+        locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        key = (locant_set, citation, sorted(positions[a] for a in labels))
         if best is None or key < best[0]:
             best = (key, positions)
     positions = best[1]
-    substituents = {
-        positions[a]: [name_branch(graph, root, a, halogens, mol=clean) for root in group] for a, group in roots.items()
-    }
+    substituents = {positions[a]: entries for a, entries in named.items()}
     prefixes = format_substituent_prefixes(group_substituents(substituents), omit_locants=len(chain) == 1)
     capacity = {a: clean.GetAtomWithIdx(a).GetTotalNumHs() for a in chain}
     text = descriptor(labels, positions, len(chain) == 1, capacity=capacity)
     name = prefixes + text + parent
-    plain = re.sub(r"(?<![\w,])\d+(?:,\d+)*-", "", prefixes + parent)
-    if re.sub(r"(?<![\w,])\d+(?:,\d+)*-", "", smiles_to_iupac(Chem.MolToSmiles(clean))) != plain:
+    if _letters(smiles_to_iupac(Chem.MolToSmiles(clean))) != _letters(prefixes + parent):
         raise UnsupportedStructure("the substituted hydride is named in another way when unmodified")
     return name
