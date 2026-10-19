@@ -378,6 +378,9 @@ def test_glycoglycerolipids(smiles, expected):
         pytest.param("OC[C@H]1O[C@H](O[C@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranosyl α-D-glucopyranoside", id="identical_units_anomeric_bond"),
         pytest.param("OC[C@H]1O[C@H](O[C@H]2[C@H](O)[C@@H](O)[C@H](OC)O[C@@H]2CO)[C@H](O)[C@@H](O)[C@@H]1O", "methyl α-D-glucopyranosyl-(1→4)-β-D-glucopyranoside", id="aglycone_on_oligosaccharide"),
         pytest.param("OC[C@H]1O[C@H](OC[C@H]2O[C@H](O[C@H]3[C@H](O)[C@@H](O)C(O)O[C@@H]3CO)[C@H](O)[C@@H](O)[C@@H]2O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranosyl-(1→6)-α-D-glucopyranosyl-(1→4)-D-glucopyranose", id="reducing_end_without_anomeric_descriptor"),
+        pytest.param("OC[C@H]1O[C@H](OC[C@H]2O[C@H](O[C@H]3[C@H](O)[C@@H](O)C(O)O[C@@H]3CO[C@H]4O[C@H](CO)[C@@H](O)[C@H](O)[C@H]4O)[C@H](O)[C@@H](O)[C@@H]2O)[C@H](O)[C@@H](O)[C@@H]1O", "6-O-α-D-glucopyranosyl-4-O-[α-D-glucopyranosyl-(1→6)-α-D-glucopyranosyl]-D-glucopyranose", id="branched_oligosaccharide"),
+        pytest.param("OC[C@H]1O[C@H](O[C@H]2[C@H](O)[C@@H](O)[C@H](OC)O[C@@H]2COC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl 4-O-α-D-glucopyranosyl-6-O-methyl-β-D-glucopyranoside", id="group_on_an_oxygen_of_the_aglycone_unit"),
+        pytest.param("OC[C@H]1OC(O)[C@H](O)[C@@H](O[C@H]2[C@H](O)[C@@H](O)C(O)O[C@@H]2CO)[C@@H]1O", "3-O-(4-deoxy-D-xylo-hexopyranos-4-yl)-D-glucopyranose", id="link_between_two_nonanomeric_positions"),
         pytest.param("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O", "β-D-fructofuranose", id="ketofuranose"),
     ],
 )

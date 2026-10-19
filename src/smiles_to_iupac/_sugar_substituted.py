@@ -429,7 +429,7 @@ def _ionic_group_atoms(mol):
     return {a for pattern in _IONIC_GROUPS for match in mol.GetSubstructMatches(pattern) for a in match}
 
 
-def _substituted_sugar_name(mol, bridges=()):
+def _substituted_sugar_name(mol, bridges=(), ester_prefixes=False):
     ionic = _ionic_group_atoms(mol)
     if any(
         a.GetAtomicNum() not in _ELEMENTS or (a.GetFormalCharge() and not _oxo_anion(a) and a.GetIdx() not in ionic) or a.GetIsotope()
@@ -534,7 +534,7 @@ def _substituted_sugar_name(mol, bridges=()):
                     return None
                 name, compound = cited_group(mol, graph, root, carbon)
                 entries.setdefault((name, name, "C", compound), []).append(position)
-            elif kind == "ester" and anomeric_kind in ("X", "N", "pseudohalide"):
+            elif kind == "ester" and (ester_prefixes or anomeric_kind in ("X", "N", "pseudohalide")):
                 name, compound = cited_group(mol, graph, root, x)
                 entries.setdefault((name, name, "O", compound), []).append(position)
             elif kind == "ester":
