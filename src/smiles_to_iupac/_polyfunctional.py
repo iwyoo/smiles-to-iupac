@@ -6010,8 +6010,8 @@ def _multiplicative_name(mol, stereo=None):
         if prefix:
             word = {2: "bis", 3: "tris"}[arms]
             if tail.startswith(" "):
-                return f"{stereo_text}{lead}{linker}{word}({text}{tail})"
-            return f"{stereo_text}{lead}{linker}{word}({text}){tail}"
+                return f"{stereo_text}{lead}{linker}{word}{enclose(text + tail)}"
+            return f"{stereo_text}{lead}{linker}{word}{enclose(text)}{tail}"
         word = {2: "di", 3: "tri"}[arms]
         return f"{stereo_text}{lead}{linker}{word}{unit_phrase(text, tail)}"
     from ._chain_multiplicative import chain_multiplicative_name
@@ -6288,7 +6288,7 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
 
 
 def _bis_unit(text, tail):
-    return f"bis({text}{tail})" if tail.startswith(" ") else f"bis({text}){tail}"
+    return "bis" + enclose(text + tail) if tail.startswith(" ") else "bis" + enclose(text) + tail
 
 
 def _is_acyl_root(mol, atoms, attach, chalcogen_cut):

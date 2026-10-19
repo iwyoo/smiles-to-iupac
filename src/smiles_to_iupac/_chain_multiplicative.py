@@ -608,7 +608,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         text, lead, use_bis = ocene_unit
         linker = _linker_text(branches, central, arm_parts)
         if use_bis:
-            return f"{lead}{linker}{multiplier_word(count, True)}({text})"
+            return f"{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
     if count == 2:
         diacyl = diacyl_linker(
@@ -636,7 +636,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         lead = ""
         if unit_kind == "anion":
             linker = _linker_text(branches, central, arm_parts, True)
-            return f"{linker}{multiplier_word(count, True)}({text})"
+            return f"{linker}{multiplier_word(count, True)}{enclose(text)}"
         if unit_kind == "ester":
             from ._hetero_prefixes import _without_enclosing_marks
 
@@ -663,14 +663,14 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             return f"{_without_enclosing_marks(_linker_text(branches, central, arm_parts, False))}{multiplier_word(count, True)}{enclose(text)}"
         if unit_kind == "imine":
             if _imine_unit_needs_bis(text, units[0][0]):
-                return f"{lead}{linker}{multiplier_word(count, True)}({text})"
+                return f"{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
             return f"{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
         if (
             unit_kind == "hydride"
             or text.startswith(("N-", "N'", "di", "tri", "tetra", "thio", "seleno", "telluro"))
             or any(ch.isdigit() or ch in "- " for ch in text)
         ):
-            return f"{lead}{linker}{multiplier_word(count, True)}({text})"
+            return f"{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
     linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
@@ -684,7 +684,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         if amine is None:
             return None
         lead = ",".join(str(amine[1]) + "'" * i for i in range(count)) + "-"
-        return f"{lead}{linker}{multiplier_word(count, True)}({amine[0]})"
+        return f"{lead}{linker}{multiplier_word(count, True)}{enclose(amine[0])}"
     if unit_stereo:
         parts, stereo_text = _stereo_arms(mol, unit_stereo, parts_atoms, units)
     prefix, body, tail, locant = parts[:4]
@@ -692,8 +692,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     text = prefix + body
     if prefix:
         if tail.startswith(" "):
-            return f"{stereo_text}{lead}{linker}{multiplier_word(count, True)}({text}{tail})"
-        return f"{stereo_text}{lead}{linker}{multiplier_word(count, True)}({text}){tail}"
+            return f"{stereo_text}{lead}{linker}{multiplier_word(count, True)}{enclose(text + tail)}"
+        return f"{stereo_text}{lead}{linker}{multiplier_word(count, True)}{enclose(text)}{tail}"
     return f"{stereo_text}{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, tail)}"
 
 
