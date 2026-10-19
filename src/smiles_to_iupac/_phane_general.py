@@ -105,7 +105,7 @@ def _suffix_class(mol, owner, root, atoms):
     z = atom.GetAtomicNum()
     if len(atoms) == 1 and atom.GetDegree() == 1:
         if bond_order == 2.0:
-            return "ketone" if z == 8 and not mol.GetAtomWithIdx(owner).GetIsAromatic() else None
+            return "ketone" if z == 8 else None
         if bond_order != 1.0:
             return None
         if z == 8 and atom.GetTotalNumHs() == 1:
@@ -125,6 +125,17 @@ def _suffix_class(mol, owner, root, atoms):
     if len(atoms) == 3 and sorted(others) == [(8, 1.0, 1, 1), (8, 2.0, 0, 1)]:
         return "carboxylic_acid"
     return None
+
+
+def _is_aromatic_ring_oxo(mol, owner, root, atoms):
+    atom = mol.GetAtomWithIdx(root)
+    return (
+        len(atoms) == 1
+        and atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 1
+        and mol.GetAtomWithIdx(owner).GetIsAromatic()
+        and mol.GetBondBetweenAtoms(owner, root).GetBondTypeAsDouble() == 2.0
+    )
 
 
 def _principal_suffix(mol, branches):
@@ -427,6 +438,7 @@ def _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo):
     free_locs = [PhaneLoc(chain_position[a]) for a in free if a in chain_position]
     added_loc = None
     ih_locs = []
+    added_hydrogens = []
     hetero = [
         (_RANK.get(mol.GetAtomWithIdx(atom).GetSymbol(), 99), PhaneLoc(chain_position[atom]))
         for atom in chain_position
@@ -448,6 +460,7 @@ def _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo):
                 sorted(loc[a] for a in amp.replaced),
                 sorted(numbered.ih),
                 sorted(loc[o] for o, r in owners if r in suffix_roots),
+                sorted(numbered.added),
                 sorted(loc[a] for a in free if a in loc),
                 [loc[amp.added]] if amp.added is not None else [],
                 _local_unsaturation(amp, numbered, exocyclic),
@@ -462,6 +475,7 @@ def _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo):
         subs.extend((PhaneLoc(p, loc[o]), o, r) for o, r in owners)
         free_locs.extend(PhaneLoc(p, loc[a]) for a in free if a in loc)
         ih_locs.extend(PhaneLoc(p, h) for h in numbered.ih)
+        added_hydrogens.extend(PhaneLoc(p, h) for h in numbered.added)
         if amp.added is not None:
             added_loc = PhaneLoc(p, loc[amp.added])
         hetero.extend((_RANK.get(symbol, 99), PhaneLoc(p, loc[a])) for a, symbol in amp.replaced.items())
@@ -497,6 +511,7 @@ def _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo):
         hetero_elements,
         sorted(int(h) for h in ih_locs),
         [int(loc) for loc in suffix_locs],
+        sorted(int(h) for h in added_hydrogens),
         sorted((loc.primary, int(loc)) for loc in free_locs),
         [int(added_loc)] if added_loc is not None else [],
         unsaturation,
@@ -504,7 +519,7 @@ def _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo):
         sorted(int(loc) for loc, _, _ in subs),
         [_CODE_RANK[d[2]] for d in descriptors],
     )
-    return key, name, position, chosen, subs, free_locs, added_loc, ih_locs, hetero, bonds, hydro_locs, descriptors
+    return key, name, position, chosen, subs, free_locs, added_loc, ih_locs, hetero, bonds, hydro_locs, descriptors, added_hydrogens
 
 
 def _descriptors(phane, position, picks, bonds, stereo):
@@ -593,13 +608,16 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     suffix_class, suffix_roots = _principal_suffix(mol, phane.branches) if free_atom is None else (None, frozenset())
+    for owner, root, atoms in phane.branches:
+        if root not in suffix_roots and _is_aromatic_ring_oxo(mol, owner, root, atoms):
+            raise UnsupportedStructure("an oxo prefix on a ring component of a phane is not supported")
     valence = len(_free_atoms(free_atom))
     best = None
     for skeleton in phane.skeleton:
         result = _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo)
         if best is None or result[0] < best[0]:
             best = result
-    _, skeleton_name, position, chosen, subs, free_locs, added_loc, ih_locs, hetero, bonds, hydro_locs, descriptors = best
+    _, skeleton_name, position, chosen, subs, free_locs, added_loc, ih_locs, hetero, bonds, hydro_locs, descriptors, added_hydrogens = best
     suffix_locs = sorted((loc for loc, _, root in subs if root in suffix_roots), key=int)
     grouped = {}
     located = {d[3] for d in descriptors}
@@ -645,7 +663,8 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
         word = "ylidene" if free_order == 2 else multiplied_word(valence, "yl")
         segments.append((f"{','.join(str(loc) for loc in sorted(free_locs, key=int))}{added_text}", word))
     if suffix_locs:
-        segments.append((",".join(str(loc) for loc in suffix_locs), multiplied_word(len(suffix_locs), _SUFFIX_WORDS[suffix_class])))
+        added_text = f"({','.join(f'{h}H' for h in sorted(added_hydrogens, key=int))})" if added_hydrogens else ""
+        segments.append((",".join(str(loc) for loc in suffix_locs) + added_text, multiplied_word(len(suffix_locs), _SUFFIX_WORDS[suffix_class])))
     for locants, word in segments:
         core = (core[:-1] if core.endswith("e") and elides_before(word) else core) + f"-{locants}-{word}"
     name = "-".join(part for part in (prefix, hydro, core) if part)

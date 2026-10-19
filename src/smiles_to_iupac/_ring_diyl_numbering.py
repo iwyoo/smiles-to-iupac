@@ -704,8 +704,9 @@ def _hetero_text(stem, ih, hydro, added=(), dehydro=()):
 
 
 
-def _bare_skeleton(mol, skeleton_atoms, mancude=False):
-    """Skeleton-only copy of the ring system; `mancude` makes every atom/bond aromatic (the mancude parent)."""
+def _bare_skeleton(mol, skeleton_atoms, mancude=False, oxo_carbons=()):
+    """Skeleton-only copy of the ring system; `mancude` makes every atom/bond aromatic (the mancude parent);
+    `oxo_carbons`: ring atoms that keep a doubly bonded oxygen, appended after the ring atoms."""
     order = sorted(skeleton_atoms)
     rw = Chem.RWMol()
     new_of = {}
@@ -726,6 +727,8 @@ def _bare_skeleton(mol, skeleton_atoms, mancude=False):
             rw.AddBond(
                 new_of[a], new_of[b], Chem.BondType.SINGLE if single else Chem.BondType.AROMATIC if mancude else bond.GetBondType()
             )
+    for old in oxo_carbons:
+        rw.AddBond(new_of[old], rw.AddAtom(Chem.Atom(8)), Chem.BondType.DOUBLE)
     bare = rw.GetMol()
     for old in order:
         atom = mol.GetAtomWithIdx(old)
