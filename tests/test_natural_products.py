@@ -246,3 +246,11 @@ def test_operations_counted_for_preferred_semisystematic_names(smiles, operation
 def test_spiro_on_a_skeleton_that_is_not_a_ring_system_is_named_substitutively():
     smiles = "COc1ccc(-c2ccc(C[C@@]3(C(N)=O)CCCN(C(=O)c4cccnc4)C3)cc2)cc1"
     assert smiles_to_iupac(smiles) == "(3S)-3-[(4'-methoxy[1,1'-biphenyl]-4-yl)methyl]-1-(pyridine-3-carbonyl)piperidine-3-carboxamide"
+
+
+@pytest.mark.parametrize("smiles, expected", [
+    ('C[C@]12CC[C@H]3[C@@H](CCc4cc(O)ccc34)[C@@H]1CCC21OCCO1', '13′-methylspiro[1,3-dioxolane-2,17′-gona-1′,3′,5′(10′)-triene]-3′-ol'),
+])
+def test_spiro_ring_on_a_parent_with_ene_endings(smiles, expected):
+    # P-101.5.3, P-24.5: the ene endings of the primed component carry primed locants
+    assert smiles_to_iupac(smiles) == expected

@@ -219,8 +219,6 @@ def build(cand, view):
     for entry in prefix_groups.values():
         entry["locants"].sort(key=lambda t: loc_key(t.base))
     if spiro:
-        if enes or ynes or hydro or dehydro:
-            raise UnsupportedStructure("unsaturation of a spiro parent is not supported")
         for locant, name, compound in spiro.substituents:
             prefix_groups.setdefault(name, {"locants": [], "compound": compound})["locants"].append(Loc(f"{locant}{ring_prime}", ""))
         for entry in prefix_groups.values():
@@ -283,10 +281,11 @@ def build(cand, view):
         ring_loc = f"{spiro.spiro_locant}{ring_prime}"
         if "," in str(center) or "," in ring_loc:
             raise UnsupportedStructure("a spiro atom must carry exactly one locant on each component (P-24.2)")
+        parent_part = core_text(_parent_text_name(parent.name, cand.skel.ops), enes, ynes, "", [])
         if parent_prime:
-            joined = f"spiro[{spiro.ring_name}-{spiro.spiro_locant},{center}-{parent.name}]"
+            joined = f"spiro[{spiro.ring_name}-{spiro.spiro_locant},{center}-{parent_part}]"
         else:
-            joined = f"spiro[{parent.name}-{center},{ring_loc}-{spiro.ring_name}]"
+            joined = f"spiro[{parent_part}-{center},{ring_loc}-{spiro.ring_name}]"
         stem_core = joined + (f"-{','.join(locants)}-{suffix}" if suffix else "")
     descriptor = ",".join(text for _, text in sorted(config.parent)) + "-" if config.parent else ""
     groups = assign_primes(fused)
