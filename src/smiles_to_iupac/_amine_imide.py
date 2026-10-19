@@ -65,7 +65,7 @@ def _amine_imide_nitrogens(mol):
     if charges != {-1, 1}:
         return None
     anion, cation = (n1, n2) if n1.GetFormalCharge() == -1 else (n2, n1)
-    if anion.GetDegree() > 2 or cation.GetDegree() > 4:
+    if anion.GetDegree() > 2 or cation.GetDegree() > 4 or anion.IsInRing() or cation.IsInRing():
         return None
     return anion, cation
 

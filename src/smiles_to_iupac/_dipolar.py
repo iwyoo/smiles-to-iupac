@@ -16,6 +16,7 @@ from ._multiplicative_text import enclose
 from ._substituents import FORCED_BRANCH_NAMES, format_mononuclear_prefixes, name_branch
 
 _ONIUM_STEMS = {7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium", 34: "selanium", 52: "telluranium", 33: "arsanium"}
+_ANION_HYDRIDES = {7: "azanide", 15: "phosphanide", 16: "sulfanide", 34: "selanide", 52: "telluranide"}
 _CHAIN_STEMS = {(7, 2): "hydrazin", (8, 2): "dioxidan", (7, 3): "triaz"}
 
 
@@ -66,6 +67,9 @@ def _cation_prefix(mol, graph, x, y):
         single = re.fullmatch(r"(.+?ylidene)(oxidanium|sulfanium|selanium|telluranium|chloranium|bromanium|iodanium)", name)
         if single and "," not in single.group(1) and single.group(1)[0] not in "([":
             return f"({single.group(1)}){single.group(2)}yl"
+        ring_cation = re.search(r"-(\d+)-ium$", name) if mol.GetAtomWithIdx(x).IsInRing() else None
+        if ring_cation:
+            return f"{name}-{ring_cation.group(1)}-yl"
         if name.endswith("ium"):
             return name + "yl"
     except UnsupportedStructure:
@@ -112,27 +116,37 @@ def _carbon_anion_name(mol, graph, x, y, prefix):
         FORCED_BRANCH_NAMES.reset(token)
 
 
+def _plain_aminide(mol, graph, cation, anion, prefix):
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(mol)
+    for index in sorted(_side(graph, cation.GetIdx(), anion.GetIdx()), reverse=True):
+        editable.RemoveAtom(index)
+    remainder = editable.GetMol()
+    for atom in remainder.GetAtoms():
+        if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() < 0:
+            atom.SetNoImplicit(True)
+            atom.SetNumExplicitHs(1)
+    Chem.SanitizeMol(remainder)
+    parent = smiles_to_iupac(Chem.MolToSmiles(remainder))
+    if not parent.endswith("aminide") or "-" in parent.replace("aminide", "") or parent.startswith("N"):
+        raise UnsupportedStructure("the anionic amine parent is not a plain alkanaminide")
+    return f"N-{enclose(prefix)}{parent}"
+
+
 def _ylide_pair(mol, graph, cation, anion):
     prefix = _cation_prefix(mol, graph, cation.GetIdx(), anion.GetIdx())
     if anion.GetAtomicNum() == 6:
         return _carbon_anion_name(mol, graph, cation.GetIdx(), anion.GetIdx(), prefix)
     if anion.GetAtomicNum() == 7 and anion.GetDegree() == 2:
-        from .core import smiles_to_iupac
-
-        (root,) = [n for n in graph[anion.GetIdx()] if n != cation.GetIdx()]
-        editable = Chem.RWMol(mol)
-        for index in sorted(_side(graph, cation.GetIdx(), anion.GetIdx()), reverse=True):
-            editable.RemoveAtom(index)
-        remainder = editable.GetMol()
-        for atom in remainder.GetAtoms():
-            if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() < 0:
-                atom.SetNoImplicit(True)
-                atom.SetNumExplicitHs(1)
-        Chem.SanitizeMol(remainder)
-        parent = smiles_to_iupac(Chem.MolToSmiles(remainder))
-        if not parent.endswith("aminide") or "-" in parent.replace("aminide", "") or parent.startswith("N"):
-            raise UnsupportedStructure("the anionic amine parent is not a plain alkanaminide")
-        return f"N-{enclose(prefix)}{parent}"
+        try:
+            return _plain_aminide(mol, graph, cation, anion, prefix)
+        except UnsupportedStructure:
+            pass
+    if anion.GetDegree() == 1 and anion.GetAtomicNum() in _ANION_HYDRIDES:
+        return f"{enclose(prefix)}{_ANION_HYDRIDES[anion.GetAtomicNum()]}"
+    if anion.GetDegree() > 1 and anion.GetAtomicNum() in (7, 15):
+        return _carbon_anion_name(mol, graph, cation.GetIdx(), anion.GetIdx(), prefix)
     raise UnsupportedStructure("an unsupported anionic centre")
 
 
@@ -382,9 +396,9 @@ def dipolar_name(mol):
         sulfur = _sulfur_oxide(mol, graph)
         if sulfur is not None:
             return sulfur
-        if cation.GetAtomicNum() == anion.GetAtomicNum() and anion.GetAtomicNum() in (7, 8):
+        if cation.GetAtomicNum() == anion.GetAtomicNum() and anion.GetAtomicNum() in (7, 8) and not cation.IsInRing():
             return _chain_pair(mol, graph, cation, anion)
-        if anion.GetAtomicNum() in (6, 7) and cation.GetAtomicNum() in _ONIUM_STEMS:
+        if (anion.GetAtomicNum() in (6, 7, 15) or cation.IsInRing() and anion.GetAtomicNum() in _ANION_HYDRIDES) and cation.GetAtomicNum() in _ONIUM_STEMS:
             return _ylide_pair(mol, graph, cation, anion)
     except (UnsupportedStructure, ValueError, KeyError):
         return None
