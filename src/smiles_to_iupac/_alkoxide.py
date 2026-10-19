@@ -33,7 +33,7 @@ Recommendations ("the Blue Book"):
   observed PubChem's generator not always picking the Blue Book's specific
   retained-name PIN) -- the retained names themselves come directly from
   the Blue Book's own text, not from PubChem.
-- Mirrors `_carboxylate.py`/`_selenoate.py`'s acyclic, single-group,
+- Mirrors `_selenoate.py`'s acyclic, single-group,
   halogen+unsaturation-coexisting scope, but unlike those, the oxygen here
   sits as a substituent ON a chain carbon rather than being the chain's own
   terminus, so its locant follows the same citation rules as `_alcohol.py`'s

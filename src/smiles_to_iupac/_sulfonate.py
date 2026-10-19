@@ -27,9 +27,7 @@ Recommendations ("the Blue Book"):
   `name_from_substituents` hook) already applies via
   `should_omit_mononuclear_locants`.
 - Unlike `_sulfonic_acid.py`, this first pass only supports an acyclic
-  chain (no ring/benzene-ring path yet -- follow-up work, mirroring how
-  `_carboxylate.py`/`_thioate.py` started acyclic-first relative to their
-  neutral-acid counterparts) and only exactly one -SO3(-) group.
+  chain (no ring/benzene-ring path yet) and only exactly one -SO3(-) group.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule.
@@ -105,8 +103,7 @@ def _sulfonate_sulfur_atoms(mol):
 def _find_sulfonate_group(mol):
     """Locate the molecule's single sulfonate group and return
     (sulfonate_carbon, sulfur) atoms -- raises `UnsupportedStructure` if
-    there isn't exactly one, mirroring `_carboxylate.py`'s
-    `_find_carboxylate_group` (used by `_zwitterion.py` the same way)."""
+    there isn't exactly one (used by `_zwitterion.py`)."""
     sulfurs = _sulfonate_sulfur_atoms(mol)
     if len(sulfurs) != 1:
         raise UnsupportedStructure(
@@ -220,9 +217,8 @@ def _name_acyclic_sulfonate(mol, sulfur_idx, so3_carbon, bonds, stereo=None, ext
     prefix onto the final name, mirroring `_sulfonic_acid.py`'s
     `_name_acyclic_sulfonic_acid`.
 
-    `extra_names`/`required_atoms`: same coexisting-group injection point
-    as `_carboxylate.py`'s `_name_acyclic_carboxylate` -- both empty/None
-    by default so existing callers are unaffected. Reused by
+    `extra_names`/`required_atoms`: coexisting-group injection point,
+    empty/None by default so existing callers are unaffected. Reused by
     `_zwitterion.py` to inject an ammonium-nitrogen substituent prefix."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **(extra_names or {})}

@@ -7,8 +7,8 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
 - P-74.1.3: "anionic centers are preferred for lower locants and become
   the parent structure, into which the cationic part is substituted [as a
   prefix]." This project's mechanism: the anion is always the parent
-  (`_carboxylate.py` or `_sulfonate.py`), the ammonium nitrogen is always
-  cited as a substituent prefix.
+  (the general anion engine for a carboxylate, `_sulfonate.py` for a
+  sulfonate), the ammonium nitrogen is always cited as a substituent prefix.
 - The ammonium-nitrogen prefix itself is built by isolating the nitrogen
   and its own substituents into a standalone fragment (replacing the bond
   toward the rest of the chain with an extra hydrogen -- the same "cut a
@@ -24,9 +24,8 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   (`C[N+](C)(C)CC(=O)[O-]`) trimethyl-substituted nitrogen isolates to
   (CH3)3NH+ (trimethylammonium) -> `name_ammonium`'s own
   'N,N-dimethylmethanaminium' -> 'N,N-dimethylmethanaminiumyl'.
-- Reuses `_carboxylate.py`'s `_name_acyclic_carboxylate` (carboxylate
-  anion) or `_sulfonate.py`'s `_name_acyclic_sulfonate` (sulfonate anion)
-  directly via each module's own `extra_names` extension point, rather than
+- Reuses `_sulfonate.py`'s `_name_acyclic_sulfonate` (sulfonate anion)
+  directly via its own `extra_names` extension point, rather than
   `_coexisting_groups.py`'s `name_via_senior_acyclic`: an ammonium prefix
   isn't a suffix-vs-suffix seniority demotion at all (ammonium has no
   entry in `_seniority.SUFFIX_CLASS_RANK`) -- P-74's zwitterion citation
@@ -53,7 +52,6 @@ from rdkit import Chem
 
 from ._multiplicative_text import enclose
 from ._ammonium import has_ammonium_shape, name_ammonium
-from ._carboxylate import _find_carboxylate_group, _name_acyclic_carboxylate
 from ._common import UnsupportedStructure, adjacency, bfs, specified_stereocenters
 from ._imine import has_simple_imine_shape, name_imine
 from ._onium_prefixes import onium_name
@@ -85,25 +83,14 @@ def _onium_centre(mol):
 
 
 def _find_anion(mol):
-    """(kind, carbon_idx, heteroatom_idxs, sulfur_idx) for `mol`'s single
-    carboxylate or sulfonate anion group, or None -- `heteroatom_idxs` is
-    every atom of the group other than its own carbon (the two
-    carboxylate oxygens, or the sulfonate sulfur plus its three oxygens),
-    used both to exclude them from the generic atom/bond validation below
-    and, for carboxylate, as the `excluded_oxygens` the final namer call
-    needs. `sulfur_idx` is `None` for a carboxylate anion."""
-    try:
-        carbon, carbonyl_oxygen, anion_oxygen = _find_carboxylate_group(mol)
-    except UnsupportedStructure:
-        pass
-    else:
-        return "carboxylate", carbon.GetIdx(), {carbonyl_oxygen.GetIdx(), anion_oxygen.GetIdx()}, None
+    """(carbon_idx, heteroatom_idxs, sulfur_idx) for `mol`'s single sulfonate anion group, or None -- `heteroatom_idxs`
+    is the sulfonate sulfur plus its three oxygens, excluded from the generic atom/bond validation below."""
     try:
         carbon, sulfur = _find_sulfonate_group(mol)
     except UnsupportedStructure:
         return None
     oxygens = {n.GetIdx() for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 8}
-    return "sulfonate", carbon.GetIdx(), {sulfur.GetIdx()} | oxygens, sulfur.GetIdx()
+    return carbon.GetIdx(), {sulfur.GetIdx()} | oxygens, sulfur.GetIdx()
 
 
 def has_zwitterion_shape(mol) -> bool:
@@ -203,7 +190,7 @@ def name_zwitterion(mol) -> str:
 
     (nitrogen,) = (atom for atom in mol.GetAtoms() if atom.GetFormalCharge() == 1)
     nitrogen_idx = nitrogen.GetIdx()
-    anion_kind, anion_carbon_idx, anion_heteroatoms, sulfur_idx = _find_anion(mol)
+    anion_carbon_idx, anion_heteroatoms, sulfur_idx = _find_anion(mol)
 
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
@@ -251,15 +238,6 @@ def name_zwitterion(mol) -> str:
         )
 
     prefix = _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx)
-    if anion_kind == "carboxylate":
-        return _name_acyclic_carboxylate(
-            mol,
-            anion_carbon_idx,
-            anion_heteroatoms,
-            (),
-            extra_names={nitrogen_idx: prefix},
-            required_atoms={chain_neighbor_idx},
-        )
     return _name_acyclic_sulfonate(
         mol,
         sulfur_idx,
