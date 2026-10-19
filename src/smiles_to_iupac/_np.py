@@ -24,7 +24,6 @@ SYSTEMATIC_PREFERRED = {"tropane", "bornane", "carane", "fenchane", "pinane", "t
 _MIN_HEAVY_ATOMS = 9
 _MAX_HEAVY_ATOMS = 90
 _MAX_RINGS = 12
-_EXTRA_AROMATIC_ATOMS = 12
 _MIN_RINGS_FOR_OPERATIONS = 3
 _MAX_ATOMS_REMOVED_PER_OPERATION = 12
 
@@ -98,12 +97,10 @@ def _skeletons(name, view, cost, terminal_only):
 
 def _plausible(name, view, cost):
     """Cheap necessary conditions for a parent (modified by at most `cost` operations) to occur in the molecule."""
-    cyc, rings, elements, aromatic, fused = _parent_facts(name)
+    cyc, rings, elements, _, fused = _parent_facts(name)
     if cost and -(-(fused - 1) // 2) > view.fused:
         return False
     if cyc - cost > view.cyclomatic or len(get_parent(name).adj) - cost * _MAX_ATOMS_REMOVED_PER_OPERATION > len(view.adj):
-        return False
-    if view.aromatic_atoms > aromatic + _EXTRA_AROMATIC_ATOMS:
         return False
     missing = sum(max(0, n - view.rings_by_size.get(size, 0)) for size, n in rings.items())
     if missing > 2 * cost + 2:
@@ -293,7 +290,6 @@ def _view(mol):
     view.has_stereo = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) or any(
         b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
     )
-    view.aromatic_atoms = len({i for bond in view.aromatic_bonds for i in bond})
     view.work = WORK_LIMIT
     view.outranked = False
     return view
