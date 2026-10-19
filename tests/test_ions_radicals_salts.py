@@ -1995,6 +1995,8 @@ def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expecte
         pytest.param("O=C(c1ccc[nH]1)[NH+]", "1H-pyrrole-2-carboxamidylium", id="heteroaryl_carboxamidylium"),
         pytest.param("CC(=O)C(C(C)=O)[N+]#N", "2,4-dioxopentane-3-diazonium", id="diazonium_beside_ketones"),
         pytest.param("N#[N+]c1ccc(cc1)[N+]#N", "benzene-1,4-bis(diazonium)", id="bis_diazonium"),
+        pytest.param("C[C@H](CC)[N+]#N.[Cl-]", "(2R)-butane-2-diazonium chloride", id="diazonium_salt_cites_the_configuration"),
+        pytest.param("C/C=C/C[N+]#N", "(2E)-but-2-ene-1-diazonium", id="diazonium_cites_the_double_bond"),
         pytest.param("O=C(c1ccccc1)N[N+](C)(C)C", "N',N',N'-trimethylbenzohydrazid-N'-ium", id="hydrazide_ium"),
     ],
 )

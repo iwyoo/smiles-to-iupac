@@ -72,6 +72,7 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
+    refuse_specified_stereo,
     ring_cycle,
     substituent_locant_set_and_citation,
 )
@@ -403,7 +404,8 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
     if not nitrogens:
         raise UnsupportedStructure("no diazonium group")
     editable = Chem.RWMol(mol)
-    remove = []
+    cationic = {i for frag in Chem.GetMolFrags(mol) if any(a.GetIdx() in frag for a in nitrogens) for i in frag}
+    remove = [a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in cationic]
     for atom in nitrogens:
         terminal = next(n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 7)
         remove.append(terminal)
@@ -452,6 +454,7 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
 
 
 def _name_diazonium_skeleton(mol) -> str:
+    refuse_specified_stereo(mol)
     ring_name = _unsubstituted_monocyclic_ring_diazonium_name(mol)
     if ring_name is not None:
         return ring_name
