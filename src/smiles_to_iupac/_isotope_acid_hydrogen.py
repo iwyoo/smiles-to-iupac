@@ -4,6 +4,7 @@ the modified atom, is inserted before the parent, after its prefixes: 'methyl(O-
 ester is the word 'hydrogen' that carries it, the modified one cited first (P-82.2.2.1): 'methyl (2H)hydrogen hydrogen phosphate'."""
 
 import re
+from functools import lru_cache
 
 from rdkit import Chem
 
@@ -68,18 +69,37 @@ def _labelled_group_atom(mol):
     return editable.GetMol(), clean.GetAtomWithIdx(first), acid[first], sorted(acid)
 
 
+@lru_cache(maxsize=256)
+def _unlabelled_name(smiles):
+    from .core import smiles_to_iupac
+
+    try:
+        return smiles_to_iupac(smiles)
+    except UnsupportedStructure:
+        return None
+
+
+def _named_group(mol):
+    """The `_labelled_group_atom` result with the name of the structure without the acid hydrogen label, or None when
+    that name holds neither an acid parent nor the word 'hydrogen' that can carry the label."""
+    found = _labelled_group_atom(mol)
+    if found is None:
+        return None
+    name = _unlabelled_name(Chem.MolToSmiles(found[0]))
+    if name is None or not (_ACID_PARENT.search(name) or _ACID_HYDROGEN_WORD.search(name)):
+        return None
+    return found, name
+
+
 def has_isotope_acid_hydrogen_shape(mol) -> bool:
-    return _labelled_group_atom(mol) is not None
+    return _named_group(mol) is not None
 
 
 def name_isotope_acid_hydrogen(mol) -> str:
-    from .core import smiles_to_iupac
-
-    found = _labelled_group_atom(mol)
-    if found is None:
+    named = _named_group(mol)
+    if named is None:
         raise UnsupportedStructure("no labelled hydrogen on an oxoacid group")
-    rest, atom, entry, modified = found
-    name = smiles_to_iupac(Chem.MolToSmiles(rest))
+    (_, atom, entry, modified), name = named
     (nuclide,) = entry["H"]
     match = _ACID_PARENT.search(name)
     if match is None:
@@ -94,8 +114,6 @@ def _hydrogen_word_citation(name, nuclide, modified, atom):
     """The ester name with the nuclide in front of the word 'hydrogen' that holds the modified atom; a nuclide cited
     separately from the unmodified hydrogen, which follows it (P-82.2.2.1, P-82.2.4)."""
     word = _ACID_HYDROGEN_WORD.search(name)
-    if word is None:
-        raise UnsupportedStructure("the parent acid of this isotopically modified structure is not delimited")
     present = 2 if word.group(1) else 1
     if modified > present:
         raise UnsupportedStructure("more modified acid hydrogens than the acid hydrogens of the ester")
