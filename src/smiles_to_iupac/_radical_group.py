@@ -27,7 +27,7 @@ from ._hetero_prefixes import (
 )
 from ._numerals import alkyl_name
 from ._radical_hydryl import hydryl_radical_name
-from ._radical_poly import polyradical_name
+from ._radical_poly import _is_acyl, polyradical_name
 from ._substituents import name_branch
 
 _MAX_ATOMS = 80
@@ -119,6 +119,8 @@ def _centre(mol):
         and centre.GetTotalNumHs() == 0
         and centre.GetNumRadicalElectrons() == 1
     ):
+        return centre
+    if centre.GetAtomicNum() in (16, 34, 52) and centre.GetNumRadicalElectrons() == 1 and _is_acyl(centre):
         return centre
     return None
 
@@ -287,6 +289,8 @@ def _name_radical_group(mol) -> str:
         raise UnsupportedStructure("a stereo element of the radical is not cited by any supported name")
     if set(labels) - context["consumed"]:
         raise UnsupportedStructure("an isotopically modified atom of the radical is not cited by any supported name")
+    if centre.GetAtomicNum() in (6, 16) and name in _ACYL_OF_HYDROXY_ACID:
+        return _ACYL_OF_HYDROXY_ACID[name]
     if centre.GetAtomicNum() == 7 and name.endswith("amino"):
         return name[: -len("amino")] + "azanyl"
     if centre.GetAtomicNum() == 8:
@@ -294,6 +298,9 @@ def _name_radical_group(mol) -> str:
             raise UnsupportedStructure("the oxygen radical has no 'oxy' prefix to turn into 'oxyl' (P-71.3.4)")
         return _aminoxyl(name) + "l"
     return name
+
+
+_ACYL_OF_HYDROXY_ACID = {"carboxy": "hydroxycarbonyl", "sulfo": "hydroxysulfonyl", "sulfino": "hydroxysulfinyl"}
 
 
 def _name_multivalent_centre(mol, centre):
