@@ -2,22 +2,17 @@
 
 from dataclasses import dataclass, field
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure
+from ._fused_numbering import _locant_key
+from ._fullerene_fused import _bridged_alicyclic
+from ._fusion_components import identify, skeleton
+from ._fusion_name import fused_prefix_data
 from ._np_core import loc_key
 from ._numerals import multiplying_prefix
 
 _PRIORITY = ["O", "S", "Se", "Te", "N", "P", "As", "Sb", "Bi", "Si", "Ge", "Sn", "Pb", "B"]
-_HETERO_PREFIX = {
-    "O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza", "P": "phospha", "As": "arsa", "Sb": "stiba",
-    "Bi": "bisma", "Si": "sila", "Ge": "germa", "Sn": "stanna", "Pb": "plumba", "B": "bora",
-}
-_CARBO = {3: "cyclopropa", 4: "cyclobuta", 5: "cyclopenta", 6: "benzo", 7: "cyclohepta", 8: "cycloocta"}
-_STEM = {3: "irene", 4: "ete", 5: "ole", 6: "ine", 7: "epine", 8: "ocine"}
-_RETAINED = {
-    (5, ("O",)): "furo", (5, ("S",)): "thieno", (5, ("Se",)): "selenopheno", (5, ("Te",)): "telluropheno",
-    (5, ("N",)): "pyrrolo", (6, ("N",)): "pyrido", (6, ("O",)): "pyrano", (6, ("S",)): "thiopyrano",
-    (5, ("N", "N")): "imidazo", (6, ("N", "N")): "pyrazino",
-}
 _PRIMES = ["", "′", "″", "‴"]
 _DONORS = ("O", "S", "Se", "Te")
 
@@ -39,35 +34,6 @@ class Fused:
     @property
     def alpha(self):
         return self.name
-
-
-def hw_prefix(size, hetero):
-    """Fusion prefix of a mancude monocycle and whether its heteroatom locants are cited (P-25.3.2.1)."""
-    elements = tuple(sorted(hetero, key=_PRIORITY.index))
-    if (size, elements) in _RETAINED:
-        return _RETAINED[(size, elements)], False
-    if not elements:
-        if size not in _CARBO:
-            raise UnsupportedStructure("a carbocyclic ring size without a fusion prefix")
-        return _CARBO[size], False
-    stem = _STEM.get(size)
-    if stem is None:
-        raise UnsupportedStructure("a ring size without a Hantzsch-Widman stem")
-    counts = {}
-    for el in elements:
-        counts[el] = counts.get(el, 0) + 1
-    multiplier = {2: "di", 3: "tri", 4: "tetra"}
-    prefix = ""
-    for el in sorted(counts, key=_PRIORITY.index):
-        prefix += (multiplier[counts[el]] if counts[el] > 1 else "") + _HETERO_PREFIX[el]
-    if size == 3 and elements == ("N",):
-        text = "azirine"
-    else:
-        if prefix.endswith("a") and stem[0] in "aeiou":
-            prefix = prefix[:-1]
-        text = prefix + stem
-    text = text.replace("aa", "a")
-    return text[:-1] + "o" if text.endswith("e") else text + "o", len(elements) > 1
 
 
 def ring_cycle(atoms, adj):
@@ -97,41 +63,40 @@ def _mono_numberings(cycle, elem):
     return [o[2] for o in options if (o[0], o[1]) == best]
 
 
-def _naphthalene_numberings(atoms, adj):
-    degree = {a: sum(1 for n in adj[a] if n in atoms) for a in atoms}
-    fusion = [a for a in atoms if degree[a] == 3]
-    if len(fusion) != 2 or len(atoms) != 10:
-        return []
-    numberings = []
-    for f in fusion:
-        for first in [n for n in adj[f] if n in atoms and degree[n] == 2]:
-            order, previous = [first], f
-            while len(order) < 4:
-                nxt = [n for n in adj[order[-1]] if n in atoms and n != previous and degree[n] == 2]
-                if not nxt:
-                    break
-                previous = order[-1]
-                order.append(nxt[0])
-            if len(order) != 4:
-                continue
-            fa = next((n for n in adj[order[-1]] if n in atoms and degree[n] == 3 and n != f), None)
-            if fa is None:
-                continue
-            tail, previous = [], fa
-            current = next((n for n in adj[fa] if n in atoms and degree[n] == 2 and n not in order), None)
-            while current is not None and len(tail) < 4:
-                tail.append(current)
-                nxt = [n for n in adj[current] if n in atoms and n != previous and degree[n] == 2]
-                previous, current = current, (nxt[0] if nxt else None)
-            if len(tail) != 4:
-                continue
-            numbering = {atom: i + 1 for i, atom in enumerate(order)}
-            numbering[fa] = "4a"
-            for i, atom in enumerate(tail):
-                numbering[atom] = 5 + i
-            numbering[f] = "8a"
-            numberings.append(numbering)
-    return numberings
+def _skeleton(atoms, view):
+    index = {a: i for i, a in enumerate(atoms)}
+    return skeleton(
+        [view.elem[a] for a in atoms], [(index[a], index[b]) for a in atoms for b in view.adj[a] if b in index and a < b]
+    )
+
+
+def _ring_atoms(atoms, view):
+    """The atoms of `atoms` that lie in a ring; the acyclic ones are substituents of the added component."""
+    members = sorted(atoms)
+    sub = _skeleton(members, view)
+    info = sub.GetRingInfo()
+    return {a for i, a in enumerate(members) if info.NumAtomRings(i)}
+
+
+def _component(sub, view, members):
+    """(locants of the heteroatoms, whether the attached-atom locants are cited, [(numbering, prefix, ranking key)]) of the
+    ring or ring system `sub` as a fusion prefix (P-25.3.2); a bridged alicyclic system takes its von Baeyer prefix."""
+    found = identify(sub)
+    if found:
+        component = found[0]
+        cite = not (component.kind in ("mono", "attached_only") and all(e == "C" for e in component.elements))
+        hetero = component.hetero_text.split(",") if component.hetero_text else []
+        return hetero, cite, [(n, component.prefix, ()) for n in component.numberings]
+    try:
+        bracketed, numberings = fused_prefix_data(sub)
+    except UnsupportedStructure:
+        kekule = Chem.Mol(view.mol)
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+        bridged = _bridged_alicyclic(view.mol, kekule, sub, members, {a: i for i, a in enumerate(members)})
+        if bridged is None:
+            raise UnsupportedStructure("an added ring system that has no fusion prefix") from None
+        return [], True, [(n, text, key) for n, key, text in zip(*bridged)]
+    return [], True, [(n, bracketed, ()) for n in numberings]
 
 
 def _locant_text(number, prime):
@@ -151,43 +116,25 @@ def name_fused(comp, cand, view, final, parent_centers, hfaces):
     path = _shortest(skeleton_adj, sa, sb)
     if path is None or len(path) > 3:
         raise UnsupportedStructure("an added ring that spans more than three skeleton atoms")
-    ring = set(comp.atoms) | set(path)
-    bonds = [(a, b) for a in ring for b in view.adj[a] if b in ring and a < b]
-    rings = len(bonds) - len(ring) + 1
-    if rings == 1:
-        cycle = ring_cycle(ring, view.adj)
-        if cycle is None:
-            raise UnsupportedStructure("an added component that is not a simple ring")
-        elem = {a: view.elem[a] for a in ring}
-        hetero = [elem[a] for a in comp.atoms if elem[a] != "C"]
-        name, cite = hw_prefix(len(cycle), hetero)
-        numberings = _mono_numberings(cycle, elem)
-        hetero_locants = None
-    elif rings == 2:
-        if any(view.elem[a] != "C" for a in ring):
-            raise UnsupportedStructure("a heterocyclic bicyclic added component")
-        numberings = _naphthalene_numberings(ring, view.adj)
-        if not numberings:
-            raise UnsupportedStructure("an added bicyclic component other than naphthalene")
-        name, cite, elem = "naphtho", True, {a: "C" for a in ring}
-    else:
-        raise UnsupportedStructure("an added ring system of more than two rings")
+    ring = _ring_atoms(set(comp.atoms) | set(path), view)
+    members = sorted(ring)
+    index = {a: i for i, a in enumerate(members)}
+    sub = _skeleton(members, view)
+    hetero_text, cite_attached, options = _component(sub, view, members)
+    derived = any(key for _, _, key in options)
+    candidates = [({a: numbering[index[a]] for a in members}, name, key) for numbering, name, key in options]
 
     def fusion_key(numbering):
-        return tuple(sorted(int(str(numbering[a]).rstrip("ab")) + (0.5 if str(numbering[a]).endswith(("a", "b")) else 0) for a in path))
+        return tuple(sorted(_locant_key(numbering[a]) for a in path))
 
     ordered_path = sorted(path, key=lambda a: loc_key(final(image[a])))
-
-    def number_value(numbering, atom):
-        text = str(numbering[atom])
-        return int(text.rstrip("ab")) + (0.5 if text.endswith(("a", "b")) else 0)
-
-    chosen = min(numberings, key=lambda n: (fusion_key(n), tuple(number_value(n, a) for a in ordered_path)))
-    hetero_locants = sorted(chosen[a] for a in comp.atoms if view.elem[a] != "C") if cite and rings == 1 else []
-    indicated, hydro, fusion_roles = _saturated(comp, path, ring, view, chosen, image, final)
+    chosen, name, _ = min(
+        candidates, key=lambda c: (c[2], fusion_key(c[0]), tuple(_locant_key(c[0][a]) for a in ordered_path))
+    )
+    indicated, hydro, fusion_roles = ([], [], {}) if derived else _saturated(comp, path, ring, view, chosen, image, final)
     return Fused(
         name=name,
-        hetero_locants=hetero_locants,
+        hetero_locants=hetero_text,
         attached=[chosen[a] for a in ordered_path],
         parent_locants=[final(image[a]) for a in ordered_path],
         indicated=indicated,
@@ -198,7 +145,7 @@ def name_fused(comp, cand, view, final, parent_centers, hfaces):
             for a in ordered_path
             if a in fusion_roles and image[a] not in parent_centers
         ],
-        cite_attached=name not in _CARBO.values() or rings == 2,
+        cite_attached=cite_attached,
         fusion_locs=tuple(image[a] for a in path),
     )
 
@@ -231,7 +178,7 @@ def _saturated(comp, path, ring, view, numbering, image, final):
     Saturated positions of the component, fusion atoms included, that keep a hydrogen atom are cited with indicated
     hydrogen when odd in number and otherwise with 'hydro' prefixes; fusion atoms keep their parent locants
     (P-101.5.1.2, P-101.6.5)."""
-    atoms = list(comp.atoms) + [a for a in path if a not in comp.atoms]
+    atoms = sorted(ring)
     positions = [
         a for a in atoms
         if view.elem[a] not in _DONORS

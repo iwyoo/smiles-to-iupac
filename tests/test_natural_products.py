@@ -102,6 +102,9 @@ def test_replacement(smiles, expected):
 
 @pytest.mark.parametrize("smiles, expected", [
     ('C[C@@]12CCC[C@H]1[C@@H]1CC[C@H]3Cc4ccccc4C[C@]3(C)[C@H]1CC2', 'benzo[2,3]-5α-androstane'),
+    ('C[C@@]12CCC[C@H]1[C@@H]1CC[C@H]3Cc4cc5ccccc5nc4C[C@]3(C)[C@H]1CC2', 'quinolino[2′,3′:2,3]-5α-androstane'),
+    ('C[C@@]12CCC[C@H]1[C@@H]1CC[C@H]3CC4=CC=CC=CC=CC=C4C[C@]3(C)[C@H]1CC2', 'cyclodeca[2,3]-5α-androstane'),
+    ('C[C@@]12CCC[C@H]1[C@@H]1CC[C@H]3CC4C5CCC(CC5)C4C[C@]3(C)[C@H]1CC2', 'bicyclo[2.2.2]octano[2′,3′:2,3]-5α-androstane'),
     ('C[C@@]12CCC[C@H]1[C@@H]1CC[C@H]3CC4=C(CC=C4)C[C@]3(C)[C@H]1CC2', '5′H-cyclopenta[2,3]-5α-androstane'),
     ('C1=N[C@@]23[C@H](CCC[C@@]24CCN[C@@H]3Cc2ccccc24)O1', '(8αH)-[1,3]oxazolo[5′,4′:8,14]morphinan'),
     pytest.param('C[C@]12CCCC[C@@H]1c1conc1[C@@H]1[C@@H]2CC[C@]2(C)c3cnoc3C[C@@H]12', 'bis[1,2]oxazolo[4′,3′:6,7;5″,4″:16,17]-5α-androstane', marks=pytest.mark.slow),
