@@ -1838,6 +1838,8 @@ def test_radicals_on_heteroatom_parents(smiles, expected):
         pytest.param("[CH2]C1CCC2(CC1)CCCC2[CH2]", "(spiro[4.5]decane-1,8-diyl)dimethyl", id="assembly_on_spiro_skeleton"),
         pytest.param("[O]C(C)(C)CC(C)(C)[O]", "(2,4-dimethylpentane-2,4-diyl)bis(oxyl)", id="assembly_of_oxyl_groups"),
         pytest.param("[NH]CC[NH]", "(ethane-1,2-diyl)bis(aminyl)", id="assembly_of_aminyl_groups"),
+        pytest.param("C[N]CC[N]C", "N1,N2-dimethylethane-1,2-bis(aminyl)", id="substituted_aminyl_groups_on_one_parent"),
+        pytest.param("C[N]C[N]C", "N,N'-dimethylmethanebis(aminyl)", id="substituted_aminyl_groups_without_a_multiplicative_amine_name"),
         pytest.param("[O][O]C1CC(C1)O[O]", "(cyclobutane-1,3-diyl)bis(peroxyl)", id="assembly_of_peroxyl_groups"),
         pytest.param("[S]Sc1ccc2cc(S[S])ccc2c1", "(naphthalene-2,6-diyl)bis(disulfanyl)", id="assembly_of_disulfanyl_groups_on_a_fused_ring"),
         pytest.param("O=[S]c1ccc(cc1)[S]=O", "benzene-1,4-disulfinyl", id="two_sulfinyl_radicals"),

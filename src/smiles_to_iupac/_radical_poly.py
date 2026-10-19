@@ -266,7 +266,8 @@ def _group_radical_name(mol, centres):
     else:
         return None
     try:
-        name = smiles_to_iupac(Chem.MolToSmiles(_healed(mol, centres, kind)))
+        healed = _healed(mol, centres, kind)
+        name = smiles_to_iupac(Chem.MolToSmiles(healed))
     except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
         return None
     multiplier = multiplying_prefix(count)
@@ -280,7 +281,23 @@ def _group_radical_name(mol, centres):
         if name.endswith(multiplier + ending):
             stem = name[: -len(multiplier + ending)]
             return f"{stem}{_MULTIPLIER_WORDS[count]}({ending[:-1]}{suffix})"
+    if all(a.GetDegree() > 1 for a in centres):
+        return _substituted_aminyl_name(healed, multiplier, count, suffix)
     return None
+
+
+def _substituted_aminyl_name(healed, multiplier, count, suffix):
+    """P-71.3.3 (1): the amine groups of the parent hydride that holds all the centres, named substitutively whether or
+    not a multiplicative amine name exists, with 'diamine' read as 'bis(aminyl)'."""
+    from ._polyfunctional import name_polyfunctional
+
+    try:
+        name = name_polyfunctional(healed)
+    except UnsupportedStructure:
+        return None
+    if not name.endswith(multiplier + "amine"):
+        return None
+    return f"{name[: -len(multiplier + 'amine')]}{_MULTIPLIER_WORDS[count]}(amin{suffix})"
 
 
 def polyradical_name(mol):
