@@ -1740,6 +1740,20 @@ def _anionic_chain_prefix(graph, root, coming_from, mol):
     order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
     ending = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}[order]
     cited = f"-{locant}-" if locant is not None else ""
+    centres = [a for a in unit.GetAtoms() if a.HasProp("_anion")]
+    cationic = [a for a in centres if a.HasProp("_cationic_site")]
+    positions = parts[4]
+    if cationic and locant is not None and all(a.GetIdx() in positions for a in centres):
+        from ._radical_ion_skeleton import assemble_ions
+
+        stem = re.sub(r"-?\d+(?:,\d+)*-(?:di|tri|tetra)?ide$", "", body)
+        anionic = [a for a in centres if a not in cationic]
+        return prefix + assemble_ions(
+            stem if stem.endswith(("ane", "ene", "yne")) else stem + "e",
+            [locant],
+            sorted(positions[a.GetIdx()] for a in anionic),
+            sorted(positions[a.GetIdx()] for a in cationic),
+        ), True
     return f"{prefix}{body[:-1]}{cited}{ending}", True
 
 
@@ -1753,6 +1767,10 @@ def _carbon_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mol
     charge = int(atom.GetProp("_anion"))
     entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in graph[root] if n != coming_from]
     order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
+    if atom.HasProp("_cationic_site"):
+        ending = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}[order]
+        prefixes = format_mononuclear_prefixes(entries) if entries else ""
+        return f"{prefixes}methylium{ending}", bool(entries)
     stem = "methane" if charge > 1 else "methan"
     word = {1: "id", 2: "diid"}[charge]
     ending = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}[order]

@@ -9,6 +9,13 @@ from ._common import UnsupportedStructure
 from ._numerals import alkane_name, multiplying_prefix
 
 _MAX_ATOMS = 60
+_ID_CENTRES = r"(\d+(?:,\d+)*)-(di|tri|tetra)?id-(\d+)-yl"
+_ID_SUFFIX = re.compile(_ID_CENTRES)
+_PARENT_ID_TAIL = re.compile(_ID_CENTRES + "$")
+_ANION_LEFT = re.compile(r"\d-id-|(?<!meth)anid|diid|uid")
+_CITED_CATION = re.compile(r"(di|tri|tetra|penta|hexa)?methylium(?:yl|ylidene|ylidyne)|(\d+(?:,\d+)*)-(?:di|tri|tetra)?ylium")
+_CITED_ANION = re.compile(r"(di|tri|tetra|penta|hexa)?methanid(?:yl|ylidene|ylidyne)|(\d+(?:,\d+)*)-(?:di|tri|tetra)?id(?=-)")
+_MULTIPLE = {None: 1, "di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
 
 
 def _centres(mol):
@@ -77,10 +84,10 @@ def _simple_name(mol, ring, radicals, anions, cations):
         key = _numbering_key({atom: i + 1 for i, atom in enumerate(order)}, radicals, anions, cations)
         if best is None or _centre_order_key(key) < _centre_order_key(best):
             best = key
-    return _assemble(("cyclo" if ring else "") + alkane_name(mol.GetNumAtoms()), *best)
+    return assemble_ions(("cyclo" if ring else "") + alkane_name(mol.GetNumAtoms()), *best)
 
 
-def _assemble(base, radical_locants, anion_locants, cation_locants, prefixes=""):
+def assemble_ions(base, radical_locants, anion_locants, cation_locants, prefixes=""):
     """Cationic suffixes precede anionic ones, radical suffixes come last (P-70.3, P-74.1.1)."""
     endings = [
         (locants, _suffix(len(locants), ending))
@@ -102,6 +109,14 @@ def _automorphisms(mol, centres):
     return [m for m in maps if {m[i] for i in centre_set} == centre_set]
 
 
+def _cited_outside(prefixes, outside):
+    cations = sum(a.GetFormalCharge() > 0 for a in outside)
+    return (
+        _cited_count(_CITED_CATION, prefixes) == cations
+        and _cited_count(_CITED_ANION, prefixes) == len(outside) - cations
+    )
+
+
 def _general_name(mol, radicals, anions, cations):
     from ._anion import name_anion
     from ._polyfunctional import LAST_POSITIONS
@@ -114,23 +129,28 @@ def _general_name(mol, radicals, anions, cations):
         target.SetFormalCharge(-1)
     for atom in ions:
         analogue.GetAtomWithIdx(atom.GetIdx()).SetFormalCharge(-1)
+    for atom in cations:
+        analogue.GetAtomWithIdx(atom.GetIdx()).SetProp("_cationic_site", "1")
     analogue = analogue.GetMol()
     Chem.SanitizeMol(analogue)
     LAST_POSITIONS.set(None)
     name = name_anion(analogue)
     found = LAST_POSITIONS.get()
     tail = re.search(r"-?(\d+(?:,\d+)*)-(di|tri|tetra)?ide$", name)
-    centres = {a.GetIdx() for a in radicals + ions}
-    if tail is None or found is None or any(c not in found[1] for c in centres):
+    if tail is None or found is None or any(r.GetIdx() not in found[1] for r in radicals):
         return None
     positions = found[1]
+    outside = [a for a in ions if a.GetIdx() not in positions]
+    if not _cited_outside(name[: tail.start()], outside):
+        return None
+    inside = [[a for a in group if a.GetIdx() in positions] for group in (anions, cations)]
     parent = set(positions)
     parent_ring = any(set(r) <= parent for r in mol.GetRingInfo().AtomRings())
     flip = not parent_ring
     size = len(parent)
     stem = ("cyclo" if parent_ring else "") + alkane_name(size)[:-3]
     if name[: tail.start()].rfind(stem) < 0:
-        return _named_parent_name(analogue, name[: tail.start()], positions, radicals, anions, cations)
+        return _named_parent_name(analogue, name[: tail.start()], positions, radicals, *inside)
     attachments = {
         a for atom in parent for a in (n.GetIdx() for n in mol.GetAtomWithIdx(atom).GetNeighbors()) if a not in parent
     }
@@ -142,7 +162,7 @@ def _general_name(mol, radicals, anions, cations):
             continue
         numbering = {i: positions[image[i]] for i in positions}
         for numbers in ([numbering, {i: size + 1 - n for i, n in numbering.items()}] if flip else [numbering]):
-            centre_key = _numbering_key(numbers, radicals, anions, cations)
+            centre_key = _numbering_key(numbers, radicals, *inside)
             substituted = sorted(
                 numbers[n.GetIdx()] for a in attachments for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in parent
             )
@@ -163,34 +183,39 @@ def _general_name(mol, radicals, anions, cations):
         return None
     remap = {positions[i]: numbers[i] for i in positions}
     base = _parent_base(stem, best[3], best[4])
-    return _assemble(base, *best[2], _renumber(head[:start], remap))
+    return assemble_ions(base, *best[2], _renumber(head[:start], remap))
 
 
-_CATION_TOKENS = ((re.compile(r"methanidyl"), "methyliumyl"), (re.compile(r"(\d+)-id-(\d+)-yl"), r"\1-ylium-\2-yl"))
-_ANION_LEFT = re.compile(r"methanid|\d-id-|anid|diid|uid")
+def _cited_count(pattern, name):
+    return sum(len(m.group(2).split(",")) if m.lastindex == 2 and m.group(2) else _MULTIPLE[m.group(1)] for m in pattern.finditer(name))
 
 
 def _prefixed_name(mol, radicals, anions, cations):
     """Ionic and radical centres in different parent structures (P-75.4): the radical outranks the ionic centres, so the
-    parent radical is named as a substituent group and the part holding the ionic centres is cited as a prefix; the
-    cationic centres are read from the name of the anionic analogue with 'ide' changed to 'ylium' (P-73.2.2.1)."""
+    parent radical is named as a substituent group and the part holding the ionic centres is cited as a prefix; a
+    cationic centre is cited as 'methyliumyl' where the anionic analogue has 'methanidyl' (P-73.2.2.1). A cation that
+    the analogue cites as an 'ide' of the parent is read as 'ylium' when every anion is cited outside the parent."""
     from ._radical_group import name_radical_group
 
-    if anions and cations:
-        return None
     analogue = Chem.RWMol(mol)
     for atom in cations:
-        analogue.GetAtomWithIdx(atom.GetIdx()).SetFormalCharge(-1)
+        target = analogue.GetAtomWithIdx(atom.GetIdx())
+        target.SetFormalCharge(-1)
+        target.SetProp("_cationic_site", "1")
     analogue = analogue.GetMol()
     try:
         Chem.SanitizeMol(analogue)
         name = name_radical_group(analogue)
     except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
         return None
-    if cations:
-        for pattern, replacement in _CATION_TOKENS:
-            name = pattern.sub(replacement, name)
-        if _ANION_LEFT.search(name):
+    if cations and _cited_count(_CITED_CATION, name) != len(cations):
+        tail = _PARENT_ID_TAIL.search(name)
+        if anions and (tail is None or _cited_count(_CITED_ANION, name[: tail.start()]) != len(anions)):
+            return None
+        name = (_PARENT_ID_TAIL if anions else _ID_SUFFIX).sub(
+            lambda m: f"{m.group(1)}-{m.group(2) or ''}ylium-{m.group(3)}-yl", name
+        )
+        if not anions and _ANION_LEFT.search(name):
             return None
     return name
 
@@ -210,7 +235,7 @@ def _named_parent_name(analogue, head, positions, radicals, anions, cations):
     if best is None:
         return None
     remap = {positions[i]: n for i, n in best[1].items()}
-    return _assemble(_renumber(head, remap), *best[0])
+    return assemble_ions(_renumber(head, remap), *best[0])
 
 
 def _unsaturation_locants(mol, parent, numbers, size, ring_free):

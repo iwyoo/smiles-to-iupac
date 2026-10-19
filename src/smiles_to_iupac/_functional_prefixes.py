@@ -449,7 +449,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             continue
         if (
             atom.HasProp("_anion") or (DIPOLAR_GROUPS.get() and atom.GetFormalCharge() == -1 and z in (8, 16))
-        ) and not kids and _bond_order(mol, node, parent) == 1.0:
+        ) and z in ANIONIC_PREFIXES and not kids and _bond_order(mol, node, parent) == 1.0:
             record(node, ANIONIC_PREFIXES[z], False)
             continue
         if z == 8 and node not in named:
