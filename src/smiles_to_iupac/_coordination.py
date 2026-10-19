@@ -228,17 +228,24 @@ def _charge_text(charge: int) -> str:
 
 
 def _counter_ion_words(frags):
+    from .core import smiles_to_iupac
+
     counts: dict[str, int] = {}
+    compound: set[str] = set()
     for frag in frags:
         atom = frag.GetAtomWithIdx(0)
-        if frag.GetNumAtoms() != 1:
-            raise UnsupportedStructure("polyatomic counter-ions are not supported yet")
         table, charge = (_CATIONS, 1) if atom.GetFormalCharge() > 0 else (_ANIONS, -1)
-        if atom.GetFormalCharge() != charge or atom.GetAtomicNum() not in table:
-            raise UnsupportedStructure("this counter-ion is not supported yet")
-        word = table[atom.GetAtomicNum()]
+        if frag.GetNumAtoms() == 1 and atom.GetFormalCharge() == charge and atom.GetAtomicNum() in table:
+            word = table[atom.GetAtomicNum()]
+        else:
+            word = smiles_to_iupac(Chem.MolToSmiles(frag))
+            if not word.isalpha() or word.endswith("ium"):
+                compound.add(word)
         counts[word] = counts.get(word, 0) + 1
-    return " ".join((multiplying_prefix(n) if n > 1 else "") + w for w, n in sorted(counts.items()))
+    return " ".join(
+        word if n == 1 else multiplying_prefix(n, word in compound) + (enclose(word) if word in compound else word)
+        for word, n in sorted(counts.items())
+    )
 
 
 def _simple_anion_label(mol, donor, atoms):
@@ -552,9 +559,11 @@ def name_coordination(mol) -> str:
         from .core import smiles_to_iupac
 
         return name_adduct(mol, smiles_to_iupac)
-    words = _counter_ion_words(others)
     if charge == 0:
         raise UnsupportedStructure("a neutral complex with counter-ions is not supported")
+    if any(_net_charge(f) * charge >= 0 for f in others) or charge + sum(_net_charge(f) for f in others):
+        raise UnsupportedStructure("the counter-ions do not balance the charge of the complex")
+    words = _counter_ion_words(others)
     return f"{name} {words}" if charge > 0 else f"{words} {name}"
 
 
