@@ -515,6 +515,9 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
         pytest.param("[15NH]1C=CC2=CC=CC=C12", "(15N)-1H-indole", id="sole_heteroatom_needs_no_locant"),
         pytest.param("[15N]1=C(C=C(C=C1)[2H])[2H]", "(2,4-2H2,15N)pyridine", id="sole_heteroatom_after_hydrogen_locants"),
         pytest.param("CC([14CH2]C)([2H])[2H]", "(3-14C,2,2-2H2)butane", id="lowest_locants_to_all_nuclides_together"),
+        pytest.param("[13CH3]OC(=O)CCC(=O)O[13CH3]", "di[(13C)methyl] butanedioate", id="identical_modified_alkyl_groups_of_a_diester_are_multiplied_with_marks"),
+        pytest.param("[13CH3]OS(=O)(=O)OS(=O)(=O)O[13CH3]", "di[(13C)methyl] disulfate", id="identical_modified_alkyl_groups_of_a_dinuclear_acid_ester"),
+        pytest.param("[13CH3]OP(=O)(O[13CH3])OP(=O)(O[13CH3])O[13CH3]", "tetra[(13C)methyl] diphosphate", id="free_acid_of_a_labelled_ester_is_named_without_the_outer_labels"),
     ],
 )
 def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):

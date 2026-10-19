@@ -56,7 +56,7 @@ from collections import Counter
 from ._common import assign_cip_labels, match_cip_labels
 from ._multiplicative_text import enclose
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, nitro_group_atoms
-from ._numerals import multiplied_ester_word, multiplying_prefix
+from ._numerals import multiplying_prefix
 from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import BRANCH_STEREO, name_branch, prefix_multiplier
 
@@ -364,8 +364,9 @@ def format_ester_words(names, compound_names=frozenset()) -> str:
             multiplier, enclosed = prefix_multiplier(count, name, True)
             words.append(multiplier + (enclose(name) if enclosed else name))
             continue
-        needs_enclosure = (name[0].isdigit() or name[0] == "(" or name in compound_names) and count > 1
-        group = enclose(name) if needs_enclosure else name
-        prefix = multiplied_ester_word(count, name, compound=needs_enclosure) if count > 1 else ""
-        words.append(f"{prefix}{group}")
+        if count > 1:
+            multiplier, enclosed = prefix_multiplier(count, name, name[0].isdigit() or name[0] == "(")
+            words.append(multiplier + (enclose(name) if enclosed else name))
+        else:
+            words.append(name)
     return " ".join(words)
