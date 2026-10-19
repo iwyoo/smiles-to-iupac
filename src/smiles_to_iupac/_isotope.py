@@ -106,7 +106,7 @@ def _substituted_hydride(mol):
     ends = [i for i, d in degrees.items() if d <= 1]
     if any(d > 2 for d in degrees.values()) or len(ends) != (2 if len(chain_atoms) > 1 else 1):
         return None
-    if len(chain_atoms) == 1 and z in (7, 8, 16, 34, 52):
+    if z in (8, 16, 34, 52) and (len(chain_atoms) == 1 or z == 8):
         return None
     if len(chain_atoms) > 1 and z in (5, 13):
         return None

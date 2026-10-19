@@ -1396,18 +1396,27 @@ def _alphabetical_acid_words(counts, class_word):
     return f"{' '.join(cited)} {class_word}"
 
 
-def _bridge_nuclide(mol, bridges):
-    """The descriptor of a labelled oxygen that is the only atom of the single bridge, cited in front of the class word
-    that denotes it (P-82.2.1); the oxygens of the acid components carry theirs in the acid words."""
+def _bridge_nuclide(mol, bridges, owner, words):
+    """The descriptor of the labelled oxygens of an -O- or -O-O- bridge, cited in front of the class word that denotes
+    them (P-82.2.1); the oxygens of a peroxy bridge are numbered from the acid component cited first (P-82.5.2). The
+    oxygens of the acid components carry theirs in the acid words."""
+    from ._isotope_labels import descriptor
+
     context = ISOTOPE_LABELS.get()
     if not context or context.get("mol") is not mol or len(bridges) != 1:
         return ""
-    (chain, _, _), = bridges.values()
-    entry = context["labels"].get(chain[0]) if len(chain) == 1 else None
-    if entry is None or entry["H"] or not entry["skeleton"] or mol.GetAtomWithIdx(chain[0]).GetAtomicNum() != 8:
+    (chain, first, _), = bridges.values()
+    labelled = {a: context["labels"][a] for a in chain if a in context["labels"]}
+    if not labelled or any(e["H"] or not e["skeleton"] for e in labelled.values()):
         return ""
-    context["consumed"].add(chain[0])
-    return f"({entry['skeleton']})"
+    if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 8 for a in chain):
+        return ""
+    cited_first = min(words, key=lambda i: citation_order_key(words[i]))
+    forward = chain if owner[first] == cited_first else chain[::-1]
+    orders = (forward, forward[::-1]) if len(set(words.values())) == 1 else (forward,)
+    positions = min(({a: i + 1 for i, a in enumerate(o)} for o in orders), key=lambda p: sorted(p[a] for a in labelled))
+    context["consumed"].update(labelled)
+    return descriptor(labelled, positions, len(chain) == 1)
 
 
 def name_anhydride(mol, links):
@@ -1448,7 +1457,7 @@ def name_anhydride(mol, links):
             _acid_group_count(mol, [a for a in frags[i] if a not in bridge_atoms], centers[i]) > 1 for i in components
         ):
             class_word = "monoanhydride"
-        return f"{text} {_bridge_nuclide(mol, bridges)}{class_word}"
+        return f"{text} {_bridge_nuclide(mol, bridges, owner, word_of)}{class_word}"
     hubs = [i for i in components if degrees[i] > 2]
     if hubs:
         hub = min(

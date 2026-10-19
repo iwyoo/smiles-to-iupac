@@ -75,8 +75,23 @@ from ._common import (
     ring_chain_attachment,
     specified_stereocenters,
 )
-from ._substituents import CompoundPrefix, name_branch
+from ._substituents import ISOTOPE_LABELS, CompoundPrefix, name_branch
 from ._terminal_chain import best_terminal_chain
+
+
+def _peroxy_word(attached_oxygen, far_oxygen):
+    """'peroxy', with the descriptor of the nuclides of its oxygens in front, the oxygen bonded to the parent being
+    position 1 (P-82.2.1)."""
+    from ._isotope_labels import descriptor
+    from ._substituents import _hydrogen_capacity
+
+    context = ISOTOPE_LABELS.get()
+    labelled = {a: context["labels"][a] for a in (attached_oxygen, far_oxygen) if context and a in context["labels"]}
+    if not labelled:
+        return "peroxy"
+    context["consumed"].update(labelled)
+    positions = {attached_oxygen: 1, far_oxygen: 2}
+    return descriptor(labelled, positions, False, capacity=_hydrogen_capacity(context, labelled)) + "peroxy"
 
 
 def _peroxide_oxygens(mol):
@@ -166,7 +181,7 @@ def _name_benzene_ring_peroxide_chain(mol, ring_atoms) -> str:
         sub_name, sub_compound = name_branch(graph, r_prime, far_o, {}, mol=mol)
         if sub_compound:
             sub_name = enclose(sub_name)
-        return f"{enclose(sub_name + 'peroxy')}benzene"
+        return f"{enclose(sub_name + _peroxy_word(near_o, far_o))}benzene"
 
     blocked_graph = {node: [n for n in neighbors if n not in (o1_idx, o2_idx)] for node, neighbors in graph.items()}
     del blocked_graph[o1_idx]
@@ -179,7 +194,7 @@ def _name_benzene_ring_peroxide_chain(mol, ring_atoms) -> str:
     sub_name, sub_compound = name_branch(graph, r_prime, far_o, {}, mol=mol)
     if sub_compound:
         sub_name = enclose(sub_name)
-    peroxy_term = CompoundPrefix(sub_name + "peroxy")
+    peroxy_term = CompoundPrefix(sub_name + _peroxy_word(near_o, far_o))
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {near_o: peroxy_term}, mol=mol)
     if not is_compound:
         return f"{branch_name}benzene"
@@ -235,12 +250,20 @@ def name_peroxide(mol) -> str:
     else:
         parent_root, parent_oxygen, sub_root, sub_oxygen = n2, o2_idx, n1, o1_idx
 
+    context = ISOTOPE_LABELS.get()
+    if context and parent_oxygen not in context["labels"] and sub_oxygen in context["labels"] and not any(
+        mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in context["labels"]
+    ):
+        ranks = Chem.CanonicalRankAtoms(mol, breakTies=False)
+        if ranks[o1_idx] == ranks[o2_idx]:
+            parent_root, parent_oxygen, sub_root, sub_oxygen = sub_root, sub_oxygen, parent_root, parent_oxygen
+
     sub_name, sub_compound = name_branch(full_graph, sub_root, sub_oxygen, {}, mol=mol)
     if sub_compound:
         sub_name = enclose(sub_name)
 
     parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
-    terminals = {parent_oxygen: CompoundPrefix(sub_name + "peroxy")}
+    terminals = {parent_oxygen: CompoundPrefix(sub_name + _peroxy_word(parent_oxygen, sub_oxygen))}
     _, chain, name = best_terminal_chain(full_graph, parent_carbon_graph, terminals, mol=mol)
 
     stereo = specified_stereocenters(mol)

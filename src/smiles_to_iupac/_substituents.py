@@ -793,7 +793,7 @@ def _labelled_pseudohalide(name, graph, root, coming_from, labelled):
     return name
 
 
-_CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
+_CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$|(?<!hydro)peroxy$")
 
 _CENTRE_PREFIX_STEM = {
     5: "boranyl|borono",
@@ -931,9 +931,9 @@ def _labelled_centre_prefix(name, mol, root, labelled, capacity):
 
 
 def _chalcogen_run(mol, graph, root, coming_from):
-    """The atoms of the chain of one chalcogen element that starts at `root` (a disulfanyl or trisulfanyl group), else None."""
+    """The atoms of the chain of one chalcogen element that starts at `root` (a peroxy, disulfanyl or trisulfanyl group), else None."""
     element = mol.GetAtomWithIdx(root).GetAtomicNum()
-    if element not in (16, 34, 52):
+    if element not in (8, 16, 34, 52):
         return None
     run, previous = [root], coming_from
     while True:

@@ -1101,3 +1101,15 @@ def test_nuclide_on_an_oxygen_of_an_acid_group(smiles, expected):
 )
 def test_nuclide_on_an_atom_of_a_pseudohalide_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.2.4: a nuclide on an oxygen of a peroxy linkage stands in front of 'peroxy' or of the class word
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ClCO[18O]C", "chloro[methyl(2-18O)peroxy]methane", id="peroxy_prefix"),
+        pytest.param("CC(=O)O[18O]C(=O)c1ccccc1", "acetic benzoic (2-18O)peroxyanhydride", id="peroxyanhydride_bridge"),
+    ],
+)
+def test_nuclide_on_an_oxygen_of_a_peroxy_linkage(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
