@@ -257,9 +257,12 @@ def _name_with_principal(sub, principal):
 
     token = FORCED_PRINCIPAL.set(principal)
     try:
-        return name_polyfunctional(sub)
+        name = name_polyfunctional(sub)
     finally:
         FORCED_PRINCIPAL.reset(token)
+    if name is None:
+        raise UnsupportedStructure("the acid group is not a principal group of its fragment")
+    return name
 
 
 def _attached_bond_descriptor(mol, sub, kept, name):

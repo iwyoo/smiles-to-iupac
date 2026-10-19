@@ -25,7 +25,10 @@ def name_chalcogen_hydrazide(mol) -> str:
     if mol.HasSubstructMatch(_OXYGEN_HYDRAZIDE):
         from ._polyfunctional import name_polyfunctional
 
-        return name_polyfunctional(mol)
+        name = name_polyfunctional(mol)
+        if name is None:
+            raise UnsupportedStructure("the hydrazide groups have no parent hydride that the hydrazide engine builds")
+        return name
     if any(a.GetIdx() not in chalcogens and a.GetAtomicNum() in _INFIX and a.GetDegree() == 1 for a in mol.GetAtoms()):
         raise UnsupportedStructure("further thione-type groups are not supported yet")
     infix = _INFIX[mol.GetAtomWithIdx(next(iter(chalcogens))).GetAtomicNum()]

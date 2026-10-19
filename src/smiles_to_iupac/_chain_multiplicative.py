@@ -941,14 +941,17 @@ def _rank_candidates(candidates, anchors, heads=None, mol=None, strict=False):
 
 
 def _beats_substitutive(mol, heads, covered):
-    from ._polyfunctional import _select
+    from ._polyfunctional import _try_select
 
     if mol is None or heads is None:
         return False
     try:
-        key, _, _ = _select(mol)
+        selected = _try_select(mol)
     except UnsupportedStructure:
         return True
+    if selected is None:
+        return True
+    key = selected[0]
     return isinstance(key[0], int) and len(heads & covered) > -key[0]
 
 

@@ -184,7 +184,10 @@ def name_nitroso(mol) -> str:
         except UnsupportedStructure:
             from ._polyfunctional import name_polyfunctional
 
-            return name_polyfunctional(mol)
+            name = name_polyfunctional(mol)
+            if name is None:
+                raise UnsupportedStructure("the nitroso compound has no parent hydride that the substitutive engine builds")
+            return name
 
     _validate_nitroso_atoms(mol, nitroso_atom_idxs, frozenset())
     if any(a not in nitroso_atom_idxs and b not in nitroso_atom_idxs for a, b, _ in non_single_bonds(mol)):

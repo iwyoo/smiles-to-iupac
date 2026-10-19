@@ -168,6 +168,8 @@ def _imine_name(stripped, configuration):
         name = name_polyfunctional(stripped)
     finally:
         FORCED_PRINCIPAL.reset(token)
+    if name is None:
+        raise UnsupportedStructure("the nitrone has no imine parent hydride that the imine engine builds")
     if not name.endswith("imine"):
         raise UnsupportedStructure("the nitrone is not named from an imine parent")
     if configuration is None:
@@ -250,6 +252,8 @@ def name_nitrile_oxide(mol) -> str:
             parent_name = name_polyfunctional(stripped)
         finally:
             FORCED_PRINCIPAL.reset(token)
+        if parent_name is None:
+            raise UnsupportedStructure("the nitrile oxide has no nitrile parent hydride that the nitrile engine builds")
         parent_name = _NITRILE_OXIDE_RETAINED_OVERRIDES.get(parent_name, parent_name)
     return f"{parent_name} {multiplied_word(len(groups), terms.pop())}"
 

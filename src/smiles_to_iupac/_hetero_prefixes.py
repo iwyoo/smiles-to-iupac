@@ -1255,6 +1255,8 @@ def _hydrazido(graph, root, others, mol):
         else:
             name = carbonic_hydrazide_name(fragment) or contextvars.Context().run(name_polyfunctional, fragment)
     except (UnsupportedStructure, ValueError):
+        name = None
+    if name is None:
         try:
             from .core import smiles_to_iupac
 

@@ -103,6 +103,8 @@ def name_amine_oxide(mol) -> str:
     try:
         base_name = name_polyfunctional(reduced_mol)
     except UnsupportedStructure:
+        base_name = None
+    if base_name is None:
         base_name = _name_with_nitrile_prefix(reduced_mol)
     return f"{with_unlocated_descriptor(base_name, nitrogen_code)} N-{class_word}"
 
@@ -182,6 +184,8 @@ def _name_with_nitrile_prefix(reduced_mol):
         name = name_polyfunctional(reduced_mol)
     finally:
         FORCED_PRINCIPAL.reset(token)
+    if name is None:
+        raise UnsupportedStructure("the oxidized nitrogen has no amine parent hydride that the amine engine builds")
     # P-14.3.4.4: the oxidized nitrogen carries no hydrogen, so the only position left for the prefix is carbon 1
     cited_prefix = any(a.HasProp(PREFIX_PROP) for a in reduced_mol.GetAtoms())
     return re.sub(r"^1-(?=[a-z(\[{])", "", name) if name.endswith("methanamine") and not cited_prefix else name
@@ -367,6 +371,8 @@ def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
         token = ISOTOPE_LABELS.set(None)
         try:
             name = name_polyfunctional(target)
+            if name is None:
+                raise UnsupportedStructure("the oxidized nitrogen has no parent hydride that the amine engine builds")
             if labels:
                 if not nuclides_cited(target, name):
                     raise UnsupportedStructure("the nuclides of this polyamine N-oxide are not cited by the name of its parent")
