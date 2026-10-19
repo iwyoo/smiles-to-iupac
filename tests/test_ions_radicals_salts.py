@@ -1095,6 +1095,18 @@ def test_nitrogen_and_peroxyl_radicals_beside_groups(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("[CH2]c1ccc([CH2-])cc1", "(4-methanidylphenyl)methyl", id="carbanide_on_a_ring_beside_a_radical"),
+        pytest.param("[CH2]C1CC[CH+]CC1", "(cyclohexan-4-ylium-1-yl)methyl", id="ring_carbocation_beside_a_radical"),
+        pytest.param("[CH2]c1ccccc1[NH-]", "(2-azanidylphenyl)methyl", id="anionic_nitrogen_beside_a_radical"),
+    ],
+)
+def test_ionic_centres_in_a_different_parent_than_the_radical(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("[O-][n+]1cccnc1", "pyrimidine 1-oxide", id="diazine_n_oxide"),
         pytest.param("[O-][N+]1=NCCCc2ccccc21", "4,5-dihydro-3H-1,2-benzodiazepine 1-oxide", id="azoxy_ring_with_hydro_prefixes"),
         pytest.param("[O-][N+]1=NCCCC1", "3,4,5,6-tetrahydropyridazine 1-oxide", id="saturated_azoxy_ring"),

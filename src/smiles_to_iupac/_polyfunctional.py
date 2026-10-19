@@ -1522,7 +1522,10 @@ def _ylium_inserted(name, base, center, placed):
     ring = any(base.GetAtomWithIdx(a).IsInRing() for a in parent)
     size = len(parent)
     stem = ("cyclo" if ring else "") + alkane_name(size)[:-3]
-    enes, ynes = _unsaturation_locants(base, parent, placed, size, not ring)
+    unsaturation = _unsaturation_locants(base, parent, placed, size, not ring)
+    if unsaturation is None:
+        raise UnsupportedStructure("the ring closure bond of the parent hydride needs the compound-locant form")
+    enes, ynes = unsaturation
     root = _parent_base(stem, enes, ynes)[:-1]
     if name.count(root) != 1:
         raise UnsupportedStructure("the parent hydride of the anionic name is not delimited")

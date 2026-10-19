@@ -1375,7 +1375,7 @@ def _sulfinyl_descriptor_in_front(name):
 _ANION_NAME_ENDING = re.compile(r"(?:ide|uide|ate|ite|ato|ido|elide)\b|(?:ide|uide|ate|ite)-|id(?:yl|ylidene|ylidyne)\b|-u?id-\d")
 
 
-_ANION_WORD_ANYWHERE = re.compile(r"ato|ido|ide|ate|ite|uide")
+_ANION_WORD_ANYWHERE = re.compile(r"ato|ido|ide|ate|ite|uide|nidyl")
 
 
 def _drops_anionic_charge(mol, name, anywhere=False) -> bool:

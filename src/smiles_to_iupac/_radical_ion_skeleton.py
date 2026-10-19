@@ -122,7 +122,7 @@ def _general_name(mol, radicals, anions, cations):
     tail = re.search(r"-?(\d+(?:,\d+)*)-(di|tri|tetra)?ide$", name)
     centres = {a.GetIdx() for a in radicals + ions}
     if tail is None or found is None or any(c not in found[1] for c in centres):
-        raise UnsupportedStructure("the skeleton of this radical ion is not named as a polyanion parent")
+        return None
     positions = found[1]
     parent = set(positions)
     parent_ring = any(set(r) <= parent for r in mol.GetRingInfo().AtomRings())
@@ -146,24 +146,53 @@ def _general_name(mol, radicals, anions, cations):
             substituted = sorted(
                 numbers[n.GetIdx()] for a in attachments for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in parent
             )
-            try:
-                enes, ynes = _unsaturation_locants(kekule, parent, numbers, size, flip)
-            except UnsupportedStructure:
+            unsaturation = _unsaturation_locants(kekule, parent, numbers, size, flip)
+            if unsaturation is None:
                 continue
+            enes, ynes = unsaturation
             key = (*_centre_order_key(centre_key), sorted(enes + ynes), enes, substituted)
             if best is None or key < best[0]:
                 best = (key, numbers, centre_key, enes, ynes)
     if best is None:
-        raise UnsupportedStructure("no numbering of this radical ion is available")
+        return None
     numbers = best[1]
     head = name[: tail.start()]
     stem = ("cyclo" if parent_ring else "") + alkane_name(size)[:-3]
     start = head.rfind(stem)
     if start < 0:
-        raise UnsupportedStructure("the parent hydride of this radical ion is not delimited")
+        return None
     remap = {positions[i]: numbers[i] for i in positions}
     base = _parent_base(stem, best[3], best[4])
     return _assemble(base, *best[2], _renumber(head[:start], remap))
+
+
+_CATION_TOKENS = ((re.compile(r"methanidyl"), "methyliumyl"), (re.compile(r"(\d+)-id-(\d+)-yl"), r"\1-ylium-\2-yl"))
+_ANION_LEFT = re.compile(r"methanid|\d-id-|anid|diid|uid")
+
+
+def _prefixed_name(mol, radicals, anions, cations):
+    """Ionic and radical centres in different parent structures (P-75.4): the radical outranks the ionic centres, so the
+    parent radical is named as a substituent group and the part holding the ionic centres is cited as a prefix; the
+    cationic centres are read from the name of the anionic analogue with 'ide' changed to 'ylium' (P-73.2.2.1)."""
+    from ._radical_group import name_radical_group
+
+    if len(radicals) != 1 or (anions and cations):
+        return None
+    analogue = Chem.RWMol(mol)
+    for atom in cations:
+        analogue.GetAtomWithIdx(atom.GetIdx()).SetFormalCharge(-1)
+    analogue = analogue.GetMol()
+    try:
+        Chem.SanitizeMol(analogue)
+        name = name_radical_group(analogue)
+    except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
+        return None
+    if cations:
+        for pattern, replacement in _CATION_TOKENS:
+            name = pattern.sub(replacement, name)
+        if _ANION_LEFT.search(name):
+            return None
+    return name
 
 
 def _named_parent_name(analogue, head, positions, radicals, anions, cations):
@@ -179,7 +208,7 @@ def _named_parent_name(analogue, head, positions, radicals, anions, cations):
         if best is None or _centre_order_key(key) < _centre_order_key(best[0]):
             best = (key, numbers)
     if best is None:
-        raise UnsupportedStructure("no numbering of this radical ion is available")
+        return None
     remap = {positions[i]: n for i, n in best[1].items()}
     return _assemble(_renumber(head, remap), *best[0])
 
@@ -193,7 +222,7 @@ def _unsaturation_locants(mol, parent, numbers, size, ring_free):
             continue
         low, high = sorted((numbers[a], numbers[b]))
         if not ring_free and (low, high) == (1, size):
-            raise UnsupportedStructure("a ring closure bond locant needs the compound-locant form")
+            return None
         (enes if order == 2.0 else ynes).append(low)
     return sorted(enes), sorted(ynes)
 
@@ -230,13 +259,6 @@ def _renumber(prefixes, remap):
     return "".join(out)
 
 
-def _split_parent(head):
-    match = re.search(r"([a-z]*(?:cyclo)?[a-z]*an[e]?)$", head)
-    if match is None:
-        raise UnsupportedStructure("the parent hydride of this radical ion is not delimited")
-    return head[: match.start()], match.group(1)
-
-
 def name_skeleton_radical_ion(mol) -> str:
     centres = _centres(mol)
     if centres is None:
@@ -247,4 +269,12 @@ def name_skeleton_radical_ion(mol) -> str:
         return _simple_name(mol, ring, radicals, anions, cations)
     if mol.GetNumAtoms() == 1:
         return "methanidyl" if anions else "methyliumyl"
-    return _general_name(mol, radicals, anions, cations)
+    try:
+        named = _general_name(mol, radicals, anions, cations)
+    except UnsupportedStructure:
+        named = None
+    if named is None:
+        named = _prefixed_name(mol, radicals, anions, cations)
+    if named is None:
+        raise UnsupportedStructure("this radical ion has no supported name yet")
+    return named

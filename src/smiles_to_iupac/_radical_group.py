@@ -196,7 +196,12 @@ def _name_radical_group(mol) -> str:
     stereo = specified_stereo_elements(mol)
     if stereo and labels:
         raise UnsupportedStructure("isotopic modification of a radical with stereo elements is not supported yet")
-    if any(a.GetFormalCharge() < 0 and a.GetAtomicNum() not in _NOT_ATE_CENTRE and not a.IsInRing() for a in mol.GetAtoms()):
+    if any(
+        a.GetFormalCharge() < 0
+        and (a.GetAtomicNum() in (6, 7) or (a.GetAtomicNum() not in _NOT_ATE_CENTRE and not a.IsInRing()))
+        and not (a.GetAtomicNum() == 7 and (a.IsInRing() or a.GetFormalCharge() != -1))
+        for a in mol.GetAtoms()
+    ):
         from ._anion import marked_neutral
 
         mol = marked_neutral(mol)
