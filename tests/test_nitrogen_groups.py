@@ -532,6 +532,8 @@ def test_phenyl_cyanate():
     [
         ("N=N", "diazene"),
         ("CN=NCC", "ethyl(methyl)diazene"),
+        ("CC(C)(C)N=NC(C)(C)C", "di-tert-butyldiazene"),
+        ("CC(C)(C)P(C(C)(C)C)C", "di-tert-butyl(methyl)phosphane"),
     ],
 )
 def test_diazene(smiles, expected):

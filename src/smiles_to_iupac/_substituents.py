@@ -100,6 +100,9 @@ def _fully_enclosed(name: str) -> bool:
 _MULTIPLIED_HETERO_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)(?:az|sil|sulf|selan|tellan|phosph|ars|oxid|germ|stann|plumb|bor)[a-z]*yl")
 
 
+_TERT_BUTYL_GROUPS = ("tert-butyl", "tert-butoxy")
+
+
 def prefix_multiplier(count: int, name: str, compound: bool):
     """(multiplier, enclosed) for `name` cited `count` > 1 times as a detachable prefix (P-16.3.3 to P-16.3.6): 'di'
     for simple names; 'di' with enclosing marks for simple names with locants, brackets or a leading numerical term;
@@ -110,7 +113,7 @@ def prefix_multiplier(count: int, name: str, compound: bool):
         return multiplying_prefix(count, compound=True), False
     if (name[:1] in "([{" and not name.startswith("(\u03b7")) or _CHALCOGEN_HYDRIDE_GROUP.match(name):
         return multiplying_prefix(count, compound=True), True
-    if name == "tert-butyl":
+    if name in _TERT_BUTYL_GROUPS:
         return f"{multiplying_prefix(count)}-", False
     if _MULTIPLIED_HETERO_STEM.match(name):
         return multiplying_prefix(count, compound=True), True
@@ -253,6 +256,8 @@ def format_mononuclear_prefixes(entries) -> str:
         count = counts[name]
         if count > 1 and (_CHALCOGEN_HYDRIDE_GROUP.match(name) or _MULTIPLIED_HETERO_STEM.match(name)):
             parts.append(multiplying_prefix(count, compound=True) + wrap_marks(name))
+        elif count > 1 and name in _TERT_BUTYL_GROUPS:
+            parts.append(f"{multiplying_prefix(count)}-{name}")
         elif count > 1:
             # P-16.5.1.3.1's own text: "the multiplicative prefixes are
             # not included in the parentheses" -- confirmed via the Blue
