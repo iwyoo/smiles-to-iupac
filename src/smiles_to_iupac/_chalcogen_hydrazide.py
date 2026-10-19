@@ -1,6 +1,7 @@
 """Chalcogen analogues of hydrazides (P-66.3.4): every hydrazide group is named with its =O in place of the =S, =Se or
 =Te and the replacement infix 'thio', 'seleno' or 'telluro' is put in front of 'hydrazide'; the retained acetic,
-benzoic and formic names are not used. Groups of one chalcogen are multiplied like the oxygen hydrazides."""
+benzoic and formic names are not used. Groups of one chalcogen are multiplied like the oxygen hydrazides. An oxygen
+hydrazide beside them is the senior parent and they are named as its prefixes (P-41)."""
 
 from rdkit import Chem
 
@@ -22,7 +23,9 @@ def name_chalcogen_hydrazide(mol) -> str:
     if len({mol.GetAtomWithIdx(a).GetAtomicNum() for a in chalcogens}) != 1:
         raise UnsupportedStructure("hydrazide groups of different chalcogens are not supported yet")
     if mol.HasSubstructMatch(_OXYGEN_HYDRAZIDE):
-        raise UnsupportedStructure("a hydrazide group beside a chalcogen hydrazide group is named by the senior hydrazide")
+        from ._polyfunctional import name_polyfunctional
+
+        return name_polyfunctional(mol)
     if any(a.GetIdx() not in chalcogens and a.GetAtomicNum() in _INFIX and a.GetDegree() == 1 for a in mol.GetAtoms()):
         raise UnsupportedStructure("further thione-type groups are not supported yet")
     infix = _INFIX[mol.GetAtomWithIdx(next(iter(chalcogens))).GetAtomicNum()]

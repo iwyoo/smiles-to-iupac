@@ -20,6 +20,9 @@ from ._isotope_labels import restore_labels
 from ._substituents import FORCED_BRANCH_NAMES
 
 
+_CHALCOGEN_ACYL = (16, 34, 52)
+
+
 def _hydrazine_pair(mol):
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtom(), bond.GetEndAtom()
@@ -66,14 +69,17 @@ def diacylhydrazine_name(mol):
     pairs = []
     for a, b in _hydrazine_pair(mol):
         roots = {a.GetIdx(): _acyl_roots(mol, a), b.GetIdx(): _acyl_roots(mol, b)}
-        if sum(len(r) for r in roots.values()) >= 2:
-            pairs.append((a, b, roots))
-    nitrogens = [n for _, _, roots in pairs for n in roots]
+        chalcogen_roots = {n.GetIdx(): _acyl_roots(mol, n, _CHALCOGEN_ACYL) for n in (a, b)}
+        for n, found in chalcogen_roots.items():
+            found[:] = [r for r in found if r not in roots[n]]
+        if any(mol.GetAtomWithIdx(r).GetAtomicNum() == 6 for rs in roots.values() for r in rs) and sum(len(r) for r in roots.values()) + sum(len(r) for r in chalcogen_roots.values()) >= 2:
+            pairs.append((a, b, roots, chalcogen_roots))
+    nitrogens = [n for _, _, roots, _ in pairs for n in roots]
     if not pairs or len(set(nitrogens)) != len(nitrogens):
         return None
     graph = adjacency(mol)
     parents, donors = set(), []
-    for _, _, roots in pairs:
+    for _, _, roots, chalcogen_roots in pairs:
         candidates = [(r, n) for n, rs in roots.items() for r in rs]
         parent = min(
             candidates,
@@ -86,6 +92,7 @@ def diacylhydrazine_name(mol):
         )[0]
         parents.add(parent)
         donors += [(r, n) for r, n in candidates if r != parent]
+        donors += [(r, n) for n, rs in chalcogen_roots.items() for r in rs]
     taken = [_side(graph, r, n) for r, n in donors]
     if sum(len(s) for s in taken) != len(set().union(*taken)) or any(
         s & (parents | set(nitrogens)) for s in taken
