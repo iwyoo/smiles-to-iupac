@@ -988,6 +988,7 @@ def test_von_baeyer_exocyclic_double_bond_is_an_ylidene_prefix(smiles, expected)
         pytest.param("C1[N+]2(C=CC3=CC=CC=C13)C=CN4C=CC=CC4=C2", "1H-2λ5-spiro[isoquinoline-2,2′-pyrido[1,2-a]pyrazin]-2-ylium", id="cationic_spiro_atom_of_different_components"),
         pytest.param("C1=CC=C2C(=C1)C[N+]3(C2)CC4=CC=CC=C4C3", "1,1′,3,3′-tetrahydro-2λ5,2′-spirobi[isoindol]-2-ylium", id="cationic_spiro_atom_of_identical_components"),
         pytest.param("C1CC[Si]2(C1)CC1=CC=CC=C1C2", "1,3-dihydrospiro[[2]benzosilole-2,1′-silolane]", id="silicon_joining_a_fused_component_and_a_monocycle"),
+        pytest.param("O=S1c2ccccc2C2(CCCC2)c2ccccc12", "10′λ4-spiro[cyclopentane-1,9′-thioxanthen]-10′-one", id="sulfur_oxide_of_a_fused_component"),
         pytest.param("C1CC[Si]2(C1)C1CC3CC(C1)CC2C3", "1′-silaspiro[adamantane-2,1′-cyclopentane]", id="silicon_at_the_spiro_atom_of_an_adamantane"),
         pytest.param("C1CC2CC1C[N+]23CC4CCC3C4", "2λ5,2′-spirobi[2-azabicyclo[2.2.1]heptan]-2-ylium", id="cationic_nitrogen_between_two_replacement_parents"),
         pytest.param("C1=CC2CC[N+]3(CCCC3)CC1C2", "1′λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-7-en-1′-ylium", id="double_bond_of_a_polycyclic_spiro_cation"),

@@ -336,11 +336,12 @@ def _capable(mol, comp, spiro_atoms, nonstandard=None):
         elif z in _STANDARD:
             excess = atom.GetTotalValence() - atom.GetFormalCharge() - _STANDARD[z]
             if excess > 0:
-                ring_double = any(
-                    b.GetBondTypeAsDouble() == 2.0 and b.IsInRing() for b in atom.GetBonds()
+                holds_double = any(
+                    b.GetBondTypeAsDouble() == 2.0 and (b.IsInRing() or b.GetOtherAtom(atom).GetAtomicNum() in (8, 16, 34, 52))
+                    for b in atom.GetBonds()
                 )
-                if nonstandard is None or excess % 2 or not ring_double or atom.GetFormalCharge():
-                    raise UnsupportedStructure("a nonstandard bonding number away from the spiro atom is not supported yet")
+                if nonstandard is None or excess % 2 or not holds_double or atom.GetFormalCharge():
+                    raise UnsupportedStructure("the extra bonds of this ring heteroatom are not a ring double bond or a chalcogen oxo group")
                 nonstandard[a] = atom.GetTotalValence()
             capacity = 1 if _STANDARD[z] - ring_degree == 1 else 0
         else:
