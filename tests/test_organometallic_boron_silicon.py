@@ -1406,3 +1406,16 @@ def test_substituent_on_a_ring_heteroatom_of_group_13_to_15(smiles, expected):
 )
 def test_unbalanced_cyclopentadienide_metal_structure_is_no_ocene(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-69.3: the structural solvent of an organometallic compound of Group 1 or 2 is ignored; a neutral solvate of another metal is an adduct (P-14.8)
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[Mg]Br.CCOCC.CCOCC", "methylmagnesium bromide", id="solvent_of_a_grignard_reagent"),
+        pytest.param("C[Li].[Li]Br", "methyllithium—lithium bromide (1/1)", id="mixed_aggregate_with_a_bare_halide"),
+        pytest.param("C[Zn]Cl.C1CCOC1", "oxolane—chlorido(methyl)zinc (1/1)", id="solvate_of_another_metal"),
+    ],
+)
+def test_solvent_beside_an_organometallic_compound(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
