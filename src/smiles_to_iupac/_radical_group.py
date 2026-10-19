@@ -147,9 +147,13 @@ def _hydride(mol, centre):
     return hydride, cap
 
 
+def has_radical_shape(mol) -> bool:
+    return any(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms())
+
+
 def has_radical_group_shape(mol) -> bool:
     centre = _centre(mol)
-    return centre is not None and (mol.GetNumAtoms() > 1 or bool(centre.GetIsotope()))
+    return centre is not None or (mol.GetNumAtoms() == 1 and sum(1 for a in mol.GetAtoms() if a.GetNumRadicalElectrons()) == 1)
 
 
 def name_radical_group(mol) -> str:
@@ -167,6 +171,7 @@ def _name_radical_group(mol) -> str:
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
     labels = {}
+    original = mol
     split = split_isotopes(mol)
     if split is not None:
         mol, labels, _ = split
@@ -177,6 +182,12 @@ def _name_radical_group(mol) -> str:
         found = hetero_radical_name(mol) or polyradical_name(mol)
         if found is not None:
             return found
+        if (
+            len(Chem.GetMolFrags(mol)) != 1
+            or mol.GetNumAtoms() > _MAX_ATOMS
+            or any(a.GetAtomicNum() == 53 for a in mol.GetAtoms())
+        ):
+            raise UnsupportedStructure("these radical centres are not on one parent")
         if _polyradical_centres(mol):
             try:
                 return _name_polyradical(mol)
@@ -185,6 +196,12 @@ def _name_radical_group(mol) -> str:
         if _multi_centres(mol):
             return _name_parent_radical(mol)
         raise UnsupportedStructure("these radical centres are not on one parent")
+    if centre is None or (labels and centre.GetAtomicNum() != 6):
+        from ._radical_hetero import hetero_radical_name
+
+        found = hetero_radical_name(original)
+        if found is not None:
+            return found
     if (
         centre is None
         or mol.GetNumAtoms() > _MAX_ATOMS
@@ -215,7 +232,15 @@ def _name_radical_group(mol) -> str:
         return _name_multivalent_centre(mol, centre)
     if centre.GetAtomicNum() == 8 and centre.GetNeighbors()[0].GetAtomicNum() == 8:
         refuse_specified_stereo(mol)
-        return _name_peroxyl(mol, centre)
+        try:
+            return _name_peroxyl(mol, centre)
+        except UnsupportedStructure:
+            from ._radical_hetero import hetero_radical_name
+
+            found = hetero_radical_name(original)
+            if found is None:
+                raise
+            return found
     hydride, hydrogen = _hydride(mol, centre)
     stereo_token = None
     if stereo:
@@ -405,8 +430,6 @@ def _name_polyradical(mol):
     'yl', every other group a prefix."""
     from ._anion import name_anion
 
-    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
-        raise UnsupportedStructure("this polyradical is not a single plain skeleton")
     anionic = Chem.RWMol(mol)
     for atom in _polyradical_centres(mol):
         target = anionic.GetAtomWithIdx(atom.GetIdx())
@@ -554,12 +577,6 @@ def _name_parent_radical(mol):
     outrank chains; the other centres are cited with the nondetachable prefix 'ylo' (P-71.5)."""
     from itertools import combinations
 
-    if (
-        len(Chem.GetMolFrags(mol)) != 1
-        or mol.GetNumAtoms() > _MAX_ATOMS
-        or any(a.GetAtomicNum() == 53 for a in mol.GetAtoms())
-    ):
-        raise UnsupportedStructure("these radical centres are not on one plain skeleton")
     radicals = [a.GetIdx() for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
     for size in range(len(radicals), 0, -1):
         found = []
