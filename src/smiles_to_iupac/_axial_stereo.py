@@ -4,7 +4,8 @@ RDKit drops extended tetrahedral (`[C@AL1]`) and cumulene double-bond stereo whe
 read from the text of acyclic cumulenes. An even cumulene is an elongated tetrahedron whose four ligands are the
 substituents of its two terminals: ranked by CIP priority (p1 > p2 near, d1 > d2 far), `@` on (p1, p2, d1, d2) is `P` and
 `@@` is `M`. An odd cumulene is planar and takes E or Z from the higher-ranking substituent of each terminal. The
-descriptor is cited with the lowest locant of the cumulated double bonds in the finished name.
+descriptor is cited with the lowest locant of the cumulated double bonds in the numbered chain of the finished name,
+or at the front of the substituent that holds the axis (P-93.4.2.4).
 """
 
 import re
@@ -12,6 +13,7 @@ import re
 from rdkit import Chem
 
 from ._common import STEREO_OVERRIDE, UnsupportedStructure
+from ._numerals import numerical_term
 
 _ATOM = re.compile(r"\[[^\]]+\]|Cl|Br|[BCNOPSFIbcnops]")
 _ENE_LOCANTS = re.compile(r"-(\d+(?:,\d+)*)-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?en(?=[a-z-]|$)")
@@ -147,7 +149,7 @@ def _even_axes(graph, mol, ranks):
         else:
             swaps = sum(w != list(o) for w, o in zip(written, ordered))
             anticlockwise = (tag.group(1) == "1") != bool(swaps % 2)
-            found.append((len(first) + len(second) - 2, "P" if anticlockwise else "M"))
+            found.append((first[:0:-1] + [centre] + second[1:], "P" if anticlockwise else "M"))
     return found
 
 
@@ -172,24 +174,8 @@ def _odd_axes(graph, mol, ranks):
             up = graph.bond[(terminal, marked[0])] == "/"
             sides.append(up if ranked[0] == marked[0] else not up)
         if sides:
-            found.append((doubles, "Z" if sides[0] == sides[1] else "E"))
+            found.append((chain, "Z" if sides[0] == sides[1] else "E"))
     return found
-
-
-def _cumulated_start(name, double_bonds):
-    runs = []
-    for match in _ENE_LOCANTS.finditer(name):
-        run = []
-        for number in (int(x) for x in match.group(1).split(",")):
-            if run and number != run[-1] + 1:
-                runs.append(run)
-                run = []
-            run.append(number)
-        runs.append(run)
-    runs = [r for r in runs if len(r) == double_bonds]
-    if len(runs) != 1:
-        raise UnsupportedStructure("the cumulated double bonds are not cited with consecutive locants in the name")
-    return runs[0][0]
 
 
 def _merge(name, token):
@@ -201,6 +187,241 @@ def _merge(name, token):
         return f"({token})-{name}"
     ordered = ",".join(sorted(tokens + [token], key=lambda t: int(re.match(r"\d+", t).group(0))))
     return f"({ordered})-{name[existing.end():]}"
+
+
+_MULTIPLIER = r"(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca|bis|tris|tetrakis|pentakis|hexakis)"
+_ENCLOSED = re.compile(r"[(\[{][^()\[\]{}]*[)\]}]")
+_STEREO_PREFERENCE = (("Z",), ("R", "r", "M", "m"))
+_PREFERRED = frozenset("ZRrMm")
+_CARBONYL_ENDING = re.compile(r"(?:oate|oic|oyl|oxo|amide|imide|one|al)(?![a-z])")
+_CITED_BEFORE = re.compile(r"\([^()]*[A-Za-z]\)-$")
+_ENCLOSING_MARKS = ("()", "[]", "{}")
+
+
+def _top_level(name):
+    while True:
+        stripped = _ENCLOSED.sub("", name)
+        if stripped == name:
+            return name
+        name = stripped
+
+
+def _chain_length(name):
+    """Number of atoms of the chain that `name` is built on: the last numerical stem that stands before an
+    ane/ene/yne ending, the longer stem winning where one ends in another ('undec', 'dec')."""
+    top = _top_level(name)
+    stems = {1: "meth", 2: "eth", 3: "prop", 4: "but"}
+    best = None
+    for n in range(1, 61):
+        stem = stems.get(n) or numerical_term(n).removesuffix("a")
+        for match in re.finditer(rf"{stem}(?:a-|an|en|yn|-)", top):
+            key = (match.start() + len(stem), len(stem), n)
+            best = key if best is None or key > best else best
+    return best[2] if best else None
+
+
+def _ene_locants(name):
+    return sorted(int(n) for m in _ENE_LOCANTS.finditer(_top_level(name)) for n in m.group(1).split(","))
+
+
+def _cited_locants(name, word):
+    found = set()
+    for match in re.finditer(re.escape(word), name):
+        before = re.sub(rf"{_MULTIPLIER}$", "", re.sub(r"[(\[{]$", "", name[: match.start()]))
+        listed = re.search(r"(?<![\w,])(\d+(?:,\d+)*)-$", before)
+        if listed:
+            found.update(int(n) for n in listed.group(1).split(","))
+    return found
+
+
+class _Scope:
+    def __init__(self, mol):
+        from ._common import adjacency, halogen_substituents
+
+        self.mol = mol
+        self.neighbors = {a.GetIdx(): [n.GetIdx() for n in a.GetNeighbors()] for a in mol.GetAtoms()}
+        self.graph = adjacency(mol)
+        self.halogens = halogen_substituents(mol)
+        self.words = {}
+
+    def word(self, root, attached_to):
+        from ._substituents import name_branch
+
+        if (root, attached_to) not in self.words:
+            try:
+                self.words[(root, attached_to)] = name_branch(self.graph, root, attached_to, self.halogens, mol=self.mol)[0]
+            except UnsupportedStructure:
+                self.words[(root, attached_to)] = None
+        return self.words[(root, attached_to)]
+
+    def side(self, root, attached_to):
+        seen, stack = {attached_to}, [root]
+        while stack:
+            atom = stack.pop()
+            if atom not in seen:
+                seen.add(atom)
+                stack.extend(self.neighbors[atom])
+        return seen - {attached_to}
+
+    def paths(self, region, through):
+        for first in sorted(region):
+            stack = [[first]]
+            while stack:
+                path = stack.pop()
+                if len(path) > 1 and (through is None or through in path):
+                    yield path
+                stack.extend(path + [n] for n in self.neighbors[path[-1]] if n in region and n not in path)
+
+    def bond_is_double(self, a, b):
+        return self.mol.GetBondBetweenAtoms(a, b).GetBondType() == Chem.BondType.DOUBLE
+
+    def carbonyl_agrees(self, path, name):
+        on_path = set(path)
+        oxo = any(
+            self.mol.GetAtomWithIdx(other).GetAtomicNum() == 8 and self.bond_is_double(atom, other)
+            for atom in path
+            for other in self.neighbors[atom]
+            if other not in on_path
+        )
+        return oxo == bool(_CARBONYL_ENDING.search(_top_level(name)))
+
+    def fits(self, path, name):
+        doubles = [i + 1 for i in range(len(path) - 1) if self.bond_is_double(path[i], path[i + 1])]
+        if len(path) != _chain_length(name) or doubles != _ene_locants(name):
+            return False
+        on_path = set(path)
+        for position, atom in enumerate(path, 1):
+            for other in self.neighbors[atom]:
+                word = None if other in on_path else self.word(other, atom)
+                cited = _cited_locants(name, word) if word else ()
+                if cited and position not in cited:
+                    return False
+        return True
+
+
+def _leading_preference(word):
+    group = re.match(r"\(([^()]*)\)-", word)
+    return tuple(t[-1] not in _PREFERRED for t in group.group(1).split(",")) if group else ()
+
+
+def _preference(tokens):
+    return tuple(tuple(sorted(locant for locant, code in tokens if code in wanted)) for wanted in _STEREO_PREFERENCE)
+
+
+def _depth(text):
+    depth = deepest = 0
+    for character in text:
+        depth += (character in "([{") - (character in ")]}")
+        deepest = max(deepest, depth)
+    return deepest
+
+
+def _enclosed(cited):
+    opening, closing = _ENCLOSING_MARKS[_depth(cited) % 3]
+    return opening + cited + closing
+
+
+def _replace_branch(name, word, cited):
+    """Puts `cited` where the substituent `word` stands, in enclosing marks one level above the deepest it holds
+    (P-16.5.4)."""
+    start = next((m.start() for m in re.finditer(re.escape(word), name) if not _CITED_BEFORE.search(name[: m.start()])), None)
+    if start is None:
+        return None
+    end = start + len(word)
+    enclosed = start > 0 and name[start - 1] in "([{" and name[end : end + 1] in ")]}"
+    if not enclosed and (start == 0 or name[start - 1] == " ") and name[end : end + 1] in ("", " "):
+        return name[:start] + cited + name[end:]
+    return name[: start - enclosed] + _enclosed(cited) + name[end + enclosed :]
+
+
+def _words(name):
+    words, depth, start = [], 0, 0
+    for index, character in enumerate(name):
+        depth += (character in "([{") - (character in ")]}")
+        if character == " " and depth == 0:
+            words.append(name[start:index])
+            start = index + 1
+    return words + [name[start:]]
+
+
+def _replace_branches(name, word, items):
+    """Cites the substituent `word` once when every copy has the same descriptors, else each copy apart, in the order of
+    the descriptors, where the multiplying prefix stood."""
+    cited = {c for _, c, _ in items}
+    if len(cited) == 1:
+        return _replace_branch(name, word, next(iter(cited)))
+    pattern = re.compile(rf"(?:(?P<locants>\d+(?:,\d+)*)-)?{_MULTIPLIER}[(\[{{]{re.escape(word)}[)\]}}]")
+    match = pattern.search(name)
+    if match is None:
+        return None
+    ordered = sorted(items, key=lambda item: (item[0] or 0, _leading_preference(item[1])))
+    if match.group("locants") is None:
+        pieces = " ".join(c for _, c, _ in sorted(items, key=lambda item: _leading_preference(item[1])))
+    else:
+        pieces = "-".join(f"{locant}-{_enclosed(c)}" for locant, c, _ in ordered)
+    return name[: match.start()] + pieces + name[match.end() :]
+
+
+def _cite_in(scope, axes, name, region, through):
+    """(`name` with the descriptors of the `axes` it numbers, the axes left): an axis is cited at the locants of the chain
+    that the name numbers (the path through `through` whose length, double bonds and substituent locants the name
+    repeats), or inside the name of the substituent that holds it when the chain does not."""
+    words = _words(name)
+    if len(words) == 1:
+        return _cite_word(scope, axes, name, region, through, False)
+    remaining, original = list(axes), list(words)
+    for index, word in enumerate(original):
+        cited, left = _cite_word(scope, remaining, word, region, through, True)
+        if len(left) < len(remaining):
+            words[index], remaining = cited, left
+    for index in reversed(range(len(original))):
+        cited, left = _cite_word(scope, remaining, original[index], region, through, True)
+        if len(left) < len(remaining):
+            words[index : index + 1] = sorted([words[index], cited], key=_leading_preference)
+            remaining = left
+    return " ".join(words), remaining
+
+
+def _cite_word(scope, axes, name, region, through, must_cover):
+    fitting = [p for p in scope.paths(region, through) if scope.fits(p, name)]
+    fitting = [p for p in fitting if scope.carbonyl_agrees(p, name)] or fitting
+    covered = lambda path: [a for a in axes if set(a[0]) <= set(path)]
+    path = ()
+    if fitting and (not must_cover or any(covered(p) for p in fitting)):
+        most = max(len(covered(p)) for p in fitting)
+        options = {}
+        for candidate in fitting:
+            if len(covered(candidate)) == most:
+                tokens = tuple(sorted((min(candidate.index(x) + 1 for x in run), code) for run, code in covered(candidate)))
+                options.setdefault(tokens, candidate)
+        tokens = min(options, key=_preference)
+        path = options[tokens]
+        for locant, code in tokens:
+            name = _merge(name, f"{locant}{code}")
+    remaining = [a for a in axes if not set(a[0]) <= set(path)]
+    edges = [
+        (atom, other)
+        for atom in sorted(region)
+        for other in scope.neighbors[atom]
+        if other in region and other not in path
+    ]
+    placed = {}
+    for atom, other in sorted(edges, key=lambda edge: -len(scope.side(edge[1], edge[0]))):
+        branch = scope.side(other, atom)
+        inside = [a for a in remaining if set(a[0]) <= branch] if branch <= region else []
+        word = scope.word(other, atom) if inside else None
+        if not word or word not in name or word == name:
+            continue
+        cited, left = _cite_in(scope, inside, word, branch, other)
+        if not left:
+            placed.setdefault(word, []).append((path.index(atom) + 1 if atom in path else None, cited, inside))
+    for word, items in placed.items():
+        replaced = _replace_branches(name, word, items)
+        if replaced is not None:
+            name = replaced
+            consumed = [a for _, _, inside in items for a in inside]
+            remaining = [a for a in remaining if a not in consumed]
+    return name, remaining
 
 
 def cite_axial_stereo(smiles, name):
@@ -216,10 +437,12 @@ def cite_axial_stereo(smiles, name):
     axes = _even_axes(graph, mol, ranks) + _odd_axes(graph, mol, ranks)
     if not axes:
         return name
-    if len(axes) > 1:
-        raise UnsupportedStructure("more than one cumulene axis")
-    double_bonds, descriptor = axes[0]
-    return _merge(name, f"{_cumulated_start(name, double_bonds)}{descriptor}")
+    scope = _Scope(mol)
+    atoms = {a.GetIdx() for a in mol.GetAtoms()}
+    cited, left = _cite_in(scope, axes, name, atoms, None)
+    if left:
+        raise UnsupportedStructure("a cumulene axis whose atoms the name does not number")
+    return cited
 
 
 _AXIS_FROM_CENTRE = {"R": "M", "S": "P", "r": "m", "s": "p"}
