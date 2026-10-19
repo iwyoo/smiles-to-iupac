@@ -2010,6 +2010,7 @@ def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expecte
         pytest.param("N#[N+]CC(=O)OC(=O)CC[N+]#N", "3-{[(diazyn-1-ium-1-yl)acetyl]oxy}-3-oxopropane-1-diazonium", id="diazonium_in_the_acyl_of_an_anhydride"),
         pytest.param("N#[N+]c1ccc(cc1)OP(=O)(O)Oc1ccc(cc1)[N+]#N", "4,4'-[(hydroxyphosphoryl)bis(oxy)]bis(benzenediazonium)", id="cations_outrank_a_phosphate_linker"),
         pytest.param("N#[N+]CCC(=O)NCCNC(=O)CC[N+]#N", "3,3'-[ethane-1,2-diylbis(azanediyl)]bis(3-oxopropane-1-diazonium)", id="cations_outrank_a_diamide_linker"),
+        pytest.param("N#[N+]CCOC(=O)P(=O)(O)O", "2-[(phosphonocarbonyl)oxy]ethane-1-diazonium", id="carbonyl_on_a_phosphorus_acid_group_of_a_cation"),
         pytest.param("O=C(c1ccccc1)N[N+](C)(C)C", "N',N',N'-trimethylbenzohydrazid-N'-ium", id="hydrazide_ium"),
     ],
 )

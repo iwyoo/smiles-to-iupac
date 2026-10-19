@@ -1680,6 +1680,9 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         from ._retained_acids import is_compound_acyl
 
         return name, is_compound_acyl(name)
+    if z in _OXOACID_GROUP:
+        group, compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
+        return _enclose(group, compound) + "carbonyl", True
     raise UnsupportedStructure("this carbonyl-derived substituent is not supported yet")
 
 
