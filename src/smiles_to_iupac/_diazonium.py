@@ -442,21 +442,23 @@ def _name_via_amine_surrogate(mol, labels=None) -> str:
     finally:
         CATION_PARENT.reset(parent_token)
         AMINIUM.reset(token)
-    if result is None and count == 1 and not shifted:
-        result = _diazynium_name(mol, nitrogens[0])
-    if result is None:
-        raise UnsupportedStructure("this diazonium skeleton has no amine surrogate name")
-    return result
+    return result if result is not None else _diazynium_name(mol, nitrogens, bool(shifted))
 
 
-def _diazynium_name(mol, nitrogen):
+def _diazynium_name(mol, nitrogens, labelled):
     """P-73.1.1.2: a diazonium nitrogen on a carbon without hydrogen (nitrile) is the cation of the parent hydride
     diazyne, substituted at the cationic nitrogen."""
     from ._ammonium import _nitrile_carbon
     from ._onium_prefixes import onium_name
 
-    if len(Chem.GetMolFrags(mol)) > 1 or not all(_nitrile_carbon(mol, n) for n in nitrogen.GetNeighbors() if n.GetAtomicNum() != 7):
-        return None
+    if (
+        len(nitrogens) != 1
+        or labelled
+        or len(Chem.GetMolFrags(mol)) > 1
+        or not all(_nitrile_carbon(mol, n) for n in nitrogens[0].GetNeighbors() if n.GetAtomicNum() != 7)
+    ):
+        raise UnsupportedStructure("this diazonium group is neither a suffix of a carbon parent nor a substituted diazyn-1-ium cation")
+    (nitrogen,) = nitrogens
     terminal = next(n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 7)
     editable = Chem.RWMol(mol)
     editable.RemoveAtom(terminal)
