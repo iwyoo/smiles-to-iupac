@@ -2693,8 +2693,8 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if not before_suffix and len(elements) == 1 and len(heavy) > 1 and _same_label_on_every_group_atom(mol, rest, owned, next(iter(elements))):
         return [(rest[heavy[0]]["skeleton"], None, len(heavy), False)], None
     if before_suffix:
-        if principal == "peroxol" and any(mol.GetAtomWithIdx(a).GetDegree() != 1 for a in rest):
-            raise UnsupportedStructure("the oxygen of a peroxol that is bonded to carbon has no defined descriptor")
+        if principal == "peroxol":
+            return [], _peroxol_descriptor(mol, owned_groups, rest)
         per_group = []
         for group in owned_groups:
             nuclides = []
@@ -2763,6 +2763,35 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
+
+
+def _peroxol_descriptor(mol, owned_groups, rest):
+    """The descriptor before 'peroxol': a nuclide on an oxygen needs the position inside the group, 1 for the oxygen
+    bonded to the parent and 2 for the hydroxy oxygen, and then every locant of the group is cited (P-82.6.2,
+    P-82.6.3.3); hydrogen nuclides alone sit on the one oxygen that carries hydrogen."""
+    from ._isotope_labels import _nuclide_sort_key
+
+    per_group = []
+    for group in owned_groups:
+        entries = []
+        for atom in group:
+            if atom not in rest:
+                continue
+            position = 1 if any(n.GetIdx() not in group for n in mol.GetAtomWithIdx(atom).GetNeighbors()) else 2
+            if rest[atom]["skeleton"]:
+                entries.append((rest[atom]["skeleton"], position))
+            entries.extend((n, position) for n, count in rest[atom]["H"].items() for _ in range(count))
+        per_group.append(entries)
+    entries = min(per_group, key=lambda found: (-len(found), [_nuclide_rank(n) for n, _ in found]))
+    located = any(rest[a]["skeleton"] for group in owned_groups for a in group if a in rest)
+    by_nuclide = {}
+    for nuclide, position in sorted(entries, key=lambda entry: (_nuclide_sort_key(entry[0]), entry[1])):
+        by_nuclide.setdefault(nuclide, []).append(position)
+    counted = [
+        (f"{','.join(map(str, positions))}-" if located else "") + nuclide + (str(len(positions)) if len(positions) > 1 else "")
+        for nuclide, positions in by_nuclide.items()
+    ]
+    return "(" + ",".join(counted) + ")", _SUFFIX_WORD["peroxol"], len(owned_groups)
 
 
 _GROUP_LOCANTED_N_CLASSES = frozenset(("amine", "amide", "sulfonamide", *_CHALCOGEN_AMIDE_CLASSES))
