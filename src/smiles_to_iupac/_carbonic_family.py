@@ -166,6 +166,21 @@ def cyanic_acid_name(chain):
 _ANION_ENDING = re.compile(r"ic(?: [A-Za-z,]+-acid| acid)?(\)?)$")
 
 
+def _cite_halide_nuclide(name, halide_atoms, ligands):
+    """The nuclide of the halogen of a carbonohalidic acid stands in front of the infix that names it (P-82.2.1)."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    infixes = [value for kind, value in ligands if kind == "hal"]
+    if not context or len(halide_atoms) != 1:
+        return name
+    entry = context["labels"].get(halide_atoms[0])
+    if entry is None or not entry["skeleton"] or entry["H"] or halide_atoms[0] in context["consumed"]:
+        return name
+    context["consumed"].add(halide_atoms[0])
+    return name.replace(infixes[0], f"({entry['skeleton']}){infixes[0]}", 1)
+
+
 def _labelled(atom, name):
     return f"({atom.GetIsotope()}C){name}" if atom.GetIsotope() else name
 
@@ -353,6 +368,7 @@ def _name_at(mol, center, cite_nuclides=False):
         name = _labelled(atom, cyanic_acid_name(found[0]))
         return 0, _anionic(name) if ionic is not None else name
     x, ligands, amino, imine_n = None, [], None, None
+    halide_atoms = []
     owned = {center}
     anions = hydrogens = 0
     for n in atom.GetNeighbors():
@@ -374,6 +390,7 @@ def _name_at(mol, center, cite_nuclides=False):
             hydrogens += 1
         elif z in _HALIDE_INFIX and is_halide_ligand(n):
             ligands.append(("hal", _HALIDE_INFIX[z]))
+            halide_atoms.append(i)
             owned.add(i)
         elif pseudo is not None:
             ligands.append(("hal", PSEUDO_INFIX[pseudo]))
@@ -403,6 +420,7 @@ def _name_at(mol, center, cite_nuclides=False):
     if set(range(mol.GetNumAtoms())) - owned != branch:
         raise UnsupportedStructure("atoms outside the carbonic acid group and its nitrogen substituents")
     name = carbonic_acid_name(x, ligands, amino=amino is not None)
+    name = _cite_halide_nuclide(name, halide_atoms, ligands)
     name = _labelled(atom, name)
     if cite_nuclides:
         name = centre_nuclides(center, oxygens=True, nitrogens=[n for n in (amino, imine_n) if n is not None]) + name

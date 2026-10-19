@@ -1126,3 +1126,16 @@ def test_nuclide_on_an_oxygen_of_a_peroxy_linkage(smiles, expected):
 )
 def test_nuclide_on_the_nitrogen_or_oxygens_of_a_carbamate_nitrate_and_sulfonate(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.4, P-82.2.1: a halogen nuclide of a halide stands in front of the word or the infix that holds it
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C([36Cl])[36Cl]", "carbonyl (36Cl2)dichloride", id="acyl_dihalide"),
+        pytest.param("O=P([36Cl])(Cl)Cl", "phosphoryl (36Cl)chloride dichloride", id="oxoacid_halide"),
+        pytest.param("COC(=O)[36Cl]", "methyl carbono(36Cl)chloridate", id="halocarbonic_ester"),
+    ],
+)
+def test_nuclide_on_the_halogen_of_an_acid_halide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
