@@ -152,9 +152,7 @@ from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
 from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
-from ._selenoate import has_selenoate_shape, name_selenoate
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
-from ._thioate import has_thioate_shape, name_thioate
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._carboxylic_acid_sulfonamide import (
     has_carboxylic_acid_sulfonamide_shape,
@@ -2546,17 +2544,6 @@ def _name_mol(mol) -> str:
         # has_amide_shape below, either of which would otherwise misname it.
         if has_carbamate_shape(mol):
             return name_carbamate(mol)
-        # A thioate anion's carbon (R-CO-S(-)/R-CS-O(-), P-72.2.2.2.1.1) is
-        # the chalcogen analogue of a carboxylate anion -- same reasoning,
-        # routed here before the thioic-acid/carboxylic-acid checks below,
-        # neither of which expect a charged chalcogen.
-        if has_thioate_shape(mol):
-            return name_thioate(mol)
-        # A selenoate anion (R-CO-Se(-)/R-CSe-O(-), P-72.2.2.2.1.1) is the
-        # selenium analogue of a thioate anion -- same reasoning, routed
-        # here for the same reason.
-        if has_selenoate_shape(mol):
-            return name_selenoate(mol)
         # A sulfonate anion's sulfur (R-SO3-, P-72.2.2.2.1.1) bears an
         # anionic oxygen (formal charge -1, no H) that every other module
         # here -- including `_sulfonic_acid.py`'s own neutral -SO3H check
