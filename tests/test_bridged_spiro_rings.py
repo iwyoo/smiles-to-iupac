@@ -226,6 +226,13 @@ def test_substituted_metacyclophane_is_named():
     )
 
 
+def test_oxo_group_on_an_aromatic_ring_component_is_the_ketone_suffix_with_hydro_prefixes():
+    assert (
+        smiles_to_iupac("Nc1nc2c(nc3n2C2OC(COP(=O)(O)OCC3)CC2)c(=O)[nH]1")
+        == "1²-amino-5-hydroxy-1¹,1⁹-dihydro-1⁶H-4,6-dioxa-5-phospha-1(9,8)-purina-2(2,5)-oxolanacyclooctaphane-1⁶,5-dione"
+    )
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [

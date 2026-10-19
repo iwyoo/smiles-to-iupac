@@ -12,7 +12,14 @@ from rdkit.Chem import BondType, RWMol
 from ._common import UnsupportedStructure, adjacency, superscript_locant
 from ._fusion_bridged import BRIDGED_MAX_CYCLE, SENIORITY_MAX_CYCLE
 from ._ring_system_seniority import ring_seniority_key
-from ._ring_diyl_numbering import _PREFIX, _bare_skeleton, is_hydro_fusion_system, monocycle_numberings, system_numberings
+from ._ring_diyl_numbering import (
+    _PREFIX,
+    SUFFIX_ATOMS,
+    _bare_skeleton,
+    is_hydro_fusion_system,
+    monocycle_numberings,
+    system_numberings,
+)
 from ._steroid_named import _embeddings as _steroid_embeddings
 
 _INDICATED_HYDROGEN = re.compile(r"^(\d+H(?:,\d+H)*)-")
@@ -79,6 +86,7 @@ class Numbered:
     local: dict
     ih: tuple = ()
     hydro: tuple = ()
+    added: tuple = ()
 
 
 @dataclass
@@ -142,9 +150,9 @@ def _is_saturated(bare):
     )
 
 
-def _numberings_of(bare):
+def _numberings_of(bare, ring_size=None):
     graph = adjacency(bare)
-    atoms = set(range(bare.GetNumAtoms()))
+    atoms = set(range(bare.GetNumAtoms() if ring_size is None else ring_size))
     rings = [tuple(r) for r in bare.GetRingInfo().AtomRings()]
     if bare.GetNumBonds() - bare.GetNumAtoms() + 1 == 1:
         return monocycle_numberings(bare, _ring_order(graph, atoms), set(), 0)
@@ -153,6 +161,30 @@ def _numberings_of(bare):
         return system_numberings(bare, graph, rings, atoms)
     finally:
         BRIDGED_MAX_CYCLE.reset(token)
+
+
+def _ring_oxo(mol, atoms):
+    """The ring carbons of `atoms` that carry a doubly bonded oxygen outside the ring system."""
+    return {
+        a
+        for a in atoms
+        if mol.GetAtomWithIdx(a).GetAtomicNum() == 6
+        and any(
+            b.GetBondTypeAsDouble() == 2.0
+            and b.GetOtherAtomIdx(a) not in atoms
+            and mol.GetAtomWithIdx(b.GetOtherAtomIdx(a)).GetAtomicNum() == 8
+            for b in mol.GetAtomWithIdx(a).GetBonds()
+        )
+    }
+
+
+def _without_oxo(full, ring_size):
+    editable = Chem.RWMol(full)
+    for index in range(full.GetNumAtoms() - 1, ring_size - 1, -1):
+        editable.RemoveAtom(index)
+    result = editable.GetMol()
+    result.UpdatePropertyCache(strict=False)
+    return result
 
 
 def _parent_name(numbering, bare):
@@ -237,6 +269,7 @@ def build_amplificant(mol, atoms, free_atom=None, free_order=1):
     even with hydro prefixes, 'ene'/'yne' endings and skeletal replacement."""
     atoms = frozenset(atoms)
     added = None
+    oxo_old = set()
     try:
         if free_order == 2 and free_atom in atoms:
             added = _added_hydrogen_ring(mol, atoms, free_atom)
@@ -244,7 +277,10 @@ def build_amplificant(mol, atoms, free_atom=None, free_order=1):
                 return None
             bare, old_of = _aromatic_analogue(mol, atoms)
         else:
-            bare, _, old_of = _bare_skeleton(mol, atoms)
+            oxo_old = _ring_oxo(mol, atoms) if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) else set()
+            bare, new_of, old_of = _bare_skeleton(mol, atoms, oxo_carbons=oxo_old)
+            if oxo_old:
+                with_oxo, bare = bare, _without_oxo(bare, len(atoms))
     except Exception:
         return None
     stereoparent = _stereoparent(bare)
@@ -271,11 +307,15 @@ def build_amplificant(mol, atoms, free_atom=None, free_order=1):
             if a in atoms and b in atoms and bond.GetBondTypeAsDouble() > 1.0:
                 bonds.append((a, b, int(bond.GetBondTypeAsDouble())))
         source = _saturated_analogue(bare, carbon=bool(heteroatoms))
+    oxo = {new_of[old] for old in oxo_old} if free_order != 2 and oxo_old else set()
+    token = SUFFIX_ATOMS.set(frozenset(oxo))
     try:
-        numberings = _numberings_of(source)
+        numberings = _numberings_of(with_oxo if oxo else source, bare.GetNumAtoms())
     except (UnsupportedStructure, ValueError, StopIteration, RuntimeError):
         return None
-    if not numberings or any(n.added_positions for n in numberings):
+    finally:
+        SUFFIX_ATOMS.reset(token)
+    if not numberings or (any(n.added_positions for n in numberings) and not oxo):
         return None
     names = {_parent_name(n, source) for n in numberings}
     if len(names) != 1:
@@ -290,8 +330,11 @@ def build_amplificant(mol, atoms, free_atom=None, free_order=1):
         prefix=amplification_prefix(name),
         rank=_parent_rank(source, kept[0]) + (name,),
         mancude=route == "mancude"
-        and not any(n.hydro_positions for n in kept)
-        and (any(a.GetIsAromatic() for a in bare.GetAtoms()) or any(b.GetBondTypeAsDouble() == 2.0 for b in bare.GetBonds())),
+        and (
+            bool(oxo) and all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms)
+            or not any(n.hydro_positions for n in kept)
+            and (any(a.GetIsAromatic() for a in bare.GetAtoms()) or any(b.GetBondTypeAsDouble() == 2.0 for b in bare.GetBonds()))
+        ),
         replaced=replaced,
         added=added,
         bonds=bonds,
@@ -301,5 +344,6 @@ def build_amplificant(mol, atoms, free_atom=None, free_order=1):
         local = {old_of[i]: AmpLoc(str(loc)) for i, loc in n.position_of.items()}
         ih = tuple(AmpLoc(str(p)) for p in getattr(n, "ih", ()))
         hydro = tuple(AmpLoc(str(p)) for p in n.hydro_positions)
-        amplificant.numberings.append(Numbered(local, ih, hydro))
+        added_hydrogen = tuple(AmpLoc(str(p)) for p in n.added_positions)
+        amplificant.numberings.append(Numbered(local, ih, hydro, added_hydrogen))
     return amplificant
