@@ -642,6 +642,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         chain_unit = _substituted_chain_unit(mol, graph, roots[0], parts_atoms[0]) if unit_kind == "hydride" else None
         if unit_kind == "urea":
             text = _urea_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
+        elif unit_kind == "semicarbazide":
+            text = _semicarbazide_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
         else:
             text = chain_unit or _unit_name_by_pipeline(units[0][0], unit_kind)
         if text is None:
@@ -667,6 +669,12 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif unit_kind == "urea":
             lead = ",".join("N" + "'" * (2 * i) for i in range(count)) + "-"
+        elif unit_kind == "semicarbazide":
+            lead = ",".join("2" + "'" * i for i in range(count)) + "-"
+            linker = _linker_text(branches, central, arm_parts)
+            if text.startswith("hydrazine"):
+                return f"{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
+            return f"{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
         elif chain_unit or _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
         linker = _linker_text(branches, central, arm_parts, bare=not lead)
@@ -1302,7 +1310,23 @@ def _urea_core(mol, nitrogen):
     return None
 
 
-def _nitrogen_unit_candidates(mol, graph, core_of, senior):
+def _semicarbazide_core(mol, nitrogen):
+    """{carbon, chalcogen, amide nitrogen, hydrazine nitrogen 1} of a hydrazinecarboxamide group (semicarbazide,
+    semicarbazone) whose nitrogen 2 is `nitrogen`, or None."""
+    if _urea_core(mol, nitrogen) is not None:
+        return None
+    for first in nitrogen.GetNeighbors():
+        if first.GetAtomicNum() != 7 or first.GetFormalCharge() or first.IsInRing():
+            continue
+        if mol.GetBondBetweenAtoms(first.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            continue
+        core = _urea_core(mol, first)
+        if core is not None and nitrogen.GetIdx() not in core:
+            return core | {first.GetIdx()}
+    return None
+
+
+def _nitrogen_unit_candidates(mol, graph, core_of, senior, orders=(1.0,)):
     """Groups of the form R-N(-R')-core joined through the carbon `root` of the nitrogen: `core_of` finds the core atoms
     of the group, and `senior` tells whether a class that outranks the group is present."""
     candidates, cores = {}, set()
@@ -1317,7 +1341,7 @@ def _nitrogen_unit_candidates(mol, graph, core_of, senior):
             n.GetIdx()
             for n in nitrogen.GetNeighbors()
             if n.GetAtomicNum() == 6 and n.GetIdx() not in core and not is_functional_carbon(mol, n.GetIdx())
-            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() in orders
         ]
         for found in _unit_arms(mol, graph, nitrogen.GetIdx(), roots):
             candidates.setdefault(_key(mol, found[2], found[0]), []).append(found)
@@ -1383,6 +1407,26 @@ def _urea_unit_text(mol, graph, attach, root, atoms):
     return prefix + _UREA_STEMS[mol.GetAtomWithIdx(chalcogen).GetAtomicNum()]
 
 
+def _semicarbazide_unit_text(mol, graph, attach, root, atoms):
+    """'hydrazine-1-carboxamide', '1-methylhydrazine-1-carboxamide': the unit joined at the hydrazine nitrogen 2
+    `attach` (P-68.3.1.2.5, P-68.3.1.2.6)."""
+    from ._urea import _AMIDE_ENDING, _hydrazinecarboxamide_name
+
+    core = _semicarbazide_core(mol, mol.GetAtomWithIdx(attach))
+    if core is None:
+        return None
+    carbon, chalcogen = (next(a for a in core if test(mol.GetAtomWithIdx(a))) for test in (
+        lambda a: a.GetAtomicNum() == 6, lambda a: a.GetAtomicNum() in _UREA_STEMS))
+    first = next(a for a in graph[attach] if a in core)
+    amide = next(a for a in core if a not in (carbon, chalcogen, first))
+    halogens = halogen_substituents(mol)
+    names = [
+        [name_branch(graph, n, nitrogen, halogens, mol=mol, unsaturated=True) for n in graph[nitrogen] if n not in excluded]
+        for nitrogen, excluded in ((amide, (carbon,)), (first, (carbon, attach)), (attach, (first, root)))
+    ]
+    return _hydrazinecarboxamide_name(*names, _AMIDE_ENDING[mol.GetAtomWithIdx(chalcogen).GetAtomicNum()], numbered=True)
+
+
 def chain_multiplicative_name(mol, stereo):
     name = _chain_multiplicative_name(mol, stereo)
     return name.replace("(1,2-dioxoethane-1,2-diyl)", "oxalyl") if name else name
@@ -1399,6 +1443,7 @@ def _chain_multiplicative_name(mol, stereo):
     for kind, candidates in (
         ("centre_acid", _acid_centre_candidates(mol, graph)),
         ("carbamic", _nitrogen_unit_candidates(mol, graph, _carbamic_core, _senior_to_carbamic)),
+        ("semicarbazide", _nitrogen_unit_candidates(mol, graph, _semicarbazide_core, _senior_to_urea, (1.0, 2.0))),
         ("urea", _nitrogen_unit_candidates(mol, graph, _urea_core, _senior_to_urea)),
         ("inorganic_amide", _nitrogen_unit_candidates(mol, graph, _inorganic_amide_core, _senior_to_inorganic_amide)),
     ):
