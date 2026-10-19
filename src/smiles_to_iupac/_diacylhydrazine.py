@@ -61,7 +61,7 @@ def diacylhydrazine_name(mol):
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
     mol, labels = unlabelled_with_labels(mol, heteroatoms=True)
-    if mol is None or any(mol.GetAtomWithIdx(a).GetAtomicNum() not in (6, 8) for a in labels):
+    if mol is None or any(mol.GetAtomWithIdx(a).GetAtomicNum() not in (6, 7, 8) for a in labels):
         return None
     pairs = []
     for a, b in _hydrazine_pair(mol):
@@ -77,7 +77,12 @@ def diacylhydrazine_name(mol):
         candidates = [(r, n) for n, rs in roots.items() for r in rs]
         parent = min(
             candidates,
-            key=lambda item: (_parent_rank(mol, graph, item[0], item[1]), modified_atoms_beyond(graph, labels, *item), item[0]),
+            key=lambda item: (
+                _parent_rank(mol, graph, item[0], item[1]),
+                item[1] not in labels,
+                modified_atoms_beyond(graph, labels, *item),
+                item[0],
+            ),
         )[0]
         parents.add(parent)
         donors += [(r, n) for r, n in candidates if r != parent]
