@@ -863,6 +863,28 @@ def test_two_ruthenocenes_joined_by_a_chain():
     )
 
 
+def test_ferrocene_and_ruthenocene_joined_by_a_chain_take_the_senior_ocene_as_parent():
+    smiles = (
+        "C[C]12->[Fe]3456789(<-[CH]1[CH]->3=[CH]->4[CH]->5=2)<-[CH]1[CH]->6=[CH]->7[CH]->8=[C]->91CC[C]12->[Ru]3456789"
+        "(<-[CH]%10[CH]->3=[CH]->4[CH]->5=[C]->6%10C)<-[CH]1[CH]->7=[CH]->8[CH]->9=2"
+    )
+    assert smiles_to_iupac(smiles) == f"1{PRIME}-methyl-1-[2-(1{PRIME}-methylruthenocen-1-yl)ethyl]ferrocene"
+
+
+def test_three_ferrocenes_on_one_ring_linker_are_multiplied():
+    smiles = (
+        "c1c([C]23->[Fe]456789%10(<-[CH]%11[CH]->4=[CH]->5[CH]->6=[CH]->7%11)<-[CH]2[CH]->8=[CH]->9[CH]->%10=3)cc"
+        "([C]23->[Fe]456789%10(<-[CH]%11[CH]->4=[CH]->5[CH]->6=[CH]->7%11)<-[CH]2[CH]->8=[CH]->9[CH]->%10=3)cc1"
+        "[C]12->[Fe]3456789(<-[CH]%10[CH]->3=[CH]->4[CH]->5=[CH]->6%10)<-[CH]1[CH]->7=[CH]->8[CH]->9=2"
+    )
+    assert smiles_to_iupac(smiles).endswith("-(benzene-1,3,5-triyl)triferrocene")
+
+
+def test_ferrocene_on_an_acid_ring_is_cited_as_a_prefix():
+    smiles = "O=C(O)c1ccc([C]23->[Fe]456789%10(<-[CH]%11[CH]->4=[CH]->5[CH]->6=[CH]->7%11)<-[CH]2[CH]->8=[CH]->9[CH]->%10=3)cc1"
+    assert smiles_to_iupac(smiles) == "4-(ferrocen-1-yl)benzoic acid"
+
+
 def test_benzoferrocene():
     smiles = "c1cc[c]23->[Fe]456789%10(<-[CH]%11=[CH]->4[CH2]->5[CH]->6=[CH]->7%11)<-[CH](=[CH]->8[c]->92c1)[CH2]->%103"
     assert smiles_to_iupac(smiles) == "benzoferrocene"

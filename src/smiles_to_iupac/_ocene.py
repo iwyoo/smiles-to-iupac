@@ -10,7 +10,7 @@ import itertools
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency
-from ._numerals import alkane_name, multiplying_prefix, numerical_term
+from ._numerals import multiplying_prefix, numerical_term
 from ._phosphanyl_group import PREFIX_PROP
 from ._pin import mark
 from ._prefix_groups import PrefixNamer, enclose
@@ -237,10 +237,9 @@ def _suffix_text(stem, kind, locants):
 _ORDER = ["acid", "sulfonic", "ester", "amide", "nitrile", "al", "one", "ol", "thiol", "amine"]
 
 
-def _component_kind(mol, graph, atoms):
-    """Most senior characteristic-group class (suffix candidate) in a
-    substituent component, or None."""
-    best = None
+def _group_kinds(mol, graph, atoms):
+    """One characteristic-group class (suffix candidate) per group found in the atoms."""
+    kinds = []
     for i in atoms:
         atom = mol.GetAtomWithIdx(i)
         z = atom.GetAtomicNum()
@@ -275,20 +274,13 @@ def _component_kind(mol, graph, atoms):
                 for y in graph[n.GetIdx()]
             ) for n in nbrs):
                 kind = "amine"
-        if kind and (best is None or _ORDER.index(kind) < _ORDER.index(best)):
-            best = kind
-    return best
+        if kind:
+            kinds.append(kind)
+    return kinds
 
 
-def _linker_name(graph, atoms, ends):
-    if len(atoms) < 1 or len(ends) != 2:
-        raise UnsupportedStructure("this linker between metallocenes is not supported here")
-    inner = {a: [v for v in graph[a] if v in atoms] for a in atoms}
-    if any(len(v) > 2 for v in inner.values()) or (len(atoms) > 1 and any(len(inner[e]) != 1 for e in ends)):
-        raise UnsupportedStructure("this linker between metallocenes is not supported here")
-    if sum(len(v) for v in inner.values()) != 2 * (len(atoms) - 1):
-        raise UnsupportedStructure("a cyclic linker between metallocenes is not supported here")
-    return f"{alkane_name(len(atoms))}-1,{len(atoms)}-diyl" if len(atoms) > 1 else "methylene"
+def _component_kind(mol, graph, atoms):
+    return min(_group_kinds(mol, graph, atoms), key=_ORDER.index, default=None)
 
 
 def _chain_path(graph, comp, start, goal):
@@ -429,54 +421,16 @@ def _name_phane(mol, units, graph, parent):
 
 
 def _name_paired_ocenes(mol, units, graph):
+    if any(a.GetIsotope() for a in mol.GetAtoms()):
+        raise UnsupportedStructure("isotopically modified atoms are not supported yet")
     parents = {OCENES[mol.GetAtomWithIdx(m).GetSymbol()] for m, _ in units}
-    if len(parents) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
-        raise UnsupportedStructure("different metallocenes joined together are not supported here")
-    parent = parents.pop()
-    phane = _name_phane(mol, units, graph, parent)
-    if phane:
-        return phane
-    if len(units) != 2:
-        raise UnsupportedStructure("this arrangement of several metallocenes is not supported here")
-    unit_atoms = [{m} | set(r[0]) | set(r[1]) for m, r in units]
-    every = unit_atoms[0] | unit_atoms[1]
-    roots = [(a, x, k) for k, (m, rs) in enumerate(units) for r in rs for a in r for x in graph[a] if x not in every and x != m]
-    comps = _components(graph, every, [(a, x) for a, x, _ in roots])
-    link_roots = [(a, x, k) for a, x, k in roots if any(v in unit_atoms[1 - k] for c in comps[x] for v in graph[c])]
-    if len(link_roots) != 2 or {k for _, _, k in link_roots} != {0, 1}:
-        raise UnsupportedStructure("this link between metallocenes is not supported here")
-    linker = comps[link_roots[0][1]]
-    if comps[link_roots[1][1]] != linker or any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).GetIsAromatic() for i in linker):
-        raise UnsupportedStructure("this link between metallocenes is not supported here")
-    link_name = _linker_name(graph, linker, [x for _, x, _ in link_roots])
-    namer = PrefixNamer(mol, graph)
-    results = []
-    for k, (m, rs) in enumerate(units):
-        unit_roots = [(a, x) for a, x, kk in roots if kk == k]
-        named = {}
-        for a, x in unit_roots:
-            if x in linker:
-                named[(a, x)] = (link_name, True)
-            elif _component_kind(mol, graph, comps[x]) or _suffix_kind(mol, graph, a, x):
-                raise UnsupportedStructure("characteristic groups on linked metallocenes are not supported here")
-            else:
-                named[(a, x)] = namer.name(x, a)
-        best = None
-        for positions in _numberings(graph, rs):
-            grouped = _grouped(positions, named)
-            key = (sorted(positions[a] for a, _ in named), [grouped[n]["locants"] for n in sorted(grouped)])
-            if best is None or key < best[0]:
-                best = (key, grouped)
-        grouped = best[1]
-        link_locant = grouped.pop(link_name)["locants"][0]
-        results.append((link_locant, format_substituent_prefixes(grouped)))
-    if results[0][1] != results[1][1]:
-        raise UnsupportedStructure("different metallocene units joined together are not supported here")
-    first, second = results[0][0], results[1][0]
-    second += _PRIME * 2
-    prefixes = results[0][1]
-    multiplier = f"bis({prefixes}{parent})" if prefixes else f"di{parent}"
-    return f"{first},{second}-({link_name}){multiplier}"
+    if len(parents) == 1:
+        phane = _name_phane(mol, units, graph, parents.pop())
+        if phane:
+            return phane
+    from ._ocene_linked import name_assembly
+
+    return name_assembly(mol, units, graph)
 
 
 def name_ocene(mol) -> str:
@@ -496,61 +450,64 @@ def name_ocene(mol) -> str:
     if not roots:
         return parent
     comps = _components(graph, unit, roots)
-    if len(roots) == 2 and roots[0][1] != roots[1][1] and comps[roots[0][1]] & comps[roots[1][1]]:
-        return _as_bridge(mol, unit, roots, comps, parent)
-    for ring_atom, root in roots:
-        for other_atom, other_root in roots:
-            if other_root != root and comps[root] & comps[other_root]:
-                raise UnsupportedStructure("a bridge between the rings of a metallocene is not supported here")
-        if any(v in unit and v != ring_atom for a in comps[root] for v in graph[a]):
-            raise UnsupportedStructure("a bridge between the rings of a metallocene is not supported here")
+    bridge = _bridge_roots(roots, comps)
+    if bridge:
+        return _as_bridge(mol, graph, rings, unit, roots, comps, bridge, parent)
     suffix = {(a, x): _suffix_kind(mol, graph, a, x) for a, x in roots}
-    comp_kind = {(a, x): _component_kind(mol, graph, comps[x]) for a, x in roots}
-    ring_best = min((k for k in suffix.values() if k), key=_SUFFIX_ORDER.index, default=None)
+    comp_kinds = {(a, x): _group_kinds(mol, graph, comps[x]) for a, x in roots}
+    ring_kinds = [k for k in suffix.values() if k]
+    ring_best = min(ring_kinds, key=_SUFFIX_ORDER.index, default=None)
     ring_rank = _ORDER.index(ring_best) if ring_best else len(_ORDER)
-    chain_roots = [(a, x) for a, x in roots if not suffix[(a, x)] and comp_kind[(a, x)]]
-    chain_best = min((comp_kind[r] for r in chain_roots), key=_ORDER.index, default=None)
+    chain_roots = [(a, x) for a, x in roots if not suffix[(a, x)] and comp_kinds[(a, x)]]
+    chain_best = min((k for r in chain_roots for k in comp_kinds[r]), key=_ORDER.index, default=None)
     chain_rank = _ORDER.index(chain_best) if chain_best else len(_ORDER)
+    chain_count = sum(comp_kinds[r].count(chain_best) for r in chain_roots)
     namer = PrefixNamer(mol, graph)
 
-    if chain_best and chain_rank < ring_rank:
-        holders = [r for r in chain_roots if comp_kind[r] == chain_best]
-        others = [r for r in roots if r not in holders]
-        named = {}
-        for a, x in others:
-            kind = suffix[(a, x)]
-            named[(a, x)] = (_PREFIX_WORD[kind], False) if kind else namer.name(x, a)
-        attempt = None
-        sp3 = all(
-            mol.GetAtomWithIdx(x).GetAtomicNum() == 6
-            and not mol.GetAtomWithIdx(x).GetIsAromatic()
-            and all(b.GetBondTypeAsDouble() == 1.0 or _is_acyl_oxo(mol, x, b) for b in mol.GetAtomWithIdx(x).GetBonds())
-            for _, x in holders
+    if chain_best and (chain_rank < ring_rank or (chain_rank == ring_rank and chain_count > ring_kinds.count(ring_best))):
+        holders = [r for r in chain_roots if chain_best in comp_kinds[r]]
+        try:
+            if len(holders) == 2 and _identical_arms(mol, comps, holders):
+                others = {r: _root_name(namer, suffix, r) for r in roots if r not in holders}
+                return _as_multiplied_parent(mol, graph, rings, unit, comps, holders, others, parent)
+            for pick in sorted(holders, key=lambda r: (-comp_kinds[r].count(chain_best), -len(comps[r[1]]))):
+                named = {r: _root_name(namer, suffix, r) for r in roots if r != pick}
+                try:
+                    return _as_substituent_group(mol, graph, rings, unit, named, pick, parent)
+                except UnsupportedStructure:
+                    continue
+        except UnsupportedStructure:
+            pass
+        named = {r: _root_name(namer, suffix, r) for r in roots}
+        return mark(
+            _as_parent(mol, graph, rings, roots, suffix, None, named, parent),
+            "the senior group of a substituent is cited as a prefix because the substituent could not be named as the parent (P-41)",
         )
-        if not sp3:
-            attempt = None
-        elif len(holders) == 1:
-            attempt = lambda: _as_substituent_group(mol, graph, rings, unit, named, holders[0], parent)
-        elif len(holders) == 2 and not named:
-            attempt = lambda: _as_multiplied_parent(mol, graph, rings, unit, comps, holders, parent)
-        if attempt is not None:
-            try:
-                return attempt()
-            except UnsupportedStructure:
-                pass
-        for a, x in holders:
-            named[(a, x)] = namer.name(x, a)
-        return _as_parent(mol, graph, rings, roots, suffix, None, named, parent)
-    if chain_best and chain_rank == ring_rank:
-        raise UnsupportedStructure("equally senior groups on the metallocene and on a substituent are not supported here")
-    principal = ring_best
-    named = {}
+    named = {r: _root_name(namer, suffix, r) for r in roots if not (ring_best and suffix[r] == ring_best)}
+    return _as_parent(mol, graph, rings, roots, suffix, ring_best, named, parent)
+
+
+def _root_name(namer, suffix, root):
+    kind = suffix[root]
+    return (_PREFIX_WORD[kind], False) if kind else namer.name(root[1], root[0])
+
+
+def _bridge_roots(roots, comps):
+    """The two roots joined by one substituent component, a chain or ring bridging the two cyclopentadienyl rings."""
+    seen = {}
     for a, x in roots:
-        kind = suffix[(a, x)]
-        if kind and kind == principal:
-            continue
-        named[(a, x)] = (_PREFIX_WORD[kind], False) if kind else namer.name(x, a)
-    return _as_parent(mol, graph, rings, roots, suffix, principal, named, parent)
+        seen.setdefault(frozenset(comps[x]), []).append((a, x))
+    bridges = [ends for ends in seen.values() if len(ends) > 1]
+    if not bridges:
+        return None
+    if len(bridges) > 1 or len(bridges[0]) != 2 or bridges[0][0][0] == bridges[0][1][0]:
+        raise UnsupportedStructure("several bridges between the rings of one metallocene are not supported here")
+    return bridges[0]
+
+
+def _identical_arms(mol, comps, holders):
+    keys = {_component_smiles(mol, comps[x] | {a}, a) for a, x in holders}
+    return len(keys) == 1
 
 
 def _grouped(positions, named):
@@ -578,24 +535,68 @@ def _as_parent(mol, graph, rings, roots, kinds, principal, named, parent):
     return f"{prefixes}{stem}"
 
 
+def _stand_in(rw, atom_idx, group):
+    """Attach a stand-in for `group` to the atom: a placeholder prefix, or a phenyl ring where a placeholder would read
+    as a halogen on a heteroatom or an acyl carbon."""
+    atom = rw.GetAtomWithIdx(atom_idx)
+    needs_carbon = atom.GetAtomicNum() != 6 or any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() != 6 for b in atom.GetBonds()
+    )
+    if not needs_carbon:
+        marker = rw.AddAtom(Chem.Atom(53))
+        rw.AddBond(atom_idx, marker, Chem.BondType.SINGLE)
+        rw.GetAtomWithIdx(marker).SetProp(PREFIX_PROP, enclose(group))
+        return False
+    ring = [rw.AddAtom(Chem.Atom(6)) for _ in range(6)]
+    for k, idx in enumerate(ring):
+        rw.GetAtomWithIdx(idx).SetIsAromatic(True)
+        rw.AddBond(idx, ring[(k + 1) % 6], Chem.BondType.AROMATIC)
+    rw.AddBond(atom_idx, ring[0], Chem.BondType.SINGLE)
+    return True
+
+
+def swap_stand_ins(name, stands, once=False):
+    """Put the groups for the phenyl rings that stood in for them (see `_stand_in`)."""
+    import re
+
+    if not stands:
+        return name
+    found = list(re.finditer(r"(di|tri|tetra|penta|hexa)?phenyl", name))
+    if len(set(stands)) != 1 or len(found) != 1 or "phenylene" in name or bool(found[0].group(1)) != (len(stands) > 1 and not once):
+        raise UnsupportedStructure("the metallocene groups could not be cited as prefixes here")
+    word = "bis" if len(stands) > 1 and not once else ""
+    return f"{name[:found[0].start()]}{word}{enclose(stands[0])}{name[found[0].end():]}"
+
+
+def _name_contracted(rw, drop, marks, once=False):
+    """Name of the molecule left after `drop` is removed, each (atom, group) of `marks` standing for the group; with
+    `once` a divalent group is cited a single time at the locants of its two marks."""
+    import re
+
+    from .core import _name_mol
+
+    stands = [group for atom_idx, group in marks if _stand_in(rw, atom_idx, group)]
+    for idx in sorted(drop, reverse=True):
+        rw.RemoveAtom(idx)
+    contracted = rw.GetMol()
+    Chem.SanitizeMol(contracted)
+    name = swap_stand_ins(_name_mol(contracted), stands, once)
+    groups = {group for _, group in marks}
+    if once:
+        group = next(iter(groups))
+        match = re.search(r"(\d+(?:,\d+)*)-(?:bis|di)?[(\[]*" + re.escape(group) + r"[)\]]*", name)
+        if match:
+            name = f"{name[:match.start()]}{match.group(1)}-({group}){name[match.end():]}"
+    if "iodo" in name or "iodide" in name or any(group not in name for group in groups):
+        raise UnsupportedStructure("the metallocene groups could not be cited as prefixes here")
+    return name
+
+
 def _contract(mol, graph, unit, named, main_root, group_name):
     remove = set(unit)
     for (a, x) in named:
         remove |= _group_atoms(graph, x, unit)
-    rw = Chem.RWMol(mol)
-    marker = rw.AddAtom(Chem.Atom(53))
-    rw.AddBond(main_root, marker, Chem.BondType.SINGLE)
-    rw.GetAtomWithIdx(marker).SetProp(PREFIX_PROP, enclose(group_name))
-    for idx in sorted(remove, reverse=True):
-        rw.RemoveAtom(idx)
-    contracted = rw.GetMol()
-    Chem.SanitizeMol(contracted)
-    from .core import _name_mol
-
-    name = _name_mol(contracted)
-    if "iodo" in name or "iodide" in name or group_name not in name:
-        raise UnsupportedStructure("the metallocene group could not be cited as a prefix here")
-    return name
+    return _name_contracted(Chem.RWMol(mol), remove, [(main_root, group_name)])
 
 
 def _as_substituent_group(mol, graph, rings, unit, named, main, parent):
@@ -616,16 +617,30 @@ def _as_substituent_group(mol, graph, rings, unit, named, main, parent):
     return _contract(mol, graph, unit, named, main_root, group_name)
 
 
-def _as_multiplied_parent(mol, graph, rings, unit, comps, holders, parent):
+def _divalent_group(graph, rings, ends, named, parent):
+    """The ocene-1,1'-diyl group with `ends` as its free valences (P-29.2) and the other substituents as prefixes."""
+    (a1, _), (a2, _) = ends
+    best = None
+    for positions in _numberings(graph, rings):
+        if positions[a1][0] != 1 or positions[a2][0] != 1 or positions[a1][1] == positions[a2][1]:
+            continue
+        grouped = _grouped(positions, named)
+        key = (sorted(positions[a] for a, _ in named), [grouped[n]["locants"] for n in sorted(grouped)])
+        if best is None or key < best[0]:
+            best = (key, grouped)
+    prefixes = format_substituent_prefixes(best[1]) if best[1] else ""
+    return f"{prefixes}{parent}-1,1{_PRIME}-diyl"
+
+
+def _as_multiplied_parent(mol, graph, rings, unit, comps, holders, others, parent):
     """Two identical characteristic-group components joined by the metallocene
     ('1,1'-(ferrocene-1,1'-diyl)di(ethan-1-one)', P-15.3)."""
     (a1, x1), (a2, x2) = holders
-    keys = [_component_smiles(mol, comps[x] | {a}, a) for a, x in holders]
-    if len(comps[x1]) != len(comps[x2]) or keys[0] != keys[1]:
-        raise UnsupportedStructure("different substituents on the two rings of a metallocene are not supported here")
     acyl = any(_is_acyl_oxo(mol, x1, b) for b in mol.GetAtomWithIdx(x1).GetBonds())
     rw = Chem.RWMol(mol)
     remove = set(unit) | comps[x2]
+    for r in others:
+        remove |= comps[r[1]]
     if acyl:
         ring = [rw.AddAtom(Chem.Atom(6)) for _ in range(6)]
         for k, idx in enumerate(ring):
@@ -651,42 +666,38 @@ def _as_multiplied_parent(mol, graph, rings, unit, comps, holders, parent):
         raise UnsupportedStructure("the multiplied parent could not be isolated")
     locant = match.group(1)
     stripped = (name[: match.start()] + name[match.end():]).strip("-")
+    if locant is None and stripped.startswith("acet"):
+        locant = "2"
     inner = f"({stripped})" if acyl or any(ch.isdigit() for ch in stripped) else stripped
-    ring_locs = sorted([(1, 0), (1, 1)])
-    divalent = f"{parent}-{_fmt(ring_locs[0])},{_fmt(ring_locs[1])}-diyl"
+    divalent = _divalent_group(graph, rings, holders, others, parent)
     locs = f"{locant},{locant}{_PRIME}" if locant else ""
     head = f"{locs}-" if locs else ""
     return f"{head}({divalent})di{inner}"
 
 
-def _as_bridge(mol, unit, roots, comps, parent):
-    """A chain joining both rings, cited as a divalent metallocene group
+def _as_bridge(mol, graph, rings, unit, roots, comps, ends, parent):
+    """A chain or ring joining both cyclopentadienyl rings, cited as a divalent metallocene group
     ('3,5-(ferrocene-1,1'-diyl)pentanoic acid')."""
-    if roots[0][0] in roots[1][0:1] or len({a for a, _ in roots}) != 2:
-        raise UnsupportedStructure("this metallocene bridge is not supported here")
-    token = "QQQ"
-    rw = Chem.RWMol(mol)
-    for _, x in roots:
-        marker = rw.AddAtom(Chem.Atom(53))
-        rw.AddBond(x, marker, Chem.BondType.SINGLE)
-        rw.GetAtomWithIdx(marker).SetProp(PREFIX_PROP, token)
-    for idx in sorted(unit, reverse=True):
-        rw.RemoveAtom(idx)
-    contracted = rw.GetMol()
-    Chem.SanitizeMol(contracted)
-    from .core import _name_mol
-    import re
-
-    name = _name_mol(contracted)
-    match = re.match(r"(\d+),(\d+)-(?:di|bis\()" + token + r"\)?", name)
-    if not match or name.count(token) != 1 or "iod" in name.replace(token, ""):
-        raise UnsupportedStructure("the metallocene bridge could not be cited as a divalent group here")
-    first, second = match.group(1), match.group(2)
-    rest = name[match.end():].lstrip("-")
-    result = f"{first},{second}-({parent}-1,1{_PRIME}-diyl){rest}"
-    if rest.endswith("ane") and "-" not in rest:
-        return mark(result, "a phane name needs two or more ring systems (P-52.2.5.1), so no PIN is defined for a single bridged metallocene")
-    return result
+    namer = PrefixNamer(mol, graph)
+    suffix = {r: _suffix_kind(mol, graph, *r) for r in roots}
+    others = {}
+    for r in roots:
+        if r in ends:
+            continue
+        if not suffix[r] and _component_kind(mol, graph, comps[r[1]]):
+            raise UnsupportedStructure("a bridged metallocene beside a further group of the same rank is not supported here")
+        others[r] = _root_name(namer, suffix, r)
+    group = _divalent_group(graph, rings, ends, others, parent)
+    remove = set(unit)
+    for a, x in roots:
+        if (a, x) not in ends:
+            remove |= comps[x]
+    name = _name_contracted(Chem.RWMol(mol), remove, [(x, group) for _, x in ends], once=True)
+    if f"-({group})" not in name:
+        raise UnsupportedStructure("the name of the bridge does not cite the metallocene group once")
+    if not any(_group_kinds(mol, graph, comps[x]) for _, x in ends) and not any(mol.GetAtomWithIdx(i).IsInRing() for _, x in ends for i in comps[x]):
+        return mark(name, "a phane name needs two or more ring systems (P-52.2.5.1), so no PIN is defined for a single bridged metallocene")
+    return name
 
 
 def _is_acyl_oxo(mol, atom_idx, bond):

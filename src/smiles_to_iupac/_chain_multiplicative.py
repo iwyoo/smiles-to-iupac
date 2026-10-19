@@ -485,7 +485,7 @@ def _bare_groups_on_one_ring_atom(mol, kind, edges, arms):
     )
 
 
-def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None):
+def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene_unit=None):
     from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
     count = len(arms)
@@ -604,6 +604,12 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None):
         if len({o for _, _, o in edges[center]}) > 1 or _bare_groups_on_one_ring_atom(mol, kind, edges[center], arms):
             return None
         raise
+    if ocene_unit is not None:
+        text, lead, use_bis = ocene_unit
+        linker = _linker_text(branches, central, arm_parts)
+        if use_bis:
+            return f"{lead}{linker}{multiplier_word(count, True)}({text})"
+        return f"{lead}{linker}{multiplier_word(count, False)}{text}"
     if count == 2:
         diacyl = diacyl_linker(
             mol, graph, set(atoms), edges[center], [set(components[comp_of[o]][1]) if o in comp_of else set() for _, o, _ in edges[center]], arm_atoms
