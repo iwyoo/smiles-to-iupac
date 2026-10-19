@@ -309,8 +309,8 @@ def name_hydrazine_with_heteroatom_groups(mol) -> str:
         raise UnsupportedStructure("not a single hydrazine skeleton")
     n1, n2 = nitrogens
     for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() or atom.GetIsotope() or atom.GetNumRadicalElectrons():
-            raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
+        if atom.GetFormalCharge() or atom.GetNumRadicalElectrons():
+            raise UnsupportedStructure("charged and radical atoms are not supported yet")
         if atom.GetAtomicNum() == 6 and is_functional_carbon(mol, atom.GetIdx()):
             raise UnsupportedStructure("a carbon group senior to the hydrazine class is the principal group")
         if atom.GetAtomicNum() in (8, 16, 34, 52) and atom.GetTotalNumHs() and (

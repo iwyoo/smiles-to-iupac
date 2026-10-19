@@ -2668,7 +2668,7 @@ def _principal_owned(mol):
 
 _NITROGEN_LABEL_CLASSES = frozenset(
     (
-        "amide", "amine", "imine", "nitrile", "amidine", "hydrazide", "sulfonamide",
+        "amide", "amine", "imine", "nitrile", "amidine", "hydrazide", "sulfonamide", *_AMIDRAZONE,
         *_CHALCOGEN_AMIDE_CLASSES, *_SULFONYL_AMIDE_ORDER, *_SULFONYL_HYDRAZIDE_ORDER,
     )
 )
@@ -2742,6 +2742,10 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         if len(owned_groups) != 1:
             raise UnsupportedStructure("several imidamide groups cannot be told apart by their N locants")
         roles = _labelled_imidamide_roles(mol, owned_groups[0], set(rest))
+    elif nitrogen_atoms and principal in _AMIDRAZONE:
+        if len(owned_groups) != 1:
+            raise UnsupportedStructure("several amidrazone groups cannot be told apart by their N locants")
+        roles = dict(_amidrazone_roles(mol, adjacency(mol), owned_groups[0], principal)[1])
     for atom, entry in rest.items():
         heavy_label = entry["skeleton"]
         symbol = mol.GetAtomWithIdx(atom).GetSymbol()
@@ -7510,6 +7514,28 @@ def _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     return entries
 
 
+def _amidrazone_roles(mol, graph, owned, cls):
+    """(centre carbon, ((nitrogen, N | N' | N''), ...)) of an amidrazone group: N on the amino nitrogen, N' on the terminal
+    nitrogen of the hydrazine and N'' on the imino nitrogen of an imidohydrazide (P-66.4.2.1)."""
+    nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
+    centre = next(
+        c
+        for c in range(mol.GetNumAtoms())
+        if mol.GetAtomWithIdx(c).GetAtomicNum() == 6 and sum(1 for n in graph[c] if n in nitrogens) == 2
+    )
+    order = {n: mol.GetBondBetweenAtoms(centre, n).GetBondTypeAsDouble() for n in nitrogens if n in graph[centre]}
+    imino = next(n for n, o in order.items() if o == 2.0)
+    amino = next(n for n, o in order.items() if o == 1.0)
+    if cls == "hydrazonohydrazide":
+        hydrazone_end = next(n for n in nitrogens if n in graph[imino] and n != centre)
+        hydrazide_end = next(n for n in nitrogens if n in graph[amino] and n != centre)
+        return centre, ((amino, "N"), (hydrazide_end, "N'"), (hydrazone_end, "N''"))
+    terminal = next(n for n in nitrogens if n not in (imino, amino))
+    if cls == "hydrazonamide":
+        return centre, ((amino, "N"), (terminal, "N'"))
+    return centre, ((amino, "N"), (terminal, "N'"), (imino, "N''"))
+
+
 def _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
     """N-prefix entries of an amidrazone group (P-66.4.2.1): N on the amino nitrogen, N' on the terminal nitrogen of
     the hydrazine, and N'' on the imino nitrogen of an imidohydrazide."""
@@ -7521,24 +7547,7 @@ def _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_group
     entries = []
     for carbon_key, (owned, anchor) in members.items():
         nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
-        centre = next(
-            c
-            for c in range(mol.GetNumAtoms())
-            if mol.GetAtomWithIdx(c).GetAtomicNum() == 6 and sum(1 for n in graph[c] if n in nitrogens) == 2
-        )
-        order = {n: mol.GetBondBetweenAtoms(centre, n).GetBondTypeAsDouble() for n in nitrogens if n in graph[centre]}
-        imino = next(n for n, o in order.items() if o == 2.0)
-        amino = next(n for n, o in order.items() if o == 1.0)
-        if cls == "hydrazonohydrazide":
-            hydrazone_end = next(n for n in nitrogens if n in graph[imino] and n != centre)
-            hydrazide_end = next(n for n in nitrogens if n in graph[amino] and n != centre)
-            roles = ((amino, "N"), (hydrazide_end, "N'"), (hydrazone_end, "N''"))
-        elif cls == "hydrazonamide":
-            terminal = next(n for n in nitrogens if n not in (imino, amino))
-            roles = ((amino, "N"), (terminal, "N'"))
-        else:
-            terminal = next(n for n in nitrogens if n not in (imino, amino))
-            roles = ((amino, "N"), (terminal, "N'"), (imino, "N''"))
+        centre, roles = _amidrazone_roles(mol, graph, owned, cls)
         rest = tuple(a for a in graph[centre] if a not in owned)
         for nitrogen, base in roles:
             located = (base, anchor, centre, rest, "amidrazone", step) if len(members) > 1 else base

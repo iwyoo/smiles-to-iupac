@@ -1152,3 +1152,16 @@ def test_nuclide_on_the_halogen_of_an_acid_halide(smiles, expected):
 )
 def test_nuclide_on_the_oxide_oxygen_and_on_oxalic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.6.3.3, P-82.2.1, P-82.6.4: nuclides on the nitrogens of an azine, a hydrazide-type group and an azoxy or bis-azo compound
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC=N[15N]=C(C)C", "1-ethylidene-2-(propan-2-ylidene)(2-15N)hydrazine", id="azine"),
+        pytest.param("C[N+]([18O-])=NC", "1,2-dimethyldiazene 1-(18O)oxide", id="azoxy_oxide_oxygen"),
+        pytest.param("c1ccccc1[15N]=Nc1ccc(cc1)N=Nc1ccccc1", "1-phenyl-2-[4-(phenyldiazenyl)phenyl](1-15N)diazene", id="two_azo_groups"),
+    ],
+)
+def test_nuclide_on_the_nitrogens_of_an_azine_azoxy_and_bis_azo_compound(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
