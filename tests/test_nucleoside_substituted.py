@@ -402,3 +402,24 @@ def test_nucleoside_wrong_sugar_stereo_keeps_no_retained_name(smiles):
 )
 def test_nucleoside_retained_acid_words(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "Nc1ncnc2c1ncn2[C@@H]1O[C@@H]2COP(=O)(OC)O[C@H]2[C@H]1O",
+            "methyl 3′,5′-dideoxyadenosine-3′,5′-diyl phosphate",
+        ),
+        (
+            "O=C1O[C@@H]2[C@H](O1)[C@@H](COC(C)=O)O[C@H]2n1cnc2c(N)ncnc21",
+            "2′,3′,5′-trideoxyadenosine-2′,3′,5′-triyl 5′-acetate 2′,3′-carbonate",
+        ),
+        (
+            "C[C@H](Nc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O)c1ccccc1",
+            "N6-[(1S)-1-phenylethyl]adenosine",
+        ),
+    ],
+)
+def test_nucleoside_ring_ester_beside_other_groups_and_stereo_in_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
