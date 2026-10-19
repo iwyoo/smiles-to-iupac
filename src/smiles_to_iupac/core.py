@@ -9,6 +9,7 @@ from ._adduct import has_adduct_shape, has_bare_inorganic_component, has_inorgan
 from ._acyclic import name_acyclic_alkane
 from ._acid_derivatives import (
     has_isotope_acyl_halide_shape,
+    in_acid_derivative_scope,
     name_acid_derivative,
     name_isotope_acyl_halide,
     name_labelled_anhydride,
@@ -1214,7 +1215,7 @@ def _name_unabridged_body(smiles: str) -> str:
                 name_polycarbonic,
                 name_carbonic_family,
                 name_inorganic_ester_parent,
-                name_acid_derivative,
+                *((name_acid_derivative,) if in_acid_derivative_scope(parsed) else ()),
                 name_boron_peroxy_ester,
                 name_hetero_parent_acid,
                 name_phosphorous_acid,
