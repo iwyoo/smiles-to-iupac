@@ -146,9 +146,7 @@ def _named_groups(mol, graph, halogens, nitrogens, roots, core_atoms):
         return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
 
 
-def n_substituent_names(
-    mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False, hydrazide_junior=False, junior_cores=frozenset()
-):
+def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False):
     """One list of substituent names per nitrogen of `nitrogens`, for every atom outside `core_atoms`
     (P-66.1.4.1); raises when a ring fuses into the core or a non-halogen
     acyclic heteroatom is present, unless `junior_groups` lets groups junior to the amide be prefixes."""
@@ -169,8 +167,6 @@ def n_substituent_names(
         )
     halogens = halogen_substituents(mol)
     if junior_groups:
-        if has_group_senior_to_urea(mol, core_atoms, hydrazide_junior, junior_cores):
-            raise UnsupportedStructure("a group senior to the urea is the parent, not an N-substituent")
         if any(
             mol.GetAtomWithIdx(idx).GetAtomicNum() not in _UREA_SUBSTITUENT_ELEMENTS and not mol.GetAtomWithIdx(idx).IsInRing()
             for idx in outside
