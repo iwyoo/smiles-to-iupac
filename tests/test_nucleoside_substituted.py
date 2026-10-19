@@ -181,6 +181,18 @@ def test_nucleoside_cyclic_ester(smiles, expected):
             "2,4-dioxo-1-β-D-ribofuranosyl-1,2,3,4-tetrahydropyrimidine-5-carbonyl bromide",
         ),
         (
+            "Nc1nc(C(=O)Cl)nc2c1nc(C(=O)Br)n2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
+            "6-amino-9-β-D-ribofuranosyl-9H-purine-2,8-dicarbonyl bromide chloride",
+        ),
+        (
+            "Nc1nc(C(=O)OC(=O)C)nc2c1nc(C(=O)OC(=O)C)n2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
+            "diacetic 6-amino-9-β-D-ribofuranosyl-9H-purine-2,8-dicarboxylic dianhydride",
+        ),
+        (
+            "Nc1nc(C(=O)OC)nc2c1nc(C(=O)OCC)n2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
+            "ethyl methyl 6-amino-9-β-D-ribofuranosyl-9H-purine-2,8-dicarboxylate",
+        ),
+        (
             "CC(=O)OC(=O)c1nc2c(N)ncnc2n1[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
             "acetic 6-amino-9-β-D-ribofuranosyl-9H-purine-8-carboxylic anhydride",
         ),

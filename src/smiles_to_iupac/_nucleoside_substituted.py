@@ -11,7 +11,7 @@ import re
 from rdkit import Chem
 
 from ._acid_derivatives import acyl_name, in_acid_derivative_scope, name_acid_derivative
-from ._common import assign_cip_labels
+from ._common import assign_cip_labels, citation_order_key
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._nucleoside import _NUCLEOSIDE_SMILES
 from ._numerals import numerical_term
@@ -1246,8 +1246,6 @@ def _ring_group_name(
         multiplier = numerical_term(len(marker)) if len(marker) > 1 else ""
         word = _SUFFIXES[suffix[1]]
         if suffix[1] == "acyl halide":
-            if len(marker) > 1:
-                raise UnsupportedStructure("several acyl halide groups on a base")
             word = f"carbonyl {suffix[2]}"
         if centre:
             return f"{text}{stem}-{centre}-ium-{locants}-{multiplier}{word}"
@@ -1601,16 +1599,14 @@ def _ring_senior_name(
 ):
     from .core import _name_mol
 
-    alcohol, extra, suffix_extra = None, [], ()
+    alcohols, halides, partners, extra, suffix_extra = [], [], [], [], ()
     for pos, nb, _, _ in tops:
         if top == "ester":
             o, r = _acyl_oxygen_partner(mol, graph, nb)
             found_alcohol, _ = _name_substituent(
                 mol, graph, halogens, aromatic, core | {nb, o}, r, o
             )
-            if alcohol not in (None, found_alcohol):
-                raise UnsupportedStructure("different ester groups on one base")
-            alcohol = found_alcohol
+            alcohols.append(found_alcohol)
         elif top == "amide":
             n = next(i for i in graph[nb] if mol.GetAtomWithIdx(i).GetAtomicNum() == 7)
             subs = [i for i in graph[n] if i != nb]
@@ -1629,34 +1625,53 @@ def _ring_senior_name(
                 for n in graph[nb]
                 if mol.GetAtomWithIdx(n).GetAtomicNum() in _HALIDE_WORDS
             )
-            suffix_extra = (_HALIDE_WORDS[mol.GetAtomWithIdx(halide).GetAtomicNum()],)
+            halides.append(_HALIDE_WORDS[mol.GetAtomWithIdx(halide).GetAtomicNum()])
+        elif top == "anhydride":
+            o, other = _acyl_oxygen_partner(mol, graph, nb)
+            branch = _branch_atoms(graph, other, o)
+            if branch & core or nb in branch:
+                raise _NotNucleosideReading("anhydride reconnects to the nucleoside")
+            acid = Chem.MolFromSmiles(
+                Chem.MolFragmentToSmiles(mol, sorted(branch | {o}))
+            )
+            other_name = _name_mol(acid) if acid is not None else ""
+            if not other_name.endswith("ic acid"):
+                raise UnsupportedStructure("anhydride partner is not a carboxylic acid")
+            stem = other_name[: -len(" acid")]
+            partners.append((pos, _ACID_ALIASES.get(stem, stem)))
+    if halides:
+        distinct = sorted(set(halides))
+        suffix_extra = (
+            (numerical_term(len(halides)) if len(halides) > 1 else "") + distinct[0]
+            if len(distinct) == 1
+            else " ".join(distinct),
+        )
     suffix = ([p for p, *_ in tops], top, *suffix_extra)
     name = _ring_group_name(
         kind, prefixes, saturated, suffix=suffix, extra=extra, cation=cation
     )
-    if top == "anhydride":
-        if len(tops) != 1:
-            raise UnsupportedStructure("several anhydride groups on a base")
-        _, nb, _, _ = tops[0]
-        o, other = _acyl_oxygen_partner(mol, graph, nb)
-        branch = _branch_atoms(graph, other, o)
-        if branch & core or nb in branch:
-            raise _NotNucleosideReading("anhydride reconnects to the nucleoside")
-        acid = Chem.MolFromSmiles(Chem.MolFragmentToSmiles(mol, sorted(branch | {o})))
-        other_name = _name_mol(acid) if acid is not None else ""
-        if not other_name.endswith("ic acid"):
-            raise UnsupportedStructure("anhydride partner is not a carboxylic acid")
-        words = sorted(
-            [
-                name,
-                _ACID_ALIASES.get(
-                    other_name[: -len(" acid")], other_name[: -len(" acid")]
-                ),
-            ],
-            key=lambda t: re.sub(r"[^a-z]", "", re.sub(r"^[\d,′\-]+", "", t.lower())),
-        )
-        return " ".join(words) + " anhydride"
-    return f"{alcohol} {name}" if alcohol else name
+    if partners:
+        from ._acid_derivatives import _multiplied_word
+
+        if len({w for _, w in partners}) == 1:
+            cited = [(partners[0][1], _multiplied_word(partners[0][1], len(partners)))]
+        else:
+            cited = [(w, f"{p}-{w}") for p, w in partners]
+        cited.append((name, name))
+        cited.sort(key=lambda t: re.sub(r"[^a-z]", "", re.sub(r"^[\d,′\-]+", "", t[0].lower())))
+        words = [text for _, text in cited]
+        return " ".join(words) + (" dianhydride" if len(partners) > 1 else " anhydride")
+    if alcohols:
+        from ._acid_derivatives import _multiplied_word
+
+        counts = {}
+        for a in alcohols:
+            counts[a] = counts.get(a, 0) + 1
+        words = [
+            _multiplied_word(a, counts[a]) for a in sorted(counts, key=citation_order_key)
+        ]
+        return f"{' '.join(words)} {name}"
+    return name
 
 
 _CACHE = {}
