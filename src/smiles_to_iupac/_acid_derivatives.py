@@ -112,7 +112,7 @@ def _inorganic_center(mol, idx):
 
 
 def _acylated_oxoacid_center(mol, atom):
-    """A sulfur, selenium or tellurium oxoacid centre (no organyl neighbour) with an acyloxy neighbour."""
+    """A sulfur, selenium or tellurium oxoacid centre (no organyl neighbour) with an acyloxy, nitrooxy or sulfonyloxy neighbour."""
     if atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing():
         return False
     neighbors = atom.GetNeighbors()
@@ -120,7 +120,15 @@ def _acylated_oxoacid_center(mol, atom):
         return False
     return any(
         n.GetAtomicNum() == 8
-        and any(c.GetIdx() != atom.GetIdx() and c.GetAtomicNum() == 6 and _oxo_slots(mol, c.GetIdx()) for c in n.GetNeighbors())
+        and any(
+            c.GetIdx() != atom.GetIdx()
+            and (
+                (c.GetAtomicNum() == 6 and _oxo_slots(mol, c.GetIdx()))
+                or _nitrogen_oxoacid_centre(mol, c, n)
+                or (c.GetAtomicNum() in _CHALCOGEN_CENTERS and _oxo_slots(mol, c.GetIdx()) and any(m.GetAtomicNum() == 6 for m in c.GetNeighbors()))
+            )
+            for c in n.GetNeighbors()
+        )
         for n in neighbors
     )
 
@@ -208,6 +216,18 @@ def _inorganic_anhydride(near, far):
     return (len(near[2]) == 1 or len(far[2]) == 1) and bool(near[1] or far[1])
 
 
+def _nitrogen_oxoacid_centre(mol, atom, bridge):
+    """The nitrogen of a nitrate (N(+)(=O)O(-)) or nitrite (N=O) group joined through the oxygen `bridge`: the acid
+    component of a mixed anhydride of nitric or nitrous acid (P-65.7.2)."""
+    if atom.GetAtomicNum() != 7 or atom.GetIsotope() or atom.IsInRing() or atom.GetDegree() != 3 - (atom.GetFormalCharge() == 0):
+        return False
+    oxygens = [n for n in atom.GetNeighbors() if n.GetIdx() != bridge.GetIdx()]
+    if atom.GetFormalCharge() == 0:
+        return len(oxygens) == 1 and oxygens[0].GetAtomicNum() == 8 and _bond(mol, atom.GetIdx(), oxygens[0].GetIdx()) == 2.0
+    kinds = sorted((_bond(mol, atom.GetIdx(), o.GetIdx()), o.GetFormalCharge()) for o in oxygens if o.GetAtomicNum() == 8 and o.GetDegree() == 1)
+    return atom.GetFormalCharge() == 1 and kinds == [(1.0, -1), (2.0, 0)]
+
+
 def find_links(mol):
     """Every junction at an acyl, carbonic or cyanic centre: (links, free acid present)."""
     links, acid = [], []
@@ -247,7 +267,9 @@ def find_links(mol):
             far = beyond[0]
             if mol.GetBondBetweenAtoms(chain[-1], far.GetIdx()).IsInRing():
                 raise UnsupportedStructure("a cyclic ester or anhydride is named as a heterocycle")
-            if _center(mol, far.GetIdx()) is not None:
+            if found[0] in ("acyl", "inorganic") and _nitrogen_oxoacid_centre(mol, far, mol.GetAtomWithIdx(chain[-1])):
+                links.append(Link("anhydride", idx, tuple(chain), far.GetIdx()))
+            elif _center(mol, far.GetIdx()) is not None:
                 if found[0] == "carbonic" and _center(mol, far.GetIdx())[0] == "carbonic" and len(chain) == 1:
                     continue
                 if found[0] == "inorganic" and _center(mol, far.GetIdx())[0] == "inorganic" and len(chain) == 1:
@@ -1852,7 +1874,7 @@ def name_acid_derivative(mol):
         if all(_center(mol, c)[0] == "carbonic" for c in acid) and all(l.kind == "anhydride" for l in links):
             return name_anhydride(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
-            if any("cyanic" in (_center(mol, l.center)[0], _center(mol, l.far)[0]) for l in links if l.kind == "anhydride"):
+            if any("cyanic" in (_center(mol, l.center)[0], (_center(mol, l.far) or ("inorganic",))[0]) for l in links if l.kind == "anhydride"):
                 # P-67.1.2.4.1.3: an -OCN group on the acid is cited by functional replacement, the acid outranking the anhydride
                 return _acyloxy_oxoacid(mol, acid)
             try:
