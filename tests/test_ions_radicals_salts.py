@@ -466,6 +466,18 @@ def test_branched_chain_radical():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("CS(=O)(=O)[NH]", "methanesulfonamidyl", id="sulfonamide_radical"),
+        pytest.param("CC(=O)N[NH]", "2-acetylhydrazin-1-yl", id="hydrazine_radical_with_acyl"),
+        pytest.param("[NH]S(=O)(=O)CCS(=O)(=O)[NH]", "ethane-1,2-bis(sulfonamidyl)", id="two_sulfonamide_radicals"),
+    ],
+)
+def test_nitrogen_radical_beside_a_heteroatom_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("[CH2][C@H](Cl)CC", "(2S)-2-chlorobutyl", id="stereocentre_of_a_radical_group"),
         pytest.param("C/C=C/C(=O)[CH2]", "(3E)-2-oxopent-3-en-1-yl", id="double_bond_of_a_radical_group"),
         pytest.param("[CH2][C@H](Cl)C[CH2]", "(2S)-2-chlorobutane-1,4-diyl", id="stereocentre_of_a_polyradical"),
@@ -1720,7 +1732,7 @@ def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
         pytest.param("C[Sn]C", "dimethylstannylidene", id="substituted_divalent_centre"),
         pytest.param("CC[P]C", "ethyl(methyl)phosphanyl", id="substituted_phosphorus"),
         pytest.param("[SiH3][SiH][SiH3]", "trisilan-2-yl", id="chain_locant"),
-        pytest.param("CN(C)[N]", "dimethylhydrazinylidene", id="isodiazene_as_the_divalent_nitrogen"),
+        pytest.param("CN(C)[N]", "2,2-dimethylhydrazin-1-ylidene", id="isodiazene_as_the_divalent_nitrogen"),
         pytest.param("C[N+](C)=[N-]", "dimethylhydrazinylidene", id="isodiazene_as_the_zwitterion"),
         pytest.param("CC[N+](C)=[N-]", "ethyl(methyl)hydrazinylidene", id="isodiazene_prefixes_alphabetized"),
         pytest.param("[NH2][NH]", "hydrazinyl", id="retained_hydrazine_root"),

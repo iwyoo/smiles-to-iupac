@@ -20,6 +20,7 @@ from ._hetero_prefixes import (
     DIPOLAR_GROUPS,
     EXTENDED_PREFIXES,
     MONONUCLEAR_HYDRIDES,
+    RADICAL_CENTRE,
     RADICAL_PARENT,
     is_functional_carbon,
 )
@@ -200,9 +201,11 @@ def _name_radical_group(mol) -> str:
 
         mol = marked_neutral(mol)
         centre = mol.GetAtomWithIdx(centre.GetIdx())
-    if centre.GetAtomicNum() == 7 and not centre.IsInRing():
+    if centre.GetAtomicNum() == 7 and not centre.IsInRing() and _suffix_nitrogen_neighbours(centre):
         refuse_specified_stereo(mol)
-        return _name_aminyl(mol, centre)
+        suffixed = _name_aminyl(mol, centre)
+        if suffixed is not None:
+            return suffixed
     if centre.GetAtomicNum() != 6 and centre.GetNumRadicalElectrons() > 1:
         return _name_multivalent_centre(mol, centre)
     if centre.GetAtomicNum() == 8 and centre.GetNeighbors()[0].GetAtomicNum() == 8:
@@ -227,6 +230,7 @@ def _name_radical_group(mol) -> str:
     context = {"labels": labels, "consumed": set(), "mol": hydride}
     token = ISOTOPE_LABELS.set(context if labels else None)
     extended = EXTENDED_PREFIXES.set(centre.GetAtomicNum() in (16, 34, 52) or mol.HasSubstructMatch(_IMINE))
+    centre_token = RADICAL_CENTRE.set(centre.GetIdx())
     try:
         hydryl = None if labels else hydryl_radical_name(mol, centre)
         if hydryl is not None:
@@ -235,6 +239,7 @@ def _name_radical_group(mol) -> str:
             graph, centre.GetIdx(), hydrogen, halogen_substituents(hydride), aromatic, mol=hydride, unsaturated=True
         )
     finally:
+        RADICAL_CENTRE.reset(centre_token)
         EXTENDED_PREFIXES.reset(extended)
         ISOTOPE_LABELS.reset(token)
         if stereo_token is not None:
@@ -245,6 +250,8 @@ def _name_radical_group(mol) -> str:
         raise UnsupportedStructure("a stereo element of the radical is not cited by any supported name")
     if set(labels) - context["consumed"]:
         raise UnsupportedStructure("an isotopically modified atom of the radical is not cited by any supported name")
+    if centre.GetAtomicNum() == 7 and name.endswith("amino"):
+        return name[: -len("amino")] + "azanyl"
     if centre.GetAtomicNum() == 8:
         if not name.endswith("oxy"):
             raise UnsupportedStructure("the oxygen radical has no 'oxy' prefix to turn into 'oxyl' (P-71.3.4)")
@@ -296,10 +303,29 @@ def _nitrogen_hydride(mol, centre):
     return hydride
 
 
+def _suffix_nitrogen_neighbours(centre):
+    """Whether the radical nitrogen carries only hydrogen and carbon, or a sulfonyl-type chalcogen as in a sulfonamide,
+    so that it is the nitrogen of an amine, imine or amide suffix; any other neighbour makes it the azanyl or
+    hydrazinyl parent radical (P-71.3.2, P-71.3.3)."""
+    neighbours = list(centre.GetNeighbors())
+    if len(neighbours) == 1 and neighbours[0].GetAtomicNum() == 15:
+        return True
+    if not any(n.GetAtomicNum() == 6 or n.GetAtomicNum() in (16, 34, 52) for n in neighbours):
+        return False
+    return all(
+        n.GetAtomicNum() in (1, 6)
+        or (
+            n.GetAtomicNum() in (16, 34, 52)
+            and any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() in (8, 7) for b in n.GetBonds())
+        )
+        for n in neighbours
+    )
+
+
 def _name_aminyl(mol, centre):
     """Aminyl and amidyl radicals: the amine or amide suffix with '-yl' (or '-ylidene' for a nitrene-like centre) added,
     every other group a prefix (P-71.3.2)."""
-    from ._polyfunctional import FORCED_PRINCIPAL, _name_labelled
+    from ._polyfunctional import _SULFONYL_AMIDE_ORDER, FORCED_PRINCIPAL, _name_labelled
 
     suffix = {1: "yl", 2: "ylidene"}[centre.GetNumRadicalElectrons()]
     hydride = _nitrogen_hydride(mol, centre)
@@ -309,8 +335,6 @@ def _name_aminyl(mol, centre):
         if name.endswith("imine"):
             return name[:-1] + "yl"
     carbons = [n for n in neighbours if n.GetAtomicNum() == 6]
-    if not carbons or any(n.GetAtomicNum() not in (1, 6) for n in neighbours):
-        raise UnsupportedStructure("this nitrogen radical is not an aminyl or amidyl radical")
     if suffix == "ylidene" and len(carbons) == 1 and _imidoyl_carbon(hydride, carbons[0]):
         graph = adjacency(hydride)
         token = EXTENDED_PREFIXES.set(True)
@@ -328,21 +352,27 @@ def _name_aminyl(mol, centre):
             for n in carbon.GetNeighbors()
         )
 
-    amide = any(acyl(c) for c in carbons)
+    sulfonyl = any(n.GetAtomicNum() in (16, 34, 52) for n in neighbours)
+    amide = sulfonyl or any(acyl(c) for c in carbons)
     hydride = Chem.RemoveHs(hydride, sanitize=False)
     _sanitize(hydride)
-    token = FORCED_PRINCIPAL.set("amide" if amide else "amine")
-    try:
-        name = _name_labelled(hydride, {})
-    finally:
-        FORCED_PRINCIPAL.reset(token)
-    if amide and name.endswith("amide"):
-        return name[:-1] + suffix
-    if not amide and name.endswith("amine"):
-        return name[:-1] + suffix
-    if not amide and name.endswith("aniline"):
-        return name[: -len("aniline")] + "benzenamin" + suffix
-    raise UnsupportedStructure("the nitrogen radical is not named as an amine or amide parent")
+    imine = any(b.GetBondTypeAsDouble() == 2.0 for b in centre.GetBonds())
+    candidates = ("sulfonamide", *_SULFONYL_AMIDE_ORDER) if sulfonyl else ("amide" if amide else "imine" if imine else "amine",)
+    for forced in candidates:
+        token = FORCED_PRINCIPAL.set(forced)
+        try:
+            name = _name_labelled(hydride, {})
+        except UnsupportedStructure:
+            continue
+        finally:
+            FORCED_PRINCIPAL.reset(token)
+        if amide and name.endswith("amide"):
+            return name[:-1] + suffix
+        if not amide and name.endswith(("amine", "imine")):
+            return name[:-1] + suffix
+        if not amide and name.endswith("aniline"):
+            return name[: -len("aniline")] + "benzenamin" + suffix
+    return None
 
 
 def _plain_name(mol):
