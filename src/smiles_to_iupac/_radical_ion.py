@@ -100,7 +100,6 @@ from rdkit import Chem
 from ._amine import amines_in_suffix, name_amine
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._common import UnsupportedStructure
-from ._imine import has_simple_imine_shape, name_imine
 from ._oxonium import has_oxonium_shape, name_oxonium
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 
@@ -206,11 +205,8 @@ def _ylium_yl_radical(mol):
         return None
 
     try:
-        if has_simple_imine_shape(neutral):
-            neutral_name = name_imine(neutral)
-        else:
-            with amines_in_suffix():
-                neutral_name = name_amine(neutral)
+        with amines_in_suffix():
+            neutral_name = name_amine(neutral)
     except UnsupportedStructure:
         from .core import smiles_to_iupac
 
