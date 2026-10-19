@@ -787,9 +787,8 @@ def test_stereo_elements_of_a_chain_on_a_group_15_or_boron_acid_are_cited_in_the
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_isotopically_modified_phosphoric_acid_is_refused_not_misread():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[3H]OP([3H])(=O)O")
+def test_nuclides_on_the_centre_and_an_oxygen_of_phosphonic_acid_are_cited_together():
+    assert smiles_to_iupac("[3H]OP([3H])(=O)O") == "(1,O-3H2)phosphonic acid"
 
 
 @pytest.mark.parametrize(
