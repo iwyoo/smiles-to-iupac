@@ -128,8 +128,6 @@ def _root_chelate_label(mol, metal, donors_in, atoms):
     if root is None:
         return None
     sigma = {d.GetIdx() for d in donors_in} - {root}
-    if any(mol.GetAtomWithIdx(i).GetFormalCharge() for i in atoms):
-        raise UnsupportedStructure("charged atoms in a chelating ligand are not supported yet")
     for i in sigma:
         if mol.GetAtomWithIdx(i).GetAtomicNum() not in _NEUTRAL_VALENCE:
             raise UnsupportedStructure("this donor atom is not supported as a ligand yet")
@@ -155,8 +153,6 @@ def _chelate_label(mol, metal, donors_in, atoms):
         if z not in _NEUTRAL_VALENCE or donor.GetFormalCharge() != 0 or valence + donor.GetNumExplicitHs() != _NEUTRAL_VALENCE[z]:
             raise UnsupportedStructure("only neutral heteroatom donors are supported in a chelating ligand")
         symbols.append(donor.GetSymbol())
-    if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
-        raise UnsupportedStructure("charged ligands are not supported yet")
     name = _neutral_ligand_name(mol, metal, donors_in[0], atoms)
     seen: dict[str, int] = {}
     cited = []
@@ -299,11 +295,10 @@ def _is_acyl(mol, donor):
 
 
 def _acyl_name(mol, metal, donor, atoms):
-    if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
-        raise UnsupportedStructure("charged ligands are not supported yet")
-    name = _ligand_fragment_name(mol, donor, atoms, 17)
-    if not name.endswith(" chloride"):
-        raise UnsupportedStructure("this acyl ligand is not supported yet")
+    charged = any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms)
+    name = None if charged else _ligand_fragment_name(mol, donor, atoms, 17)
+    if name is None or not name.endswith(" chloride"):
+        return name_branch(adjacency(mol), donor.GetIdx(), metal.GetIdx(), halogen_substituents(mol), mol=mol)[0]
     return {"ethanoyl": "acetyl", "benzenecarbonyl": "benzoyl", "methanoyl": "formyl"}.get(name[: -len(" chloride")], name[: -len(" chloride")])
 
 
@@ -340,13 +335,14 @@ def _split_pi_sigma(mol, donors_in, metal=None):
 
 
 def _carbon_ligand_name(mol, graph, metal, donor, atoms):
-    if donor.GetIsAromatic():
+    charged = any(mol.GetAtomWithIdx(i).GetFormalCharge() for i in atoms)
+    if donor.GetIsAromatic() and not charged:
         seen = set()
         label = _brackets(substituted_aryl_name(mol, graph, donor.GetIdx(), metal.GetIdx(), seen)[0])
         if seen != atoms:
             raise UnsupportedStructure("this aryl ligand is not supported yet")
         return label
-    if not _has_stereo_element(mol, atoms):
+    if not _has_stereo_element(mol, atoms) and not charged:
         for i in atoms:
             if mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).IsInRing():
                 raise UnsupportedStructure("only acyclic alkyl and aryl carbon ligands are supported here")
@@ -432,8 +428,6 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
             label = _acyl_name(mol, metal, donor, atoms)
             organic.add(label)
         elif atomic_num in _CLASS2_STEMS:
-            if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
-                raise UnsupportedStructure("charged ligands are not supported yet")
             seen: set[int] = set()
             label = _brackets(_metal_group_name(mol, graph, donor.GetIdx(), metal.GetIdx(), seen))
             if seen != atoms:
@@ -446,8 +440,6 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
             label = _ylidene_name(mol, metal, donor, atoms, graph)
             organic.add(label)
         elif atomic_num == 6:
-            if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
-                raise UnsupportedStructure("charged ligands are not supported yet")
             try:
                 label = _carbon_ligand_name(mol, graph, metal, donor, atoms)
             except UnsupportedStructure:
@@ -457,8 +449,6 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
                 label = PrefixNamer(mol, ligand_graph).name(donor.GetIdx(), metal.GetIdx())[0]
             organic.add(label)
         else:
-            if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
-                raise UnsupportedStructure("charged ligands are not supported yet")
             label = _neutral_ligand_name(mol, metal, donor, atoms)
             if label in ("aqua", "ammine", "azanido", "hydroxido"):
                 simple_labels.add(label)
