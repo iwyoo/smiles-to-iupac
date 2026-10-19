@@ -153,6 +153,7 @@ from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_gr
 from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
+from ._acid_groups import acid_group_at
 from ._common import CITE_SKELETAL_LAMBDA, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
@@ -333,22 +334,7 @@ from ._spiro_heteroatom import (
 from ._disulfide import has_disulfide_shape, name_disulfide
 from ._sulfide import has_sulfide_shape, name_sulfide
 from ._sulfinamide import has_sulfinamide_shape, name_sulfinamide
-from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonamide import has_sulfonamide_shape, name_sulfonamide
-from ._seleninic_acid import has_seleninic_acid_shape, name_seleninic_acid
-from ._selenonic_acid import has_selenonic_acid_shape, name_selenonic_acid
-from ._tellurinic_acid import has_tellurinic_acid_shape, name_tellurinic_acid
-from ._telluronic_acid import has_telluronic_acid_shape, name_telluronic_acid
-from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
-from ._sulfonic_acid_sulfinic_acid import (
-    has_sulfonic_acid_sulfinic_acid_shape,
-    name_sulfonic_acid_sulfinic_acid,
-)
-from ._sulfonic_acid_sulfonamide import (
-    has_sulfonic_acid_sulfonamide_shape,
-    name_sulfonic_acid_sulfonamide,
-)
-from ._sulfonic_acid_thiol import has_sulfonic_acid_thiol_shape, name_sulfonic_acid_thiol
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
 from ._selenone import has_selenone_shape, name_selenone
@@ -1573,10 +1559,11 @@ _FALLBACK_NAMERS = (
 )
 
 
-def _has_acid_beside_oxo_acid(mol):
-    return find_carboxylic_acid_carbon(mol) is not None and (
-        has_sulfonic_acid_shape(mol) or has_sulfinic_acid_shape(mol) or has_seleninic_acid_shape(mol) or has_sulfonamide_shape(mol)
-    )
+def _has_acid_senior_to_sulfonyl(mol):
+    """A sulfonic, sulfinic, selenonic, seleninic, telluronic or tellurinic acid, or a carboxylic acid beside a sulfonamide."""
+    return any(
+        acid_group_at(mol, atom.GetIdx()) is not None for atom in mol.GetAtoms() if atom.GetAtomicNum() in (16, 34, 52)
+    ) or (find_carboxylic_acid_carbon(mol) is not None and has_sulfonamide_shape(mol))
 
 
 def _name_free_acid(mol):
@@ -2260,48 +2247,10 @@ def _name_mol(mol) -> str:
         if has_mixed_element_heteroatom_shape_polycyclic(mol, polycyclic_hetero_core):
             return name_von_baeyer_heteroatom_mixed_polycyclic(mol, polycyclic_hetero_core, ring_count)
     for has_shape, namer in (
-        # A sulfonic acid coexisting with a thiol (P-41/P-43, see
-        # `_seniority.py`) has the same three-oxygen sulfonic sulfur as plain
-        # sulfonic acid below, plus an extra thiol sulfur that `_sulfonic_
-        # acid.py`'s own validation would otherwise reject outright -- must be
-        # routed here first.
-        (has_sulfonic_acid_thiol_shape, name_sulfonic_acid_thiol),
-        # A sulfonic acid coexisting with a sulfinic acid (P-41/P-43, see
-        # `_seniority.py`) has the same four-oxygen sulfonic sulfur as plain
-        # sulfonic acid below, plus an extra sulfinic sulfur that neither
-        # `_sulfonic_acid.py` nor `_sulfinic_acid.py`'s own validation would
-        # accept -- must be routed here first.
-        (has_sulfonic_acid_sulfinic_acid_shape, name_sulfonic_acid_sulfinic_acid),
-        # A sulfonic acid coexisting with an unsubstituted sulfonamide
-        # (P-41/P-43, see `_seniority.py`) has the same four-oxygen sulfonic
-        # sulfur as plain sulfonic acid below, plus an extra sulfonamide
-        # sulfur that neither `_sulfonic_acid.py` nor `_sulfonamide.py`'s own
-        # validation would accept -- must be routed here first.
-        (has_sulfonic_acid_sulfonamide_shape, name_sulfonic_acid_sulfonamide),
-        # A carboxylic acid is senior to a sulfonic, sulfinic or seleninic acid and to a sulfonamide (P-41, Table
-        # 3.3), which are then prefixes; the single-group modules below would reject the acid's own oxygens.
-        (_has_acid_beside_oxo_acid, _name_free_acid),
-        # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
-        # so it must be routed here before the plain "any O atom" branch below --
-        # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
-        # in that branch understand a sulfur-centered oxygen cluster at all.
-        (has_sulfonic_acid_shape, name_sulfonic_acid),
-        # A selenonic acid (-Se(=O)(=O)OH, P-65.3.1) has the same oxygen-cluster
-        # shape as sulfonic acid above, just on selenium instead of sulfur, so
-        # it too must be routed before the plain "any O atom" branch.
-        (has_selenonic_acid_shape, name_selenonic_acid),
-        # A telluronic acid (-Te(=O)(=O)OH, P-65.3.1) has the same oxygen-
-        # cluster shape as sulfonic/selenonic acid above, just on tellurium, so
-        # it too must be routed before the plain "any O atom" branch.
-        (has_telluronic_acid_shape, name_telluronic_acid),
-        # A tellurinic acid (-Te(=O)OH, P-65.3.1) has the same oxygen-cluster
-        # shape as sulfinic/seleninic acid, just on tellurium, so it too must
-        # be routed before the plain "any O atom" branch.
-        (has_tellurinic_acid_shape, name_tellurinic_acid),
-        # A seleninic acid (-Se(=O)OH, P-65.3.1) has the same oxygen-cluster
-        # shape as sulfinic acid, just on selenium instead of sulfur, so it too
-        # must be routed before the plain "any O atom" branch.
-        (has_seleninic_acid_shape, name_seleninic_acid),
+        # An oxo acid of sulfur, selenium or tellurium (P-65.3.1) has oxygens on its own atom that the ether/ester/
+        # alcohol checks below do not understand, and a carboxylic acid outranks it and a sulfonamide (P-41,
+        # Table 3.3), so the engine names these acids.
+        (_has_acid_senior_to_sulfonyl, _name_free_acid),
         # A sulfonyl group on a plain saturated ring nitrogen (e.g.
         # 1-methylsulfonylpiperidine) looks sulfonamide-shaped to
         # `has_sulfonamide_shape` below, which doesn't know about this
@@ -2315,10 +2264,6 @@ def _name_mol(mol) -> str:
         # otherwise be mistaken for a plain amine -- so it too must be routed
         # before both the "any O atom" and "any N atom" branches below.
         (has_sulfonamide_shape, name_sulfonamide),
-        # A sulfinic acid (-SO2H, P-65.3.1) has two oxygens on its own sulfur --
-        # the same reasoning as sulfonic acid above -- so it too must be routed
-        # before the plain "any O atom" branch.
-        (has_sulfinic_acid_shape, name_sulfinic_acid),
         # A sulfinamide (-S(=O)NH2, P-65.3.1) has one oxygen and one nitrogen on
         # its own sulfur -- the same reasoning as sulfonamide above -- so it too
         # must be routed before both the "any O atom" and "any N atom" branches.

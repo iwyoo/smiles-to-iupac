@@ -162,6 +162,12 @@ def _senior_anionic_centres(mol, groups, ring_groups, marked):
     return groups, ring_groups
 
 
+def _group_rank(name):
+    if _is_acid_family(name):
+        return (0, _acid_rank(name))
+    return (1, _SENIORITY.index(name) if name in _SENIORITY else len(_SENIORITY))
+
+
 def _principal_class(classes):
     if FORCED_PRINCIPAL.get():
         return FORCED_PRINCIPAL.get() if FORCED_PRINCIPAL.get() in classes else None
@@ -1033,8 +1039,9 @@ def _group_of(mol, carbon):
         return "imine", {imine}
     sulfonyls = _sulfonyl_groups_on(mol, carbon)
     if sulfonyls:
-        same = [owned for cls, owned in sulfonyls if cls == sulfonyls[0][0]]
-        return sulfonyls[0][0], set().union(*same)
+        senior = min((cls for cls, _ in sulfonyls), key=lambda cls: _group_rank(cls))
+        same = [owned for cls, owned in sulfonyls if cls == senior]
+        return senior, set().union(*same)
     for name, found in _hydroxy_type_groups(mol, carbon):
         if found:
             return name, set(found)
