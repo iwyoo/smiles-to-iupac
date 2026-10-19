@@ -466,6 +466,18 @@ def test_branched_chain_radical():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("[CH2][C@H](Cl)CC", "(2S)-2-chlorobutyl", id="stereocentre_of_a_radical_group"),
+        pytest.param("C/C=C/C(=O)[CH2]", "(3E)-2-oxopent-3-en-1-yl", id="double_bond_of_a_radical_group"),
+        pytest.param("[CH2][C@H](Cl)C[CH2]", "(2S)-2-chlorobutane-1,4-diyl", id="stereocentre_of_a_polyradical"),
+    ],
+)
+def test_stereo_elements_of_a_radical_are_cited(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("C[CH]CC", "butan-2-yl", id="butan_2_yl_name"),
         pytest.param("[C](C)(C)C", "tert-butyl", id="tert_butyl_name"),
         pytest.param("CC[C](C)C", "2-methylbutan-2-yl", id="2_methylbutan_2_yl_name"),

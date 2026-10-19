@@ -6,7 +6,16 @@ import re
 
 from rdkit import Chem
 
-from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, match_cip_labels, specified_stereo_elements
+from ._common import (
+    YLO_MAP_NUMBER,
+    UnsupportedStructure,
+    adjacency,
+    assign_cip_labels,
+    halogen_substituents,
+    match_cip_labels,
+    refuse_specified_stereo,
+    specified_stereo_elements,
+)
 from ._hetero_prefixes import (
     DIPOLAR_GROUPS,
     EXTENDED_PREFIXES,
@@ -154,7 +163,7 @@ def name_radical_group(mol) -> str:
 
 def _name_radical_group(mol) -> str:
     from ._isotope_labels import split_isotopes
-    from ._substituents import ISOTOPE_LABELS
+    from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
     labels = {}
     split = split_isotopes(mol)
@@ -179,23 +188,40 @@ def _name_radical_group(mol) -> str:
         centre is None
         or mol.GetNumAtoms() > _MAX_ATOMS
         or len(Chem.GetMolFrags(mol)) != 1
-        or specified_stereo_elements(mol)
     ):
         raise UnsupportedStructure("this radical is not a single radical centre on a plain skeleton")
     if labels and centre.GetAtomicNum() != 6:
         raise UnsupportedStructure("isotopic modification of this radical is not supported yet")
+    stereo = specified_stereo_elements(mol)
+    if stereo and labels:
+        raise UnsupportedStructure("isotopic modification of a radical with stereo elements is not supported yet")
     if any(a.GetFormalCharge() < 0 and a.GetAtomicNum() not in _NOT_ATE_CENTRE and not a.IsInRing() for a in mol.GetAtoms()):
         from ._anion import marked_neutral
 
         mol = marked_neutral(mol)
         centre = mol.GetAtomWithIdx(centre.GetIdx())
     if centre.GetAtomicNum() == 7 and not centre.IsInRing():
+        refuse_specified_stereo(mol)
         return _name_aminyl(mol, centre)
     if centre.GetAtomicNum() != 6 and centre.GetNumRadicalElectrons() > 1:
         return _name_multivalent_centre(mol, centre)
     if centre.GetAtomicNum() == 8 and centre.GetNeighbors()[0].GetAtomicNum() == 8:
+        refuse_specified_stereo(mol)
         return _name_peroxyl(mol, centre)
     hydride, hydrogen = _hydride(mol, centre)
+    stereo_token = None
+    if stereo:
+        match_cip_labels(mol, hydride)
+        probe = Chem.Mol(hydride)
+        assign_cip_labels(probe)
+        cited = {
+            "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")},
+            "bonds": {
+                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
+            },
+            "used": set(),
+        }
+        stereo_token = BRANCH_STEREO.set(cited)
     graph = adjacency(hydride)
     aromatic = frozenset(a.GetIdx() for a in hydride.GetAtoms() if a.GetIsAromatic())
     context = {"labels": labels, "consumed": set(), "mol": hydride}
@@ -211,6 +237,12 @@ def _name_radical_group(mol) -> str:
     finally:
         EXTENDED_PREFIXES.reset(extended)
         ISOTOPE_LABELS.reset(token)
+        if stereo_token is not None:
+            BRANCH_STEREO.reset(stereo_token)
+    if stereo and (
+        any(("atom", a) not in cited["used"] for a in cited["atoms"]) or any(("bond", b) not in cited["used"] for b in cited["bonds"])
+    ):
+        raise UnsupportedStructure("a stereo element of the radical is not cited by any supported name")
     if set(labels) - context["consumed"]:
         raise UnsupportedStructure("an isotopically modified atom of the radical is not cited by any supported name")
     if centre.GetAtomicNum() == 8:
@@ -338,7 +370,7 @@ def _name_polyradical(mol):
     'yl', every other group a prefix."""
     from ._anion import name_anion
 
-    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()) or specified_stereo_elements(mol):
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("this polyradical is not a single plain skeleton")
     anionic = Chem.RWMol(mol)
     for atom in _polyradical_centres(mol):
@@ -347,6 +379,7 @@ def _name_polyradical(mol):
         target.SetFormalCharge(-1)
     anionic = anionic.GetMol()
     Chem.SanitizeMol(anionic)
+    match_cip_labels(mol, anionic)
     name = name_anion(anionic)
     for ending in ("diide", "triide", "tetraide"):
         if name.endswith(ending) and "-" in name[: -len(ending)]:
@@ -477,6 +510,7 @@ def _with_ylo(mol, kept):
             rw.AddBond(atom.GetIdx(), rw.AddAtom(dummy), Chem.BondType.SINGLE)
     out = rw.GetMol()
     Chem.SanitizeMol(out)
+    match_cip_labels(mol, out)
     return out
 
 
@@ -489,7 +523,6 @@ def _name_parent_radical(mol):
         len(Chem.GetMolFrags(mol)) != 1
         or mol.GetNumAtoms() > _MAX_ATOMS
         or any(a.GetAtomicNum() == 53 for a in mol.GetAtoms())
-        or specified_stereo_elements(mol)
     ):
         raise UnsupportedStructure("these radical centres are not on one plain skeleton")
     radicals = [a.GetIdx() for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
