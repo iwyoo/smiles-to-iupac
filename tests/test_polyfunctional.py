@@ -1067,8 +1067,8 @@ def test_sulfonic_acid_sulfonamide(smiles, expected):
     "smiles, expected",
     [
         pytest.param("CNS(=O)(=O)CCS(=O)(=O)O", "2-(methylsulfamoyl)ethane-1-sulfonic acid", id="n_substituted_sulfonamide"),
-        pytest.param("OCC(S(=O)(=O)N)S(=O)(=O)O", "2-hydroxy-1-sulfoethane-1-sulfonamide", id="other_heteroatom__sulfonic_acid_sulfonamide"),
-        pytest.param("C=CC(S(=O)(=O)N)S(=O)(=O)O", "1-sulfoprop-2-ene-1-sulfonamide", id="unsaturated_chain__sulfonic_acid_sulfonamide"),
+        pytest.param("OCC(S(=O)(=O)N)S(=O)(=O)O", "2-hydroxy-1-sulfamoylethane-1-sulfonic acid", id="other_heteroatom__sulfonic_acid_sulfonamide"),
+        pytest.param("C=CC(S(=O)(=O)N)S(=O)(=O)O", "1-sulfamoylprop-2-ene-1-sulfonic acid", id="unsaturated_chain__sulfonic_acid_sulfonamide"),
         pytest.param("C1CCC(S(=O)(=O)N)(CC1)S(=O)(=O)O", "1-sulfamoylcyclohexane-1-sulfonic acid", id="ring__sulfonic_acid_sulfonamide"),
     ],
 )
