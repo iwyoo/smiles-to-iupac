@@ -2017,6 +2017,11 @@ def test_ylium_and_onium_cations_of_mononuclear_hydrides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_diazonium_prefix_does_not_leak_into_an_ammonium_name():
+    smiles_to_iupac("N#[N+]CCS(=O)(=O)NCCC[N+]#N")
+    assert smiles_to_iupac("[NH3+]CCS(=O)(=O)NCCC[NH3+]") == "3-(2-azaniumylethane-1-sulfonamido)propan-1-aminium"
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

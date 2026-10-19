@@ -1132,12 +1132,17 @@ def _acylated_nitrogens(fragment):
 
 _FRAGMENT_NAMES = {}
 _FRAGMENT_NAMES_LIMIT = 50000
+_NAMING_PROPS = ("_cationic_amine", "_diazonium_surrogate")
 
 
 def _fragment_name(fragment, namer):
     """The name of a detached fragment, computed outside the caller's naming context so that it depends on the
     fragment alone and is reused when nested groups ask for the same fragment again."""
-    key = (namer.__name__, Chem.MolToSmiles(fragment))
+    ranks = Chem.CanonicalRankAtoms(fragment, breakTies=False)
+    flagged = tuple(
+        sorted((ranks[a.GetIdx()], prop) for a in fragment.GetAtoms() for prop in _NAMING_PROPS if a.HasProp(prop))
+    )
+    key = (namer.__name__, Chem.MolToSmiles(fragment), flagged)
     if key not in _FRAGMENT_NAMES:
         if len(_FRAGMENT_NAMES) >= _FRAGMENT_NAMES_LIMIT:
             _FRAGMENT_NAMES.clear()
