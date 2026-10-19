@@ -69,9 +69,15 @@ def _parent_nitrogens(graph, ring_atoms, nitrogens):
     return [n for n in nitrogens if sum(c in ring_atoms for c in graph[n]) == 1]
 
 
-def _candidate(mol, graph, halogens, ring_order, parent_nitrogens):
-    from ._amine import _add_n_names
+def _add_n_names(grouped, n_names, n_locants):
+    display = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
+    for (name, is_compound), locant in zip(n_names, n_locants):
+        info = display.setdefault(name, {"locants": [], "compound": is_compound})
+        info["locants"].append("N" if locant is None else f"N{locant}")
+    return display
 
+
+def _candidate(mol, graph, halogens, ring_order, parent_nitrogens):
     n_names_by_nitrogen = {}
     for n in parent_nitrogens:
         n_names_by_nitrogen[n] = [

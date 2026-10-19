@@ -110,7 +110,6 @@ from ._tellurourea import has_tellurourea_shape, name_tellurourea
 from ._urea import has_urea_shape, name_urea
 from ._chalcogenourea import carries_only_element_hydride_groups
 from ._guanidine import has_carbonic_amide_parent, has_guanidine_shape, name_guanidine
-from ._amine import name_amine
 from ._hetero_ring_amine import has_hetero_ring_amine_shape, name_hetero_ring_amine
 from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, name_ring_amine
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
@@ -2402,7 +2401,7 @@ def _name_mol(mol) -> str:
         # checks below don't expect at all, so it must be routed before all
         # of them. N-substituted forms (R-NH-OH) don't match this shape
         # (see _hydroxylamine.py's module docstring) and fall through to
-        # name_amine below instead.
+        # the amine fallback below instead.
         if has_hydroxylamine_shape(mol):
             return name_hydroxylamine(mol)
         # A cyanate (R-O-C#N, P-6) has a degree-2 oxygen bonded to two
@@ -2599,7 +2598,7 @@ def _name_mol(mol) -> str:
         # catch it, so it would otherwise fall through to the
         # branch's own unconditional fallback -- must be routed here first, mirroring
         # the nitrogen-gated branch's own thiol/selenol checks before its
-        # `name_amine` fallback below.
+        # amine fallback below.
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
         if has_thiol_shape(mol):
@@ -2620,17 +2619,17 @@ def _name_mol(mol) -> str:
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
         # An aminide anion (-NH(-), P-72.2.2.2.3) has a formal-charge -1
         # nitrogen none of the neutral-nitrogen checks below (or
-        # `name_amine`'s own fallback) expect, so it must be routed first.
+        # the amine fallback's own fallback) expect, so it must be routed first.
         if has_aminide_shape(mol):
             return name_aminide(mol)
         # An azide group (-N3, P-61.7) has no oxygen and three nitrogens
-        # name_amine doesn't recognize at all, so it must be routed here
-        # before name_amine for the same reason as the nitrile/imine checks
+        # the amine fallback doesn't recognize at all, so it must be routed here
+        # before the amine fallback for the same reason as the nitrile/imine checks
         # below.
         if has_azide_shape(mol):
             return name_azide(mol)
         # An isocyanide group (-NC, P-61.9) similarly has no oxygen and a
-        # nitrogen shape (triple-bonded to a carbon) name_amine doesn't
+        # nitrogen shape (triple-bonded to a carbon) the amine fallback doesn't
         # recognize -- must be routed here for the same reason.
         if has_isocyanide_shape(mol):
             return name_isocyanide(mol)
@@ -2657,7 +2656,7 @@ def _name_mol(mol) -> str:
             return name_diazo(mol)
         # A diazene/azo skeleton (R-N=N-R', P-68.3.1.3.2) has its own two
         # skeletal nitrogens with no carbon parent chain at all -- must be
-        # routed before name_amine for the same reason as the checks above.
+        # routed before the amine fallback for the same reason as the checks above.
         if has_diazene_shape(mol):
             return name_diazene(mol)
         # A symmetric azine (R2C=N-N=CR2, P-68.3.1.2.3) has two C=N double
@@ -2679,7 +2678,7 @@ def _name_mol(mol) -> str:
         # A hydrazine skeleton (H2N-NH2, P-68.3.1.2.1) has its own two
         # skeletal nitrogens (single-bonded, not double-bonded like
         # diazene above) with no carbon parent chain at all -- must be
-        # routed before name_amine for the same reason as the checks
+        # routed before the amine fallback for the same reason as the checks
         # above.
         if has_hydrazine_multiplicative_shape(mol):
             return name_hydrazine_multiplicative(mol)
@@ -2704,7 +2703,7 @@ def _name_mol(mol) -> str:
             return name_tellurocyanate(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
-        # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
+        # the amine fallback, which doesn't recognize a triple-bonded nitrogen at all.
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
         # An amidine carbon (-C(=NH)NH2, P-66.4.1.1) has a C=N double bond that would otherwise look imine-shaped to
@@ -2724,8 +2723,8 @@ def _name_mol(mol) -> str:
         # N,S piperazine/thiomorpholine siblings -- the N,O morpholine
         # sibling has an oxygen and is instead routed in the oxygen-gated
         # branch above) has the ring itself as the parent hydride, unlike
-        # every other shape reaching `name_amine` below (which always
-        # treats an acyclic chain as the parent) -- `name_amine` itself
+        # every other shape reaching the amine fallback below (which always
+        # treats an acyclic chain as the parent) -- the amine fallback itself
         # explicitly defers this shape, so it must be routed here first.
         # These oxygen-free variants never collide with
         # `_hidden_amide_ketone.py`'s acyl-on-ring-nitrogen path, which
@@ -2735,7 +2734,7 @@ def _name_mol(mol) -> str:
             return name_ring_amine(mol)
         # The reverse shape: the ring nitrogen itself is plain (no
         # substituent), but a ring carbon bears an exocyclic primary
-        # amine (e.g. piperidin-4-amine) -- `name_amine` also explicitly
+        # amine (e.g. piperidin-4-amine) -- the amine fallback also explicitly
         # defers any ring bearing a nitrogen heteroatom, so this must be
         # routed here first too, same reasoning as `has_ring_amine_shape`
         # just above.
@@ -2746,11 +2745,10 @@ def _name_mol(mol) -> str:
         # nitrogen, now recognized by `_thiol.py` itself -- P-25 M2 step 1,
         # #628) has no coexisting-amine shape above to catch it (those all
         # require an actual primary amine), so it would otherwise fall
-        # through to `name_amine`'s own unconditional rejection of a
+        # through to the amine fallback's own unconditional rejection of a
         # nitrogen-free molecule it doesn't recognize as amine-shaped at
-        # all -- must be routed here first, mirroring `_ketone.py`'s/
-        # `_alcohol.py`'s own unconditional fallback to their suffix
-        # module regardless of a coexisting non-functional nitrogen.
+        # all -- must be routed here first, mirroring `_ketone.py`'s own
+        # unconditional fallback regardless of a coexisting non-functional nitrogen.
         if has_thiol_shape(mol):
             return name_thiol(mol)
         # A selenol coexisting with a nitrogen that isn't a real amine at
@@ -2766,13 +2764,13 @@ def _name_mol(mol) -> str:
         # chalcogen row down.
         if has_tellurol_shape(mol):
             return name_tellurol(mol)
-        return name_amine(mol)
+        return _name_standalone(mol)
     for has_shape, namer in (
         (has_chalcogen_peroxol_shape, name_hydroperoxide),
         (has_thione_shape, name_thione),  # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only # reaches this branch once both are ruled out above. Its own shape # check is precise (a real C=S double bond), unlike thiol's/ # sulfide's own loose "any sulfur atom" checks, so it's safe to # check here regardless of order relative to them.
         (has_disulfide_shape, name_disulfide),  # A disulfide (R-S-S-R') has two sulfurs -- it would otherwise # look thiol-shaped to the check below (that check just looks for # the presence of any sulfur atom) -- must be routed here first.
         (has_sulfide_shape, name_sulfide),  # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed # here before has_thiol_shape below: _thiol.py's validation rejects # a degree-2 sulfur outright (not a monovalent -SH), so a sulfide # would otherwise raise the wrong error there instead of being named.
-        (has_thiol_shape, name_thiol),  # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches # this branch once both are ruled out above (a thiol coexisting # with an amine is instead routed inside the nitrogen-gated branch # above, before its own `name_amine` fallback).
+        (has_thiol_shape, name_thiol),  # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches # this branch once both are ruled out above (a thiol coexisting # with an amine is instead routed inside the nitrogen-gated branch # above, before its own amine fallback).
         (has_selone_shape, name_selone),  # A selone (C=Se, P-64.6.1) has the same precise-shape reasoning # as thione above (a real C=Se double bond), so it's safe to check # here regardless of order relative to the selenide/selenol chain.
         (has_diselenide_shape, name_diselenide),  # A diselenide (R-Se-Se-R') has two seleniums -- it would # otherwise look selenol-shaped to the check below (that check # just looks for the presence of any selenium atom) -- must be # routed here first.
         (has_selenide_shape, name_selenide),  # A plain -Se- selenide (P-63.2.1) has no suffix, so it must be # routed here before has_selenol_shape below for the same reason # as has_sulfide_shape above (that check doesn't look at degree # at all, so a degree-2 selenide would otherwise raise the wrong # error inside `name_selenol`'s degree-1 validation).

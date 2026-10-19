@@ -2,8 +2,18 @@
 carrying a benzene ring is named like the N-substituted aniline with the ending 'anilino' ('3-(N-methylanilino)phenol',
 '4-chloroanilino')."""
 
-from ._common import ring_cycle
-from ._substituents import name_branch, substituents_for_ring
+from ._common import alphanumerical_name_key, group_substituents, ring_cycle, substituent_locant_set_and_citation
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_ring
+
+
+def _aniline_candidate_key(amine_locant, substituents, n_names):
+    grouped = group_substituents(substituents)
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
+    display = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
+    for name, is_compound in n_names:
+        display.setdefault(name, {"locants": [], "compound": is_compound})["locants"].append("N")
+    name = f"{format_substituent_prefixes(display)}aniline" if display else "aniline"
+    return amine_locant, locant_set, citation_locants, alphanumerical_name_key(name), name
 
 
 def _benzene_ring_of(mol, carbon):
@@ -24,8 +34,6 @@ def _benzene_ring_of(mol, carbon):
 def anilino_prefix(graph, mol, nitrogen, others, halogens, aromatic_atoms):
     """(name, True) for -N(R)-Ar with Ar a lone benzene ring, else None; the ring with the most substituents is the anilino
     ring (P-45.1) and any other nitrogen substituent is an N-prefix."""
-    from ._amine import _aniline_candidate_key
-
     best = None
     for carbon in others:
         ring = _benzene_ring_of(mol, carbon)

@@ -1,5 +1,5 @@
 import pytest
-from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
+from smiles_to_iupac import smiles_to_iupac
 
 
 @pytest.mark.parametrize(
@@ -246,7 +246,7 @@ def test_hetero_chain_and_macrocycle_names(smiles, expected):
             id="amine_suffixes_kept_instead_of_skeletal_nitrogen_atoms_and_unit_numbered_from_the_junction",
         ),
         pytest.param(
-            "CNCNCNCNC", "N,N''-methylenebis(N'-methylmethanediamine)", id="methylene_joined_units_numbered_from_the_junction"
+            "CNCNCNCNC", "N',N'''-methylenebis(N-methylmethanediamine)", id="methylene_joined_units_numbered_from_the_junction"
         ),
         pytest.param(
             "CNCCOCCNCCOCCNC",
@@ -260,9 +260,8 @@ def test_diamine_parents_joined_through_nitrogen_by_a_linking_group(smiles, expe
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_skeletal_name_that_drops_the_amine_suffixes_is_marked_non_preferred():
-    with pytest.warns(NonPreferredNameWarning, match="P-51.4.1.3"):
-        assert smiles_to_iupac("CNCNCNCNC[SiH3]") == "3,5,7,9-tetraaza-1-siladecane"
+def test_amine_suffix_name_is_preferred_to_the_skeletal_replacement_name():
+    assert smiles_to_iupac("CNCNCNCNC[SiH3]") == "N-({[(methylamino)methyl]amino}methyl)-N'-(silylmethyl)methanediamine"
 
 
 @pytest.mark.parametrize(

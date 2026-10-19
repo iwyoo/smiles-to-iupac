@@ -65,8 +65,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._amine import _name_acyclic_secondary_tertiary_amine
-from ._common import UnsupportedStructure, non_single_bonds
+from ._common import UnsupportedStructure
 from ._numerals import alkane_name
 from ._oxonium import name_oxonium
 from ._phosphonium import name_phosphonium
@@ -137,8 +136,20 @@ def name_nitrogen_ylide(mol) -> str:
     if any(mol.GetAtomWithIdx(idx).GetAtomicNum() != 6 for idx in n_carbons):
         raise UnsupportedStructure("an ammonium nitrogen substituent other than carbon is not supported yet")
 
-    bonds = [b for b in non_single_bonds(mol) if b[2] in (2.0, 3.0)]
-    amine_name = _name_acyclic_secondary_tertiary_amine(mol, cation.GetIdx(), n_carbons, bonds)
+    from ._polyfunctional import name_polyfunctional
+
+    editable = Chem.RWMol(mol)
+    cation_idx = cation.GetIdx() - (cation.GetIdx() > anion.GetIdx())
+    editable.RemoveAtom(anion.GetIdx())
+    nitrogen = editable.GetAtomWithIdx(cation_idx)
+    nitrogen.SetFormalCharge(0)
+    nitrogen.SetNoImplicit(True)
+    nitrogen.SetNumExplicitHs(0)
+    amine = editable.GetMol()
+    Chem.SanitizeMol(amine)
+    amine_name = name_polyfunctional(amine)
+    if not amine_name.endswith("amine"):
+        raise UnsupportedStructure("the amine of this nitrogen ylide is not named with an amine suffix")
     aminium_name = amine_name[:-1] + "ium"
 
     anion_name = alkane_name(1)[:-1] + "ide"
