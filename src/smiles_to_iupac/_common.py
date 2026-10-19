@@ -2052,3 +2052,57 @@ def alphanumerical_name_key(name):
     """P-14.5: whole names compare by their letters alone; locants, enclosing marks, italic capitals (N, H) and isotope
     descriptors such as (81Br) are ignored."""
     return re.sub(r"[^a-z]", "", re.sub(rf"\({_NUCLIDE}(?:,{_NUCLIDE})*\)", "", name))
+
+
+def _is_carbonyl_carbon(mol, carbon_atom):
+    return any(
+        o.GetAtomicNum() == 8
+        and o.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(carbon_atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for o in carbon_atom.GetNeighbors()
+    )
+
+
+def _is_plain_hydroxyl_oxygen(mol, oxygen_atom, other_atom_idx):
+    return (
+        oxygen_atom.GetAtomicNum() == 8
+        and oxygen_atom.GetDegree() == 1
+        and oxygen_atom.GetTotalNumHs() == 1
+        and mol.GetBondBetweenAtoms(other_atom_idx, oxygen_atom.GetIdx()).GetBondTypeAsDouble() == 1.0
+    )
+
+
+def has_amide_shape(mol) -> bool:
+    """True if some carbon carries a doubly-bonded, monovalent carbonyl
+    oxygen and a singly-bonded nitrogen with 0-2 carbon substituents (or a
+    single plain hydroxyl substituent, P-66.1.1.3.2's N-hydroxy amide/
+    hydroxamic acid shape), no other heavy-atom neighbor, and no *other*
+    carbonyl-carbon neighbor (a -CON(R)(R') pattern, R/R' either H, an
+    unbranched alkyl carbon, or -OH), regardless of whether the rest of the
+    molecule is in scope. Used by `core.py` to route ahead of the aldehyde/
+    ketone dispatch, since an amide carbon would otherwise look aldehyde-
+    shaped to those modules (both have exactly one carbon neighbor besides
+    the carbonyl, and that count ignores a nitrogen substituent -- the same
+    routing trap `core.py`'s own `_is_aldehyde_shaped` comment already names
+    directly). A nitrogen bonded to two carbonyl carbons (a symmetric imide)
+    is excluded here so `core.py`'s later `has_imide_shape` check still gets
+    a chance at it."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6:
+            continue
+        if not _is_carbonyl_carbon(mol, atom):
+            continue
+        has_amide_n = any(
+            n.GetAtomicNum() == 7
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and all(
+                nn.GetAtomicNum() == 6 or _is_plain_hydroxyl_oxygen(mol, nn, n.GetIdx())
+                for nn in n.GetNeighbors()
+                if nn.GetIdx() != atom.GetIdx()
+            )
+            and sum(1 for nn in n.GetNeighbors() if _is_carbonyl_carbon(mol, nn)) == 1
+            for n in atom.GetNeighbors()
+        )
+        if has_amide_n:
+            return True
+    return False

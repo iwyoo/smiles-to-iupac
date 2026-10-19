@@ -104,7 +104,6 @@ from ._inositol import has_inositol_shape, name_inositol
 from ._inositol_derivative import has_inositol_derivative_shape, name_inositol_derivative
 from ._sphingoid import has_sphingoid_shape, name_sphingoid
 from ._acetal import has_acetal_shape, name_acetal
-from ._amide import has_amide_shape, name_amide
 from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_ketone
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
@@ -153,7 +152,7 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, has_amide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -259,7 +258,6 @@ from ._ketone import (
 from ._thione import has_thione_shape, name_thione
 from ._selone import has_selone_shape, name_selone
 from ._tellone import has_tellone_shape, name_tellone
-from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._selenocyanate import has_selenocyanate_shape, name_selenocyanate
 from ._tellurocyanate import has_tellurocyanate_shape, name_tellurocyanate
@@ -1565,8 +1563,8 @@ def _has_acid_senior_to_sulfonyl(mol):
     ) or (find_carboxylic_acid_carbon(mol) is not None and has_sulfonamide_shape(mol))
 
 
-def _name_free_acid(mol):
-    """An acid is named as itself, whatever parent the molecule it was cut out of is being named around."""
+def _name_standalone(mol):
+    """An acid or amide is named as itself, whatever parent the molecule it was cut out of is being named around."""
     tokens = [(AMINIUM, AMINIUM.set(False)), (RING_CENTER, RING_CENTER.set(False)), (FORCED_PRINCIPAL, FORCED_PRINCIPAL.set(None))]
     try:
         return name_polyfunctional(mol)
@@ -2249,7 +2247,7 @@ def _name_mol(mol) -> str:
         # An oxo acid of sulfur, selenium or tellurium (P-65.3.1) has oxygens on its own atom that the ether/ester/
         # alcohol checks below do not understand, and a carboxylic acid outranks it and a sulfonamide (P-41,
         # Table 3.3), so the engine names these acids.
-        (_has_acid_senior_to_sulfonyl, _name_free_acid),
+        (_has_acid_senior_to_sulfonyl, _name_standalone),
         # A sulfonyl group on a plain saturated ring nitrogen (e.g.
         # 1-methylsulfonylpiperidine) looks sulfonamide-shaped to
         # `has_sulfonamide_shape` below, which doesn't know about this
@@ -2553,7 +2551,7 @@ def _name_mol(mol) -> str:
             # own retained name + L/D descriptor.
             if has_histidine_shape(mol):
                 return name_histidine(mol)
-            return _name_free_acid(mol)
+            return _name_standalone(mol)
         # A carbon bearing both a carbonyl oxygen and a primary-amide
         # nitrogen (-CONH2) is an amide (junior only to the acid/ester
         # suffixes above in Table 3.3) and must be routed before the
@@ -2562,21 +2560,13 @@ def _name_mol(mol) -> str:
         # neighbors, ignoring the nitrogen).
         # Urea (H2N-C(=O)-NH2) has a carbonyl carbon with two qualifying
         # nitrogens, the same shape `has_amide_shape` looks for -- routing
-        # it first here lets `_urea.py` claim it before `_amide.py` would
-        # otherwise (correctly, but unhelpfully) reject it as "not exactly
-        # one nitrogen".
+        # it first here lets `_urea.py` claim it before the amide branch.
         if has_urea_shape(mol):
             return name_urea(mol)
         if has_guanidine_shape(mol):
             return name_guanidine(mol)
         if has_amide_shape(mol):
-            # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
-            # carries one or more ketones names the amide as the suffix and
-            # demotes each ketone to an 'oxo' prefix instead of
-            # `_amide.py`'s own "coexisting carbonyl" rejection.
-            if has_ketone_amide_shape(mol):
-                return name_ketone_amide(mol)
-            return name_amide(mol)
+            return _name_standalone(mol)
         # A one-H nitrogen bridging two carbonyl carbons (-C(=O)-NH-C(=O)-)
         # is an imide, junior only to the acid/ester/amide suffixes above
         # in Table 3.3; it must be routed before the generic carbonyl

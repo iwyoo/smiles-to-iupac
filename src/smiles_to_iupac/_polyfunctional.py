@@ -974,6 +974,15 @@ def _group_of(mol, carbon):
             ]
             if hydroxyl and nitro and not carbon_neighbors:
                 return "acid", {oxygens[0], hydroxyl[0].GetIdx()}
+            amide = [
+                h
+                for h in hetero
+                if h.GetAtomicNum() == 7
+                and h not in nitro
+                and (_terminal_heteroatom(mol, h.GetIdx(), 2) or _plain_amide_nitrogen(mol, h, carbon))
+            ]
+            if amide and nitro and not carbon_neighbors:
+                return "amide", {oxygens[0], amide[0].GetIdx()}
         if hetero and all(_acyl_diazene_nitrogen(mol, h, carbon) for h in hetero):
             return "ketone", {oxygens[0]}
         ring_nitrogens = [h for h in hetero if h.IsInRing() and h.GetAtomicNum() == 7]
@@ -7621,7 +7630,10 @@ def _evaluate(
         prefix = single_site_prefixes(grouped)
     else:
         keeps_nitrogen_hydrogen = principal == "amine" and count == 1 and any(mol.GetAtomWithIdx(a).GetTotalNumHs() for a in nitrogens)
-        prefix = format_substituent_prefixes(with_n, omit_locants=length == 1 and not force and not n_names and not keeps_nitrogen_hydrogen)
+        prefix = format_substituent_prefixes(
+            with_n,
+            omit_locants=length == 1 and not force and (not n_names or principal in _AMIDE_FAMILY) and not keeps_nitrogen_hydrogen,
+        )
     tail = ""
     if principal == "ide" and attach is None and length == 2 and not grouped and (ene or yne) and (count == 1 or yne):
         word = multiplied_word(count, "ide")
