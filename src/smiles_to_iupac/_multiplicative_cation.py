@@ -107,7 +107,7 @@ def _decompose(mol, centres):
             raise UnsupportedStructure("carbon cations on a chain belong to the chain parent hydride, not to a multiplied unit")
         units.append(_Unit(("U", i), frozenset(core), frozenset(atoms), junction, linker_atom, _fragment_key(mol, atoms, junction)))
     if len({u.key for u in units}) != 1:
-        raise UnsupportedStructure("the parent cations of an assembly must be identical")
+        return None
     return units, linker
 
 
@@ -215,11 +215,59 @@ def _name_ring_pair(mol, centres):
         return None
     texts = [_unit_text(mol, unit) for unit in units]
     if texts[0].text != texts[1].text or None in (texts[0].junction_locant, texts[1].junction_locant):
-        raise UnsupportedStructure("the two ring systems of an assembly must be identical")
+        return None
     first, second = sorted((str(t.junction_locant) for t in texts), key=lambda locant: (int(re.match(r"\d+", locant).group()), locant))
     text = texts[0].text
     unit = enclose(text) if re.search(r"[\d,-]", text) else text
     return f"{first},{second}'-bi{unit}"
+
+
+_CLASS_ORDER = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52, 6)
+
+
+def _name_one_parent(mol, members):
+    from ._polycation import _name_ring_polycation
+    from ._polyfunctional import CATION_PREFIXES, _name_ring_center, _ring_center_base
+
+    if len(members) > 1:
+        return _name_ring_polycation(mol, members)
+    found = _ring_center_base(mol, parent=members[0].GetIdx())
+    if found is None:
+        raise UnsupportedStructure("this ring cation is not named as the parent of the assembly")
+    token = CATION_PREFIXES.set(True)
+    try:
+        return _name_ring_center(*found)
+    finally:
+        CATION_PREFIXES.reset(token)
+
+
+def _one_cation_parent(mol, centres):
+    """The assembly named on one ring parent cation, the other cations cited as prefixes: the parent holds the most
+    cationic centres, then the most senior class of centre (P-73.6, P-73.7 a, c); of equally ranked parents the first in
+    alphanumerical order of the name stands for the general criteria (P-73.7 d)."""
+    from ._diester_ring_diyl import _system_of
+
+    def rank(atom):
+        return _CLASS_ORDER.index(atom.GetAtomicNum()) if atom.GetAtomicNum() in _CLASS_ORDER else len(_CLASS_ORDER)
+
+    parents = {}
+    for centre in centres:
+        if centre.IsInRing():
+            parents.setdefault(frozenset(_system_of(mol, centre.GetIdx())[1]), []).append(centre)
+    if not parents:
+        return None
+    key = lambda members: (-len(members), min(rank(a) for a in members))
+    best = min(key(members) for members in parents.values())
+    if any(not c.IsInRing() and rank(c) <= best[1] for c in centres):
+        return None
+    names = []
+    for members in parents.values():
+        if key(members) == best:
+            try:
+                names.append(_name_one_parent(mol, members))
+            except UnsupportedStructure:
+                continue
+    return min(names) if names else None
 
 
 def name_cation_assembly(mol):
@@ -230,29 +278,45 @@ def name_cation_assembly(mol):
         pair = _name_ring_pair(mol, centres)
         if pair is not None:
             return pair
-    if specified_stereo_elements(mol):
-        raise UnsupportedStructure("stereodescriptors in an assembly of parent cations are not supported yet")
-    units, linker = _decompose(mol, centres)
+    error = None
+    try:
+        named = _multiplicative_assembly(mol, centres)
+    except UnsupportedStructure as caught:
+        named, error = None, caught
+    if named is None and centres[0].GetFormalCharge() > 0:
+        named = _one_cation_parent(mol, centres)
+    if named is None:
+        raise error or UnsupportedStructure("the ionic centres of this assembly have no supported multiplicative or substitutive name")
+    return named
+
+
+def _multiplicative_assembly(mol, centres):
+    """The multiplicative name of identical parent ions on one symmetric linking group, else None."""
+    decomposed = _decompose(mol, centres)
+    if decomposed is None:
+        return None
+    units, linker = decomposed
     groups = classify(_neutral_copy(mol))
     if groups is None:
-        raise UnsupportedStructure("this linking group holds an atom or group the multiplicative namer cannot place")
+        return None
     tree = _build_tree(mol)
     if tree is None:
-        raise UnsupportedStructure("a ring closure through the linking group is not supported yet")
+        return None
     systems, node_of, _ = tree
     linker_nodes = list({node_of[a] for a in _backbone(mol, linker, {u.linker_atom for u in units})})
     components = _components(mol, linker_nodes, systems)
     found = _find_center(mol, components, units)
     if found is None:
-        raise UnsupportedStructure("the linking group has no single center")
+        return None
     valid, edges, comp_of = found
     center = valid[0]
-    ctx = _Context(groups, None, None, [], set(), {})
+    stereo = specified_stereo_elements(mol) or []
+    ctx = _Context(groups, None, None, stereo, set(), {})
     kind, atoms = components[center]
     center_edges = edges[center]
     arm_chain = _arm_chain(mol, center, edges, comp_of, center_edges[0], {u.junction for u in units})
     if arm_chain is None:
-        raise UnsupportedStructure("the arms of the linking group differ")
+        return None
     try:
         central = name_component(mol, kind, atoms, center_edges, ctx)
         arm_parts = []
@@ -261,8 +325,12 @@ def name_cation_assembly(mol):
             arm_parts.append(
                 name_component(mol, akind, aatoms, [toward_center, toward_unit], ctx, directed=(toward_unit[0], toward_center[0]))
             )
-    except DecompositionRejected as error:
-        raise UnsupportedStructure("this linking group is not named multiplicatively") from error
+    except DecompositionRejected:
+        return None
+    represented = set(atoms).union(*(components[cid][1] for cid, _, _ in arm_chain))
+    for element_kind, idx, _ in stereo:
+        if (element_kind, idx) not in ctx.used:
+            return None
     unit = _unit_text(mol, units[0])
     located = unit.junction_locant is not None
     if not located:

@@ -138,6 +138,7 @@ CATION_RING_ATOM = contextvars.ContextVar("cation_ring_atom", default=None)
 FORCE_LOCANTS = contextvars.ContextVar("force_locants", default=False)
 LAST_POSITIONS = contextvars.ContextVar("last_positions", default=None)
 FORCED_PRINCIPAL = contextvars.ContextVar("forced_principal", default=None)
+CATION_PREFIXES = contextvars.ContextVar("cation_prefixes", default=False)
 SUBSTITUTED_AMINE_PREFIX = contextvars.ContextVar("substituted_amine_prefix", default=False)
 PREFERRED_AMINE_ATOM = contextvars.ContextVar("preferred_amine_atom", default=None)
 
@@ -1136,8 +1137,9 @@ def name_polyfunctional(mol) -> str:
     return _name_labelled(mol, {})
 
 
-def _ring_center_base(mol):
-    """(neutral analogue, center atom in it, kind, probe) for a single ring-nitrogen cation or N-oxide; the cation
+def _ring_center_base(mol, parent=None):
+    """(neutral analogue, center atom in it, kind, probe) for a single ring-nitrogen cation or N-oxide, or for the ring
+    nitrogen `parent` of a structure whose other cations are cited as prefixes (P-73.6, P-73.7); the cation
     (P-73.1.1.2) or the N-oxide (P-62.5, P-74.2.1.2) outranks every other group, so the analogue is named with all of
     them as prefixes. `probe` checks the centre's locant when the ring has another nitrogen."""
     from ._diester_ring_diyl import _system_of
@@ -1152,6 +1154,8 @@ def _ring_center_base(mol):
         and not _is_chain_amine_oxide_part(a)
         and not (anionic_parent and _cationic_prefix_nitrogen(a))
     ]
+    if parent is not None:
+        charged = [a for a in charged if a.GetIdx() == parent]
     centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
     if len(centers) > 1:
         return _ring_oxide_centres(mol, centers, charged)
@@ -3275,6 +3279,8 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         if atom.GetFormalCharge() and not _is_nitro_part(atom) and not _anionic_group_atom(mol, atom) and not (
             AMINIUM.get() and atom.GetAtomicNum() == 7
         ) and not (RING_CENTER.get() and _is_chain_amine_oxide_part(atom)) and not (
+            CATION_PREFIXES.get() and atom.GetFormalCharge() == 1
+        ) and not (
             _cationic_prefix_nitrogen(atom)
             and any(_anionic_group_atom(mol, a) or a.HasProp(ANION_PROP) for a in mol.GetAtoms())
         ):
