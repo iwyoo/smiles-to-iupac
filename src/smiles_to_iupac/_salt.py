@@ -7,7 +7,6 @@ from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._anion import has_general_anion_shape, name_anion
 from ._carbanide import name_carbanide
-from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._thioate import has_thioate_shape, name_thioate
@@ -73,7 +72,6 @@ def _has_carbanide_anion_shape(frag):
 
 
 _ANION_KINDS = [
-    (has_carboxylate_shape, name_carboxylate),
     (has_alkoxide_shape, name_alkoxide),
     (has_thioate_shape, name_thioate),
     (has_selenoate_shape, name_selenoate),

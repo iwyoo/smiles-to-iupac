@@ -547,12 +547,26 @@ def _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, infix):
     return name[: ending.start()] + "e-" + ending.group(1) + "-" + infix, True
 
 
+def _chain_carboxylate_oxygen(atom):
+    """The anionic oxygen of a carboxylate whose carbon belongs to a chain, never to a ring (P-74.1.3)."""
+    if atom.GetAtomicNum() != 8 or atom.GetFormalCharge() >= 0:
+        return False
+    return any(
+        n.GetAtomicNum() == 6
+        and not n.IsInRing()
+        and any(m.GetAtomicNum() == 6 for m in n.GetNeighbors())
+        and not any(m.IsInRing() or m.GetIsAromatic() for m in n.GetNeighbors() if m.GetAtomicNum() == 6)
+        for n in atom.GetNeighbors()
+    )
+
+
 def _alcoholate_anion_parent(mol):
     """Whether the structure has the anion of an alcohol, phenol, thiol or its heavier analogues, or an ide centre of a
     ring or mononuclear parent, which is then the parent (P-74.1.3)."""
     return ANION_PARENT.get() or any(
         (a.HasProp("_anion") and (a.GetAtomicNum() not in (8, 16, 34, 52) or any(n.GetAtomicNum() == 6 for n in a.GetNeighbors())))
         or a.HasProp("_anion_word")
+        or _chain_carboxylate_oxygen(a)
         for a in mol.GetAtoms()
     )
 
@@ -908,7 +922,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return oxidized
     if order == 1.0 and is_diazonium_nitrogen(atom):
         return "diazyn-1-ium-1-yl", True
-    if z == 7 and atom.GetFormalCharge() == 1 and order == 1.0 and _alcoholate_anion_parent(mol):
+    if z == 7 and atom.GetFormalCharge() == 1 and order in (1.0, 2.0) and _alcoholate_anion_parent(mol):
         # P-74.1.3: the cation on another parent than the olate or thiolate is named as the cationic amine, 'aminiumyl'
         from ._substituents import ISOTOPE_LABELS
         from ._zwitterion import _ammonium_prefix

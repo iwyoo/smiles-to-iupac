@@ -154,7 +154,6 @@ from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
 from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
-from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._thioate import has_thioate_shape, name_thioate
@@ -2546,14 +2545,6 @@ def _name_mol(mol) -> str:
         # has_amide_shape below, either of which would otherwise misname it.
         if has_carbamate_shape(mol):
             return name_carbamate(mol)
-        # A carboxylate anion's carbon (R-COO-, P-72.2.2.2.1.1) bears a
-        # neutral carbonyl oxygen and a formal-charge -1 oxygen, so it must
-        # be routed before every check below: its carbonyl half looks
-        # aldehyde/ketone-shaped to the generic carbonyl fallback further
-        # down, and its charged oxygen would otherwise be rejected outright
-        # by every other module here, none of which expect a charged atom.
-        if has_carboxylate_shape(mol):
-            return name_carboxylate(mol)
         # A thioate anion's carbon (R-CO-S(-)/R-CS-O(-), P-72.2.2.2.1.1) is
         # the chalcogen analogue of a carboxylate anion -- same reasoning,
         # routed here before the thioic-acid/carboxylic-acid checks below,
