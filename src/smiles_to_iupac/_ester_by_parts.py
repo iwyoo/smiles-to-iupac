@@ -83,15 +83,22 @@ def name_ester_by_parts(mol) -> str:
     return _name_ester_parts(clean, labels, (mol, index_map) if chiral else None)
 
 
-def _acid_with_labels(original, index_map, removed, matches):
+def _acid_with_labels(original, index_map, removed, matches, group_labelled):
     """The free acid cut from the labelled molecule itself, which keeps the configuration of a centre that the nuclide
-    makes stereogenic (P-82.4); `removed` are the atoms of the alkyl parts in the numbering of the unlabelled molecule."""
+    makes stereogenic (P-82.4); `removed` are the atoms of the alkyl parts in the numbering of the unlabelled molecule and
+    `group_labelled` the ester-group atoms whose nuclides are cited in the ester word instead (P-82.6.4)."""
     inverse = {new: old for old, new in index_map.items()}
     dropped = set()
     for atom in removed:
         dropped.add(inverse[atom])
         dropped |= {n.GetIdx() for n in original.GetAtomWithIdx(inverse[atom]).GetNeighbors() if n.GetAtomicNum() == 1}
+    for atom in group_labelled:
+        dropped |= {
+            n.GetIdx() for n in original.GetAtomWithIdx(inverse[atom]).GetNeighbors() if n.GetAtomicNum() == 1 and n.GetIsotope()
+        }
     editable = Chem.RWMol(original)
+    for atom in group_labelled:
+        editable.GetAtomWithIdx(inverse[atom]).SetIsotope(0)
     for _, _, ester_oxygen, _ in matches:
         oxygen = editable.GetAtomWithIdx(inverse[ester_oxygen])
         oxygen.SetNumExplicitHs(1)
@@ -259,6 +266,7 @@ def _name_ester_parts(mol, labels, original=None) -> str:
 
     ester_labels = {}
     free_hydrogens = []
+    free_hydrogen_atoms = []
     labels = dict(labels)
     if labels:
         bridging = {ester_oxygen: i for i, (_, _, ester_oxygen, _) in enumerate(matches)}
@@ -273,21 +281,16 @@ def _name_ester_parts(mol, labels, original=None) -> str:
             entry = labels[idx]
             if idx in carbonyl and not entry["skeleton"] and sum(entry["H"].values()) == 1 and mol.GetAtomWithIdx(idx).GetTotalNumHs() == 1:
                 free_hydrogens.extend(entry["H"])
+                free_hydrogen_atoms.append(idx)
                 del labels[idx]
                 continue
             if entry["H"] or not entry["skeleton"]:
-                raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
+                continue
             ester_labels[idx] = (entry["skeleton"], bridging.get(idx))
             del labels[idx]
-        if len({a for _, _, _, a in matches}) != len(matches) or (
-            ester_labels and any(i not in removed for i in labels)
-        ):
-            raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
 
     if original is not None:
-        if ester_labels or free_hydrogens:
-            raise UnsupportedStructure("an isotopic modification of the ester group beside a stereogenic centre is not supported yet")
-        acid = _acid_with_labels(*original, removed, matches)
+        acid = _acid_with_labels(*original, removed, matches, [*ester_labels, *free_hydrogen_atoms])
     else:
         editable = Chem.RWMol(mol)
         for _, _, ester_oxygen, _ in matches:
