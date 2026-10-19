@@ -1252,6 +1252,12 @@ def _bridged_components(mol, links):
     return bridges, frags, owner
 
 
+class _UnlocatedGroups(UnsupportedStructure):
+    def __init__(self, message, centers):
+        super().__init__(message)
+        self.centers = centers
+
+
 def _locants_of(mol, atoms, centers, with_symmetry=False):
     """{centre: locant} of the acid groups `centers` in the substitutive name of the acid made of `atoms`;
     with `with_symmetry` also whether all the centres are equivalent in that acid (then no locants are needed)."""
@@ -1277,15 +1283,18 @@ def _locants_of(mol, atoms, centers, with_symmetry=False):
             return {}, True
     _, _, parts = _select(acid, stereo=_check_scope(acid))
     position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1: loc for i, loc in parts[4].items()}
-    found = {}
+    found, unlocated = {}, []
     for center in centers:
         if center in position:
             found[center] = position[center]
             continue
         attach = [n.GetIdx() for n in mol.GetAtomWithIdx(center).GetNeighbors() if n.GetIdx() in position]
         if len(attach) != 1:
-            raise UnsupportedStructure("the locants of the anhydride groups are not available")
+            unlocated.append(center)
+            continue
         found[center] = position[attach[0]]
+    if unlocated:
+        raise _UnlocatedGroups("the locants of the anhydride groups are not available", unlocated)
     return (found, False) if with_symmetry else found
 
 
@@ -1433,7 +1442,17 @@ def name_anhydride(mol, links):
         carbon_hub = any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in hub_keep) and all(
             mol.GetAtomWithIdx(c).GetAtomicNum() == 6 for c in centers[hub]
         )
-        locants = _locants_of(mol, hub_keep, centers[hub]) if carbon_hub else {}
+        try:
+            locants = _locants_of(mol, hub_keep, centers[hub]) if carbon_hub else {}
+        except _UnlocatedGroups as unlocated:
+            # P-65.7.6.3: an anhydride group of a substituent is cited by its acyloxy prefix, not by the class name
+            kept = [
+                l for l in links
+                if l.kind != "anhydride" or not {l.center, l.far} & set(unlocated.centers)
+            ]
+            if len(kept) == len(links):
+                raise
+            return name_anhydride(mol, kept)
         groups = {}
         for chain, first, second in bridges.values():
             leaf_center, hub_center = (first, second) if owner[first] != hub else (second, first)
