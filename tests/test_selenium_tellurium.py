@@ -263,7 +263,7 @@ def test_phenyl_substituent_selenoic_acid_ring_halogen():
         pytest.param("[SeH]C1(CCCCC1)[C@@H](C)CC", "1-[(2S)-butan-2-yl]cyclohexane-1-selenol", id="cyclic_selenol_branch_stereocenter"),
         pytest.param("[SeH][C@H]1CCCCC1Cl", "(1S)-2-chlorocyclohexane-1-selenol", id="selenol_partially_specified_stereocenters_cites_the_specified_elements"),
         pytest.param("c1ccccc1[SeH]", "benzeneselenol", id="benzeneselenol"),
-        pytest.param("Cc1ccccc1[SeH]", "2-methylbenzeneselenol", id="substituted_benzeneselenol"),
+        pytest.param("Cc1ccccc1[SeH]", "2-methylbenzene-1-selenol", id="substituted_benzeneselenol"),
     ],
 )
 def test_polycyclic_selenol_on_and_related(smiles, expected):
@@ -566,7 +566,7 @@ def test_phenyl_substituent_telluroic_acid_ring_halogen():
         pytest.param("[TeH]C1(CCCCC1)[C@@H](C)CC", "1-[(2S)-butan-2-yl]cyclohexane-1-tellurol", id="cyclic_tellurol_branch_stereocenter"),
         pytest.param("[TeH][C@H]1CCCCC1Cl", "(1S)-2-chlorocyclohexane-1-tellurol", id="tellurol_partially_specified_stereocenters_cites_the_specified_elements"),
         pytest.param("c1ccccc1[TeH]", "benzenetellurol", id="benzenetellurol"),
-        pytest.param("Cc1ccccc1[TeH]", "2-methylbenzenetellurol", id="substituted_benzenetellurol"),
+        pytest.param("Cc1ccccc1[TeH]", "2-methylbenzene-1-tellurol", id="substituted_benzenetellurol"),
     ],
 )
 def test_ring_substituent_chain_and_related_3(smiles, expected):

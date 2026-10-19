@@ -340,7 +340,7 @@ def test_chain_parent_cites_each_aromatic_ring_as_a_substituent(smiles, expected
     [
         ("O=Cc1ccc(Cc2ccccc2)cc1", "4-benzylbenzaldehyde"),
         ("N#Cc1ccc(Cc2ccccc2)cc1", "4-benzylbenzonitrile"),
-        ("Sc1ccc(Cc2ccccc2)cc1", "4-benzylbenzenethiol"),
+        ("Sc1ccc(Cc2ccccc2)cc1", "4-benzylbenzene-1-thiol"),
         ("NC(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzamide"),
         ("OS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzene-1-sulfonic acid"),
         ("NS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzene-1-sulfonamide"),
