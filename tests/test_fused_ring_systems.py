@@ -689,6 +689,8 @@ def test_phane_with_a_naphthalene_amplificant(smiles, expected):
         ("C1C=C2c3ccccc3C1c1ccccc12", "9H-9,10-(epiethanylylidene)anthracene"),
         ("C1%10c2cc3ccccc3cc2C(c2cc3ccccc3cc12)Cc1ccccc1C%10", "6,13-dihydro-6,13-(methano[1,2]benzenomethano)pentacene"),
         ("C1=CC=C2C(=C1)C3C4=CC=CC=C4C2[SH2]3", "9,10-dihydro-9,10-λ4-sulfanoanthracene"),
+        ("C1=CC2C3=CC=CC=C3C1[GeH2]2", "1,4-dihydro-1,4-germanonaphthalene"),
+        ("C1=CC2C3=CC=CC=C3C1[AsH]2", "1,4-dihydro-1,4-arsanonaphthalene"),
         ("CC1=CC=CC=C2C(C)=CC=CC=C12", "1,6-dimethyl-Δ1-heptalene"),
     ],
 )
