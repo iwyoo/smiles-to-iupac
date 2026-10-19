@@ -316,7 +316,7 @@ def test_disjoint_ring_pair_resolves(smiles, expected):
         pytest.param("CC1CCCCC1CC1CCCCC1", "1-(cyclohexylmethyl)-2-methylcyclohexane", id="ring_with_extra_substituent"),
         pytest.param("CC(=O)OCCN", "2-aminoethyl acetate", id="amine_on_alcohol_part"),
         pytest.param("NCC(N)C(=O)OC", "methyl 2,3-diaminopropanoate", id="two_amines__with_amine"),
-        pytest.param("NCC(=O)OCOC(=O)C", "methylene acetate aminoacetate", id="two_esters_names_polyester"),
+        pytest.param("NCC(=O)OCOC(=O)C", "methylene acetate glycinate", id="two_esters_names_polyester"),
         pytest.param("NC1CCCCC1C(=O)OC", "methyl 2-aminocyclohexane-1-carboxylate", id="ring__with_amine"),
         pytest.param("NCC=CC(=O)OC", "methyl 4-aminobut-2-enoate", id="unsaturated_chain__with_amine"),
     ],

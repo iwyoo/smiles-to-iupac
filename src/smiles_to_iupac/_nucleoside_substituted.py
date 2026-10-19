@@ -10,7 +10,7 @@ import re
 
 from rdkit import Chem
 
-from ._acid_derivatives import acyl_name
+from ._acid_derivatives import acyl_name, name_acid_derivative
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._nucleoside import _NUCLEOSIDE_SMILES
@@ -1547,6 +1547,10 @@ def _senior_name(mol, graph, halogens, aromatic, an):
         name = _acyl_halide_of_acid(out)
         if name is not None:
             return name
+        try:
+            return name_acid_derivative(out)
+        except UnsupportedStructure:
+            pass
         name = _n_substituted_amide(out)
         if name is None:
             raise
