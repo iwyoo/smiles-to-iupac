@@ -88,9 +88,10 @@ def name_polyammonium(mol) -> str:
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
     from ._multiplicative import name_if_multiplicative
-    from ._polyfunctional import cationic_multiplied_units, name_polyfunctional
+    from ._polyfunctional import AMINIUM, cationic_multiplied_units, name_polyfunctional
 
     token = CATIONIC_AMINES.set(True)
+    aminium_token = AMINIUM.set(True)
     try:
         try:
             name = None if functional else name_polyfunctional(base)
@@ -102,6 +103,7 @@ def name_polyammonium(mol) -> str:
             return f"{name[:match.start()]}{_MULTIPLIED_AMINIUM[match.group(1)]}(aminium)"
         multiplicative = name_if_multiplicative(base)
     finally:
+        AMINIUM.reset(aminium_token)
         CATIONIC_AMINES.reset(token)
     named = cationic_multiplied_units(multiplicative, sum(1 for a in mol.GetAtoms() if a.GetFormalCharge())) if multiplicative else None
     if named is None and functional:

@@ -263,6 +263,8 @@ def classify(mol):
             return None
         if atom.GetFormalCharge() and idx not in covered:
             return None
+    if any(g.cationic for g in groups):
+        groups = [g for g in groups if g.cationic or g.name != "amine"]
     if unplaced and min((CATION_RANK if g.cationic else g.rank for g in groups), default=JUNIOR_RANK) > SUFFIX_RANKS["ketone"]:
         return None
     return groups
