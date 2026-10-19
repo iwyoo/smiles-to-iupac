@@ -19,6 +19,10 @@ from ._multiplicative_text import enclose
 from ._pin import mark
 from ._substituents import BRANCH_STEREO, cited_branch_stereo, name_branch, wrap_marks
 
+class _NotNucleosideReading(Exception):
+    pass
+
+
 _RIBO = "[C@H:11]3[C@@H:12]([C@@H:13]([C@H:14]([O:20]3)[CH2:15][OH:25])[OH:23])[OH:22]"
 _DEOXY2 = "[C@H:11]2[CH2:12][C@@H:13]([C@H:14]([O:20]2)[CH2:15][OH:25])[OH:23]"
 _PARENTS = (
@@ -201,7 +205,7 @@ def _name_substituent(
         )
     atoms = _branch_atoms(graph, root, came_from)
     if atoms & core:
-        raise UnsupportedStructure("substituent reconnects to the nucleoside core")
+        raise _NotNucleosideReading("substituent reconnects to the nucleoside core")
     if _is_azide(mol, atoms, root):
         return "azido", False
     with cited_branch_stereo(mol, graph, core | {came_from}, [root]):
@@ -285,7 +289,7 @@ def _hydride_group(mol, graph, root, oxygens, core, valence):
             continue
         branch = _branch_atoms(graph, nb, root)
         if branch & core or branch & oxygens:
-            raise UnsupportedStructure("a bridging group reconnects to the nucleoside")
+            raise _NotNucleosideReading("a bridging group reconnects to the nucleoside")
         keep |= branch
     rw = Chem.RWMol(mol)
     rw.GetAtomWithIdx(root).SetAtomMapNum(1)
@@ -361,7 +365,7 @@ def _bridge_diyl(mol, graph, root, oxygens, core, label, atom_cip, bond_cip, val
             continue
         branch = _branch_atoms(graph, nb, root)
         if branch & core or branch & oxygens:
-            raise UnsupportedStructure("acetal group reconnects to the nucleoside")
+            raise _NotNucleosideReading("acetal group reconnects to the nucleoside")
         keep |= branch
     kept = sorted(keep)
     image = {old: new for new, old in enumerate(kept)}
@@ -894,7 +898,7 @@ def _phosphoryl_group(mol, graph, an, core, root, users, halogens, aromatic, ato
             an.acyl = (int(position), chain, x)
             return
         if atoms & core:
-            raise UnsupportedStructure("phosphate chain reconnects to the nucleoside")
+            raise _NotNucleosideReading("phosphate chain reconnects to the nucleoside")
         stereo = [
             i for i in chain.atoms if mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
         ]
@@ -1600,7 +1604,7 @@ def _ring_senior_name(
         o, other = _acyl_oxygen_partner(mol, graph, nb)
         branch = _branch_atoms(graph, other, o)
         if branch & core or nb in branch:
-            raise UnsupportedStructure("anhydride reconnects to the nucleoside")
+            raise _NotNucleosideReading("anhydride reconnects to the nucleoside")
         acid = Chem.MolFromSmiles(Chem.MolFragmentToSmiles(mol, sorted(branch | {o})))
         other_name = _name_mol(acid) if acid is not None else ""
         if not other_name.endswith("ic acid"):
@@ -1719,7 +1723,7 @@ def _compute(mol):
                         name = _acyl_nucleotide_name(mol, graph, an)
                     else:
                         name = _plain_name(an) if senior is None else senior
-                except UnsupportedStructure:
+                except (UnsupportedStructure, _NotNucleosideReading):
                     continue
                 if best is None or (an.cost, order, name) < (*best[0], best[1]):
                     best = ((an.cost, order), name, an.warn)
