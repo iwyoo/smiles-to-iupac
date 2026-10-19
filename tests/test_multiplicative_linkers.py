@@ -1149,3 +1149,21 @@ def test_hydrazide_and_amidoxime_units_joined_by_a_linker(smiles, expected):
 )
 def test_aniline_units_joined_through_a_nitrogen_linker_that_is_not_an_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)CC[18O][18O]CCC(=O)O", "3,3'-[(18O2)peroxy]dipropanoic acid", id="nuclides_of_a_linking_chalcogen_chain"),
+        pytest.param(
+            r"OC(=O)CC1CC/C=C\CC(CC(=O)O)CC1", "2,2'-[(6Z)-cyclonon-6-ene-1,4-diyl]diacetic acid", id="double_bond_of_a_ring_linker"
+        ),
+        pytest.param(
+            "OC(=O)CC([C@H](F)Cl)COCC([C@H](F)Cl)CC(=O)O",
+            "4,4'-oxybis(3-[(R)-chloro(fluoro)methyl]butanoic acid)",
+            id="stereocentre_inside_the_substituent_of_each_unit",
+        ),
+    ],
+)
+def test_multiplied_units_with_nuclides_and_stereo_outside_their_parent_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

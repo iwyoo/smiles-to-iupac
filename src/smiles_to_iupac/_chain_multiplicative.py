@@ -686,7 +686,12 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         lead = ",".join(str(amine[1]) + "'" * i for i in range(count)) + "-"
         return f"{lead}{linker}{multiplier_word(count, True)}({amine[0]})"
     if unit_stereo:
-        parts, stereo_text = _stereo_arms(mol, unit_stereo, parts_atoms, units)
+        if any(element[0] == "isotope" for element in unit_stereo):
+            return None
+        arms_named = _stereo_arms(mol, unit_stereo, parts_atoms, units)
+        if arms_named is None:
+            return None
+        parts, stereo_text = arms_named
     prefix, body, tail, locant = parts[:4]
     lead = ",".join(str(locant) + "'" * i for i in range(count)) + "-" if locant is not None else ""
     text = prefix + body
