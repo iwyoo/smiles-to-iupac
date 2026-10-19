@@ -858,6 +858,8 @@ _P72_COVERAGE = [
     ("[PH2-]12(CCCCC1)CCCCC2", "6λ5-phosphaspiro[5.5]undecan-6-uide"),
     ("[O-]P(=O)([O-])c1ccc(cc1)C(=O)[O-]", "4-phosphonatobenzoate"),
     ("[O-][As](=O)([O-])c1ccc(cc1)C(=O)[O-]", "4-arsonatobenzoate"),
+    ("[O-]C(=O)CCP(=O)(O)[O-]", "3-[hydroxy(oxidanidyl)phosphoryl]propanoate"),
+    ("[O-]CCP(=O)(O)[O-]", "hydrogen (2-oxidoethyl)phosphonate"),
     ("[O-]C(=O)c1ccc(cc1)CC[CH2-]", "3-(4-carboxylatophenyl)propan-1-ide"),
     ("[O-]C(=O)c1ccc(cc1)C[CH-]C", "1-(4-carboxylatophenyl)propan-2-ide"),
     ("[O-]C(=O)c1ccc(cc1)C=[CH-]", "2-(4-carboxylatophenyl)eth-1-en-1-ide"),

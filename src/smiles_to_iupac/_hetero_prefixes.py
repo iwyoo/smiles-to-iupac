@@ -772,7 +772,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol)
         return None
     if z in (15, 33) and any(mol.GetAtomWithIdx(n).HasProp("_anion_word") for n in graph[root]):
-        return _oxoacid_anion_prefix(graph, root, coming_from, mol)
+        return _oxoacid_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z == 5 and EXTENDED_PREFIXES.get() and not atom.GetFormalCharge():
         others = [n for n in graph[root] if n != coming_from]
         borono = _borono_prefix(mol, root, others)
@@ -1729,8 +1729,9 @@ def _carbon_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mol
     return f"{prefixes}{stem}{word}{ending}", bool(entries)
 
 
-def _oxoacid_anion_prefix(graph, root, coming_from, mol):
-    """phosphonato / arsonato: every hydroxy of the -E(=O)(OH)2 group deprotonated (P-72.6.1)."""
+def _oxoacid_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """phosphonato / arsonato when every hydroxy of the -E(=O)(OH)2 group is deprotonated (P-72.6.1), else the acyl prefix
+    with 'oxidanidyl' for the deprotonated oxygen: '[hydroxy(oxidanidyl)phosphoryl]' (P-72.6.3)."""
     kids = [n for n in graph[root] if n != coming_from]
     marked = [n for n in kids if mol.GetAtomWithIdx(n).HasProp("_anion_word")]
     oxo = [
@@ -1742,7 +1743,10 @@ def _oxoacid_anion_prefix(graph, root, coming_from, mol):
     ]
     if len(kids) == 3 and len(marked) == 2 and len(oxo) == 1:
         return {15: "phosphonato", 33: "arsonato"}[mol.GetAtomWithIdx(root).GetAtomicNum()], False
-    raise UnsupportedStructure("this partly deprotonated oxoacid substituent is not supported yet")
+    found = _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, kids)
+    if found is None:
+        raise UnsupportedStructure("this partly deprotonated oxoacid substituent is not supported here")
+    return found
 
 
 def _anionic_group(mol, root, coming_from):
