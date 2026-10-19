@@ -97,7 +97,6 @@ import re
 
 from rdkit import Chem
 
-from ._amide import has_amide_shape, name_amide
 from ._amine import amines_in_suffix, name_amine
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._common import UnsupportedStructure
@@ -209,8 +208,6 @@ def _ylium_yl_radical(mol):
     try:
         if has_simple_imine_shape(neutral):
             neutral_name = name_imine(neutral)
-        elif has_amide_shape(neutral):
-            neutral_name = name_amide(neutral)
         else:
             with amines_in_suffix():
                 neutral_name = name_amine(neutral)
