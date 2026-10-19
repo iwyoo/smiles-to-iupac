@@ -754,10 +754,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if atom.IsInRing():
             from ._diester_ring_diyl import _system_of, ring_substituent_name
 
-            if not any(mol.GetAtomWithIdx(a).HasProp("_anion") for a in _system_of(mol, root)[1]):
-                raise UnsupportedStructure("an anionic carbon beyond a ring substituent is not supported yet")
-            return ring_substituent_name(mol, graph, root, coming_from)
-        return _anionic_chain_prefix(graph, root, coming_from, mol)
+            if any(mol.GetAtomWithIdx(a).HasProp("_anion") for a in _system_of(mol, root)[1]):
+                return ring_substituent_name(mol, graph, root, coming_from)
+        else:
+            return _anionic_chain_prefix(graph, root, coming_from, mol)
     if z == 6:
         from ._imidoyl_prefix import imidoyl_prefix, ketene_prefix
 
@@ -1692,9 +1692,14 @@ def _in_anionic_chain(mol, root, coming_from):
 
 
 def _branch_has_anionic_carbon(graph, root, coming_from, mol):
+    """Whether an anionic carbon lies in the branch at `root`; from a chain atom only the part that the chain reaches
+    without passing a ring counts, for a ring is a substituent of its own."""
     seen, stack = {root}, [root]
     while stack:
-        for n in graph[stack.pop()]:
+        here = stack.pop()
+        if here != root and not mol.GetAtomWithIdx(root).IsInRing() and mol.GetAtomWithIdx(here).IsInRing():
+            continue
+        for n in graph[here]:
             if n == coming_from or n in seen:
                 continue
             seen.add(n)
@@ -1758,7 +1763,7 @@ def _oxoacid_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mo
 def _anionic_group(mol, root, coming_from):
     atom = mol.GetAtomWithIdx(root)
     z = atom.GetAtomicNum()
-    if z == 7 and atom.GetDegree() == 2 and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 1.0:
+    if z == 7 and atom.GetDegree() in (1, 2) and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 1.0:
         from ._common import adjacency
         from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -1768,7 +1773,7 @@ def _anionic_group(mol, root, coming_from):
             for n in graph[root]
             if n != coming_from
         ]
-        return format_mononuclear_prefixes(entries) + "azanidyl", True
+        return format_mononuclear_prefixes(entries) + "azanidyl", bool(entries)
     if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 1.0 and atom.GetDegree() == 1:
         if z in ANIONIC_PREFIXES:
             return ANIONIC_PREFIXES[z], False
