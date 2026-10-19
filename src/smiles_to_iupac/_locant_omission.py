@@ -97,7 +97,7 @@ def omits_group_locants(mol, parent, count):
         return False
     parent = set(parent)
     branches = _branches(mol, parent, frozenset())
-    if len(branches) != count or any(mol.GetBondBetweenAtoms(*b).GetBondTypeAsDouble() != 1.0 for b in branches):
+    if len(branches) != count or any(mol.GetBondBetweenAtoms(*b).GetBondTypeAsDouble() not in (1.0, 2.0) for b in branches):
         return False
     if any(b.GetBondTypeAsDouble() > 1.0 and not b.GetIsAromatic() for b in mol.GetBonds() if {b.GetBeginAtomIdx(), b.GetEndAtomIdx()} <= parent):
         return False

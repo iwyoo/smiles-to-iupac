@@ -953,8 +953,6 @@ def _group_of(mol, carbon):
             for n in atom.GetNeighbors()
             if n.GetIdx() != oxygens[0]
         ):
-            if any(n.IsInRing() for n in carbon_neighbors):
-                return None
             if _is_ketene_carbon(mol, atom, oxygens[0]):
                 return "ketone", {oxygens[0]}
             raise UnsupportedStructure("a cumulated carbonyl (ketene) is not supported")
@@ -4917,7 +4915,7 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     on_system = [o for o in occurrences if o[1] in atoms]
     attach = [o[1] for o in on_system]
     blocked = set().union(*(o[2] for o in on_system))
-    token = OMIT_SUFFIX_LOCANT.set(omits_group_locants(mol, atoms, len(attach)))
+    token = OMIT_SUFFIX_LOCANT.set(not FORCE_LOCANTS.get() and omits_group_locants(mol, atoms, len(attach)))
     try:
         found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal], n_names=n_names)
     finally:
@@ -5691,7 +5689,7 @@ def _renumbered_branch_stereo(kept):
     """The stereo elements and supplied prefix names cited inside substituents, renumbered for the molecule made of the
     sorted atoms `kept` (as `_amine_parent_molecule` renumbers them); what is cited there counts as cited in the whole
     molecule."""
-    from ._substituents import BRANCH_STEREO, FORCED_BRANCH_NAMES
+    from ._substituents import FORCED_BRANCH_NAMES
 
     forced = FORCED_BRANCH_NAMES.get()
     if forced is not None and kept and forced[0] > max(kept):
@@ -7666,7 +7664,7 @@ def _evaluate(
     # the printed PINs 3-amino-2,3-dioxopropanethioic acid and 4-bromo-3,4-dioxobutanoic acid cite locants on a carbon chain
     carbon_chain_beyond_two = length > 2 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in chain_set)
     single_arrangement = (
-        length > 1 and not force and not ene and not yne and not carbon_chain_beyond_two
+        length > 1 and not force and (length == 2 or not (ene or yne)) and not carbon_chain_beyond_two
         and has_single_arrangement(mol, chain_set | nitrogens, formyl_oxygens=owned if principal == "aldehyde" else frozenset())
     )
     uncited_locants = uncited_locants or single_arrangement
