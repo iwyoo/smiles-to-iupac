@@ -891,6 +891,8 @@ def test_nuclides_on_a_diacylhydrazine(smiles, expected):
         pytest.param("CC(=O)[15NH]S(C)(=O)=O", "N-(methanesulfonyl)(15N)acetamide", id="amide_nitrogen_of_an_acylsulfonamide"),
         pytest.param("CC(=O)N[34S](C)(=O)=O", "N-[(34S)methanesulfonyl]acetamide", id="sulfonyl_sulfur_of_an_acylsulfonamide"),
         pytest.param("CC(=O)[15NH]C(C)=O", "N-acetyl(15N)acetamide", id="nitrogen_of_a_diacylamine"),
+        pytest.param("OC(=O)CS(=[18O])(=O)Cl", "[chloro(O-18O)sulfonyl]acetic acid", id="oxo_oxygen_of_a_halosulfonyl_prefix"),
+        pytest.param("OC(=O)CS(=O)(=O)[15NH]C", "[methyl(N-15N)sulfamoyl]acetic acid", id="nitrogen_of_a_sulfamoyl_prefix"),
     ],
 )
 def test_nuclides_on_an_acylsulfonamide_or_diacylamine(smiles, expected):

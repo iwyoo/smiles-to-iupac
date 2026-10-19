@@ -801,13 +801,13 @@ _CENTRE_PREFIX_STEM = {
     13: "alumanyl",
     14: "silyl",
     15: "phosphanyl|phosphoryl|phosphorothioyl|phosphinoyl|phosphinothioyl|phosphono|phosphinico",
-    16: "sulfanyl|sulfo|sulfino",
+    16: "sulfanyl|sulfo|sulfino|sulfonyl|sulfinyl|sulfamoyl",
     32: "germyl",
     33: "arsanyl",
-    34: "selanyl",
+    34: "selanyl|selenonyl|seleninyl",
     50: "stannyl",
     51: "stibanyl",
-    52: "tellanyl",
+    52: "tellanyl|telluronyl|tellurinyl",
 }
 
 
@@ -920,17 +920,23 @@ def _labelled_centre_prefix(name, mol, root, labelled, capacity):
     if mol is None or labelled.get(root, {"H": None})["H"]:
         return None
     z = mol.GetAtomWithIdx(root).GetAtomicNum()
-    letters = _terminal_oxygen_nuclides(mol, root, labelled) if z in (5, 7, 15, 16) else {}
-    if set(labelled) - {root} - set(letters):
-        return None
+    letters = _terminal_oxygen_nuclides(mol, root, labelled) if z in (5, 7, 15, 16, 34, 52) else {}
     stems = _CENTRE_PREFIX_STEM.get(z)
     found = re.search(f"(?<!di)(?<!tri)(?<!tetra)(?:{stems})$", name) if stems else None
-    if found is None:
+    amino = {}
+    if found is not None and found.group().endswith("sulfamoyl"):
+        amino = {
+            n.GetIdx(): labelled[n.GetIdx()]
+            for n in mol.GetAtomWithIdx(root).GetNeighbors()
+            if n.GetAtomicNum() == 7 and n.GetIdx() in labelled and labelled[n.GetIdx()]["skeleton"] and not labelled[n.GetIdx()]["H"]
+        }
+    if found is None or set(labelled) - {root} - set(letters) - set(amino):
         return None
     from ._isotope_labels import descriptor
 
     centre = {root: labelled[root]} if root in labelled else {}
-    text = descriptor(centre, {root: 1}, True, extra=[(e["skeleton"], "O", 1, False) for e in letters.values()], capacity=capacity)
+    extra = [(e["skeleton"], "O", 1, False) for e in letters.values()] + [(e["skeleton"], "N", 1, False) for e in amino.values()]
+    text = descriptor(centre, {root: 1}, True, extra=extra, capacity=capacity)
     return name[: found.start()] + text + name[found.start() :]
 
 
