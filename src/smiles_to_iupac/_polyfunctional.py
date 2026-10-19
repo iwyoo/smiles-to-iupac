@@ -4507,7 +4507,10 @@ def _assembly_substituent_yl(mol, graph, root, coming_from, halogens, aromatic_a
     rings = [own, other]
     context = BRANCH_STEREO.get()
     ring_stereo = {a: code for a, code in (context["atoms"] if context else {}).items() if a in ring_atoms}
-    locants = _assembly_numbering(graph, rings, joins[0], [root], entries, specs, mol=mol, stereo=ring_stereo)
+    ions = [r for r in ring_atoms if mol.GetAtomWithIdx(r).HasProp("_anion")]
+    locants = _assembly_numbering(
+        graph, rings, joins[0], [root, *ions], entries, specs, cite_marked=[root], mol=mol, stereo=ring_stereo
+    )
     grouped = {}
     for r, name, compound in entries:
         spot = locants[r]
@@ -4519,7 +4522,7 @@ def _assembly_substituent_yl(mol, graph, root, coming_from, halogens, aromatic_a
     base = _assembly_base(specs, locants, joins[0], elide=not ending, ylidene=ylidene)
     spot = locants[root]
     enes = f"{ending[:-1]}-" if ending else ""
-    core = _assembly_replacement(mol, specs, locants) + f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
+    core = _assembly_replacement(mol, specs, locants) + f"[{base}]-{enes}{_assembly_ion_centres(mol, ions, locants)}{spot[1]}{chr(39) * spot[0]}-yl"
     core = _assembly_group_label(mol, graph, ring_atoms, root, locants, core)
     from ._substituents import _branch_stereo_entries
 
@@ -4528,6 +4531,19 @@ def _assembly_substituent_yl(mol, graph, root, coming_from, halogens, aromatic_a
     if place is not None and place_monocycles:
         place.update(locants={a: PrimedLocant(*loc) for a, loc in locants.items()}, start=len(name) - len(core), atoms=ring_atoms)
     return name, True
+
+
+def _assembly_ion_centres(mol, ions, locants):
+    """'2-ylium-2'-id-': cationic centres before anionic ones, each with its prime-marked locants (P-72.6.3, P-75.2)."""
+    text = ""
+    for word, ending in (("ylium", "ylium"), ("ide", "id")):
+        sites = sorted(
+            (_locant_order(locants[a]) for a in ions for _ in range(int(mol.GetAtomWithIdx(a).GetProp("_anion")))
+             if mol.GetAtomWithIdx(a).HasProp("_cationic_site") == (word == "ylium"))
+        )
+        if sites:
+            text += f"{','.join(f'{n}{chr(39) * p}' for n, p in sites)}-{multiplying_prefix(len(sites)) if len(sites) > 1 else ''}{ending}-"
+    return text
 
 
 def _assembly_group_label(mol, graph, ring_atoms, root, locants, core):
