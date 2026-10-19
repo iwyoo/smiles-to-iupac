@@ -142,10 +142,9 @@ def _labelled_oxide_name(mol, nitrogen, oxide_oxygen, class_word):
     if not context or not context["labels"] or context["mol"] is not mol:
         return None
     labels = context["labels"]
-    if oxide_oxygen.GetIdx() in labels or any(entry["H"] for entry in labels.values()):
-        raise UnsupportedStructure("a nuclide on the oxide group or on a hydrogen of an amine oxide is not supported yet")
+    oxide = labels.get(oxide_oxygen.GetIdx())
     editable = Chem.RWMol(mol)
-    restore_labels(editable, mol, labels)
+    restore_labels(editable, mol, labels, skip={oxide_oxygen.GetIdx()})
     editable.GetAtomWithIdx(nitrogen.GetIdx()).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     editable.GetAtomWithIdx(nitrogen.GetIdx()).SetFormalCharge(0)
     editable.RemoveAtom(oxide_oxygen.GetIdx())
@@ -157,7 +156,7 @@ def _labelled_oxide_name(mol, nitrogen, oxide_oxygen, class_word):
     finally:
         ISOTOPE_LABELS.reset(token)
     context["consumed"].update(labels)
-    return f"{name} N-{class_word}"
+    return f"{name} N-{'(' + oxide['skeleton'] + ')' if oxide else ''}{class_word}"
 
 
 def _is_amine_nitrogen(atom):

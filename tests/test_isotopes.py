@@ -313,7 +313,7 @@ def test_name_of_an_unlabelled_molecule_ignores_earlier_labelled_ones():
     assert smiles_to_iupac("CCOC(=O)/C=C/C(C)C") == "ethyl (2E)-4-methylpent-2-enoate"
 
 
-@pytest.mark.parametrize("smiles", ["C[N+](C)(C)[18O-]", "[2H]I(C)C"])
+@pytest.mark.parametrize("smiles", ["[2H]I(C)C"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -1138,4 +1138,17 @@ def test_nuclide_on_the_nitrogen_or_oxygens_of_a_carbamate_nitrate_and_sulfonate
     ],
 )
 def test_nuclide_on_the_halogen_of_an_acid_halide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-82.2.1, P-82.6.4, P-62.5: a nuclide on the oxide oxygen of an amine or imine oxide and on one oxygen of oxalic acid
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[N+](C)([18O-])CC", "N,N-dimethylethanamine N-(18O)oxide", id="acyclic_amine_oxide"),
+        pytest.param("CC=[N+](C)[18O-]", "N-methylethanimine N-(18O)oxide", id="imine_oxide"),
+        pytest.param("OC(=O)C(=O)[18OH]", "(O-18O)oxalic acid", id="oxalic_acid_one_oxygen"),
+    ],
+)
+def test_nuclide_on_the_oxide_oxygen_and_on_oxalic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

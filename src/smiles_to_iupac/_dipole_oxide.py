@@ -182,9 +182,29 @@ def name_nitrone(mol) -> str:
     nitrogen, oxygen = _dipole_nitrogen_oxygen(mol)
     if any(n.GetAtomicNum() == 8 and n.GetIdx() != oxygen.GetIdx() for n in nitrogen.GetNeighbors()):
         raise UnsupportedStructure("a nitrogen holding a second oxygen is an aci-nitro group, not a nitrone")
-    stripped = _strip_dipole_oxygen(mol, nitrogen.GetIdx(), oxygen.GetIdx())
+    from ._isotope_labels import restore_labels
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    labels = context["labels"] if context and context["mol"] is mol else {}
+    source = mol
+    if labels:
+        editable = Chem.RWMol(mol)
+        restore_labels(editable, mol, labels, skip={oxygen.GetIdx()})
+        source = editable.GetMol()
+        Chem.SanitizeMol(source)
+    stripped = _strip_dipole_oxygen(source, nitrogen.GetIdx(), oxygen.GetIdx())
     configuration = _hydrogen_imine_configuration(mol, nitrogen, oxygen)
-    return f"{_imine_name(stripped, configuration)} N-oxide"
+    if not labels:
+        return f"{_imine_name(stripped, configuration)} N-oxide"
+    token = ISOTOPE_LABELS.set(None)
+    try:
+        name = _imine_name(stripped, configuration)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    context["consumed"].update(labels)
+    oxide = labels.get(oxygen.GetIdx())
+    return f"{name} N-{'(' + oxide['skeleton'] + ')' if oxide and oxide['skeleton'] else ''}oxide"
 
 
 def _is_bare_hydrogen_nitrile(mol) -> bool:
