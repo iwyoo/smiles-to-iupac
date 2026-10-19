@@ -310,7 +310,7 @@ def _skeleton_rank(mol, graph, parent):
 def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
     """P-62.5: the oxidized nitrogen is the amine suffix nitrogen of the parent, so every other amino group is cited
     as a prefix ('5-(dimethylamino)-N,N-dimethylpentan-1-amine N-oxide')."""
-    from .core import _name_mol, _require_isotopes_cited
+    from .core import _name_mol, nuclides_cited
     from ._hetero_chain import KEPT_ATOMS_PROP, contract_hetero_groups_candidates
     from ._isotope_labels import restore_labels
     from ._polyfunctional import name_polyfunctional
@@ -346,11 +346,12 @@ def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
         token = ISOTOPE_LABELS.set(None)
         try:
             name = _name_mol(labelled)
-            _require_isotopes_cited(labelled, name)
         except UnsupportedStructure:
             continue
         finally:
             ISOTOPE_LABELS.reset(token)
+        if not nuclides_cited(labelled, name):
+            continue
         names.append((name, set(outer["consumed"]) | set(carried)))
     if labels:
         outer["consumed"].clear()
@@ -367,7 +368,8 @@ def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
         try:
             name = name_polyfunctional(target)
             if labels:
-                _require_isotopes_cited(target, name)
+                if not nuclides_cited(target, name):
+                    raise UnsupportedStructure("the nuclides of this polyamine N-oxide are not cited by the name of its parent")
                 if _unlabelled_text(name) != _unlabelled_text(name_polyfunctional(reduced_mol)):
                     raise UnsupportedStructure("the nuclides choose another parent than the oxidized nitrogen")
                 outer["consumed"].update(labels)

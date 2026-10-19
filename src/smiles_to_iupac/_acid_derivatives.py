@@ -1782,7 +1782,7 @@ def _without_nuclides(mol):
 def name_isotope_acyl_halide(mol):
     """P-82.2.1, P-82.6.1.1: the nuclide descriptor of an acyl halide is that of its acid, whose hydroxy group stands for the
     halogen; deuterium on the only hydrogen-bearing atom needs no locant, because the acid's O-H is not there."""
-    from .core import _require_isotopes_cited, smiles_to_iupac
+    from .core import nuclides_cited, smiles_to_iupac
 
     plain = _without_nuclides(mol)
     amide = _halocarbonic_amide(plain, adjacency(plain))
@@ -1820,14 +1820,13 @@ def name_isotope_acyl_halide(mol):
     only_hydrogen = all(a.GetAtomicNum() == 1 for a in mol.GetAtoms() if a.GetIsotope())
     if found and only_hydrogen and len(hydrogen_bearing) == 1:
         name = f"({found.group(1)}{found.group(2)})" + name[found.end():]
-    _require_isotopes_cited(mol, name)
-    return name
+    return name if nuclides_cited(mol, name) else None
 
 
 def _labelled_halocarbonic_amide(mol, amide):
     """'carbono(36Cl)chloridic amide', 'N-methyl(13C)carbonochloridic amide': the nuclide of the halogen stands in front of
     the infix that names it and that of the carbon in front of the acid name (P-82.2.1); None when another atom is modified."""
-    from .core import _require_isotopes_cited
+    from .core import nuclides_cited
 
     halogens = [a for a in mol.GetAtoms() if is_halide_ligand(a) and a.GetNeighbors()[0].GetAtomicNum() == 6]
     modified = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsotope()}
@@ -1840,8 +1839,7 @@ def _labelled_halocarbonic_amide(mol, amide):
     infix = re.search(r"carbono(\w+?id)ic amide$", amide)
     carbon_nuclide = f"({carbon.GetIsotope()}C)" if carbon.GetIsotope() else ""
     name = amide[: infix.start()] + carbon_nuclide + f"carbono({halogen.GetIsotope()}{halogen.GetSymbol()}){infix.group(1)}ic amide"
-    _require_isotopes_cited(mol, name)
-    return name
+    return name if nuclides_cited(mol, name) else None
 
 
 _OXOACID_STEMS = {5: ("boron", "borin"), 15: ("phosphon", "phosphin"), 33: ("arson", "arsin"), 51: ("stibon", "stibin")}
