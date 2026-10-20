@@ -3581,9 +3581,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         if attach is None and not n_names and carried < total_principal and _identical_group_units(
             mol, graph, group_atoms
         ):
-            raise UnsupportedStructure(
-                "identical parents joined through a linking group need a multiplicative name (P-15.3)"
-            )
+            return None
         return result
 
     chain_best = None

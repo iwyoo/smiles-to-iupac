@@ -156,12 +156,43 @@ def _has_ring(mol, root, from_atom):
     return any(mol.GetAtomWithIdx(a).IsInRing() for a in subtree(mol, root, from_atom))
 
 
+def _cites_stereo_in(atoms):
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    return bool(context) and (
+        any(a in atoms for a in context["atoms"]) or any(a in atoms and b in atoms for a, b in context["bonds"])
+    )
+
+
+def cited_linker_substituents(mol, blocked, linker_atoms):
+    """The substituents on `linker_atoms` outside `blocked` cite their own stereo elements (P-93.4.1); a no-op when
+    none of them carries one."""
+    from contextlib import nullcontext
+
+    from ._common import adjacency, specified_stereo_elements, stereo_element_atoms
+    from ._substituents import cited_branch_stereo
+
+    graph = adjacency(mol)
+    roots = [n for a in linker_atoms for n in graph[a] if n not in blocked]
+    inside, stack = set(), list(roots)
+    while stack:
+        a = stack.pop()
+        if a not in inside:
+            inside.add(a)
+            stack.extend(n for n in graph[a] if n not in blocked and n not in inside)
+    stereo = specified_stereo_elements(mol)
+    if not stereo or not inside & set(stereo_element_atoms(mol, stereo)):
+        return nullcontext()
+    return cited_branch_stereo(mol, graph, blocked, roots)
+
+
 def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, groups=None):
     """(name, is_compound) of the substituent rooted at `root` (hanging off
     `from_atom`), named as a prefix in the context of a parent whose
     principal group class is `suffix_group` (None: plain ring parent)."""
     atom = mol.GetAtomWithIdx(root)
-    if labels_in(subtree(mol, root, from_atom)):
+    if labels_in(subtree(mol, root, from_atom)) or _cites_stereo_in(subtree(mol, root, from_atom)):
         from ._common import adjacency
         from ._substituents import name_branch
 
