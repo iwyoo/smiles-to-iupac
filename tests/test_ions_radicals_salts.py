@@ -556,6 +556,13 @@ def test_three_radical_centers_name():
     assert smiles_to_iupac("[CH2][CH][CH2]") == "propane-1,2,3-triyl"
 
 
+def test_five_ring_valences_beside_a_cationic_substituent():
+    assert (
+        smiles_to_iupac("[CH2+][C]1[C](C)[C](C)[C](C)[C]1C")
+        == "1,2,3,4-tetramethyl-5-methyliumylcyclopentane-1,2,3,4,5-pentayl"
+    )
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [

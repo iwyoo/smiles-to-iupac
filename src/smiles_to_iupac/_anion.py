@@ -13,6 +13,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, specified_stereo_elements
+from ._numerals import COUNT_WORDS
 
 ANION_PROP = "_anion"
 HYDRO_PREFIXED_CENTRE = contextvars.ContextVar("hydro_prefixed_centre", default=False)
@@ -219,7 +220,7 @@ def _is_nitro_nitrogen(atom):
 _CARBANIDE_PARENT = re.compile(r"(?:-\d+(?:,\d+)*-(?:di|tri|tetra)?|an(?:e(?:di|tri|tetra))?)ide$")
 _THIOIC_TAIL = re.compile(r"((?:di|tri|tetra)?(?:carbo)?)thioic acid$")
 _ANION_TOKEN = re.compile(r"(?:ide|ate|ite)(?![a-z])|ato|ido|idyl|uid-|id-|ide-")
-_MULTIPLE_ANION = re.compile(r"(?:di|tri|tetra|bis|tris|tetrakis|bi\()\(?(?:hydrogen )?[A-Za-z0-9,'-]*(?:ide|uide|ate|ite)")
+_MULTIPLE_ANION = re.compile(rf"(?:{COUNT_WORDS}|bis|tris|tetrakis|bi\()\(?(?:hydrogen )?[A-Za-z0-9,'-]*(?:ide|uide|ate|ite)")
 
 
 def name_anion(mol):

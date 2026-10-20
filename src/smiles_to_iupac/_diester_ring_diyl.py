@@ -26,6 +26,7 @@ from ._fullerene_numbering import cage_numberings
 from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
 from ._functional_prefixes import functional_names, nitro_atoms
 from ._locant_omission import omits_all_locants
+from ._numerals import COUNT_WORDS, numerical_term
 from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, ENCLOSE_MULTIPARENT, chain_numberings, monocycle_numberings, system_numberings
 from ._substituents import (
     cite_heteroatom_double_bonds,
@@ -682,11 +683,11 @@ def _with_anion_centers(parent, located, suffix="yl"):
     ]
     if parent.endswith("ium"):
         locants, word = groups[0]
-        return f"{parent}-{','.join(map(str, locants))}-{_COUNT_PREFIX[len(locants)]}{word}"
+        return f"{parent}-{','.join(map(str, locants))}-{_count_prefix(len(locants))}{word}"
     if suffix in SUFFIX_OF_ORDER.values():
-        match = re.search(r"(-\d+(?:,\d+)*-)?(?:di|tri)?(?:yl|ylidene|ylidyne)$", parent)
+        match = re.search(rf"(-\d+(?:,\d+)*-)?(?:{COUNT_WORDS})?(?:yl|ylidene|ylidyne)$", parent)
     else:
-        match = re.search(rf"(-\d+(?:,\d+)*-)(?:di|tri|tetra|penta|hexa)?{re.escape(suffix)}$", parent)
+        match = re.search(rf"(-\d+(?:,\d+)*-)(?:{COUNT_WORDS})?{re.escape(suffix)}$", parent)
     if match is None:
         raise UnsupportedStructure("this substituent group cannot carry an anionic center yet")
     following = match.group(0)[len(match.group(1) or ""):]
@@ -696,11 +697,12 @@ def _with_anion_centers(parent, located, suffix="yl"):
     cited = ""
     for locants, word in groups:
         ending = word[:-1] if word.endswith("e") and word is groups[-1][1] and following[0] in "aeiouy" else word
-        cited += f"-{','.join(map(str, locants))}-{_COUNT_PREFIX[len(locants)]}{ending}"
+        cited += f"-{','.join(map(str, locants))}-{_count_prefix(len(locants))}{ending}"
     return f"{base}{cited}{match.group(0)}"
 
 
-_COUNT_PREFIX = {1: "", 2: "di", 3: "tri"}
+def _count_prefix(count):
+    return "" if count == 1 else numerical_term(count)
 
 
 def _assembly_group(mol, graph, root, parent, atoms):
