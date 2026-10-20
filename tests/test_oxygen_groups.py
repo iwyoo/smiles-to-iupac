@@ -1100,6 +1100,7 @@ def test_ester_class_names(smiles, expected):
         ("NC(CC1=CC=C(O1)C(=O)O)=O", "5-(2-amino-2-oxoethyl)furan-2-carboxylic acid"),
         ("C(C)(=S)C(C(C)=S)C(C)=S", "3-(ethanethioyl)pentane-2,4-dithione"),
         ("S(=S)(=S)(S)C1=C(C(=O)O)C=CC=C1", "2-(trithiosulfo)benzoic acid"),
+        ("OC(=O)CS(=S)(=[Se])[SeH]", "(diselenothiosulfo)acetic acid"),
         ("CC(=O)OS(=O)(=O)CS(=O)(=O)OC(=O)CC", "acetic methanedisulfonic propanoic dianhydride"),
         ("CC(=O)SC(=O)CCC(=O)SC(C)=O", "diacetic butanedioic bis(thioanhydride)"),
         ("CC(=O)SS(=O)(=O)CS(=O)(=O)SC(C)=O", "diacetic methanedisulfonic bis(thioanhydride)"),
