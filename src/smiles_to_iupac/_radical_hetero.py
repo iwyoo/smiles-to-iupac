@@ -25,6 +25,9 @@ _MULTIPLIER = {2: "di", 3: "tri", 4: "tetra"}
 def _hydride_name(smiles):
     from .core import smiles_to_iupac
 
+    parsed = Chem.MolFromSmiles(smiles)
+    if parsed is not None and any(a.GetNumRadicalElectrons() for a in parsed.GetAtoms()):
+        raise UnsupportedStructure("the hydride of the radical centre is still a radical in the valence model")
     name = smiles_to_iupac(smiles)
     return _HYDRIDE_NAMES.get(name, name)
 
