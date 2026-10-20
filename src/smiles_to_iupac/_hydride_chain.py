@@ -3,6 +3,7 @@
 
 from rdkit import Chem
 
+from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._common import (
     alphanumerical_name_key,
     assign_cip_labels,
@@ -313,7 +314,7 @@ def _branched_alternating_paths(mol, graph):
 
 
 def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
-    found = _chain_atoms(mol, graph)
+    found = _chain_atoms(mol, graph) or _amine_bearing_chain(mol, graph)
     if found is None:
         branched_alternating = _branched_alternating_paths(mol, graph)
         if branched_alternating is not None:
@@ -406,19 +407,57 @@ def _one_arrangement(substituents, capacity, mirror=None):
 _HETEROL_ELEMENTS = {14, 32, 50, 82}
 
 
-def _with_hydroxy_suffix(parent, positions, size, grouped, omit):
-    """'disilan-1-ol', 'diazene-1,2-diol': the hydroxy groups of a chain hydride are the suffix 'ol' (P-63.1.3); the locant
-    of a sole group on a dinuclear chain with no other substituent is omitted (P-14.3.4.2)."""
+def _with_suffix(parent, positions, size, grouped, omit, word):
+    """'disilan-1-ol', 'diazene-1,2-diol', 'disilanamine': the hydroxy or amino groups of a chain hydride are the suffix 'ol'
+    or 'amine' (P-63.1.3, P-62.2.1.3); the locant of a sole group on a dinuclear chain with no other substituent is omitted
+    (P-14.3.4.2)."""
     count = len(positions)
     locants = ",".join(str(p) for p in sorted(positions))
     if count == 1:
         stem = parent[:-1] if parent.endswith("e") else parent
-        return (f"{stem}ol" if size == 2 and not grouped else f"{stem}-{locants}-ol"), omit and not grouped
-    return f"{parent}-{locants}-{multiplying_prefix(count)}ol", omit and not grouped
+        return (f"{stem}{word}" if size == 2 and not grouped else f"{stem}-{locants}-{word}"), omit and not grouped
+    return f"{parent}-{locants}-{multiplying_prefix(count)}{word}", omit and not grouped
 
 
 def _hydroxy_oxygen(mol, atom):
     return atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1 and not atom.GetFormalCharge()
+
+
+def _amino_nitrogen(mol, atom, host):
+    """A neutral acyclic nitrogen bonded to the chain atom `host` and, by single bonds only, to plain carbon groups,
+    chalcogens or mononuclear hydride atoms."""
+    if atom.GetAtomicNum() != 7 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+        return False
+    if mol.GetBondBetweenAtoms(host, atom.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    return all(
+        mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not n.GetFormalCharge()
+        and (
+            (n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx()))
+            or n.GetAtomicNum() in (8, 16, 34, 52)
+            or (n.GetAtomicNum() in MONONUCLEAR_HYDRIDES and n.GetAtomicNum() != 7)
+        )
+        for n in atom.GetNeighbors()
+        if n.GetIdx() != host
+    )
+
+
+def _amine_bearing_chain(mol, graph):
+    """(element, chain) of a Group 14 chain whose neighbouring nitrogen atoms are not chain atoms but amino groups."""
+    found = _chain_atoms(mol, graph, skip_nitrogen=True)
+    if found is None or found[0] not in _HETEROL_ELEMENTS:
+        return None
+    z, chain = found
+    on_chain = set(chain)
+    if any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not _amino_nitrogen(mol, mol.GetAtomWithIdx(n), a)
+        for a in chain
+        for n in graph[a]
+        if n not in on_chain
+    ):
+        return None
+    return found if any(mol.GetAtomWithIdx(n).GetAtomicNum() == 7 for a in chain for n in graph[a]) else None
 
 
 def _bond_codes(mol):
@@ -455,15 +494,27 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
     labelled = (
         {a: context["labels"][a] for a in chain if a in context["labels"] and a not in context["consumed"]} if context else {}
     )
+    outside = [(atom, n) for atom in chain for n in graph[atom] if n not in chain_set]
+    hydroxy_suffix = heterol and any(
+        _hydroxy_oxygen(mol, mol.GetAtomWithIdx(n)) and mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() == 1.0
+        for atom, n in outside
+    )
+    amino_suffix = heterol and not hydroxy_suffix and any(_amino_nitrogen(mol, mol.GetAtomWithIdx(n), atom) for atom, n in outside)
     for candidate in (chain, chain[::-1]):
         substituents = {}
         hydroxy = []
+        amine = []
+        nitrogens = []
         for i, atom in enumerate(candidate):
             for n in graph[atom]:
                 if n in chain_set:
                     continue
                 if heterol and _hydroxy_oxygen(mol, mol.GetAtomWithIdx(n)) and mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() == 1.0:
                     hydroxy.append(i + 1)
+                    continue
+                if amino_suffix and _amino_nitrogen(mol, mol.GetAtomWithIdx(n), atom):
+                    amine.append(i + 1)
+                    nitrogens.append(n)
                     continue
                 if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() not in (1.0, 2.0, 3.0) or (
                     mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0 and mol.GetAtomWithIdx(n).GetAtomicNum() != 6
@@ -497,7 +548,15 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
         if lam_text:
             parent = f"{lam_text}-{parent}"
         if hydroxy:
-            parent, omit = _with_hydroxy_suffix(parent, hydroxy, len(chain), grouped, omit)
+            parent, omit = _with_suffix(parent, hydroxy, len(chain), grouped, omit, "ol")
+        n_entries = [
+            (*name_branch(graph, m, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True), "N" + "'" * k)
+            for k, nitrogen in enumerate(nitrogens)
+            for m in graph[nitrogen]
+            if m not in candidate
+        ]
+        if amine:
+            parent, omit = _with_suffix(parent, amine, len(chain), grouped, omit, "amine")
         positions = {atom: i + 1 for i, atom in enumerate(candidate)}
         omit = omit and not (labelled and len(chain) > 1)
         text = (
@@ -505,11 +564,13 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
             if labelled
             else ""
         )
-        if omit and len(grouped) > 1:
+        if omit and len(grouped) > 1 and not n_entries:
             entries = [(n, info["compound"]) for n, info in grouped.items() for _ in info["locants"]]
             name = format_mononuclear_prefixes(entries) + text + parent
         else:
-            prefixes = format_substituent_prefixes(grouped, omit_locants=omit)
+            from ._polyfunctional import _with_n_names
+
+            prefixes = format_substituent_prefixes(_with_n_names(grouped, n_entries), omit_locants=omit and not n_entries)
             name = prefixes + text + ("-" if (prefixes or text) and lam_text else "") + parent
         stereo = sorted(
             (i + 1, codes[frozenset((candidate[i], candidate[i + 1]))])
@@ -519,7 +580,7 @@ def _keyed_chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturate
         if stereo:
             name = f"({stereo[0][1]})-{name}" if len(chain) == 2 else f"({','.join(f'{p}{c}' for p, c in stereo)})-{name}"
         key = (
-            sorted(hydroxy), sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation,
+            sorted(hydroxy or amine), sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation,
             sorted(positions[a] for a in labelled), name,
         )
         if best is None or key < best[0]:

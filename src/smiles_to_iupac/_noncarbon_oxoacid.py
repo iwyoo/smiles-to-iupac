@@ -261,6 +261,23 @@ def _ring_nitrogen(atom):
     return atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetFormalCharge() and not atom.GetIsotope()
 
 
+def _pnictanyl_root(mol, atom, centre):
+    """A Group 15 atom of the acid centre's own element bonded to it that is a phosphanyl-type group: only carbon, atoms of
+    that element and hydrogen beside it."""
+    z = centre.GetAtomicNum()
+    return (
+        z in _LOCANT
+        and atom.GetAtomicNum() == z
+        and not atom.GetFormalCharge()
+        and not atom.GetIsotope()
+        and not atom.IsInRing()
+        and all(
+            n.GetIdx() == centre.GetIdx() or (n.GetAtomicNum() in (6, z) and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0)
+            for n in atom.GetNeighbors()
+        )
+    )
+
+
 def _parse(mol, centre):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -271,7 +288,7 @@ def _parse(mol, centre):
     hydrogens = centre.GetTotalNumHs()
     for neighbor in centre.GetNeighbors():
         order = mol.GetBondBetweenAtoms(centre.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble()
-        group = order == 1.0 and (neighbor.GetAtomicNum() == 6 or _ring_nitrogen(neighbor))
+        group = order == 1.0 and (neighbor.GetAtomicNum() == 6 or _ring_nitrogen(neighbor) or _pnictanyl_root(mol, neighbor, centre))
         if group and not _plain_tree(mol, graph, neighbor.GetIdx(), centre.GetIdx()):
             return None
         if group and not any(
