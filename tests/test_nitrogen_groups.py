@@ -720,6 +720,7 @@ def test_hydrazide_names(smiles, expected):
     "smiles, expected",
     [
         pytest.param("C(=O)NN", "formohydrazide", id="formohydrazide"),
+        pytest.param("CC(=O)N(N)N(C)C", "N-(dimethylamino)acetohydrazide", id="amino_group_on_the_acylated_nitrogen"),
         pytest.param("CC(=O)NN", "acetohydrazide", id="acetohydrazide"),
         pytest.param("NNC(=O)C(=O)NN", "oxalohydrazide", id="oxalohydrazide"),
         pytest.param("CNNC(=O)C(=O)NNC", "N'1,N'2-dimethyloxalohydrazide", id="n_substituted_oxalohydrazide"),
