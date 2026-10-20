@@ -187,6 +187,7 @@ def _acyl_prefix(mol, subtree, root, parent):
     centre_token = RING_CENTER.set(False)
     acid = Chem.Mol(sub)
     acid.GetAtomWithIdx(sorted(subtree).index(root)).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+    adjusted = _match_whole_labels(mol, acid, sorted(subtree))
     others = [match[0] for match in acid.GetSubstructMatches(_FREE_CARBOXY) if match[0] != sorted(subtree).index(root)]
     try:
         if own_acid is not None:
@@ -203,8 +204,8 @@ def _acyl_prefix(mol, subtree, root, parent):
         SYSTEMATIC_ACID_PROBE.reset(token)
     if zwitterion and probe.endswith("ate"):
         probe = probe[: -len("ate")] + "ic acid"
-    name = _attached_bond_descriptor(mol, sub, sorted(subtree), acyl_name(probe))
-    _cite_stereo_of_acyl(mol, sub, sorted(subtree))
+    name = acyl_name(probe)
+    _cite_stereo_of_acyl(mol, acid, sorted(subtree), adjusted, name)
     if labelled:
         context["consumed"].update(labelled)
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
@@ -265,56 +266,51 @@ def _name_with_principal(sub, principal):
     return name
 
 
-def _attached_bond_descriptor(mol, sub, kept, name):
-    """The descriptor of a double bond that the acid name cites is the free acid's; where the attachment atom, in
-    place of the acid's hydroxy group, ranks the ligands the other way the letter is the opposite one (P-92.1.4.2,
-    P-93.4.2.1.1)."""
-    from ._common import assign_cip_labels
+def _match_whole_labels(mol, acid, kept):
+    """The cut-out acid gets the CIP labels its centres and double bonds have in the whole molecule, so that its name
+    cites those: a label can change or be lost, because the arms of a centre become identical, once the rest of the
+    molecule is cut away (P-92.1.4, P-93.5.1). The elements that had no label of their own are returned."""
+    from ._common import BOND_STEREO_OVERRIDE, STEREO_OVERRIDE, assign_cip_labels, match_cip_labels
+    from ._substituents import BRANCH_STEREO
 
-    whole, cut = Chem.Mol(mol), Chem.Mol(sub)
-    assign_cip_labels(whole)
-    assign_cip_labels(cut)
+    context = BRANCH_STEREO.get()
+    if context is None:
+        return set()
     in_acyl = {index: new for new, index in enumerate(kept)}
-    differing = 0
-    for bond in whole.GetBonds():
-        begin, end = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        if begin not in in_acyl or end not in in_acyl or not bond.HasProp("_CIPCode"):
-            continue
-        twin = cut.GetBondBetweenAtoms(in_acyl[begin], in_acyl[end])
-        if twin is not None and twin.HasProp("_CIPCode") and twin.GetProp("_CIPCode") != bond.GetProp("_CIPCode"):
-            differing += 1
-    if not differing:
-        return name
-    leading = re.match(r"\(\d*([EZ])\)-", name)
-    if differing > 1 or leading is None:
-        raise UnsupportedStructure("the descriptors of this acyl group depend on its attachment atom")
-    return name[: leading.start(1)] + ("Z" if leading.group(1) == "E" else "E") + name[leading.end(1) :]
+    match_cip_labels(mol, acid, {new: index for index, new in in_acyl.items()})
+    assign_cip_labels(acid)
+    adjusted = set()
+    for atom, code in context["atoms"].items():
+        if atom in in_acyl and code in ("R", "S") and not acid.GetAtomWithIdx(in_acyl[atom]).HasProp("_CIPCode"):
+            acid.GetAtomWithIdx(in_acyl[atom]).SetProp(STEREO_OVERRIDE, code)
+            adjusted.add(("atom", atom))
+    for (a, b), code in context["bonds"].items():
+        bond = acid.GetBondBetweenAtoms(in_acyl[a], in_acyl[b]) if a in in_acyl and b in in_acyl else None
+        if bond is not None and code in ("E", "Z") and not bond.HasProp("_CIPCode"):
+            bond.SetProp(BOND_STEREO_OVERRIDE, code)
+            adjusted.add(("bond", (a, b)))
+    return adjusted
 
 
-def _cite_stereo_of_acyl(mol, sub, kept):
-    """The descriptors the acid name of an acyl group carries are those of the whole molecule when each carbon centre
-    keeps its CIP label in the cut-out acid; they are then cited with the acyl prefix."""
-    from ._common import assign_cip_labels
-
+def _cite_stereo_of_acyl(mol, acid, kept, adjusted, name):
+    """The acid name of an acyl group carries the descriptors of the whole molecule, which are cited with the acyl
+    prefix."""
     from ._substituents import BRANCH_STEREO
 
     context = BRANCH_STEREO.get()
     if context is None:
         return
     in_acyl = {index: new for new, index in enumerate(kept)}
-    atoms = {a: code for a, code in context["atoms"].items() if a in in_acyl and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
+    atoms = [a for a in context["atoms"] if a in in_acyl and mol.GetAtomWithIdx(a).GetAtomicNum() == 6]
     bonds = [(a, b) for a, b in context["bonds"] if a in in_acyl and b in in_acyl]
-    if not atoms and not bonds:
-        return
-    assign_cip_labels(sub)
-    for atom, code in atoms.items():
-        cut = sub.GetAtomWithIdx(in_acyl[atom])
-        if not cut.HasProp("_CIPCode") or cut.GetProp("_CIPCode") != code:
-            raise UnsupportedStructure("a stereocentre of the acyl group changes its descriptor once the acid is cut out")
-        context["used"].add(("atom", atom))
+    if len(adjusted) > len(re.findall(r"(?<=[(,])\d+[\u2032']*[RSEZ](?=[,)])", name)):
+        raise UnsupportedStructure("a stereo element of the acyl group is not cited by the name of its acid")
+    for atom in atoms:
+        if ("atom", atom) in adjusted or acid.GetAtomWithIdx(in_acyl[atom]).HasProp("_CIPCode"):
+            context["used"].add(("atom", atom))
     for a, b in bonds:
-        twin = sub.GetBondBetweenAtoms(in_acyl[a], in_acyl[b])
-        if twin is not None and twin.HasProp("_CIPCode"):
+        twin = acid.GetBondBetweenAtoms(in_acyl[a], in_acyl[b])
+        if ("bond", (a, b)) in adjusted or (twin is not None and twin.HasProp("_CIPCode")):
             context["used"].add(("bond", (a, b)))
 
 
