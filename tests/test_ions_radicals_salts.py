@@ -2114,6 +2114,7 @@ def test_guanidinium_and_uronium_cations(smiles, expected):
         ("[NH3+][NH3+]", "hydrazine-1,2-diium"),
         ("CN([N+](C)(C)C)C", "pentamethylhydrazinium"),
         ("C[N+](C)(C)N", "1,1,1-trimethylhydrazin-1-ium"),
+        ("CC/C=N/[N+](C)(C)C", "1,1,1-trimethyl-2-[(1E)-propylidene]hydrazin-1-ium"),
         ("[OH2+]C(C)=[OH+]", "(1-oxidaniumylethylidene)oxidanium"),
         ("C[N+](C)=N", "1,1-dimethyldiazen-1-ium"),
         ("CC(=O)N=[NH2+]", "2-acetyldiazen-1-ium"),

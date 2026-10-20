@@ -13,7 +13,7 @@ from ._common import (
 )
 from ._locant_omission import has_single_arrangement
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
 
 _STEM = {7: ("azane", 3), 8: ("oxidane", 2), 15: ("phosphane", 3), 16: ("sulfane", 2), 34: ("selane", 2), 52: ("tellane", 2)}
 
@@ -84,22 +84,24 @@ def name_chain_onium(mol) -> str:
         return hydrazide
     chain_set = set(chain)
     best = None
-    for walk in (chain, chain[::-1]):
-        positions = {a: i + 1 for i, a in enumerate(walk)}
-        enes = [i + 1 for i, (a, b) in enumerate(zip(walk, walk[1:])) if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 2.0]
-        subs = {}
-        for atom in walk:
-            for n in graph[atom]:
-                if n in chain_set:
-                    continue
-                subs.setdefault(positions[atom], []).append(
-                    name_branch(graph, n, atom, halogens, aromatic, mol=mol, unsaturated=True)
-                )
-        grouped = group_substituents(subs)
-        locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-        key = (sorted(positions[a] for a in cations), enes, locant_set, citation)
-        if best is None or key < best[0]:
-            best = (key, grouped)
+    roots = [n for atom in chain for n in graph[atom] if n not in chain_set]
+    with cited_branch_stereo(mol, graph, chain_set, roots):
+        for walk in (chain, chain[::-1]):
+            positions = {a: i + 1 for i, a in enumerate(walk)}
+            enes = [i + 1 for i, (a, b) in enumerate(zip(walk, walk[1:])) if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 2.0]
+            subs = {}
+            for atom in walk:
+                for n in graph[atom]:
+                    if n in chain_set:
+                        continue
+                    subs.setdefault(positions[atom], []).append(
+                        name_branch(graph, n, atom, halogens, aromatic, mol=mol, unsaturated=True)
+                    )
+            grouped = group_substituents(subs)
+            locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+            key = (sorted(positions[a] for a in cations), enes, locant_set, citation)
+            if best is None or key < best[0]:
+                best = (key, grouped)
     key, grouped = best
     enes = key[1]
     count = len(cations)
