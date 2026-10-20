@@ -1186,3 +1186,7 @@ def test_nuclide_on_the_oxide_oxygen_and_on_oxalic_acid(smiles, expected):
 )
 def test_nuclide_on_the_nitrogens_of_an_azine_azoxy_and_bis_azo_compound(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_nuclides_of_an_adduct_component_are_counted_once_per_molecule_of_its_ratio():
+    assert smiles_to_iupac("C.[3H]C.[3H]C") == "(3H1)methane—methane (2/1)"

@@ -995,6 +995,24 @@ def _cited_nuclides(name):
     return cited
 
 
+_ADDUCT_RATIO = re.compile(r" \((\d+(?:/\d+)+)\)$")
+
+
+def _adduct_nuclides(name):
+    """The nuclides cited by `name`, each component of an adduct counted as often as its ratio multiplies it (P-14.8.2)."""
+    ratio = _ADDUCT_RATIO.search(name)
+    if ratio is None:
+        return _cited_nuclides(name)
+    parts, counts = name[: ratio.start()].split("\u2014"), ratio.group(1).split("/")
+    if len(parts) != len(counts):
+        return _cited_nuclides(name)
+    cited = {}
+    for part, count in zip(parts, counts):
+        for key, number in _cited_nuclides(part).items():
+            cited[key] = cited.get(key, 0) + number * int(count)
+    return cited
+
+
 def nuclides_cited(mol, name):
     """Whether `name` cites every nuclide label of `mol`, as often as the structure carries it."""
     expected = {}
@@ -1004,7 +1022,7 @@ def nuclides_cited(mol, name):
             expected[key] = expected.get(key, 0) + 1
     if not expected:
         return True
-    cited = _cited_nuclides(name)
+    cited = _adduct_nuclides(name)
     forced = FORCED_BRANCH_NAMES.get()
     given_names = [a.GetProp(PREFIX_PROP) for a in mol.GetAtoms() if a.HasProp(PREFIX_PROP)]
     given_names += [forced_name for forced_name, _ in forced[1].values()] if forced else []
