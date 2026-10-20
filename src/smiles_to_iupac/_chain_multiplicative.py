@@ -10,7 +10,7 @@ from rdkit import Chem
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, is_prefix_placeholder
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
-from ._hetero_prefixes import is_functional_carbon
+from ._hetero_prefixes import is_functional_carbon, is_sulfone_like
 from ._multiplicative import _Context
 from ._multiplicative_groups import terminal_ligand
 from ._multiplicative_linker import DecompositionRejected, name_component
@@ -107,7 +107,7 @@ def _is_linker_atom(mol, atom, acyl_prefixes=frozenset()):
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()) and not imine_nitrogen:
             acyl_prefix = (atom.GetAtomicNum() == 7 or (atom.GetAtomicNum() == 8 and AMINIUM.get() is True)) and other.GetIdx() in acyl_prefixes
-            if not acyl_prefix and not _diacyl_carbon(mol, other, atom):
+            if not acyl_prefix and not _diacyl_carbon(mol, other, atom) and not is_sulfone_like(mol, atom):
                 return False
     return True
 
@@ -1513,7 +1513,10 @@ def _chain_multiplicative_name(mol, stereo):
         for h in graph[r]:
             bond = mol.GetBondBetweenAtoms(r, h)
             if atom.GetAtomicNum() == 6:
-                ok = (h in linkers and not (principal == "ketone" and r in anchors)) or (
+                ok = (
+                    h in linkers
+                    and not (principal == "ketone" and r in anchors and not is_sulfone_like(mol, mol.GetAtomWithIdx(h)))
+                ) or (
                     not (principal == "aldehyde" and r in anchors)
                     and mol.GetAtomWithIdx(h).IsInRing()
                     and bond.GetBondTypeAsDouble() in (1.0, 2.0)

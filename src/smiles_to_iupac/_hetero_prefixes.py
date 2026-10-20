@@ -237,6 +237,20 @@ def _oximate_nitrogen(atom):
     )
 
 
+def is_sulfone_like(mol, atom):
+    """A sulfonyl, sulfinyl or chalcogen analogue whose only other substituents are two carbon atoms (a sulfone, sulfoxide
+    or analogue): a carbonyl carbon bonded to it is a ketone, the group a prefix or linker (P-64.4, P-63.6)."""
+    if atom.GetAtomicNum() not in (16, 34, 52) or atom.GetFormalCharge():
+        return False
+    oxygens = {
+        n.GetIdx()
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    }
+    rest = [n for n in atom.GetNeighbors() if n.GetIdx() not in oxygens]
+    return bool(oxygens) and len(rest) == 2 and all(n.GetAtomicNum() == 6 for n in rest)
+
+
 def is_functional_carbon(mol, idx):
     """A carbon that is a substituent group of its own (-C#N, -COOH, -COOR,
     -CONR2, ...) rather than a chain member. Ketone and aldehyde carbons stay
