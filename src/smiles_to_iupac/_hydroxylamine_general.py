@@ -29,12 +29,28 @@ def _phosphoryl(atom):
     )
 
 
+def _cyano_carbon(atom):
+    """The carbon of a cyano group whose only other bond goes to the chalcogen of a hydroxylamine."""
+    nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetDegree() == 2
+        and len(nitrogens) == 1
+        and nitrogens[0].GetDegree() == 1
+        and atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), nitrogens[0].GetIdx()).GetBondTypeAsDouble() == 3.0
+    )
+
+
+def _cyano_nitrogen(atom):
+    return atom.GetDegree() == 1 and _cyano_carbon(atom.GetNeighbors()[0])
+
+
 def _groups(mol):
     """[(nitrogen, chalcogen, carbon)] of every H2N-X-C group, or None when the molecule is anything else."""
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     found, chained = [], []
-    for nitrogen in (a for a in mol.GetAtoms() if a.GetAtomicNum() == 7):
+    for nitrogen in (a for a in mol.GetAtoms() if a.GetAtomicNum() == 7 and not _cyano_nitrogen(a)):
         if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 2 or nitrogen.GetFormalCharge():
             return None
         (chalcogen,) = nitrogen.GetNeighbors()
@@ -54,6 +70,8 @@ def _groups(mol):
     for (_, chalcogen, root), linked in zip(found, chained):
         if linked:
             members.update(_chalcogen_run(chalcogen, root))
+        elif _cyano_carbon(root):
+            members.update(n.GetIdx() for n in root.GetNeighbors())
         elif root.GetAtomicNum() == 15:
             members.update([root.GetIdx(), *(n.GetIdx() for n in root.GetNeighbors() if n.GetAtomicNum() == 8)])
         elif root.GetAtomicNum() == 16:

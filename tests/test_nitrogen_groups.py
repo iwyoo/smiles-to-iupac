@@ -2248,6 +2248,7 @@ def test_carbaldehyde_on_a_polyaza_chain(smiles, expected):
         ("C(CON)ON", "O,O'-(ethane-1,2-diyl)bis(hydroxylamine)"),
         ("NSC", "S-methyl(thiohydroxylamine)"),
         ("NS", "thiohydroxylamine"),
+        ("N#CSN", "S-cyano(thiohydroxylamine)"),
         ("CSSN", "S-(methylsulfanyl)(thiohydroxylamine)"),
         ("NOCl", "O-chlorohydroxylamine"),
         ("NSSCC(=O)O", "(aminodisulfanyl)acetic acid"),
