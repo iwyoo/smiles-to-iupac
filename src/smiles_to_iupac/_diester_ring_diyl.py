@@ -528,6 +528,8 @@ def _evaluate_skeleton(
             stereo_all += [
                 (bond, code) for bond, code in stereo_context["bonds"].items() if _ylidene_to_parent_nitrogen(mol, bond, side, blocked)
             ]
+            known = {a for a, _ in stereo_all}
+            stereo_all += [(a, code) for a, code in stereo_context["atoms"].items() if a in side and a not in known]
         substituents = {}
         for atom in position_of:
             roots = [n for n in graph[atom] if n not in skeleton and n not in blocked]
