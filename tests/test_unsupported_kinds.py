@@ -73,3 +73,8 @@ def test_runtime_error_handlers_let_internal_invariant_errors_through():
 def test_carbenium_beside_a_carbanion_and_a_cationic_heteroatom_is_refused_not_unpacked():
     with pytest.raises(UnsupportedStructure):
         name("C=[O+]C[CH+]C[CH2-]")
+
+
+def test_phosphoryl_cation_in_a_branch_is_refused_not_an_internal_error():
+    with pytest.raises(UnsupportedStructure):
+        name("C[P+](=O)OP(=O)([O-])[O-]")
