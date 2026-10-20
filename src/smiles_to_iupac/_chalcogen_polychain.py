@@ -1,6 +1,6 @@
 """Three or more contiguous identical chalcogen atoms as a parent hydride (P-68.4.1.1): methyltrisulfane,
-dimethyltrisulfane, methyl(phenyl)triselane, tetramethyltetraselane; a pair is a parent only when halogens are the sole
-other atoms (dichlorodisulfane). The end groups are carbon groups, halogens or hydrogen; a chain with a characteristic
+dimethyltrisulfane, methyl(phenyl)triselane, tetramethyltetraselane; a pair or a single atom is a parent only when
+halogens are the sole other atoms (dichlorodisulfane, dichlorooxidane). The end groups are carbon groups, halogens or hydrogen; a chain with a characteristic
 group of higher seniority is a prefix of that group's parent instead."""
 
 import re
@@ -54,6 +54,8 @@ def _run(mol, graph, start, shortest=3):
                 members.add(n)
                 stack.append(n)
     ends = [a for a in members if sum(n in members for n in graph[a]) <= 1]
+    if len(members) == 1 and shortest == 1:
+        return [start] if not mol.GetAtomWithIdx(start).GetTotalNumHs() else None
     if len(members) < shortest or len(ends) != 2 or any(sum(n in members for n in graph[a]) > 2 for a in members):
         return None
     order, previous = [ends[0]], None
@@ -81,7 +83,8 @@ def name_polychalcogen_hydride(mol):
         members = [a for a in mol.GetAtoms() if a.GetAtomicNum() == element]
         if any(a.IsInRing() for a in members):
             return None
-        shortest = 2 if all(a.GetAtomicNum() in (element, *_HALOGENS) for a in mol.GetAtoms()) else 3
+        halogen_only = all(a.GetAtomicNum() in (element, *_HALOGENS) for a in mol.GetAtoms())
+        shortest = (1 if len(members) == 1 else 2) if halogen_only else 3
         for run in _contiguous(mol, graph, [a.GetIdx() for a in members]):
             found = _run(mol, graph, next(iter(run)), shortest) if len(run) >= shortest else None
             if found is not None:
@@ -100,14 +103,14 @@ def _name_with_parent(mol, graph, order):
         outside = [n for n in graph[atom] if n not in run]
         if atom not in (order[0], order[-1]) and outside:
             return None
-        if len(outside) > 1 or (outside and a.GetTotalNumHs()):
+        if len(outside) > (2 if len(order) == 1 else 1) or (outside and a.GetTotalNumHs()):
             return None
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     entries, covered = [], set(run)
     element = mol.GetAtomWithIdx(order[0]).GetAtomicNum()
     others = set(_STEMS)
-    for end in (order[0], order[-1]):
+    for end in dict.fromkeys((order[0], order[-1])):
         for root in (n for n in graph[end] if n not in run):
             if root in halogens:
                 entries.append((halogens[root], False))
@@ -138,7 +141,7 @@ def _name_with_parent(mol, graph, order):
                 EXTENDED_PREFIXES.reset(token)
     if len(covered) != mol.GetNumAtoms():
         return None
-    parent = multiplying_prefix(len(order)) + _STEMS[mol.GetAtomWithIdx(order[0]).GetAtomicNum()]
+    parent = (multiplying_prefix(len(order)) if len(order) > 1 else "") + _STEMS[mol.GetAtomWithIdx(order[0]).GetAtomicNum()]
     if not entries:
         return parent
     if len(entries) == 1:

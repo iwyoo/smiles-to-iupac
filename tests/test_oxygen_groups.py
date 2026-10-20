@@ -1587,3 +1587,13 @@ def test_identical_n_substituted_carbamates_on_one_diyl_group_are_esters_not_a_s
 )
 def test_multiplied_ester_words(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("BrOCl", "bromo(chloro)oxidane", id="halogens_on_a_single_chalcogen"),
+    ],
+)
+def test_halogen_derivatives_of_chalcogen_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
