@@ -21,7 +21,7 @@ from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._isotope_labels import restore_labels
 from ._hetero_prefixes import EXTENDED_PREFIXES
-from ._phosphonic_acid import _nitroso_or_diazenyl
+from ._phosphonic_acid import _nitroso_or_diazenyl, charged_prefix_group_atoms
 from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch, prefix_multiplier
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
@@ -1082,7 +1082,7 @@ def name_ester(mol, links):
     if _senior_kind_has_no_ester(mol, links):
         raise UnsupportedStructure("a free acid of a senior kind outranks the ester (P-41, P-42.3)")
     kinds = {_center(mol, l.center)[0] == "inorganic" for l in links if l.kind == "ester"}
-    if kinds == {True} and any(a.GetFormalCharge() for a in mol.GetAtoms()):
+    if kinds == {True} and any(a.GetFormalCharge() and a.GetIdx() not in charged_prefix_group_atoms(mol) for a in mol.GetAtoms()):
         raise UnsupportedStructure("the seniority of this phosphorus or boron ester among the other groups is not decided here")
     esters = [l for l in links if l.kind == "ester"]
     graph = adjacency(mol)
