@@ -10,6 +10,7 @@ from rdkit import Chem
 from ._acid_lexicon import _INFIX, _MULTIPLIER, _peroxo_word
 from ._chalcogen_imide import ylidene_group_atoms
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
+from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._parent_choice import senior_parent_name
 from ._retained_acids import single_site_prefixes
 from ._substituents import centre_nuclides, cited_branch_stereo, format_substituent_prefixes, name_branch
@@ -436,14 +437,18 @@ def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
     halogens = halogen_substituents(mol)
     entries = {}
     roots = [m for root in (amino, imine_n) if root is not None for m in graph[root] if m != center]
-    with cited_branch_stereo(mol, graph, {center, amino, imine_n}, roots):
-        for root, locant in ((amino, "N"), (imine_n, "N'" if amino is not None else "N")):
-            if root is None:
-                continue
-            for m in graph[root]:
-                if m != center:
-                    name, compound = name_branch(graph, m, root, halogens, mol=mol)
-                    entries.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    token = EXTENDED_PREFIXES.set(True)
+    try:
+        with cited_branch_stereo(mol, graph, {center, amino, imine_n}, roots):
+            for root, locant in ((amino, "N"), (imine_n, "N'" if amino is not None else "N")):
+                if root is None:
+                    continue
+                for m in graph[root]:
+                    if m != center:
+                        name, compound = name_branch(graph, m, root, halogens, mol=mol)
+                        entries.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    finally:
+        EXTENDED_PREFIXES.reset(token)
     count = sum(len(entry["locants"]) for entry in entries.values())
     if not entries:
         return count, ""
