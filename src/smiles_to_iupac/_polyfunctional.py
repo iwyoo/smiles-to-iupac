@@ -959,6 +959,12 @@ def _group_of(mol, carbon):
             and (AMINIUM.get() or RING_CENTER.get() or any(a.HasProp(ANION_PROP) for a in mol.GetAtoms()))
         ):
             return None
+        if (
+            len(others) == 1
+            and others[0].GetAtomicNum() in (8, 16, 34, 52)
+            and any(n.GetAtomicNum() == 7 and n.GetIdx() != nitrogens[0] for n in others[0].GetNeighbors())
+        ):
+            return None
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
             raise UnsupportedStructure("a cyanide not bonded to carbon is not a nitrile")
         return "nitrile", {nitrogens[0]}
