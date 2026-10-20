@@ -829,17 +829,25 @@ def _acyl_diazene_nitrogen(mol, atom, carbon):
 
 
 def _acyloxy_amine_oxygen(mol, oxygen, carbon):
-    """The ester oxygen (or sulfur, selenium, tellurium) of an acyl-O-N group on an acyclic amine or oxime nitrogen: a
-    pseudoketone (P-65.6.3.4, P-64.3.2), since only a cyclic nitrogen gives a traditional ester."""
-    if oxygen.GetAtomicNum() not in (8, 16, 34, 52) or oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
+    """The ester oxygen (or sulfur, selenium, tellurium) of an acyl-O-N group, possibly through further chalcogens, on an
+    acyclic amine, hydrazine or oxime nitrogen: a pseudoketone (P-65.6.3.4, P-64.3.2), since only a cyclic nitrogen gives
+    a traditional ester."""
+    if oxygen.GetAtomicNum() not in (8, 16, 34, 52):
         return False
-    far = next((n for n in oxygen.GetNeighbors() if n.GetIdx() != carbon), None)
-    if far is None or far.GetAtomicNum() != 7 or far.GetFormalCharge() or far.IsInRing() or far.GetIsAromatic():
+    previous, far = mol.GetAtomWithIdx(carbon), oxygen
+    while far.GetAtomicNum() in (8, 16, 34, 52):
+        if far.GetDegree() != 2 or far.GetFormalCharge() or far.IsInRing():
+            return False
+        previous, far = far, next(n for n in far.GetNeighbors() if n.GetIdx() != previous.GetIdx())
+    if far.GetAtomicNum() != 7 or far.GetFormalCharge() or far.IsInRing() or far.GetIsAromatic():
         return False
     doubles = [b for b in far.GetBonds() if b.GetBondTypeAsDouble() != 1.0]
     if len(doubles) > 1 or any(b.GetBondTypeAsDouble() != 2.0 for b in doubles):
         return False
-    return all(n.GetIdx() == oxygen.GetIdx() or n.GetAtomicNum() == 6 for n in far.GetNeighbors())
+    return all(
+        n.GetIdx() == previous.GetIdx() or n.GetAtomicNum() == 6 or _hydride_chain_group(mol, n, far)
+        for n in far.GetNeighbors()
+    )
 
 
 def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
