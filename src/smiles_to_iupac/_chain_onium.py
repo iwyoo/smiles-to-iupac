@@ -127,6 +127,8 @@ def _hydrazide_ium(mol, graph, z, chain, cations, halogens, aromatic):
     if z != 7 or len(chain) != 2 or len(cations) != 1:
         return None
     (cation,) = cations
+    if mol.GetBondBetweenAtoms(*chain).GetBondTypeAsDouble() != 1.0:
+        return None
     acylated = next(a for a in chain if a != cation)
     carbonyl = [
         n for n in graph[acylated]
