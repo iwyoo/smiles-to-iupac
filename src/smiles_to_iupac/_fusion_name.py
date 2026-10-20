@@ -13,7 +13,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._fused_numbering import FusedSystem, _locant_key, fused_numberings
-from ._fusion_components import Component, exception_numbering, identify, skeleton
+from ._fusion_components import Component, exception_numbering, identify, require_replacement_prefixes, skeleton
 from ._numerals import numerical_term
 from ._pin import mark
 
@@ -746,6 +746,7 @@ def fusion_name(mol):
 
 def fusion_name_keyed(mol):
     """`fusion_name` with the descriptor key of `_fusion_name_keyed` as a third value."""
+    require_replacement_prefixes(a.GetSymbol() for a in mol.GetAtoms())
     try:
         name, root, key = _fusion_name_keyed(mol)
     except UnsupportedStructure:
