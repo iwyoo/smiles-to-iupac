@@ -36,7 +36,7 @@ def _oxide_ligand(mol, nitrogen):
     if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), ligand.GetIdx()).GetBondTypeAsDouble() != 1.0:
         return None
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != ligand.GetIdx()]
-    if len(others) not in (1, 2, 3) or any(n.GetAtomicNum() != 6 for n in others):
+    if len(others) not in (1, 2, 3) or any(n.GetAtomicNum() not in (6, 7) or n.GetFormalCharge() for n in others):
         return None
     if any(mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
         return None
@@ -63,6 +63,8 @@ def name_amine_oxide(mol) -> str:
     class_word = _CHALCOGEN_CLASS[oxide_oxygen.GetAtomicNum()]
 
     reduced_mol = _reduce(mol, nitrogen, oxide_oxygen)
+    if any(n.GetAtomicNum() == 7 for n in nitrogen.GetNeighbors()):
+        return _name_amino_nitrogen_oxide(mol, reduced_mol, nitrogen, oxide_oxygen, class_word)
     if not _is_amine_nitrogen(reduced_mol.GetAtomWithIdx(_reduced_position(nitrogen.GetIdx(), oxide_oxygen.GetIdx()))):
         raise UnsupportedStructure("the oxidized nitrogen carries an acyl or nitrile carbon, whose oxide is not named here")
 
@@ -107,6 +109,25 @@ def name_amine_oxide(mol) -> str:
     if base_name is None:
         base_name = _name_with_nitrile_prefix(reduced_mol)
     return f"{with_unlocated_descriptor(base_name, nitrogen_code)} N-{class_word}"
+
+
+def _name_amino_nitrogen_oxide(mol, reduced_mol, nitrogen, oxide_oxygen, class_word):
+    """The oxide of a nitrogen bonded to a further nitrogen: of a hydrazine, named as the hydrazine with the locant of the
+    oxidised nitrogen, else of an amine whose amino nitrogen it is, 'N,N-dimethylaziridin-1-amine N-oxide' (P-62.5,
+    P-74.2.1.2)."""
+    from ._hydrazine import hydrazine_oxide_name
+
+    oxide_idx = oxide_oxygen.GetIdx()
+    position = _reduced_position(nitrogen.GetIdx(), oxide_idx)
+    hydrazine = hydrazine_oxide_name(reduced_mol, position, class_word)
+    if hydrazine is not None:
+        return hydrazine
+    named = _in_reduced_molecule(
+        mol, reduced_mol, oxide_idx, lambda reduced: _name_with_oxidized_parent(reduced, nitrogen.GetIdx(), oxide_idx)
+    )
+    if not named.endswith("amine"):
+        raise UnsupportedStructure("the oxidized nitrogen is not the amine nitrogen of the parent of this N-aminoamine oxide")
+    return f"{named} N-{class_word}"
 
 
 def _in_reduced_molecule(mol, reduced_mol, oxide_idx, name_it):
