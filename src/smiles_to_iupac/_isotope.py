@@ -13,12 +13,18 @@ _MONONUCLEAR_HYDRIDES = {
     32: "germane", 33: "arsane", 34: "selane", 49: "indigane", 50: "stannane", 51: "stibane", 52: "tellane",
     81: "thallane", 82: "plumbane", 83: "bismuthane",
 }
+_HALANES = {9: "fluorane", 17: "chlorane", 35: "bromane", 53: "iodane"}
 
 
 def _heavy_chain(mol):
     """The ordered heavy atoms of an unbranched acyclic chain of one hydride-forming element, else None."""
     heavy = [a for a in mol.GetAtoms() if a.GetAtomicNum() != 1]
-    if not heavy or len({a.GetAtomicNum() for a in heavy}) != 1 or heavy[0].GetAtomicNum() not in _MONONUCLEAR_HYDRIDES:
+    if not heavy or len({a.GetAtomicNum() for a in heavy}) != 1:
+        return None
+    if heavy[0].GetAtomicNum() in _HALANES:
+        single = len(heavy) == 1 and len(Chem.GetMolFrags(mol)) == 1 and heavy[0].GetFormalCharge() in (0, -1)
+        return [heavy[0].GetIdx()] if single and not heavy[0].GetNumRadicalElectrons() else None
+    if heavy[0].GetAtomicNum() not in _MONONUCLEAR_HYDRIDES:
         return None
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.IsInRing() for a in mol.GetAtoms()):
         return None
@@ -40,7 +46,7 @@ def _heavy_chain(mol):
     return order
 
 
-_STANDARD_VALENCE = {5: 3, 7: 3, 8: 2, 13: 3, 14: 4, 15: 3, 16: 2, 31: 3, 32: 4, 33: 3, 34: 2, 49: 3, 50: 4, 51: 3, 52: 2, 81: 3, 82: 4, 83: 3}
+_STANDARD_VALENCE = {5: 3, 7: 3, 8: 2, 13: 3, 14: 4, 15: 3, 16: 2, 31: 3, 32: 4, 33: 3, 34: 2, 49: 3, 50: 4, 51: 3, 52: 2, 81: 3, 82: 4, 83: 3, 9: 1, 17: 1, 35: 1, 53: 1}
 
 
 def _is_radical(mol, atom):
@@ -85,7 +91,7 @@ def name_isotope_hydride(mol) -> str:
     )
     capacity = {a: clean.GetAtomWithIdx(a).GetTotalNumHs() for a in chain}
     text = descriptor(labels, positions, len(chain) == 1 or uniform, capacity=capacity)
-    stem = _MONONUCLEAR_HYDRIDES[z]
+    stem = _MONONUCLEAR_HYDRIDES.get(z) or _HALANES[z]
     centre = clean.GetAtomWithIdx(chain[0])
     if len(chain) == 1 and (centre.GetFormalCharge() or centre.GetNumRadicalElectrons() or _is_radical(clean, centre)):
         return text + _ion_or_radical_name(clean)
