@@ -2368,3 +2368,14 @@ def test_uide_centre_shared_by_two_ring_components_is_refused_not_overflowed():
 def test_atom_whose_hydride_is_still_a_radical_is_refused_not_overflowed():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C.[Md]")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccccc1C=[Zr]", "benzylidenezirconium", id="aromatic_ylidene_ligand"),
+        pytest.param("Cl[CH]=[Zr]", "chloromethylidenezirconium", id="heteroatom_on_the_ylidene_carbon"),
+    ],
+)
+def test_ylidene_ligands_with_aromatic_or_heteroatom_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

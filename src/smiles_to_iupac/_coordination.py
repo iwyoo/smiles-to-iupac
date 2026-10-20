@@ -14,7 +14,6 @@ from ._common import (
     adjacency,
     alpha_sort_key,
     halogen_substituents,
-    non_single_bonds,
     specified_stereo_elements,
 )
 from ._metal_pair import _STEMS as _CLASS2_STEMS, _brackets, _metal_group_name, substituted_aryl_name
@@ -369,12 +368,9 @@ def _has_stereo_element(mol, atoms):
 
 
 def _ylidene_name(mol, metal, donor, atoms, graph):
-    if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 or mol.GetAtomWithIdx(i).GetAtomicNum() != 6 for i in atoms):
-        raise UnsupportedStructure("only a hydrocarbon alkylidene or alkylidyne ligand is supported here")
-    for a, b, *_ in non_single_bonds(mol):
-        if (a in atoms or b in atoms) and metal.GetIdx() not in (a, b):
-            raise UnsupportedStructure("an unsaturated carbene substituent is out of scope here")
-    return name_branch(graph, donor.GetIdx(), metal.GetIdx(), {}, mol=mol)[0]
+    if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
+        raise UnsupportedStructure("a charged alkylidene or alkylidyne ligand is not supported here")
+    return name_branch(graph, donor.GetIdx(), metal.GetIdx(), halogen_substituents(mol), mol=mol)[0]
 
 
 def collect_ligands(mol, metal, graph, skip=frozenset()):
