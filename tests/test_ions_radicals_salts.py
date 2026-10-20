@@ -1072,6 +1072,11 @@ def test_heteroaromatic_n_oxide(smiles, expected):
     [
         pytest.param("C1CC[NH2+]CC1", "piperidin-1-ium", id="protonated_piperidine"),
         pytest.param("C[NH+]1CCCCC1", "1-methylpiperidin-1-ium", id="n_alkylpiperidinium"),
+        pytest.param(
+            "C(=[N+]1CCCCC1)[NH+]1CCCCC1",
+            "1-[(piperidin-1-ium-1-yl)methylidene]piperidin-1-ium",
+            id="ring_cation_ylidene_of_a_second_ring_cation",
+        ),
         pytest.param("C[N+]1(C)CCCCC1", "1,1-dimethylpiperidin-1-ium", id="quaternary_ring_nitrogen"),
         pytest.param("C1COCC[NH2+]1", "morpholin-4-ium", id="cation_locant_from_the_ring_heteroatom_order"),
         pytest.param("C[NH+]1CCOCC1", "4-methylmorpholin-4-ium", id="n_alkylmorpholinium"),
