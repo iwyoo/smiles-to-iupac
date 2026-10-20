@@ -975,6 +975,8 @@ def _group_of(mol, carbon):
             for n in atom.GetNeighbors()
             if n.GetAtomicNum() == z and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0
         ]
+        if found and _is_ketene_carbon(mol, atom, found[0]):
+            return thione, {found[0]}
         if found and all(
             n.GetAtomicNum() == 6
             or _acyl_diazene_nitrogen(mol, n, carbon)
