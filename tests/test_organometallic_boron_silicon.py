@@ -223,6 +223,8 @@ def test_metal_pair_linked_by_carbon_chain():
     "smiles,expected",
     [
         ("c1cc(C(=O)O)ccc1[Hg]C", "(4-carboxyphenyl)(methyl)mercury"),
+        ("C[Hg]n1c(=O)cccc1", "methyl(2-oxopyridin-1(2H)-yl)mercury"),
+        ("C[Hg]N1CCOCC1", "methyl(morpholin-4-yl)mercury"),
         ("CC[Sn](CC)(CC)c1ccc(cc1)[Ge](C)(C)C", "trimethyl[4-(triethylstannyl)phenyl]germane"),
     ],
 )
