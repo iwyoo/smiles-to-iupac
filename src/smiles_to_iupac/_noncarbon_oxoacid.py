@@ -16,6 +16,7 @@ from ._common import (
     halogen_substituents,
     specified_stereo_elements,
 )
+from ._halogen_amide import has_halogen_amide_shape
 from ._multiplicative_text import enclose
 from ._nitro_group import nitro_or_nitroso_group
 from ._numerals import numerical_term
@@ -385,6 +386,8 @@ def _acid_candidates(mol):
             continue
         if found is not None:
             parts.append(found)
+    if any(part.get("family") == "prefix" for part in parts) and has_halogen_amide_shape(mol):
+        return []
     kept = []
     for centre in senior_centres(mol, [part["centre"] for part in parts]):
         part = next(p for p in parts if p["centre"].GetIdx() == centre.GetIdx())
@@ -409,8 +412,12 @@ def _joined_through_organyl(parts):
     centres = {part["centre"].GetIdx() for part in parts}
     for part in parts:
         graph = part["graph"]
-        for root in part["organyl"]:
-            seen, stack = {part["centre"].GetIdx(), root.GetIdx()}, [root.GetIdx()]
+        if part.get("family") == "prefix":
+            arms = [(e["R"], {e["atom"]}) for e in part["singles"] if e["kind"] == "ester"]
+        else:
+            arms = [(root.GetIdx(), set()) for root in part["organyl"]]
+        for root, bridge in arms:
+            seen, stack = {part["centre"].GetIdx(), root, *bridge}, [root]
             while stack:
                 for n in graph[stack.pop()]:
                     if n in centres:
