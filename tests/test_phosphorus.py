@@ -152,6 +152,7 @@ def test_ring_phosphorus_oxide_is_a_lambda5_heterone():
     "smiles, name",
     [
         ("O=P1(O)OCCO1", "2-hydroxy-1,3,2λ5-dioxaphospholan-2-one"),
+        ("OCCNP1OCCO1", "2-[(1,3,2-dioxaphospholan-2-yl)amino]ethan-1-ol"),
         ("O=P1(OC)OC(C)CO1", "2-methoxy-4-methyl-1,3,2λ5-dioxaphospholan-2-one"),
         ("OP1(=O)OCCCO1", "2-hydroxy-1,3,2λ5-dioxaphosphinan-2-one"),
         ("S=P1(O)OCCO1", "2-hydroxy-1,3,2λ5-dioxaphospholane-2-thione"),

@@ -1093,7 +1093,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             names = []
             for n in others:
                 z_n = mol.GetAtomWithIdx(n).GetAtomicNum()
-                if z_n in MONONUCLEAR_HYDRIDES and not mol.GetAtomWithIdx(n).GetFormalCharge():
+                if z_n in MONONUCLEAR_HYDRIDES and not mol.GetAtomWithIdx(n).GetFormalCharge() and not mol.GetAtomWithIdx(n).IsInRing():
                     names.append(_mononuclear_group(graph, n, root, halogens, aromatic_atoms, mol))
                 elif z_n == 6:
                     names.extend(_group_names(graph, mol, [n], root, halogens, aromatic_atoms))
