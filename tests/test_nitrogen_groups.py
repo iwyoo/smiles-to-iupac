@@ -1644,6 +1644,7 @@ def test_amidrazones(smiles, expected):
         pytest.param("CNO", "N-hydroxymethanamine", id="n_hydroxy_amine"),
         pytest.param("CNCl", "methylhypochlorous amide", id="amide_of_hypochlorous_acid"),
         pytest.param("ClN(Cl)C1CCC1", "chloro(cyclobutyl)hypochlorous amide", id="second_halogen_on_nitrogen_is_a_prefix"),
+        pytest.param("CN(Cl)I", "iodo(methyl)hypochlorous amide", id="senior_halogen_acid_of_two_different_halogens"),
         pytest.param("FNN1CCCC1", "(pyrrolidin-1-yl)hypofluorous amide", id="halogen_amide_of_a_ring_nitrogen_group"),
         pytest.param("ClNC1CCCCO1", "(oxan-2-yl)hypochlorous amide", id="halogen_amide_of_a_ring_ether_group"),
         pytest.param("CCON(C)Cl", "ethoxy(methyl)hypochlorous amide", id="alkoxy_group_on_the_nitrogen_of_a_halogen_amide"),

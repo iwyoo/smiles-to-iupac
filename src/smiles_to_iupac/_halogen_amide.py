@@ -15,6 +15,7 @@ _ACID_WORDS = {
     35: ("hypobromous", "bromous", "bromic", "perbromic"),
     53: ("hypoiodous", "iodous", "iodic", "periodic"),
 }
+_ACID_SENIORITY = (9, 17, 35, 53)
 
 
 def _nuclide(halogen):
@@ -74,16 +75,14 @@ def name_halogen_amide(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     halogen, *second = sorted(
         (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum()),
-        key=lambda n: -n.GetIsotope(),
+        key=lambda n: (_ACID_SENIORITY.index(n.GetAtomicNum()), -n.GetDegree(), -n.GetIsotope()),
     )
     oxygens = _oxo_oxygens(halogen, nitrogen)
     if oxygens is None:
         raise UnsupportedStructure("a halogen on nitrogen carries something other than terminal oxygens")
     owned = {halogen.GetIdx(), *(o.GetIdx() for o in oxygens)}
     prefixes = []
-    for other in second:
-        if other.GetAtomicNum() != halogen.GetAtomicNum() or oxygens or other.GetDegree() != 1:
-            raise UnsupportedStructure("two different halogens on nitrogen need a decided choice of the acid")
+    for other in (o for o in second if o.GetDegree() == 1):
         owned.add(other.GetIdx())
         prefixes.append((_nuclide(other) + HALOGEN_PREFIXES[other.GetAtomicNum()], False))
     if nitrogen.IsInRing() or any(
