@@ -123,7 +123,7 @@ def name_oxoacid_anion(mol, center):
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     with citing_stereo(mol):
-        carbons, oxo, hydroxyls, esters = [], 0, 0, []
+        carbons, oxo, hydroxyls, esters, anionic = [], 0, 0, [], 0
         for n in center.GetNeighbors():
             z = n.GetAtomicNum()
             bond = mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble()
@@ -132,6 +132,7 @@ def name_oxoacid_anion(mol, center):
             elif z == 8 and bond == 2.0 and n.GetDegree() == 1:
                 oxo += 1
             elif z == 8 and n.GetFormalCharge() == -1:
+                anionic += 1
                 continue
             elif z == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
                 hydroxyls += 1
@@ -150,7 +151,7 @@ def name_oxoacid_anion(mol, center):
             ]
             parent = (format_mononuclear_prefixes(entries) if entries else "") + _BORON[len(carbons)]
         elif center.GetAtomicNum() in (15, 33, 51):
-            key = (5 if oxo else 3, len(carbons))
+            key = (5 if oxo else 3, 3 - anionic - hydroxyls - len(esters))
             if key not in _PHOSPHORUS:
                 raise UnsupportedStructure("this phosphorus oxoacid pattern is not supported yet")
             entries = [

@@ -1026,6 +1026,7 @@ def test_cationic_hydrazine_outranks_a_neutral_acid():
         ("CCOP(=O)(C)O", "ethyl hydrogen methylphosphonate"),
         ("CCOB(OCC)OCC", "triethyl borate"),
         ("CCOP(c1ccccc1)OCC", "diethyl phenylphosphonite"),
+        ("C[PH][O-]", "methylphosphinite"),
         ("CCOP(C)C", "ethyl dimethylphosphinite"),
         ("CC(=O)OP(C)(C)=O", "acetic dimethylphosphinic anhydride"),
         ("CCP(CC)(=O)OP(CC)(CC)=O", "diethylphosphinic anhydride"),
