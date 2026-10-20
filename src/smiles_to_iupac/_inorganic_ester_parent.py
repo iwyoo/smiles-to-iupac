@@ -5,8 +5,7 @@ imines are prefixes of the organyl group."""
 from ._common import UnsupportedStructure
 from ._nitrate_ester import has_nitrate_ester_shape, name_nitrate_ester
 from ._nitrite_ester import has_nitrite_ester_shape, name_nitrite_ester
-from ._sulfate import has_sulfate_shape, name_sulfate
-from ._sulfite import has_sulfite_shape, name_sulfite
+from ._sulfate import has_sulfate_shape, has_sulfite_shape, name_sulfate, name_sulfite
 
 _ESTERS = (
     (has_sulfate_shape, name_sulfate),

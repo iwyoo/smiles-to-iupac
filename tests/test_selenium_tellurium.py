@@ -824,3 +824,7 @@ def test_amides_of_sulfinic_selenium_and_tellurium_acids(smiles, expected):
 )
 def test_selenium_and_tellurium_oxides_on_branched_unsaturated_and_aromatic_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_esters_of_selenic_acid_follow_the_sulfate_esters():
+    assert smiles_to_iupac("CO[Se](=O)(=O)OC") == "dimethyl selenate"

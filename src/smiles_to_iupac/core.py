@@ -282,8 +282,7 @@ from ._phosphate import has_phosphate_shape, name_phosphate
 from ._phosphorus_thioester import has_phosphorus_thioester_shape, name_boron_peroxy_ester, name_phosphorus_thioester
 from ._dinuclear_oxoacid import has_dinuclear_oxoacid_shape, name_dinuclear_oxoacid
 from ._phosphite import has_phosphite_shape, name_phosphite
-from ._sulfate import has_sulfate_shape, name_sulfate
-from ._sulfite import has_sulfite_shape, name_sulfite
+from ._sulfate import has_sulfate_shape, has_sulfite_shape, name_sulfate, name_sulfite
 from ._phosphonic_acid import has_phosphorus_acid_shape, name_phosphorus_acid
 from ._phosphorus_acid_derivative import has_phosphorus_acid_derivative_shape, name_phosphorus_acid_derivative
 from ._azonic_acid import has_azonic_acid_shape, name_azonic_acid
