@@ -1977,7 +1977,13 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     x = rest[0]
     zx = mol.GetAtomWithIdx(x).GetAtomicNum()
     acid_amide = zx == 7 and all(e == "O" for _, e in oxo)
-    if not EXTENDED_PREFIXES.get() and not acid_amide and ((center != "S" and zx != 6) or any(e not in ("O", "NH") for _, e in oxo)):
+    hydroxylamine_ester = (
+        zx == 8
+        and mol.GetAtomWithIdx(x).GetDegree() == 2
+        and all(e == "O" for _, e in oxo)
+        and any(n.GetAtomicNum() == 7 for n in mol.GetAtomWithIdx(x).GetNeighbors() if n.GetIdx() != root)
+    )
+    if not EXTENDED_PREFIXES.get() and not acid_amide and not hydroxylamine_ester and ((center != "S" and zx != 6) or any(e not in ("O", "NH") for _, e in oxo)):
         return None
     symbols = [e for _, e in oxo]
     if zx == 8 and mol.GetAtomWithIdx(x).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, x).GetBondTypeAsDouble() == 1.0:
@@ -2017,7 +2023,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, "sulfonyl")
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
         return _amino_stem(name) + "sulfamoyl", True
-    if zx != 6 and not EXTENDED_PREFIXES.get() and not acid_amide:
+    if zx != 6 and not EXTENDED_PREFIXES.get() and not acid_amide and not hydroxylamine_ester:
         return None
     spec = make_spec(center, symbols, ("O",))
     acyl = acyl_suffix(spec, chain=False, count=1)
