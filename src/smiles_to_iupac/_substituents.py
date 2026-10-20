@@ -1060,7 +1060,7 @@ def _ring_system_label_positions(mol, graph, root, coming_from, labelled, name, 
         a for a in system
         if a != root and (mol.GetAtomWithIdx(a).GetTotalNumHs() or any(n not in system for n in graph[a]))
     }
-    return positions, offset, _fully_modified(labelled, positions, capacity, expected)
+    return positions, offset, len(labelled) > 1 and _fully_modified(labelled, positions, capacity, expected)
 
 
 def _hydrogen_capacity(context, atoms):
