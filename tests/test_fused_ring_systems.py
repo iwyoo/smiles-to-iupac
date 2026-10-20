@@ -17,6 +17,7 @@ from smiles_to_iupac._ring_system_seniority import ring_seniority_key
         pytest.param("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32", "tetraphene", id="benzo_a_anthracene"),
         pytest.param("C1=CC=C2C=C3C=CC=CC3=C2C=C1", "benzo[a]azulene", id="benzo_a_azulene"),
         pytest.param("C1=CC2=CC=CC=CC2=C1", "azulene", id="azulene"),
+        pytest.param("C1CCC2C(C1)CCCC1CCC12", "dodecahydro-1H-benzo[a]cyclobuta[c][7]annulene", id="two_first_order_prefixes_on_an_annulene_cite_their_sides"),
         pytest.param("C1=CC2=C3C(=C1)C=NC3=CC=C2", "benzo[cd]indole", id="benzo_cd_indole"),
     ],
 )
