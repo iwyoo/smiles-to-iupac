@@ -1041,7 +1041,10 @@ def _ester_letters(mol, link, ester_nuclides):
     if len(link.chain) == 1:
         return ester_nuclides[link.chain[0]]["skeleton"] if link.chain[0] in ester_nuclides else letters
     if letters:
-        return "".join(ester_nuclides[a]["skeleton"] if a in ester_nuclides else "O" for a in link.chain)
+        return "".join(
+            ester_nuclides[a]["skeleton"] if a in ester_nuclides else _SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()]
+            for a in link.chain
+        )
     return ester_nuclides[link.chain[-1]]["skeleton"] if link.chain[-1] in ester_nuclides else ""
 
 
