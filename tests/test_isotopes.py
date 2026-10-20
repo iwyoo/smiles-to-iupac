@@ -1198,3 +1198,15 @@ def test_halogen_nuclide_of_a_hypohalous_amide_is_cited_after_the_substituent_pr
 
 def test_nuclide_of_an_amino_group_on_a_carbanion_is_cited_once_in_the_prefix():
     assert smiles_to_iupac("[2H]N[CH2-]") == "(2H1)aminomethanide"
+
+
+# P-82.2.1, P-82.6.2: the added-hydrogen term of a name is not a nuclide, and the nuclides of the parent are cited in front of it
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[2H]N1C(=O)Cc2ccccc2C1=O", "(2-2H)isoquinoline-1,3(2H,4H)-dione", id="nuclide_on_the_nitrogen_beside_added_hydrogen"),
+        pytest.param("[2H]C1C(=O)NC(=O)c2ccccc12", "(4-2H1)isoquinoline-1,3(2H,4H)-dione", id="nuclide_on_the_added_hydrogen_carbon"),
+    ],
+)
+def test_nuclide_beside_the_added_hydrogen_term(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
