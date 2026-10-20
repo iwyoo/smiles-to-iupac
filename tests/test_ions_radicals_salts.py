@@ -1104,6 +1104,18 @@ def test_heteroaromatic_ring_cation_with_several_nitrogens(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("Cc1cc(C)[s+]s1", "3,5-dimethyl-1,2-dithiol-1-ium", id="substituted_dithiolium"),
+        pytest.param("C1=CC=[O+]S1", "1,2-oxathiol-1-ium", id="oxygen_cation_of_an_azole_type_ring"),
+        pytest.param("C1=CC=[S+]N1", "1,2-thiazol-1-ium", id="cation_beside_a_ring_nitrogen_hydrogen"),
+    ],
+)
+def test_chalcogen_cation_of_a_five_membered_mancude_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("OCC[NH]", "2-hydroxyethan-1-aminyl", id="aminyl_with_hydroxy"),
         pytest.param("Clc1ccc([NH])cc1", "4-chlorobenzenaminyl", id="arylaminyl"),
         pytest.param("OCC(=O)[NH]", "2-hydroxyacetamidyl", id="amidyl_with_hydroxy"),

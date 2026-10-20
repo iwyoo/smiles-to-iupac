@@ -1220,6 +1220,9 @@ def _ring_center_base(mol, parent=None):
     ]
     if parent is not None:
         charged = [a for a in charged if a.GetIdx() == parent]
+    chalcogen_centers = [a for a in charged if _is_chalcogenium_ring_centre(a)]
+    if len(charged) == 1 and chalcogen_centers:
+        return _chalcogenium_base(mol, chalcogen_centers[0])
     centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
     if len(centers) > 1:
         return _ring_oxide_centres(mol, centers, charged)
@@ -1266,6 +1269,49 @@ def _ring_center_base(mol, parent=None):
         if center.GetIsAromatic():
             base.GetAtomWithIdx(index).SetBoolProp("_ring_cation_centre", True)
     return base, index, "oxide" if oxides else "ium", probe
+
+
+def _is_chalcogenium_ring_centre(atom):
+    """An oxygen, sulfur, selenium or tellurium of a five-membered ring bonded twice in the ring, once by a double bond:
+    the centre of the cation of a mancude azole-type ring (P-73.1.1.2)."""
+    if atom.GetAtomicNum() not in (8, 16, 34, 52) or atom.GetFormalCharge() != 1 or not atom.IsInRing():
+        return False
+    mol = atom.GetOwningMol()
+    ring = next((r for r in mol.GetRingInfo().AtomRings() if atom.GetIdx() in r), None)
+    return (
+        ring is not None
+        and len(ring) == 5
+        and mol.GetRingInfo().NumRings() == 1
+        and atom.GetDegree() == 2
+        and not atom.GetTotalNumHs()
+        and atom.GetTotalValence() == 3
+        and not atom.GetIsotope()
+    )
+
+
+def _chalcogenium_base(mol, centre):
+    """(neutral analogue, centre atom in it, kind, probe): the ring with the cationic atom made a neutral λ3 atom, named
+    as a mancude ring whose centre takes the ending 'ium' in place of its λ symbol (P-73.1.1.2, P-14.1.3)."""
+    if mol.GetNumAtoms() > _MAX_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    kekule = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+    except Chem.rdchem.KekulizeException:
+        return None
+    neutral = Chem.RWMol(kekule)
+    atom = neutral.GetAtomWithIdx(centre.GetIdx())
+    atom.SetFormalCharge(0)
+    atom.SetNoImplicit(True)
+    atom.SetNumExplicitHs(0)
+    base = neutral.GetMol()
+    base.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(base)
+    return base, centre.GetIdx(), "chalcogenium", None
+
+
+_LAMBDA_OF_CENTRE = re.compile(r"(?<![\w])(\d+)λ\d+(?=[,\-])")
+_INDICATED_HYDROGEN = re.compile(r"(?<![\w])\d+H-")
 
 
 def _oxidized_set_is_fixed(mol, members, centre_atoms):
@@ -1395,6 +1441,8 @@ def _attach(name, placed, center, kind, oxide_labels=None):
         return f"{name} {locant}-{_oxide_word(1, (oxide_labels or {}).get(center, ()))}"
     if not name.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
+    if kind == "chalcogenium":
+        name = _INDICATED_HYDROGEN.sub("", _LAMBDA_OF_CENTRE.sub(lambda m: m.group(1) if m.group(1) == str(locant) else m.group(0), name, count=1))
     return f"{name[:-1]}-{locant}-ium"
 
 
@@ -1716,6 +1764,7 @@ def _bare_ring_name(base, center, hydro_ok=False):
     from ._fusion_name import Context, fused_ring_system_name, fusion_name, system_numbering_options
     from ._fused_numbering import _locant_key
     from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
+    from ._lambda_ring import has_lambda_ring_shape, numbered_lambda_ring
 
     if base.GetRingInfo().NumRings() == 1:
         numbered = _numbered_monocycle(base, center)
@@ -1723,6 +1772,9 @@ def _bare_ring_name(base, center, hydro_ok=False):
             return numbered
         if has_hetero_monocyclic_name(base):
             return name_hetero_monocyclic(base), {center: _monocycle_locant(base, center)}
+        if has_lambda_ring_shape(base):
+            name, position = numbered_lambda_ring(base)
+            return name, {center: position[center]}
         from .core import smiles_to_iupac
 
         try:

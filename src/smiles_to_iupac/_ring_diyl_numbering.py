@@ -449,7 +449,7 @@ def _hetero_monocycle(mol, ring_order, attached):
         if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
     ):
         raise UnsupportedStructure("this ring bond is not supported as a diyl yet")
-    can_hold = {i for i in ring_order if sym[i] not in _NO_DOUBLE_BOND or (sym[i] in ("S", "Se", "Te") and i in ring_double)} | heterones | ylidene_centres
+    can_hold = {i for i in ring_order if sym[i] not in _NO_DOUBLE_BOND or (sym[i] in _CHALCOGENS and i in ring_double)} | heterones | ylidene_centres
     oxo_all = _exocyclic_oxo(mol, ring_set) | (heterones - ring_double)
     oxo_suffix = oxo_all & SUFFIX_ATOMS.get()
     if aromatic:
