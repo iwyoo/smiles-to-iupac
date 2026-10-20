@@ -38,6 +38,9 @@ def _shape_tables(n):
         up = _HOUSE[n]
         down = [(-up[(-k) % n]) % 1 for k in range(n)]
         return (up, down)
+    if n == 4:
+        # P-25.3.2.3.2: the distorted four-membered ring is a hexagon without two edges, so rings on its neighbouring bonds stay adjacent
+        return ([Fraction(0), Fraction(5, 6), Fraction(1, 2), Fraction(1, 6)],)
     return ([Fraction(-k, n) % 1 for k in range(n)],)
 
 
@@ -214,7 +217,7 @@ def _tree_layouts(system, tree, consistent_only):
     choices = []
     for r in order:
         size = len(rings[r])
-        if size in _HOUSE or size == 8:
+        if size in _HOUSE or size == 8 or (size == 4 and r == root):
             tables = _shape_tables(size)
             choices.append([(t, j) for t in range(len(tables)) for j in range(size)])
         else:
