@@ -7267,12 +7267,40 @@ def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
     ylidene (a hydrazone), else None."""
     if alpha.GetFormalCharge() or alpha.IsInRing() or alpha.GetIsAromatic():
         return None
-    betas = [n for n in alpha.GetNeighbors() if n.GetAtomicNum() == 7]
-    if len(betas) != 1 or mol.GetBondBetweenAtoms(alpha.GetIdx(), betas[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+    neighbors = [n for n in alpha.GetNeighbors() if n.GetAtomicNum() == 7]
+    if not neighbors or any(
+        mol.GetBondBetweenAtoms(alpha.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in neighbors
+    ):
         return None
-    beta = betas[0]
+    valid = [n for n in neighbors if _hydrazide_beta_fits(mol, alpha, n, carbonyl)]
+    if not valid:
+        return None
+    ranks = list(Chem.CanonicalRankAtoms(mol, breakTies=False))
+    return min(valid, key=lambda n: (-n.GetTotalNumHs(), ranks[n.GetIdx()])).GetIdx()
+
+
+def _amino_group_on(mol, atom, nitrogen):
+    """A neutral amino-type nitrogen, plain carbon groups or hydrogen only, single-bonded to `nitrogen`: an amino, dialkylamino
+    or ring-nitrogen group cited as a prefix of the acylated nitrogen (P-66.1.1.4)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and not atom.GetFormalCharge()
+        and not atom.GetIsAromatic()
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and all(
+            n.GetIdx() == nitrogen.GetIdx()
+            or (n.GetAtomicNum() == 6 and not n.GetFormalCharge() and not is_functional_carbon(mol, n.GetIdx())
+                and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0)
+            for n in atom.GetNeighbors()
+        )
+    )
+
+
+def _hydrazide_beta_fits(mol, alpha, beta, carbonyl):
+    """Whether `beta` can be the terminal nitrogen of the acyl-NR-NR'R'' group on `alpha`, the other nitrogens of `alpha`
+    being amino-type prefixes."""
     if beta.GetFormalCharge() or beta.IsInRing() or beta.GetIsAromatic():
-        return None
+        return False
     for nitrogen, partner in ((alpha, beta), (beta, alpha)):
         orders = []
         for n in nitrogen.GetNeighbors():
@@ -7280,14 +7308,14 @@ def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
                 continue
             if (nitrogen is beta and _carbamoyl_on(mol, n, nitrogen)) or _cyano_on(mol, n, nitrogen):
                 continue
-            if _heteroatom_on_nitrogen(mol, n, nitrogen):
+            if _heteroatom_on_nitrogen(mol, n, nitrogen) or (nitrogen is alpha and _amino_group_on(mol, n, nitrogen)):
                 continue
             if n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
-                return None
+                return False
             orders.append(mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble())
         if (orders and 2.0 in orders and (nitrogen is alpha or len(orders) > 1)) or 3.0 in orders:
-            return None
-    return beta.GetIdx()
+            return False
+    return True
 
 
 def _plain_nitrogen_arm(mol, nitrogen, partners, allow_ylidene):
