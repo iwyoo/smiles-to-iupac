@@ -17,6 +17,16 @@ _ACID_WORDS = {
 }
 
 
+def _nuclide(halogen):
+    """'(18F)': the descriptor of a halogen of a given mass number, cited without a count (P-82.2.1, P-82.2.2)."""
+    from ._isotope_labels import descriptor
+
+    if not halogen.GetIsotope():
+        return ""
+    entry = {"skeleton": f"{halogen.GetIsotope()}{halogen.GetSymbol()}", "H": {}}
+    return descriptor({halogen.GetIdx(): entry}, {halogen.GetIdx(): 1}, True)
+
+
 def _oxo_oxygens(halogen, nitrogen):
     """The terminal oxygens (=O or -O(-)) of a halogen bonded to the nitrogen, None when it carries anything else."""
     found = []
@@ -62,7 +72,10 @@ def name_halogen_amide(mol) -> str:
         raise UnsupportedStructure("no nitrogen bearing one or two halogen atoms")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    halogen, *second = (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum())
+    halogen, *second = sorted(
+        (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum()),
+        key=lambda n: -n.GetIsotope(),
+    )
     oxygens = _oxo_oxygens(halogen, nitrogen)
     if oxygens is None:
         raise UnsupportedStructure("a halogen on nitrogen carries something other than terminal oxygens")
@@ -73,13 +86,15 @@ def name_halogen_amide(mol) -> str:
         if other.GetAtomicNum() != halogen.GetAtomicNum() or oxygens or other.GetDegree() != 1:
             raise UnsupportedStructure("two different halogens on nitrogen need a decided choice of the acid")
         owned.add(other.GetIdx())
-        prefixes.append((HALOGEN_PREFIXES[other.GetAtomicNum()], False))
+        prefixes.append((_nuclide(other) + HALOGEN_PREFIXES[other.GetAtomicNum()], False))
     if nitrogen.IsInRing() or any(
         a.GetAtomicNum() == 7 and not a.IsInRing() and a.GetIdx() in {n.GetIdx() for n in nitrogen.GetNeighbors()}
         for a in mol.GetAtoms()
     ):
         raise UnsupportedStructure("a ring nitrogen or a second nitrogen is not an amide of a halogen acid")
-    if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms() if a.GetIdx() not in owned):
+    if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms() if a.GetIdx() not in owned) or any(
+        o.GetIsotope() for o in oxygens
+    ):
         raise UnsupportedStructure("a charged or labelled atom beside an amide of a halogen acid is not supported yet")
     if any(a.GetAtomicNum() in _HYDRIDE_GROUP_CENTRES and not is_element_hydride_group(a) for a in mol.GetAtoms()):
         raise UnsupportedStructure("an oxoacid or amide centre of another element outranks an amide of a halogen acid")
@@ -90,4 +105,4 @@ def name_halogen_amide(mol) -> str:
     graph = adjacency(mol)
     (groups,) = n_substituent_names(mol, graph, owned | {nitrogen.GetIdx()}, (nitrogen.GetIdx(),), halogen.GetIdx(), junior_groups=True)
     entries = prefixes + groups
-    return f"{format_mononuclear_prefixes(entries)}{_ACID_WORDS[halogen.GetAtomicNum()][len(oxygens)]} amide"
+    return f"{format_mononuclear_prefixes(entries)}{_nuclide(halogen)}{_ACID_WORDS[halogen.GetAtomicNum()][len(oxygens)]} amide"

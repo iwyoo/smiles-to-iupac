@@ -1190,3 +1190,7 @@ def test_nuclide_on_the_nitrogens_of_an_azine_azoxy_and_bis_azo_compound(smiles,
 
 def test_nuclides_of_an_adduct_component_are_counted_once_per_molecule_of_its_ratio():
     assert smiles_to_iupac("C.[3H]C.[3H]C") == "(3H1)methane—methane (2/1)"
+
+
+def test_halogen_nuclide_of_a_hypohalous_amide_is_cited_after_the_substituent_prefixes():
+    assert smiles_to_iupac("CN[18F]") == "methyl(18F)hypofluorous amide"
