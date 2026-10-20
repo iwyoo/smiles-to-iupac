@@ -389,6 +389,8 @@ def test_sulfinic_acid_chains_with_ring_substituents(smiles, expected):
     [
         pytest.param("COS(=O)(=O)OC", "dimethyl sulfate", id="sulfate_ester_unaffected"),
         pytest.param("COS(=O)[O-].[Na+]", "sodium methyl sulfite", id="salt_of_partial_ester__sulfite"),
+        pytest.param("C[Si](C)(C)OS(=O)(=O)[O-]", "trimethylsilyl sulfate", id="anion_of_a_silyl_ester"),
+        pytest.param("COOS(=O)(=O)[O-]", "OO-methyl sulfuro(peroxoate)", id="anion_of_a_peroxy_ester"),
     ],
 )
 def test_sulfate_ester_unaffected_and_related(smiles, expected):

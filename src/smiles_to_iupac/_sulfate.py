@@ -1,114 +1,67 @@
-"""Naming of dialkyl sulfate esters (S(=O)(=O)(OR)2, R groups identical or
-mixed), per the IUPAC 2013 Recommendations ("the Blue Book"):
-
-- P-67.1.3.2 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
-  esters of mononuclear noncarbon oxoacids are named by citing the
-  substituent (alkyl/aryl) group(s) as separate word(s), in alphanumeric
-  order if more than one, followed by the acid's anion name -- the exact
-  same rule and citation style `_phosphate.py`/`_phosphite.py` already
-  established, just with sulfur's own two double-bonded oxygens instead
-  of phosphorus's one, and the anion word "sulfate".
-- Word-assembly logic (grouping identical R names, multiplying-prefix +
-  enclosure per group, alphanumeric word order) is shared verbatim with
-  `_phosphate.py` via its exported `format_ester_words`.
-- Partial esters (P-67.1.3.2): sulfate is dibasic, so a partial ester
-  always has exactly one R group and one remaining S-OH, cited by
-  inserting the word "hydrogen" (never "dihydrogen") between the
-  R-group word and "sulfate" -- mirrors `_phosphate.py`'s own
-  partial-ester citation, confirmed worked example "CH3-O-SO2-OH ->
-  methyl hydrogen sulfate (PIN)" (the Blue Book).
-- Salts of partial esters (P-67.1.3.2): a single deprotonated S-O^-
-  balanced by one +1 monoatomic cation (`_salt.py`'s
-  `_MONOATOMIC_CATION_NAMES`) cites the cation's name before the R-group
-  word, e.g. "sodium methyl sulfate" (PubChem CID 2735086) -- mirrors
-  `_phosphate.py`'s own salt-of-partial-ester citation.
-
-Scope: a single sulfur atom shaped like a sulfate ester -- two S=O double
-bonds, and two more S-O positions, each either an ester (S-O-R), a plain
-S-OH partial-ester remainder, or a single deprotonated S-O^- salt
-position, each R named via `name_branch` with the groups that rank below
-the ester as prefixes (P-41), identical or mixed freely. Explicitly out of
-scope (raise `UnsupportedStructure`): a 2+/3+ or ammonium cation, sulfite
-(one fewer double-bonded oxygen -- a separate module), any
-chalcogen-replacement analogue, and an acid, anhydride or other ester in R.
-"""
+"""Esters of sulfuric, sulfurous, selenic, selenous, telluric and tellurous acid, R groups identical or mixed, with
+the partial esters cited with 'hydrogen' and their salts with the cation in front (P-67.1.3.2, P-72.2.2.2.1). One
+implementation for the -ic and -ous acids of the three elements; the word assembly is shared with `_phosphate.py`."""
 
 from rdkit import Chem
 
+from ._acid_derivatives import protonated, without_hydrogen_word
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import centre_nuclides
 from ._phosphate import check_ester_organyl, cited_ester_groups, format_ester_entries
 from ._salt import _MONOATOMIC_CATION_NAMES
 
-_SULFUR = 16
+_NOT_ESTER_ROOTS = {7, 8}
+_ANION_WORDS = {16: ("sulfite", "sulfate"), 34: ("selenite", "selenate"), 52: ("tellurite", "tellurate")}
 
 
-def _sulfate_sulfur_atoms(mol):
-    """Sulfur atoms shaped like a fully- or partially-esterified sulfate:
-    bonded to exactly two double-bonded (terminal) oxygens and exactly
-    two more single-bonded oxygens, each either an ester oxygen (degree
-    2 -- S plus one R carbon), a plain uncharged hydroxyl (degree 1, a
-    neutral partial ester's remainder), or -- P-67.1.3.2, a salt of a
-    partial ester -- a single degree-1 oxygen with formal charge -1 (its
-    counter-cation is validated later, by `name_sulfate`, since that
-    needs the whole multi-fragment molecule) -- at least one of the two
-    must be an ester oxygen (both being hydroxyl/charged would be
-    sulfuric acid itself or its bare anion, not an ester, out of scope
-    here)."""
+def _centre_atoms(mol, oxo):
+    """Chalcogen atoms shaped like a fully or partially esterified acid with `oxo` double-bonded terminal oxygens and
+    two further single-bonded oxygens: an ester oxygen, a hydroxyl or one deprotonated oxygen, with at least one ester."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != _SULFUR or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0 or atom.IsInRing():
+        if atom.GetAtomicNum() not in _ANION_WORDS or atom.GetDegree() != oxo + 2 or atom.GetFormalCharge() != 0 or atom.IsInRing():
             continue
-        neighbors = atom.GetNeighbors()
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
-        if len(oxygens) != 4:
+        oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
+        if len(oxygens) != oxo + 2:
             continue
-        double_os = [
-            o for o in oxygens if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
-        ]
-        single_os = [
-            o for o in oxygens if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
-        ]
-        if len(double_os) != 2 or len(single_os) != 2:
+        orders = {o.GetIdx(): mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() for o in oxygens}
+        double_os = [o for o in oxygens if orders[o.GetIdx()] == 2.0]
+        single_os = [o for o in oxygens if orders[o.GetIdx()] == 1.0]
+        if len(double_os) != oxo or len(single_os) != 2:
             continue
         if any(o.GetDegree() != 1 or o.GetFormalCharge() != 0 for o in double_os):
             continue
         charged_os = [o for o in single_os if o.GetFormalCharge() == -1]
         neutral_os = [o for o in single_os if o.GetFormalCharge() == 0]
-        if len(charged_os) + len(neutral_os) != 2 or len(charged_os) > 1:
-            continue
-        if any(o.GetDegree() != 1 for o in charged_os):
+        if len(charged_os) + len(neutral_os) != 2 or len(charged_os) > 1 or any(o.GetDegree() != 1 for o in charged_os):
             continue
         ester_os = [o for o in neutral_os if o.GetDegree() == 2]
-        hydroxyl_os = [o for o in neutral_os if o.GetDegree() == 1]
-        if len(ester_os) + len(hydroxyl_os) + len(charged_os) != 2 or not ester_os:
+        if not ester_os or any(
+            n.GetAtomicNum() in _NOT_ESTER_ROOTS for o in ester_os for n in o.GetNeighbors() if n.GetIdx() != atom.GetIdx()
+        ):
             continue
         matches.append(atom)
     return matches
 
 
-def has_sulfate_shape(mol) -> bool:
-    return bool(_sulfate_sulfur_atoms(mol))
+def _name(mol, oxo) -> str:
+    centres = _centre_atoms(mol, oxo)
+    if len(centres) != 1:
+        raise UnsupportedStructure("more than one group of this acid is not supported yet")
+    (centre,) = centres
 
-
-def name_sulfate(mol) -> str:
-    sulfur_atoms = _sulfate_sulfur_atoms(mol)
-    if len(sulfur_atoms) != 1:
-        raise UnsupportedStructure("more than one sulfate group is not supported yet")
-    (sulfur,) = sulfur_atoms
-
-    group_oxygens = {n.GetIdx() for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 8}
+    group_oxygens = {n.GetIdx() for n in centre.GetNeighbors() if n.GetAtomicNum() == 8}
     charged_oxygens = {idx for idx in group_oxygens if mol.GetAtomWithIdx(idx).GetFormalCharge() == -1}
 
     frags = Chem.GetMolFrags(mol)
-    anion_frag = next(frag for frag in frags if sulfur.GetIdx() in frag)
+    anion_frag = next(frag for frag in frags if centre.GetIdx() in frag)
     other_frags = [frag for frag in frags if frag is not anion_frag]
+
+    if charged_oxygens and not other_frags:
+        return without_hydrogen_word(_name(protonated(mol, charged_oxygens), oxo))
 
     cation_name = None
     if charged_oxygens:
-        # P-67.1.3.2: a salt of a partial ester cites the cation's name
-        # before the R-group word -- scope limited to a single +1
-        # monoatomic cation balancing the one deprotonated position above.
         if len(other_frags) != 1 or len(other_frags[0]) != 1:
             raise UnsupportedStructure("a salt with other than one monoatomic counter-ion is not supported yet")
         (cation_idx,) = other_frags[0]
@@ -119,13 +72,12 @@ def name_sulfate(mol) -> str:
     elif other_frags:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    check_ester_organyl(mol, group_oxygens | {sulfur.GetIdx()}, bool(charged_oxygens), atoms=anion_frag)
+    check_ester_organyl(mol, group_oxygens | {centre.GetIdx()}, bool(charged_oxygens), atoms=anion_frag)
 
     double_os = {
         n.GetIdx()
-        for n in sulfur.GetNeighbors()
-        if n.GetAtomicNum() == 8
-        and mol.GetBondBetweenAtoms(sulfur.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in centre.GetNeighbors()
+        if n.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(centre.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
     }
     single_oxygens = [idx for idx in group_oxygens if idx not in double_os]
     ester_oxygens = [idx for idx in single_oxygens if mol.GetAtomWithIdx(idx).GetDegree() == 2]
@@ -137,18 +89,28 @@ def name_sulfate(mol) -> str:
 
     roots = []
     for oxygen_idx in ester_oxygens:
-        (root,) = [n for n in graph[oxygen_idx] if n != sulfur.GetIdx()]
+        (root,) = [n for n in graph[oxygen_idx] if n != centre.GetIdx()]
         roots.append((root, oxygen_idx))
 
     entries = cited_ester_groups(mol, graph, roots, halogens, aromatic_atoms)
     ester_words = format_ester_entries(entries)
-    # P-67.1.3.2: a partial ester of a dibasic acid inserts the word
-    # "hydrogen" (never "dihydrogen" -- sulfate has only two acidic
-    # S-OH positions, so a partial ester always has exactly one R group
-    # and one remaining hydroxyl) between the R-group word and "sulfate"
-    # -- mirrors `_phosphate.py`'s own partial-ester citation, confirmed
-    # worked example "CH3-O-SO2-OH -> methyl hydrogen sulfate (PIN)"
-    # (the Blue Book).
-    nuclide = centre_nuclides(sulfur.GetIdx(), oxygens=True)
-    anion_name = f"{ester_words} hydrogen {nuclide}sulfate" if has_hydroxyl else f"{ester_words} {nuclide}sulfate"
+    nuclide = centre_nuclides(centre.GetIdx(), oxygens=True)
+    word = _ANION_WORDS[centre.GetAtomicNum()][oxo == 2]
+    anion_name = f"{ester_words} hydrogen {nuclide}{word}" if has_hydroxyl else f"{ester_words} {nuclide}{word}"
     return f"{cation_name} {anion_name}" if cation_name else anion_name
+
+
+def has_sulfate_shape(mol) -> bool:
+    return bool(_centre_atoms(mol, 2))
+
+
+def has_sulfite_shape(mol) -> bool:
+    return bool(_centre_atoms(mol, 1))
+
+
+def name_sulfate(mol) -> str:
+    return _name(mol, 2)
+
+
+def name_sulfite(mol) -> str:
+    return _name(mol, 1)

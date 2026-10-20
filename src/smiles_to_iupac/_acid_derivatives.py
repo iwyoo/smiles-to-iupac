@@ -114,6 +114,19 @@ def _inorganic_center(mol, idx):
     return "inorganic", ["O"] * len(oxo), positions
 
 
+def _peroxy_ester_oxygen(oxygen, centre):
+    """The oxygen of an -O-O-R or -O-S-R ester group on `centre`, R being a carbon."""
+    links = [n for n in oxygen.GetNeighbors() if n.GetIdx() != centre.GetIdx()]
+    return (
+        oxygen.GetAtomicNum() == 8
+        and oxygen.GetDegree() == 2
+        and len(links) == 1
+        and links[0].GetAtomicNum() in (8, 16)
+        and links[0].GetDegree() == 2
+        and any(m.GetAtomicNum() == 6 for m in links[0].GetNeighbors() if m.GetIdx() != oxygen.GetIdx())
+    )
+
+
 def _acylated_oxoacid_center(mol, atom):
     """A sulfur, selenium or tellurium oxoacid centre (no organyl neighbour) with an acyloxy, nitrooxy or sulfonyloxy neighbour."""
     if atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing():
@@ -121,7 +134,7 @@ def _acylated_oxoacid_center(mol, atom):
     neighbors = atom.GetNeighbors()
     if any(n.GetAtomicNum() == 6 for n in neighbors):
         return False
-    return any(
+    return any(_peroxy_ester_oxygen(n, atom) for n in neighbors) or any(
         n.GetAtomicNum() == 8
         and any(
             c.GetIdx() != atom.GetIdx()
@@ -451,6 +464,8 @@ def anion_name(acid_name, letters_in_anion=True):
         return stem[: -len("phosphorous")] + "phosphite" + close
     if stem.endswith("ous"):
         return stem[:-3] + "ite" + close
+    if stem.endswith("ous)"):
+        return stem[:-4] + "oite)" + close
     raise UnsupportedStructure("the acid part has an unexpected acid name ending")
 
 
@@ -1962,8 +1977,49 @@ def _acylated_ester_links(mol, links):
     return [Link("ester", l.center, l.chain, l.far) if l in acylated else l for l in links if (l.center, l.far) not in reverse]
 
 
+def _ester_anion_oxygen(mol):
+    """The one deprotonated oxygen of the monoanion of a partial ester of a noncarbon acid, else None."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) != 1 or charged[0].GetAtomicNum() != 8 or charged[0].GetFormalCharge() != -1 or charged[0].GetDegree() != 1:
+        return None
+    (centre,) = charged[0].GetNeighbors()
+    if centre.GetAtomicNum() not in (15, 16, 34, 52) or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    return None if any(link.kind == "anhydride" for link in find_links(mol)[0]) else charged[0]
+
+
+def protonated(mol, oxygens):
+    """`mol` with the deprotonated oxygens `oxygens` turned back into hydroxy groups."""
+    editable = Chem.RWMol(mol)
+    for idx in oxygens:
+        atom = editable.GetAtomWithIdx(idx)
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(1)
+    neutral = editable.GetMol()
+    Chem.SanitizeMol(neutral)
+    return neutral
+
+
+def without_hydrogen_word(name):
+    """P-72.2.2.2.1: the anion of 'methyl hydrogen sulfate' is 'methyl sulfate', that of 'methyl dihydrogen phosphate'
+    'methyl hydrogen phosphate'."""
+    words = name.split(" ")
+    for i, word in enumerate(words):
+        if word in ("hydrogen", "dihydrogen"):
+            return " ".join(words[:i] + ([] if word == "hydrogen" else ["hydrogen"]) + words[i + 1:])
+    raise UnsupportedStructure("the neutral ester of this anion has no hydrogen word")
+
+
+def _name_ester_anion(mol, oxygen):
+    return without_hydrogen_word(name_acid_derivative(protonated(mol, [oxygen.GetIdx()])))
+
+
 def name_acid_derivative(mol):
     """Name of an ester, anhydride or acyl halide with no free acid group, else raises."""
+    oxygen = _ester_anion_oxygen(mol)
+    if oxygen is not None:
+        return _name_ester_anion(mol, oxygen)
     if any(atom.GetAtomicNum() not in _ORGANIC_ELEMENTS for atom in mol.GetAtoms()):
         raise UnsupportedStructure("elements outside the organic acid derivative engine")
     if len(Chem.GetMolFrags(mol)) != 1:

@@ -1,5 +1,5 @@
 """Hydroxylamine as a functional parent carrying an acid or amide suffix on the oxygen (P-68.3.1.1.1.4):
-H2N-O-SO2-OH is 'hydroxylamine-O-sulfonic acid', H2N-O-CO-OH 'hydroxylamine-O-carboxylic acid', H2N-O-CO-NH2
+H2N-O-SO2-OH is 'hydroxylamine-O-sulfonic acid' (anion 'hydroxylamine-O-sulfonate'), H2N-O-CO-NH2
 'hydroxylamine-O-carboxamide'; alkyl groups on the nitrogen are cited as N-prefixes."""
 
 from rdkit import Chem
@@ -13,12 +13,18 @@ _SUFFIXES = (
     ("[SX4](=O)(=O)[OX2H1]", "sulfonic acid"),
     ("[SX4](=O)(=O)[NX3H2]", "sulfonamide"),
     ("[SX3](=O)[OX2H1]", "sulfinic acid"),
+    ("[CX3](=O)[OX1-]", "carboxylate"),
+    ("[SX4](=O)(=O)[OX1-]", "sulfonate"),
+    ("[SX3](=O)[OX1-]", "sulfinate"),
 )
 
 
 def _match(mol):
     """(nitrogen, oxygen, acyl atom, suffix) of an H2N-O-acyl or RHN-O-acyl group with nothing else in the molecule."""
-    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
+    anions = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
+        return None
+    if len(anions) > 1 or any(a.GetAtomicNum() != 8 or a.GetFormalCharge() != -1 or a.GetDegree() != 1 for a in anions):
         return None
     if has_acyloxy_amine_group(mol):
         return None
