@@ -1548,7 +1548,7 @@ def _chain_amidine_ylidene(mol, graph, root, coming_from):
             for a in amino
         )
         and all(
-            n.GetAtomicNum() == 6 or _sulfonyl_centre(mol, n) or _carbon_oxygen(n)
+            n.GetAtomicNum() == 6 or _sulfonyl_centre(mol, n) or _carbon_oxygen(n) or (n.GetAtomicNum() == 7 and not n.GetFormalCharge())
             for n in mol.GetAtomWithIdx(coming_from).GetNeighbors()
             if n.GetIdx() != root
         )

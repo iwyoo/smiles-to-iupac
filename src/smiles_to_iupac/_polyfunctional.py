@@ -3532,6 +3532,19 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 and atom.GetIdx() in groups.get(principal, {})
             )
             and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE) and atom.GetIdx() in groups.get("hydrazide", {}))
+            and not (
+                principal in _AMIDRAZONE
+                and not any(
+                    b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() in (8, 16, 34, 52)
+                    for b in atom.GetBonds()
+                )
+                and any(
+                    n.GetIdx() in owned
+                    for owned in groups.get(principal, {}).values()
+                    for n in atom.GetNeighbors()
+                    if n.GetAtomicNum() == 7
+                )
+            )
             and _is_ester_like(mol, atom.GetIdx())
             and not (principal in _AMIDE_FAMILY and _nitrogen_acyl(mol, atom.GetIdx()))
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
@@ -7318,10 +7331,13 @@ def _hydrazide_beta_fits(mol, alpha, beta, carbonyl):
     return True
 
 
-def _plain_nitrogen_arm(mol, nitrogen, partners, allow_ylidene):
-    """Whether every other neighbour of `nitrogen` is a plain carbon group (a ylidene on a terminal nitrogen)."""
+def _plain_nitrogen_arm(mol, nitrogen, partners, allow_ylidene, allow_acyl=False):
+    """Whether every other neighbour of `nitrogen` is a plain carbon group (a ylidene on a terminal nitrogen, an acyl group
+    where `allow_acyl`)."""
     for n in nitrogen.GetNeighbors():
         if n.GetIdx() in partners:
+            continue
+        if allow_acyl and n.GetAtomicNum() == 6 and _double_oxygens(mol, n.GetIdx()) and not n.GetFormalCharge():
             continue
         if n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
             return False
@@ -7402,7 +7418,7 @@ def _amidrazone_group(mol, atom):
     center = imino if cls == "hydrazonamide" else amino
     if not all(_plain_nitrogen_arm(mol, n, partners, allow) for n, partners, allow in arms):
         return None
-    if not _plain_nitrogen_arm(mol, terminal, {center.GetIdx()}, True):
+    if not _plain_nitrogen_arm(mol, terminal, {center.GetIdx()}, True, allow_acyl=True):
         return None
     if imino.GetDegree() > (2 if cls == "hydrazonamide" else 2) or amino.GetDegree() > 3:
         return None
