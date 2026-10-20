@@ -404,6 +404,10 @@ def _glycosyl_on_parent(mol, link, sugar, name):
 
 
 def glycoside_name(mol):
+    from ._substituents import ISOTOPE_LABELS
+
+    if any(a.GetIsotope() for a in mol.GetAtoms()) or ISOTOPE_LABELS.get() is not None:
+        return None
     if not any(len(r) in (5, 6) and sum(mol.GetAtomWithIdx(a).GetAtomicNum() == 8 for a in r) == 1 for r in mol.GetRingInfo().AtomRings()):
         return None
     try:
