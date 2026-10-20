@@ -436,6 +436,8 @@ def anion_name(acid_name, letters_in_anion=True):
     close = match.group(1)
     if stem.endswith("phosphoric"):
         return stem[: -len("phosphoric")] + "phosphate" + close
+    if stem.endswith("sulfuric"):
+        return stem[: -len("sulfuric")] + "sulfate" + close
     if stem.endswith("ic"):
         return stem[:-2] + "ate" + close
     if stem.endswith("ic)"):
@@ -498,7 +500,12 @@ def _letters(mol, link):
             y = mol.GetAtomWithIdx(position)
             elements.add(_SYMBOL[y.GetAtomicNum()])
             for n in y.GetNeighbors():
-                if n.GetIdx() != link.center and n.GetAtomicNum() in _SYMBOL and position not in link.chain:
+                if (
+                    n.GetIdx() != link.center
+                    and n.GetAtomicNum() in _SYMBOL
+                    and position not in link.chain
+                    and _center(mol, n.GetIdx()) is None
+                ):
                     elements.add(_SYMBOL[n.GetAtomicNum()])
     for a in link.chain:
         elements.add(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()])
@@ -1054,7 +1061,9 @@ def _cite_ester_oxygens(anion, ester_nuclides):
     counts = {}
     for entry in ester_nuclides.values():
         counts[entry["skeleton"]] = counts.get(entry["skeleton"], 0) + 1
-    return _insert_before_ending(anion, "(" + ",".join(f"{n}{c}" for n, c in sorted(counts.items())) + ")")
+    text = "(" + ",".join(f"{n}{c}" for n, c in sorted(counts.items())) + ")"
+    stem = re.search(r"(?:di|tri|tetra)?(?:carbonate|phosphate|sulfate)$", anion)
+    return anion[: stem.start()] + text + anion[stem.start():] if stem else _insert_before_ending(anion, text)
 
 
 def name_ester(mol, links):
@@ -1924,6 +1933,19 @@ def _nitrogen_oxide_centre(atom):
     )
 
 
+def _acylated_ester_links(mol, links):
+    """The links of a noncarbon oxoacid whose esterified acid component is joined by an anhydride bridge to an acyl
+    group, with each bridge turned into an ester link whose organyl group is the acyl group (P-67.1.3.3): the bridge
+    oxygen is not an acid hydrogen of the component. None when no component is esterified."""
+    esterified = {l.center for l in links if l.kind == "ester" and _center(mol, l.center)[0] in ("inorganic", "carbonic")}
+    bridges = [l for l in links if l.kind == "anhydride"]
+    acylated = [l for l in bridges if l.center in esterified and _center(mol, l.far)[0] == "acyl" and len(l.chain) == 1]
+    reverse = {(l.far, l.center) for l in acylated}
+    if not acylated or any(l not in acylated and (l.center, l.far) not in reverse for l in bridges):
+        return None
+    return [Link("ester", l.center, l.chain, l.far) if l in acylated else l for l in links if (l.center, l.far) not in reverse]
+
+
 def name_acid_derivative(mol):
     """Name of an ester, anhydride or acyl halide with no free acid group, else raises."""
     if any(atom.GetAtomicNum() not in _ORGANIC_ELEMENTS for atom in mol.GetAtoms()):
@@ -1973,6 +1995,9 @@ def name_acid_derivative(mol):
             if any("cyanic" in (_center(mol, l.center)[0], (_center(mol, l.far) or ("inorganic",))[0]) for l in links if l.kind == "anhydride"):
                 # P-67.1.2.4.1.3: an -OCN group on the acid is cited by functional replacement, the acid outranking the anhydride
                 return _acyloxy_oxoacid(mol, acid)
+            acylated = _acylated_ester_links(mol, links)
+            if acylated is not None:
+                return name_ester(mol, acylated)
             try:
                 return name_anhydride(mol, links)
             except UnsupportedStructure:
@@ -2002,6 +2027,9 @@ def name_acid_derivative(mol):
         raise UnsupportedStructure("an acid group outranks the esters and no supported parent carries them")
     kinds = {l.kind for l in links}
     if "anhydride" in kinds:
+        acylated = _acylated_ester_links(mol, links)
+        if acylated is not None:
+            return name_ester(mol, acylated)
         return name_anhydride(mol, links)
     if "ester" in kinds:
         return _stereogenic_phosphorus_ester(mol, name_ester(mol, links))

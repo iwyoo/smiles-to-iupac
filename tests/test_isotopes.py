@@ -537,8 +537,8 @@ def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):
         pytest.param("CC(=O)[18O]C(=O)C", "acetic (18O)anhydride", id="bridging_oxygen_cited_before_the_class_word"),
         pytest.param("CCC(=O)OC(=[18O])c1ccccc1", "(O-18O)benzoic propanoic anhydride", id="modified_acid_ordered_by_its_letters"),
         pytest.param("CC(=O)OC(N)=[18O]", "acetic (O-18O)carbamic anhydride", id="carbonyl_oxygen_of_a_carbamic_component"),
-        pytest.param("CC(=O)OC(=[18O])OC", "acetic (O-methyl hydrogen (18O1)carbonate) anhydride", id="carbonyl_oxygen_of_a_carbonic_component"),
-        pytest.param("CC(=O)OC(=O)[18O]C", "acetic (18O-methyl hydrogen (18O1)carbonate) anhydride", id="ester_oxygen_of_a_carbonic_component"),
+        pytest.param("CC(=O)OC(=[18O])OC", "acetyl methyl (O-18O)carbonate", id="carbonyl_oxygen_of_a_carbonic_component"),
+        pytest.param("CC(=O)OC(=O)[18O]C", "acetyl 18O-methyl (18O1)carbonate", id="ester_oxygen_of_a_carbonic_component"),
         pytest.param("NC(=[18O])O", "(O-18O)carbamic acid", id="labelled_carbamic_acid"),
     ],
 )
