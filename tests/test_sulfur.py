@@ -1493,3 +1493,13 @@ def test_multiplier_of_identical_substituted_sulfur_ester_groups(smiles, expecte
 )
 def test_anions_and_salts_of_thiocarbonic_acid_esters(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C(O)NCCS(=O)(=O)Cl", "[2-(chlorosulfonyl)ethyl]carbamic acid", id="sulfonyl_halide_on_a_carbamic_acid_nitrogen"),
+    ],
+)
+def test_sulfonyl_and_sulfinyl_prefixes_on_a_carbamic_acid_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
