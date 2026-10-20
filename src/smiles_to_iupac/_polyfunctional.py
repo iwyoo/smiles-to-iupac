@@ -490,7 +490,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         acyl = [n for n in others if _acyl_chalcogen(mol, n.GetIdx()) is not None]
         if len(acyl) > 1 or (acyl and not _imide_parent(mol, carbonyl, acyl[0].GetIdx())):
             return False
-    return bool(others) and len(hydroxy) <= 1 and all(
+    return bool(others) and all(
         n in hydroxy
         or n in oxy
         or n in acyl
@@ -7222,6 +7222,20 @@ def _plain_hydrazinyl(mol, nitrogen, origin):
     )
 
 
+def _heteroatom_on_nitrogen(mol, atom, nitrogen):
+    """A single-bonded halogen, hydroxy-type, organyloxy-type or mononuclear hydride group on a nitrogen (P-66.1.1.4)."""
+    return (
+        atom.GetAtomicNum() != 6
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and (
+            atom.GetAtomicNum() in HALOGEN_PREFIXES
+            or (_terminal_heteroatom(mol, atom.GetIdx(), 1) and atom.GetAtomicNum() in (8, 16, 34, 52))
+            or _organyloxy(mol, atom, nitrogen)
+            or _hydride_group_on_nitrogen(mol, atom, nitrogen, nitrogen.GetDegree() - 1)
+        )
+    )
+
+
 def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
     """The terminal nitrogen N' of an acyl-NR-NR'R'' group (P-66.3), whose substituents are carbon groups or a
     ylidene (a hydrazone), else None."""
@@ -7239,6 +7253,8 @@ def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
             if n.GetIdx() in (partner.GetIdx(), carbonyl):
                 continue
             if (nitrogen is beta and _carbamoyl_on(mol, n, nitrogen)) or _cyano_on(mol, n, nitrogen):
+                continue
+            if _heteroatom_on_nitrogen(mol, n, nitrogen):
                 continue
             if n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
                 return None
