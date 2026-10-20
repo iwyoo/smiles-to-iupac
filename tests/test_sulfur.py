@@ -987,6 +987,8 @@ def test_sulfuramidous_acid_and_its_anion(smiles, expected):
             "CS(=O)(=O)S(=O)(=O)c1ccccc1", "1-methyl-2-phenyl-1λ6,2λ6-disulfane-1,1,2,2-tetrone", id="disulfane_tetrone"
         ),
         pytest.param("CSCl", "methyl thiohypochlorite", id="thiohypochlorite_ester"),
+        pytest.param("ClSCCSCl", "ethane-1,2-diyl bis(thiohypochlorite)", id="thiohypochlorite_multiplicative"),
+        pytest.param("ClNCCSCl", "[2-(chlorosulfanyl)ethyl]hypochlorous amide", id="halogen_amide_outranks_thiohypohalite"),
         pytest.param(
             "OS(I)(I)SC#N", "1-hydroxy-1,1-diiodo-1λ4-disulfane-2-carbonitrile", id="lambda_chain_nitrile"
         ),

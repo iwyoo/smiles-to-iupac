@@ -144,7 +144,9 @@ def _halogen_oxoacid_center(mol, idx):
         return None
     bridges, oxo = [], []
     for n in atom.GetNeighbors():
-        if n.GetAtomicNum() != 8:
+        if n.GetAtomicNum() not in _SYMBOL or (
+            n.GetAtomicNum() != 8 and not all(m.GetAtomicNum() == 6 for m in n.GetNeighbors() if m.GetIdx() != idx)
+        ):
             return None
         double = _bond(mol, idx, n.GetIdx()) == 2.0 and not n.GetFormalCharge()
         anionic = _bond(mol, idx, n.GetIdx()) == 1.0 and n.GetFormalCharge() == -1 and n.GetDegree() == 1
@@ -719,10 +721,11 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     n_substituted = any(
         n.GetAtomicNum() == 7 and n.GetDegree() > 1 for n in mol.GetAtomWithIdx(first[0].center).GetNeighbors()
     )
-    compound = not anion.isalpha() or n_substituted
+    replaced_anion = anion.startswith(("thio", "seleno", "telluro")) and mol.GetAtomWithIdx(first[0].center).GetAtomicNum() != 6
+    compound = not anion.isalpha() or n_substituted or replaced_anion
     multiplier = multiplying_prefix(len(centers), compound=compound)
     anion_text = f"{multiplier}{enclose(anion)}" if compound else multiplier + anion
-    if modified:
+    if modified and any(len(_oxo_slots(mol, l.center)) + 1 > 1 for l in hub_links):
         symbols = ["".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in l.chain) for l in hub_links]
         diyl = ",".join(f"{symbol}{_PRIMES[i]}" for i, symbol in enumerate(sorted(symbols))) + "-" + diyl
     return " ".join(part for part in (_pendant_text(mol, graph, pendants), diyl, anion_text) if part)
