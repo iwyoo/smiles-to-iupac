@@ -387,6 +387,8 @@ def test_pyridinium_nitrogen_attachment_raises():
         pytest.param("c1ccc2cc3cc4cc5c(ccc6ccccc65)cc4cc3cc2c1", "benzo[a]pentacene", id="benzo_a_pentacene"),
         pytest.param("C1=CC=C2C=C3C(=CC2=C1)C=CC4=CC5=CC6=CC=CC=C6C=C5C=C43", "hexaphene", id="hexaphene"),
         pytest.param("Cc1ccc2cccc3C=Cc1c23", "3-methylacenaphthylene", id="substituted_acenaphthylene_is_named"),
+        pytest.param("CC1c2cccc3cccc1c23", "1-methyl-1H-cyclobuta[de]naphthalene", id="four_membered_peri_ring_is_numbered_first"),
+        pytest.param("C1=C2C=CC=C3CC=CC1=C23", "4H-cyclobuta[de]naphthalene", id="methylene_of_a_six_membered_ring_beside_a_four_membered_peri_ring"),
     ],
 )
 def test_benzo_a_pentacene_and_related(smiles, expected):
