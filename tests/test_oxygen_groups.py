@@ -1028,6 +1028,7 @@ def test_cationic_hydrazine_outranks_a_neutral_acid():
         ("CC(=O)OP(C)(C)=O", "acetic dimethylphosphinic anhydride"),
         ("CCP(CC)(=O)OP(CC)(CC)=O", "diethylphosphinic anhydride"),
         ("CP(=O)(O)OP(C)(C)=O", "dimethylphosphinic methylphosphonic monoanhydride"),
+        ("O=P(O)(O)OP", "phosphinous phosphoric monoanhydride"),
         ("CC(=O)OOC(C)(C)C", "tert-butyl ethaneperoxoate"),
         ("CC(=O)SSC", "SS-methyl ethane(dithioperoxoate)"),
         ("COC(=S)OC", "O,O-dimethyl carbonothioate"),
