@@ -601,6 +601,8 @@ def test_adduct_components_ordered_by_class_seniority(smiles, expected):
         pytest.param("CCO.[Cl][Ti]([Cl])[Cl]", "ethanol—titanium(3+) trichloride (1/1)", id="trihalide_of_a_variable_valence_metal"),
         pytest.param("CCO.Br[Zn]Cl", "ethanol—zinc bromide chloride (1/1)", id="different_halogens_cited_alphabetically"),
         pytest.param("CCO.Cl[Zn]Cl.Cl[Zn]Cl", "ethanol—zinc dichloride (1/2)", id="proportion_counts_the_metal_halide"),
+        pytest.param("CC(=O)O.O=C=O.O", "acetic acid—carbon dioxide—water (1/1/1)", id="stoichiometric_molecule_before_water"),
+        pytest.param("CCO.[N-]=[N+]=N", "ethanol—hydrazoic acid (1/1)", id="retained_inorganic_acid"),
     ],
 )
 def test_adduct_with_inorganic_components(smiles, expected):
