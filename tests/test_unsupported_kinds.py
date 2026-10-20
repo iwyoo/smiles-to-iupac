@@ -68,3 +68,8 @@ def test_runtime_error_handlers_let_internal_invariant_errors_through():
         for i, line in enumerate(lines):
             if re.match(r"\s*except .*\bRuntimeError\b", line):
                 assert lines[i - 2].strip() == "except InternalInvariantError:", f"{path.name}:{i + 1}"
+
+
+def test_carbenium_beside_a_carbanion_and_a_cationic_heteroatom_is_refused_not_unpacked():
+    with pytest.raises(UnsupportedStructure):
+        name("C=[O+]C[CH+]C[CH2-]")
