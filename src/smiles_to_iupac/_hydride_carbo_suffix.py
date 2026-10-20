@@ -23,6 +23,7 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     multiplied_word,
+    nonstandard_bonding,
     specified_stereo_elements,
     substituent_locant_set_and_citation,
 )
@@ -275,13 +276,14 @@ def name_hydride_carbo_suffix(mol) -> str:
             ]
 
     if kind == "mononuclear":
+        parent_name = _bonding_marked(_lambda_marks(mol, {skeleton[0]: 1}, 1), parent_name)
         if any(nitrogen_entries.values()):
             grouped = group_substituents(
                 _merge(entries, {skeleton[0]: 1}) | _nitrogen_locants(nitrogen_entries, {c: 1 for c in nitrogen_entries})
             )
-            return f"{format_substituent_prefixes(grouped, omit_locants=True)}{parent_name}{multiplied_word(count, word)}"
+            return _join_parent(format_substituent_prefixes(grouped, omit_locants=True), parent_name) + multiplied_word(count, word)
         prefix = format_mononuclear_prefixes([(name, compound) for _, name, compound in entries]) if entries else ""
-        return f"{prefix}{parent_name}{multiplied_word(count, word)}"
+        return _join_parent(prefix, parent_name) + multiplied_word(count, word)
 
     best = None
     for candidate in (skeleton, skeleton[::-1]):
@@ -298,11 +300,12 @@ def name_hydride_carbo_suffix(mol) -> str:
             for i, (a, b) in enumerate(zip(candidate, candidate[1:]))
             if frozenset((a, b)) in bond_codes
         ]
-        key = (suffix_locants, ene_locants, locant_set, citation, [locant for locant, code in descriptors if code == "Z"])
+        marks = _lambda_marks(mol, position_of, len(skeleton))
+        key = (suffix_locants, ene_locants, locant_set, citation, [locant for locant, code in descriptors if code == "Z"], marks)
         if best is None or key < best[0]:
-            best = (key, suffix_locants, ene_locants, group_substituents(_merge(entries, position_of) | on_nitrogen), descriptors)
+            best = (key, suffix_locants, ene_locants, group_substituents(_merge(entries, position_of) | on_nitrogen), descriptors, marks)
 
-    _, suffix_locants, ene_locants, grouped, descriptors = best
+    _, suffix_locants, ene_locants, grouped, descriptors, marks = best
     total = count + sum(len(info["locants"]) for info in grouped.values())
     siloxane = parent_name.endswith("siloxane")
     symmetric_sole = (total == 1 and len(skeleton) == (3 if siloxane else 2) and not ene_locants) or (
@@ -319,9 +322,34 @@ def name_hydride_carbo_suffix(mol) -> str:
             parent_name = f"{stem}{'a' if len(ene_locants) > 1 else ''}-{','.join(map(str, ene_locants))}-{multiplied_word(len(ene_locants), 'ene')}"
     cited = ",".join(code if len(skeleton) == 2 else f"{locant}{code}" for locant, code in descriptors)
     lead = f"({cited})-" if cited else ""
+    parent_text = _join_parent(prefix, _bonding_marked(marks, parent_name))
     if symmetric_sole:
-        return f"{lead}{prefix}{parent_name}{body}"
-    return f"{lead}{prefix}{parent_name}-{','.join(map(str, suffix_locants))}-{body}"
+        return f"{lead}{parent_text}{body}"
+    return f"{lead}{parent_text}-{','.join(map(str, suffix_locants))}-{body}"
+
+
+def _lambda_marks(mol, position_of, size):
+    """'1λ5,2λ5' (or 'λ5' for a mononuclear parent) for the skeletal atoms of nonstandard bonding number (P-14.1)."""
+    marks = [
+        (position, nonstandard_bonding(mol.GetAtomWithIdx(atom)))
+        for atom, position in sorted(position_of.items(), key=lambda item: item[1])
+    ]
+    return tuple((position if size > 1 else None, bonding) for position, bonding in marks if bonding)
+
+
+def _bonding_marked(marks, parent_name):
+    """`parent_name` led by its lambda marks, e.g. 'λ5-phosphane' (None when no atom is nonstandard)."""
+    if not marks:
+        return (None, parent_name)
+    return (",".join(f"{'' if position is None else position}λ{bonding}" for position, bonding in marks), parent_name)
+
+
+def _join_parent(prefix, marked):
+    """Prefixes, then the lambda marks hyphenated from both neighbours, then the parent hydride name."""
+    marks, parent_name = marked
+    if marks is None:
+        return prefix + parent_name
+    return f"{prefix}{'-' if prefix else ''}{marks}-{parent_name}"
 
 
 def _amide_nitrogen(mol, carbon, host):
