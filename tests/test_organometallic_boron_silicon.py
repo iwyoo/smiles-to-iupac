@@ -1423,3 +1423,14 @@ def test_unbalanced_cyclopentadienide_metal_structure_is_no_ocene(smiles, expect
 )
 def test_solvent_beside_an_organometallic_compound(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("COB=O", "methoxyboranone", id="heterone_of_boron_with_an_alkoxy_group"),
+        pytest.param("NB(O)OC", "methyl hydrogen boramidate", id="amide_ester_of_boric_acid"),
+    ],
+)
+def test_boranones_and_boramidic_acid_esters(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

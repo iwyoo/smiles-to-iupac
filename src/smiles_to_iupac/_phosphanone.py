@@ -1,4 +1,4 @@
-"""Group 14 and 15 heterones ('dimethylsilanone', 'triphenyl-λ5-phosphanone', 'methyl-λ5-phosphanedione',
+"""Group 13 to 15 heterones ('boranone', 'dimethylsilanone', 'triphenyl-λ5-phosphanone', 'methyl-λ5-phosphanedione',
 '[(2-methylpropyl)amino]arsanone'; P-61.6, P-64.1.2.2, P-64.4.1, P-74.2.1.4): a mononuclear hydride atom carrying
 terminal =O/=S/=Se/=Te takes the suffix 'one'/'thione'/..., multiplied for several, and a λ label when its total
 valence differs from the standard one. Carbon and amino groups are cited as prefixes; acid amides are left out.
@@ -19,7 +19,7 @@ from ._substituents import (
 _CENTERS = {
     14: "silane", 32: "germane", 50: "stannane", 82: "plumbane",
     15: "phosphane", 33: "arsane", 51: "stibane", 83: "bismuthane",
-    16: "sulfane", 34: "selane", 52: "tellane",
+    16: "sulfane", 34: "selane", 52: "tellane", 5: "borane",
 }
 _STANDARD_VALENCE = {
     14: 4, 32: 4, 50: 4, 82: 4, 15: 3, 33: 3, 51: 3, 83: 3, 16: 2, 34: 2, 52: 2, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3,
@@ -41,8 +41,19 @@ _SENIOR_TO_IMINE = [
 ]
 
 
-_SENIOR_CENTER_ORDER = (15, 33, 51, 83, 14, 32, 50, 82, 16, 34, 52)
+_SENIOR_CENTER_ORDER = (15, 33, 51, 83, 14, 32, 50, 82, 5, 16, 34, 52)
 _CHALCOGEN_ORDER = (8, 16, 34, 52)
+
+
+def _oxy_group(mol, atom, center):
+    """A hydroxy or alkoxy group on the boron of a boranone: the groups of a boron acid outrank a heterone only as
+    acid groups, and the oxo group leaves none on this boron."""
+    return (
+        atom.GetAtomicNum() == 8
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), center.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and (atom.GetDegree() == 1 or all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != center.GetIdx()))
+    )
 
 
 def _heterone_at(mol, center):
@@ -63,7 +74,8 @@ def _heterone_at(mol, center):
         return None
     others = [n for n in center.GetNeighbors() if n.GetIdx() not in {c.GetIdx() for c in chalcogens}]
     amino = [n for n in others if n.GetAtomicNum() == 7]
-    if len(others) != sum(n.GetAtomicNum() == 6 for n in others) + len(amino):
+    oxy = [n for n in others if center.GetAtomicNum() == 5 and _oxy_group(mol, n, center)]
+    if len(others) != sum(n.GetAtomicNum() == 6 for n in others) + len(amino) + len(oxy):
         return None
     if amino and len(chalcogens) == 1 and center.GetTotalValence() == 5:
         return None
