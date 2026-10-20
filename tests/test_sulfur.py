@@ -838,6 +838,8 @@ def test_two_ring_aromatic_substituent_thiol_cases(smiles, expected):
     "smiles,expected",
     [
         ("ClCC(=S)C", "1-chloropropane-2-thione"),
+        ("CC(C)=C=S", "2-methylprop-1-ene-1-thione"),
+        ("CC(C)=C=[Se]", "2-methylprop-1-ene-1-selone"),
     ],
 )
 def test_thione_names(smiles, expected):
