@@ -797,7 +797,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         )
         if onium is not None:
             return onium
-    if z in MONONUCLEAR_HYDRIDES and not atom.IsInRing():
+    if z in MONONUCLEAR_HYDRIDES and not atom.IsInRing() and not atom.GetFormalCharge():
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z in LAMBDA_CENTRE_STEMS and not atom.IsInRing():
         lambda_group = _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
@@ -858,7 +858,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             phosphoryloxy = _phosphoryloxy(graph, other, root, halogens, aromatic_atoms, mol)
             if phosphoryloxy is not None:
                 return phosphoryloxy
-        if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
+        if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES and not mol.GetAtomWithIdx(other).GetFormalCharge():
             silyl, compound = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, compound) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
@@ -895,7 +895,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES and mol.GetAtomWithIdx(others[0]).IsInRing():
             ring, _ = _ring_substituent(mol, graph, others[0], root)
             return _enclose(ring, True) + word, True
-        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
+        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES and not mol.GetAtomWithIdx(others[0]).GetFormalCharge():
             silyl, silyl_compound = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, silyl_compound) + word, True
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, others[0], root):
@@ -1093,7 +1093,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             names = []
             for n in others:
                 z_n = mol.GetAtomWithIdx(n).GetAtomicNum()
-                if z_n in MONONUCLEAR_HYDRIDES:
+                if z_n in MONONUCLEAR_HYDRIDES and not mol.GetAtomWithIdx(n).GetFormalCharge():
                     names.append(_mononuclear_group(graph, n, root, halogens, aromatic_atoms, mol))
                 elif z_n == 6:
                     names.extend(_group_names(graph, mol, [n], root, halogens, aromatic_atoms))
