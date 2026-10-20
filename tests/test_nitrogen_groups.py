@@ -2649,6 +2649,7 @@ def test_ring_amides_do_not_outrank_a_urea(smiles, expected):
             id="two_ring_substituents_on_one_carbon",
         ),
         pytest.param("C=C(C)c1ccc(NN)cc1", "[4-(prop-1-en-2-yl)phenyl]hydrazine", id="unsaturated_substituent"),
+        pytest.param("NNS(F)(F)F", "(trifluoro-λ4-sulfanyl)hydrazine", id="compound_sole_prefix_is_enclosed"),
         pytest.param(
             "CCS(=O)(=O)CCNN(C)C",
             "2-[2-(ethanesulfonyl)ethyl]-1,1-dimethylhydrazine",

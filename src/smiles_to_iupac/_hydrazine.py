@@ -30,10 +30,8 @@ alkyl substituents per nitrogen), per the IUPAC 2013 Recommendations
   (`ClCCN(N)CCCl`) -> "1,1-bis(2-chloroethyl)hydrazine" (two identical
   compound substituents combine with the ordinary 'bis' multiplying
   prefix, same mechanism `format_substituent_prefixes` already uses
-  elsewhere for a compound substituent), CID 140409285 (`ClCNN`) ->
-  "chloromethylhydrazine" (the sole-substituent case omits its own
-  hydrazine locant regardless of the substituent itself being a compound
-  name, same as the plain-alkyl sole-substituent case below). A real
+  elsewhere for a compound substituent); a sole compound prefix is enclosed
+  (P-16.5.1.1): '(chloromethyl)hydrazine'. A real
   carbon branch (e.g. isopropyl) is supported too, built with
   `name_branch` (P-29 PIN style, fixed project-wide by PR #237; mirrors
   `_diazene.py`'s identical fix, PR #338) -- confirmed via PubChem:
@@ -282,7 +280,7 @@ def hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated
         if ylidene:
             name = name[ylidene.end():]
             return f"({ylidene.group(1)})-" + (enclose(name) if compound and name[0].isdigit() else name) + "hydrazine"
-        return (enclose(name) if compound and (name[0].isdigit() or "(" in name) else name) + "hydrazine"
+        return (enclose(name) if compound else name) + "hydrazine"
     # a repeated prefix keeps its locants in the book's names (1,1-dimethyl-2-(propan-2-ylidene)hydrazine)
     if len(set(names_n1 + names_n2)) == total and has_single_arrangement(mol, {n1_idx, n2_idx}):
         return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
