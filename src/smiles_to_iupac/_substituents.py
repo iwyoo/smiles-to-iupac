@@ -453,6 +453,8 @@ def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogen
     base = amido[0] if amido is not None and amido[0].startswith(bare[:-2]) else name
     if base != bare + "amino" and not (base.endswith("amido") and base.startswith(bare[:-2])):
         return None
+    if base == "carbamoylamino":
+        return f"[{descriptor_text}{bare}]amino"
     return descriptor_text + base
 
 
@@ -512,6 +514,12 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
             return text + name, compound
         cut = _ether_oxygen_cut(name, graph, root, coming_from, halogens, mol, aromatic_atoms, unsaturated, atoms)
         return name[:cut] + text + name[cut:], compound
+    if name.endswith("carbamoyl") and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
+        unit = {root, *_carbonyl_oxygens(mol, graph, root, coming_from), *(n for n in graph[root] if mol.GetAtomWithIdx(n).GetAtomicNum() == 7)}
+        if set(labelled) <= unit:
+            context["consumed"].update(labelled)
+            text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
+            return name[: -len("carbamoyl")] + text + "carbamoyl", True
     if name == "cyano" and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
         context["consumed"].update(labelled)
         return descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity) + name, False

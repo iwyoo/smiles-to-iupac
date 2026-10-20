@@ -1233,3 +1233,14 @@ def test_nuclide_of_a_carbenium_centre_or_its_neighbour(smiles, expected):
 )
 def test_nuclide_beside_the_added_hydrogen_term(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[14C](N)(=O)NCC(=O)O", "N-[(14C)carbamoyl]glycine", id="carbamoyl_carbon_of_an_amino_acid_nitrogen"),
+        pytest.param("[14C](N)(=O)NC(C)CC(=O)O", "3-{[(14C)carbamoyl]amino}butanoic acid", id="carbamoylamino_prefix_on_a_chain"),
+    ],
+)
+def test_nuclide_of_the_carbamoyl_prefix_beside_a_senior_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
