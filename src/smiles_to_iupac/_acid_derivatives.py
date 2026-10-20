@@ -624,10 +624,13 @@ def _diyl_name(mol, atoms, attachments):
         editable.RemoveAtom(idx)
     polyol = editable.GetMol()
     Chem.SanitizeMol(polyol)
-    name = smiles_to_iupac(Chem.MolToSmiles(polyol)).replace("iodo", "hydroxy")
+    name = smiles_to_iupac(Chem.MolToSmiles(polyol))
+    if hydroxy:
+        name = name.replace("iodo", "hydroxy")
     match = _DIYL.match(name)
     if match:
-        return f"{match.group('prefix')}{match.group('locants')}-phenylene" if match.group("count") == "di" else None
+        joined = f"{match.group('prefix')}-{match.group('locants')}" if match.group("prefix") else match.group("locants")
+        return f"{joined}-phenylene" if match.group("count") == "di" else None
     if name.endswith("diol"):
         return name[: -len("ol")] + "yl"
     if name.endswith("triol"):
