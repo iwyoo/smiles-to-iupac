@@ -34,6 +34,7 @@ from ._substituents import (
 _CARBOXYLIC_ACYL_HALIDE = Chem.MolFromSmarts("[CX3](=[O,S,Se,Te])[F,Cl,Br,I;X1]")
 _CHALCOGEN = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CHALCOGEN_PREFIX = {16: "thio", 34: "seleno", 52: "telluro"}
+_CHALCOGENYL = {16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 _ORDER = {8: 0, 16: 1, 34: 2, 52: 3}
 _PENTAVALENT_STEMS = {15: ("phosphin", "phosphon", "phosphor"), 33: ("arsin", "arson", "arsor"), 51: ("stibin", "stibon", "stibor")}
 _CHALCOGEN_STEMS = {16: "sulfur", 34: "selen", 52: "tellur"}
@@ -118,15 +119,23 @@ def _plain_tree(mol, graph, root, behind):
     return True
 
 
-def _carbon_substituents(mol, graph, halogens, atom, skip):
-    """[(name, compound)] of the carbon groups, the hydroxy or alkoxy groups and the halogen, nitro and nitroso groups
-    on `atom` outside `skip`, or None when another atom is bonded."""
+def _open_valence(mol, atom, skip):
+    """The valence of `atom` used by its bonds outside `skip` and by its hydrogens."""
+    return atom.GetTotalNumHs() + sum(
+        b.GetBondTypeAsDouble() for b in atom.GetBonds() if b.GetOtherAtomIdx(atom.GetIdx()) not in skip
+    )
+
+
+def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False):
+    """[(name, compound)] of the carbon groups (an ylidene group when `ylidene`), the hydroxy, sulfanyl or alkoxy groups
+    and the halogen, nitro and nitroso groups on `atom` outside `skip`, or None when another atom is bonded."""
     found = []
     for n in graph[atom.GetIdx()]:
         if n in skip:
             continue
         neighbor = mol.GetAtomWithIdx(n)
-        if mol.GetBondBetweenAtoms(atom.GetIdx(), n).GetBondTypeAsDouble() != 1.0:
+        order = mol.GetBondBetweenAtoms(atom.GetIdx(), n).GetBondTypeAsDouble()
+        if order != 1.0 and not (ylidene and order == 2.0 and neighbor.GetAtomicNum() == 6):
             return None
         if n in halogens:
             found.append((halogens[n], False))
@@ -137,6 +146,9 @@ def _carbon_substituents(mol, graph, halogens, atom, skip):
             continue
         if neighbor.GetAtomicNum() == 8 and neighbor.GetDegree() == 1 and neighbor.GetTotalNumHs() == 1 and not neighbor.GetIsotope():
             found.append(("hydroxy", False))
+            continue
+        if neighbor.GetAtomicNum() in _CHALCOGEN_PREFIX and neighbor.GetDegree() == 1 and neighbor.GetTotalNumHs() == 1 and not neighbor.GetIsotope():
+            found.append((_CHALCOGENYL[neighbor.GetAtomicNum()], False))
             continue
         carbon = neighbor.GetAtomicNum() == 6
         if not carbon and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()):
@@ -232,12 +244,13 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
         hydrazone = order == 2.0
         return {"role": "ylidene" if hydrazone else "single", "kind": "hydrazone" if hydrazone else "hydrazide",
                 "infix": "hydrazon" if hydrazone else "hydrazid", "term": "hydrazide", "H": False, "subs": [near, beyond]}
-    subs = _carbon_substituents(mol, graph, halogens, neighbor, {centre.GetIdx()})
+    subs = _carbon_substituents(mol, graph, halogens, neighbor, {centre.GetIdx()}, ylidene=True)
     if subs is None:
         return None
-    if order == 2.0 and len(subs) + neighbor.GetTotalNumHs() == 1:
+    valence = _open_valence(mol, neighbor, {centre.GetIdx()})
+    if order == 2.0 and valence == 1:
         return {"role": "ylidene", "kind": "imide", "infix": "imid", "H": False, "subs": [subs]}
-    if order == 1.0 and len(subs) + neighbor.GetTotalNumHs() == 2:
+    if order == 1.0 and valence == 2:
         return {"role": "single", "kind": "amide", "infix": "amid", "term": "amide", "H": False, "subs": [subs]}
     return None
 

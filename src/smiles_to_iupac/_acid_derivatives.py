@@ -21,6 +21,7 @@ from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._isotope_labels import restore_labels
 from ._hetero_prefixes import EXTENDED_PREFIXES
+from ._phosphonic_acid import _nitroso_or_diazenyl
 from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS, name_branch, prefix_multiplier
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
@@ -103,7 +104,9 @@ def _inorganic_center(mol, idx):
     rest = [n for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 1.0]
     direct = [n for n in rest if n.GetAtomicNum() == atom.GetAtomicNum()]
     rest = [n for n in rest if n not in direct]
-    if len(oxo) + len(rest) + len(direct) != atom.GetDegree() or any(n.GetAtomicNum() not in (6, 8, 16, 34, 52) for n in rest):
+    if len(oxo) + len(rest) + len(direct) != atom.GetDegree() or any(
+        n.GetAtomicNum() not in (6, 8, 16, 34, 52) and not _nitroso_or_diazenyl(mol, n, atom) for n in rest
+    ):
         return None
     positions = [(n.GetIdx(), "Y") for n in rest if n.GetAtomicNum() in (8, 16, 34, 52)]
     if not positions or atom.GetAtomicNum() == 5 and oxo:

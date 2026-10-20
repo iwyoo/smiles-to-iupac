@@ -944,3 +944,15 @@ def test_ester_of_a_noncarbon_acid_is_the_parent_beside_lower_groups(smiles, exp
 )
 def test_phosphorus_acid_group_with_a_carboxyalkyl_organyl_beside_a_carboxylic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCOP(=O)(OCC)N=C", "diethyl N-methylidenephosphoramidate", id="ylidene_on_amide_nitrogen"),
+        pytest.param("CCOP(=O)(OCC)N=NC", "diethyl (methyldiazenyl)phosphonate", id="diazenyl_on_phosphorus"),
+        pytest.param("CCOP(=O)(OCC)ON", "O-(diethoxyphosphoryl)hydroxylamine", id="phosphoryl_on_hydroxylamine_oxygen"),
+    ],
+)
+def test_phosphoryl_with_nitrogen_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

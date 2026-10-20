@@ -23,6 +23,12 @@ def _chalcogen_run(chalcogen, root):
     return run or [root.GetIdx()]
 
 
+def _phosphoryl(atom):
+    return atom.GetAtomicNum() == 15 and not atom.GetFormalCharge() and any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetBonds()[0].GetBondTypeAsDouble() == 2.0 for n in atom.GetNeighbors()
+    )
+
+
 def _groups(mol):
     """[(nitrogen, chalcogen, carbon)] of every H2N-X-C group, or None when the molecule is anything else."""
     if len(Chem.GetMolFrags(mol)) != 1:
@@ -36,7 +42,7 @@ def _groups(mol):
             return None
         root = next(n for n in chalcogen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx())
         z = root.GetAtomicNum()
-        acyl = z == 16 and chalcogen.GetAtomicNum() == 8 and any(n.GetAtomicNum() == 6 for n in root.GetNeighbors())
+        acyl = (z == 16 and chalcogen.GetAtomicNum() == 8 and any(n.GetAtomicNum() == 6 for n in root.GetNeighbors())) or _phosphoryl(root)
         linked = not acyl and (z in _PARENT or (z in HALOGEN_PREFIXES and root.GetDegree() == 1))
         if not (z == 6 or acyl or linked):
             return None
@@ -48,6 +54,8 @@ def _groups(mol):
     for (_, chalcogen, root), linked in zip(found, chained):
         if linked:
             members.update(_chalcogen_run(chalcogen, root))
+        elif root.GetAtomicNum() == 15:
+            members.update([root.GetIdx(), *(n.GetIdx() for n in root.GetNeighbors() if n.GetAtomicNum() == 8)])
         elif root.GetAtomicNum() == 16:
             oxo = [n for n in root.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
             members.update([root.GetIdx(), *(n.GetIdx() for n in oxo)])

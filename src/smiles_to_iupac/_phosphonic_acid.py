@@ -6,7 +6,7 @@ import contextlib
 
 from rdkit import Chem
 
-from ._hetero_prefixes import EXTENDED_PREFIXES
+from ._hetero_prefixes import DIAZENYL_PREFIX, EXTENDED_PREFIXES
 from ._multiplicative_text import enclose
 from ._parent_choice import name_one_of_several_groups, senior_parent_name
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, nitro_group_atoms
@@ -38,6 +38,15 @@ _NOT_AN_ACID = (1,)
 _ACYL_PARTNERS = {7, 8, 9, 16, 17, 34, 35, 52, 53}
 
 
+def _nitroso_or_diazenyl(mol, nitrogen, centre):
+    """A nitrogen with no hydrogen whose other bond is a double bond to oxygen or nitrogen: the nitroso and diazenyl
+    groups are substituent prefixes of the acid centre, not amide groups."""
+    if nitrogen.GetAtomicNum() != 7 or nitrogen.GetFormalCharge() or nitrogen.GetTotalNumHs() or nitrogen.GetDegree() != 2:
+        return False
+    other = next(n for n in nitrogen.GetNeighbors() if n.GetIdx() != centre.GetIdx())
+    return other.GetAtomicNum() in (7, 8) and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), other.GetIdx()).GetBondTypeAsDouble() == 2.0
+
+
 def acid_group_parts(mol, atom):
     """(oxo, hydroxyl, organyl) counts of a phosphonic, phosphonous, phosphinic or phosphinous acid centre; None for any
     other P, As or Sb atom (acid halide, amide, ester, chalcogenide, ring member, organyl derivative)."""
@@ -50,7 +59,7 @@ def acid_group_parts(mol, atom):
             oxo += 1
         elif n.GetAtomicNum() == 8 and not double and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
             hydroxyl += 1
-        elif n.GetAtomicNum() not in _ACYL_PARTNERS and not double:
+        elif (n.GetAtomicNum() not in _ACYL_PARTNERS or _nitroso_or_diazenyl(mol, n, atom)) and not double:
             organyl += 1
         else:
             return None
@@ -148,8 +157,12 @@ def name_acid_group(mol, phosphorus):
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
-    with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
-        entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
+    token = DIAZENYL_PREFIX.set(True)
+    try:
+        with acid_prefixes(), cited_stereo_around(mol, phosphorus.GetIdx()):
+            entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
+    finally:
+        DIAZENYL_PREFIX.reset(token)
     centre = centre_nuclides(phosphorus.GetIdx(), oxygens=True)
     stem = f"{centre}{CENTER_STEMS[phosphorus.GetAtomicNum()]}{_ACID_ENDINGS[(oxo, hydroxyl)]}"
     if hydroxyl == 2:
