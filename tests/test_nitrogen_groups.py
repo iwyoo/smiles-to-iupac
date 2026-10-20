@@ -2700,6 +2700,8 @@ def test_thiourea_with_a_ring_nitrogen_is_the_carbothioamide_of_the_ring(smiles,
     "smiles,expected",
     [
         pytest.param("CC(=O)ON(C)C", "1-[(dimethylamino)oxy]ethan-1-one", id="blue_book_example"),
+        pytest.param("CC(=O)ONNC", "1-[(2-methylhydrazin-1-yl)oxy]ethan-1-one", id="hydrazine_nitrogen_chain_on_the_ester_oxygen"),
+        pytest.param("CC(=O)OSN", "1-[(aminosulfanyl)oxy]ethan-1-one", id="chalcogen_then_nitrogen_chain_on_the_ester_oxygen"),
         pytest.param("CC(=O)ON=C(C)C", "1-{[(propan-2-ylidene)amino]oxy}ethan-1-one", id="ketoxime"),
         pytest.param("CC(=O)ON=C1CCCCC1", "1-[(cyclohexylideneamino)oxy]ethan-1-one", id="ring_ylidene"),
         pytest.param("O=C(ON=Cc1ccccc1)c1cccs1", "[(benzylideneamino)oxy](thiophen-2-yl)methanone", id="aldoxime_of_a_ring_acid"),
