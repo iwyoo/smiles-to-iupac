@@ -2331,3 +2331,8 @@ def test_salt_cites_the_radical_centre_of_an_ionic_fragment(smiles, expected):
 def test_uide_centre_shared_by_two_ring_components_is_refused_not_overflowed():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1cc[n+]2c(c1)CO[B-]21OCCO1")
+
+
+def test_atom_whose_hydride_is_still_a_radical_is_refused_not_overflowed():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C.[Md]")
