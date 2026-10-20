@@ -811,6 +811,8 @@ _P72_ANIONS = [
     ("O[N-2]", "hydroxyazanediide"),
     ("C[SiH4-]", "methylsilanuide"),
     ("C[B-](C)(C)C", "tetramethylboranuide"),
+    ("[C-]#[N+]C[B-](F)(F)F", "trifluoro(isocyanomethyl)boranuide"),
+    ("O=[N+]([O-])O[B-](F)(F)F", "trifluoro(nitrooxy)boranuide"),
     ("C[P-](C)(C)C", "tetramethylphosphanuide"),
     ("[S-](F)(F)c1ccccc1", "difluoro(phenyl)sulfanuide"),
     ("c1ccccc1[I-]c1ccccc1", "diphenyliodanuide"),
