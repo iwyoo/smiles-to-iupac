@@ -47,7 +47,7 @@ def _halogen_amide_nitrogen(mol):
         a
         for a in mol.GetAtoms()
         if a.GetAtomicNum() == 7
-        and sum(n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum() for n in a.GetNeighbors()) in (1, 2)
+        and sum(n.GetAtomicNum() in HALOGEN_PREFIXES and not n.GetAtomMapNum() for n in a.GetNeighbors()) in (1, 2, 3)
     ]
     return found[0] if len(found) == 1 else None
 
@@ -69,7 +69,7 @@ def name_halogen_amide(mol) -> str:
 
     nitrogen = _halogen_amide_nitrogen(mol)
     if nitrogen is None:
-        raise UnsupportedStructure("no nitrogen bearing one or two halogen atoms")
+        raise UnsupportedStructure("no nitrogen bearing one to three halogen atoms")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     halogen, *second = sorted(
@@ -81,8 +81,7 @@ def name_halogen_amide(mol) -> str:
         raise UnsupportedStructure("a halogen on nitrogen carries something other than terminal oxygens")
     owned = {halogen.GetIdx(), *(o.GetIdx() for o in oxygens)}
     prefixes = []
-    if second:
-        (other,) = second
+    for other in second:
         if other.GetAtomicNum() != halogen.GetAtomicNum() or oxygens or other.GetDegree() != 1:
             raise UnsupportedStructure("two different halogens on nitrogen need a decided choice of the acid")
         owned.add(other.GetIdx())

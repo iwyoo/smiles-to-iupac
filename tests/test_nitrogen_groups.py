@@ -2867,3 +2867,7 @@ def test_stereodefined_ring_amine_with_a_chalcogen_in_its_n_substituent():
 def test_functional_modifier_names_of_imine_derivatives(smiles, expected):
     # P-15.2.2, P-68.3.1.1.2, P-68.3.1.2.2, P-68.3.1.2.3, P-68.3.1.2.5
     assert [a.name for a in smiles_to_alternative_names(smiles) if a.kind == "functional-modifier"] == [expected]
+
+
+def test_three_halogens_on_nitrogen_are_an_amide_of_a_halogen_acid():
+    assert smiles_to_iupac("ClN(Cl)Cl") == "dichlorohypochlorous amide"
