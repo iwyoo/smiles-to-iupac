@@ -623,6 +623,8 @@ def test_stereogenic_thiophosphinic_acid_is_not_named_without_its_descriptor():
         ("CCOP(=O)(N=C=S)N(CC)CC", "ethyl N,N-diethylphosphoramid(isothiocyanatidate)"),
         ("CS[Sb](=O)(F)F", "S-methyl stiborodifluoridothioate"),
         ("CN=P(O)(O)OP(=N)(O)O", "N1-methyl-1,3-diimidodiphosphoric acid"),
+        ("O=S(=O)(O)[Se][Se]S(=O)(=O)O", "2-(diselenoperoxy)disulfuric acid"),
+        ("O=S(=O)(O)[Se]SS(=O)(=O)O", "2-(selenothioperoxy)disulfuric acid"),
     ],
 )
 def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smiles, expected):
