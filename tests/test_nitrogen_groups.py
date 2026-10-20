@@ -2752,6 +2752,7 @@ def test_acyloxy_group_on_an_amide_nitrogen_is_a_prefix_of_the_amide(smiles, exp
         pytest.param("[AsH2]NC1CCC(CN[AsH2])CC1", "N-{[4-(arsanylamino)cyclohexyl]methyl}arsinous amide", id="two_equal_amide_centres_on_an_unsymmetrical_skeleton"),
                 pytest.param("COSSS", "methoxytrisulfane", id="senior_single_chalcogen_as_an_ether_prefix"),
         pytest.param("CONOC", "N-methoxy-O-methylhydroxylamine", id="hydroxylamine_as_the_functional_parent"),
+        pytest.param("CONOc1ccccc1", "N-methoxy-O-phenylhydroxylamine", id="ring_group_on_the_oxygen_of_the_hydroxylamine"),
         pytest.param("CONSC", "O-methyl-N-(methylsulfanyl)hydroxylamine", id="sulfanyl_group_on_the_hydroxylamine_nitrogen"),
         pytest.param("CSNSC", "S-methyl-N-(methylsulfanyl)(thiohydroxylamine)", id="thiohydroxylamine_when_no_oxygen"),
         pytest.param("CON[SiH3]", "N-methoxysilanamine", id="alkoxy_group_on_the_silanamine_nitrogen"),

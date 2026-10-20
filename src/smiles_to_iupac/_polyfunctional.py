@@ -3976,7 +3976,7 @@ def _hydroxylamine_parent(mol, graph, halogens, aromatic_atoms):
     from ._substituents import format_substituent_prefixes
 
     nitrogens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7]
-    if len(nitrogens) != 1 or mol.GetRingInfo().NumRings():
+    if len(nitrogens) != 1 or nitrogens[0].IsInRing():
         return None
     nitrogen = nitrogens[0]
     n_idx = nitrogen.GetIdx()
@@ -3984,7 +3984,7 @@ def _hydroxylamine_parent(mol, graph, halogens, aromatic_atoms):
     if (
         nitrogen.GetFormalCharge()
         or len(neighbors) < 2
-        or any(mol.GetAtomWithIdx(n).GetAtomicNum() not in _HYDROXYLAMINE_PREFIX for n in neighbors)
+        or any(mol.GetAtomWithIdx(n).GetAtomicNum() not in _HYDROXYLAMINE_PREFIX or mol.GetAtomWithIdx(n).IsInRing() for n in neighbors)
         or any(mol.GetBondBetweenAtoms(n_idx, n).GetBondTypeAsDouble() != 1.0 for n in neighbors)
         or any(mol.GetAtomWithIdx(n).GetFormalCharge() for n in neighbors)
     ):
