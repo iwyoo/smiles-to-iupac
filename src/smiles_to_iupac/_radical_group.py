@@ -621,3 +621,39 @@ def _name_parent_radical(mol):
         if found:
             return min(found)[-1]
     raise UnsupportedStructure("no parent radical holds the radical centres")
+
+
+def has_labelled_group_cation_shape(mol) -> bool:
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    return (
+        len(cations) == 1
+        and cations[0].GetAtomicNum() == 6
+        and cations[0].GetFormalCharge() == 1
+        and not cations[0].GetIsAromatic()
+        and _carbenium_valence(cations[0])
+        and any(a.GetIsotope() for a in mol.GetAtoms())
+        and not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
+        and len(Chem.GetMolFrags(mol)) == 1
+    )
+
+
+def name_labelled_group_cation(mol) -> str:
+    """A carbenium centre with nuclides (P-82.2.1): the name of the carbanion of the same labelled skeleton with 'ide' read
+    as 'ylium' (P-73.2.2.1)."""
+    from .core import smiles_to_iupac
+
+    anionic = Chem.RWMol(mol)
+    for atom in anionic.GetAtoms():
+        if atom.GetFormalCharge():
+            atom.SetFormalCharge(-1)
+    anionic = anionic.GetMol()
+    Chem.SanitizeMol(anionic)
+    name = smiles_to_iupac(Chem.MolToSmiles(anionic))
+    terminal = re.fullmatch(r"((?:\([^()]*\))?[a-z]+)an-1-ide", name)
+    if terminal:
+        return terminal.group(1) + "ylium"
+    if name.endswith("anide"):
+        return name[: -len("anide")] + "ylium"
+    if re.search(r"-\d+-ide$", name):
+        return name[: -len("ide")] + "ylium"
+    raise UnsupportedStructure("the carbanion of this skeleton is not named by a parent hydride and the suffix 'ide'")

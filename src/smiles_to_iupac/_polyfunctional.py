@@ -3066,6 +3066,7 @@ def _locants_omitted(mol, in_parent, parts):
         and len(positions) == mol.GetNumAtoms()
         and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in positions)
         and len({ranks[a] for a in positions}) == 1
+        and (len(positions) == 1 or not any(a.HasProp(ANION_PROP) for a in mol.GetAtoms()))
     )
 
 
