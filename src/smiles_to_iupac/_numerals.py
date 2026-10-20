@@ -11,6 +11,8 @@ _HUNDREDS = ["", "hecta", "dicta", "tricta", "tetracta", "pentacta",
 _THOUSANDS = ["", "kilia", "dilia", "trilia", "tetralia", "pentalia",
               "hexalia", "heptalia", "octalia", "nonalia"]
 
+COUNT_WORDS = "di|tri|tetra|penta|hexa|hepta|octa|nona|deca"
+
 _RETAINED_ALKANES = {1: "methane", 2: "ethane", 3: "propane", 4: "butane"}
 _RETAINED_ALKYLS = {1: "methyl", 2: "ethyl", 3: "propyl", 4: "butyl"}
 
