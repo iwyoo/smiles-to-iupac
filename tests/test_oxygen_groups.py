@@ -1052,6 +1052,8 @@ def test_cationic_hydrazine_outranks_a_neutral_acid():
         ("OC(=O)CCOOC#N", "3-(cyanoperoxy)propanoic acid"),
         ("OC(=O)CCSSC#N", "3-(cyanodisulfanyl)propanoic acid"),
         ("OC(=O)CCC[Se]C#N", "4-(selenocyanato)butanoic acid"),
+        ("ICCc1ccc(OI)c(OI)c1", "4-(2-iodoethyl)-1,2-phenylene dihypoiodite"),
+        ("ICCC(CCOP)OP", "5-iodopentane-1,3-diyl diphosphinite"),
     ],
 )
 def test_ester_class_names(smiles, expected):
