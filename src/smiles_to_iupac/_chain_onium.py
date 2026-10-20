@@ -19,7 +19,7 @@ _STEM = {7: ("azane", 3), 8: ("oxidane", 2), 15: ("phosphane", 3), 16: ("sulfane
 
 
 def _chain(mol, start):
-    """The unbranched chain of single-bonded atoms of the element of `start`, as an ordered list, or None."""
+    """The unbranched chain of atoms of the element of `start` joined by single or double bonds, as an ordered list, or None."""
     z = mol.GetAtomWithIdx(start).GetAtomicNum()
     component = {start}
     stack = [start]
@@ -29,7 +29,7 @@ def _chain(mol, start):
             if (
                 n.GetAtomicNum() == z
                 and n.GetIdx() not in component
-                and mol.GetBondBetweenAtoms(current, n.GetIdx()).GetBondTypeAsDouble() == 1.0
+                and mol.GetBondBetweenAtoms(current, n.GetIdx()).GetBondTypeAsDouble() in (1.0, 2.0)
             ):
                 component.add(n.GetIdx())
                 stack.append(n.GetIdx())
@@ -86,6 +86,7 @@ def name_chain_onium(mol) -> str:
     best = None
     for walk in (chain, chain[::-1]):
         positions = {a: i + 1 for i, a in enumerate(walk)}
+        enes = [i + 1 for i, (a, b) in enumerate(zip(walk, walk[1:])) if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 2.0]
         subs = {}
         for atom in walk:
             for n in graph[atom]:
@@ -96,13 +97,16 @@ def name_chain_onium(mol) -> str:
                 )
         grouped = group_substituents(subs)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-        key = (sorted(positions[a] for a in cations), locant_set, citation)
+        key = (sorted(positions[a] for a in cations), enes, locant_set, citation)
         if best is None or key < best[0]:
             best = (key, grouped)
     key, grouped = best
+    enes = key[1]
     count = len(cations)
     n = len(chain)
-    stem = "hydrazin" if z == 7 and n == 2 else multiplying_prefix(n) + _STEM[z][0][:-1]
+    stem = "hydrazin" if z == 7 and n == 2 and not enes else multiplying_prefix(n) + _STEM[z][0][:-1]
+    if enes:
+        stem = stem[:-2] + "en" if n == 2 else f"{stem[:-2]}-{','.join(map(str, enes))}-en"
     locants = ",".join(map(str, key[0]))
     if has_single_arrangement(mol, chain_set, cations):
         ending = "ium" if count == 1 else f"e{multiplying_prefix(count)}ium"
