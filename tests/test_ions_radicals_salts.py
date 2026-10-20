@@ -313,6 +313,8 @@ def test_nitrile_imide_still_and_related_raise(smiles):
         pytest.param("[O-][Se+]1C=CC=C1", "1H-1\u03bb4-selenophen-1-one", id="selenium_analogue_of_the_ring_s_oxide"),
         pytest.param("C[S+]([O-])C", "(methanesulfinyl)methane", id="sulfoxide_written_with_charges"),
         pytest.param("CC(C)=[N+](C)[O-]", "N-methylpropan-2-imine N-oxide", id="nitrone"),
+        pytest.param("C[N+](C)([O-])CC(=O)O", "carboxy-N,N-dimethylmethanamine N-oxide", id="amine_oxide_outranks_a_carboxylic_acid"),
+        pytest.param("C[N+](C)([O-])c1ccc(O)cc1", "4-hydroxy-N,N-dimethylaniline N-oxide", id="aniline_oxide_outranks_a_hydroxy_group"),
         pytest.param("C[N+]([O-])=CCO", "2-hydroxy-N-methylethan-1-imine N-oxide", id="nitrone_outranks_a_hydroxy_group"),
         pytest.param("C[N+]([O-])=CCC#N", "2-cyano-N-methylethan-1-imine N-oxide", id="nitrone_outranks_a_nitrile"),
         pytest.param("O=C(O)c1ccc(C=[N+](C)[O-])cc1", "1-(4-carboxyphenyl)-N-methylmethanimine N-oxide", id="nitrone_outranks_a_carboxylic_acid"),
