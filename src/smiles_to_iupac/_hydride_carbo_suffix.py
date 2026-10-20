@@ -75,13 +75,28 @@ def _group_class(mol, carbon):
     hetero = [
         n
         for n in others
-        if n.GetDegree() == 1
-        and order[n.GetIdx()] == 1.0
-        and (n.GetAtomicNum(), n.GetTotalNumHs()) in ((8, 1), (_NITROGEN, 2))
+        if order[n.GetIdx()] == 1.0
+        and (
+            (n.GetDegree() == 1 and (n.GetAtomicNum(), n.GetTotalNumHs()) in ((8, 1), (_NITROGEN, 2)))
+            or _substituted_amide_nitrogen(n, atom)
+        )
     ]
     if len(hetero) != 1:
         return None
     return "acid" if hetero[0].GetAtomicNum() == 8 else "amide"
+
+
+def _substituted_amide_nitrogen(nitrogen, carbon):
+    """An amino nitrogen of the amide group whose substituents are carbon atoms that are not acyl, imidoyl or
+    thioacyl carbons (P-66.1.1.3.1)."""
+    if nitrogen.GetAtomicNum() != _NITROGEN or nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetDegree() < 2:
+        return False
+    return all(
+        n.GetAtomicNum() == 6
+        and not any(b.GetBondTypeAsDouble() != 1.0 and b.GetOtherAtom(n).GetAtomicNum() in (7, 8, 16, 34, 52) for b in n.GetBonds())
+        for n in nitrogen.GetNeighbors()
+        if n.GetIdx() != carbon.GetIdx()
+    ) and all(b.GetBondTypeAsDouble() == 1.0 for b in nitrogen.GetBonds())
 
 
 def _siloxane_skeleton(mol, graph):
@@ -243,15 +258,28 @@ def name_hydride_carbo_suffix(mol) -> str:
     bond_codes = _skeleton_bond_descriptors(mol, stereo, skeleton_set, set(principal_carbons))
 
     entries = []
+    nitrogen_entries = {}
+    nitrogens = {c: _amide_nitrogen(mol, c, host) for c, host in principal_carbons.items()} if principal == "amide" else {}
+    group_atoms = set(principal_carbons) | {n for n in nitrogens.values() if n is not None}
     roots = [n for atom in skeleton for n in graph[atom] if n not in skeleton_set and n not in principal_carbons]
-    with cited_branch_stereo(mol, graph, skeleton_set | set(principal_carbons), roots) if stereo else contextlib.nullcontext():
+    roots += [m for n in nitrogens.values() if n is not None for m in graph[n] if m not in group_atoms]
+    with cited_branch_stereo(mol, graph, skeleton_set | group_atoms, roots) if stereo else contextlib.nullcontext():
         for atom in skeleton:
             for n in graph[atom]:
                 if n in skeleton_set or n in principal_carbons:
                     continue
                 entries.append((atom, *name_branch(graph, n, atom, halogens, mol=mol, unsaturated=True)))
+        for carbon, nitrogen in nitrogens.items():
+            nitrogen_entries[carbon] = [
+                name_branch(graph, m, nitrogen, halogens, mol=mol, unsaturated=True) for m in graph[nitrogen] if m != carbon
+            ]
 
     if kind == "mononuclear":
+        if any(nitrogen_entries.values()):
+            grouped = group_substituents(
+                _merge(entries, {skeleton[0]: 1}) | _nitrogen_locants(nitrogen_entries, {c: 1 for c in nitrogen_entries})
+            )
+            return f"{format_substituent_prefixes(grouped, omit_locants=True)}{parent_name}{multiplied_word(count, word)}"
         prefix = format_mononuclear_prefixes([(name, compound) for _, name, compound in entries]) if entries else ""
         return f"{prefix}{parent_name}{multiplied_word(count, word)}"
 
@@ -264,6 +292,7 @@ def name_hydride_carbo_suffix(mol) -> str:
         ]
         grouped = group_substituents(_merge(entries, position_of))
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        on_nitrogen = _nitrogen_locants(nitrogen_entries, {c: position_of[host] for c, host in principal_carbons.items()})
         descriptors = [
             (i + 1, bond_codes[frozenset((a, b))])
             for i, (a, b) in enumerate(zip(candidate, candidate[1:]))
@@ -271,7 +300,7 @@ def name_hydride_carbo_suffix(mol) -> str:
         ]
         key = (suffix_locants, ene_locants, locant_set, citation, [locant for locant, code in descriptors if code == "Z"])
         if best is None or key < best[0]:
-            best = (key, suffix_locants, ene_locants, grouped, descriptors)
+            best = (key, suffix_locants, ene_locants, group_substituents(_merge(entries, position_of) | on_nitrogen), descriptors)
 
     _, suffix_locants, ene_locants, grouped, descriptors = best
     total = count + sum(len(info["locants"]) for info in grouped.values())
@@ -293,6 +322,21 @@ def name_hydride_carbo_suffix(mol) -> str:
     if symmetric_sole:
         return f"{lead}{prefix}{parent_name}{body}"
     return f"{lead}{prefix}{parent_name}-{','.join(map(str, suffix_locants))}-{body}"
+
+
+def _amide_nitrogen(mol, carbon, host):
+    """The nitrogen of the amide group on `carbon`, or None when the group is not an amide."""
+    return next(
+        (n.GetIdx() for n in mol.GetAtomWithIdx(carbon).GetNeighbors() if n.GetAtomicNum() == _NITROGEN),
+        None,
+    )
+
+
+def _nitrogen_locants(nitrogen_entries, host_position):
+    """{N, N', ...: substituents} of the amide nitrogens, the primes following the order of the suffix locants
+    (P-66.1.1.3.1)."""
+    ordered = sorted(nitrogen_entries, key=lambda carbon: host_position[carbon])
+    return {"N" + "'" * i: nitrogen_entries[carbon] for i, carbon in enumerate(ordered) if nitrogen_entries[carbon]}
 
 
 def _skeleton_bond_descriptors(mol, stereo, skeleton_set, group_carbons):
