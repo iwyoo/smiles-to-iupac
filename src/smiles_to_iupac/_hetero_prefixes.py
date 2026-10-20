@@ -942,6 +942,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         and atom.GetFormalCharge() == 1
         and order in (1.0, 2.0)
         and atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED
+        and not any(n.GetFormalCharge() < 0 for n in atom.GetNeighbors())
         and _alcoholate_anion_parent(mol)
     ):
         # P-74.1.3: the cation on another parent than the olate or thiolate is named as the cationic amine, 'aminiumyl'

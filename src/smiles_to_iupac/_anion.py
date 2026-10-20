@@ -58,8 +58,16 @@ def swap_suffix(name):
         raise UnsupportedStructure("this anionic group has no anion suffix form yet") from None
 
 
+def _is_isocyano_carbon(atom):
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetDegree() == 1
+        and any(b.GetBondTypeAsDouble() == 3.0 and b.GetOtherAtom(atom).GetFormalCharge() == 1 for b in atom.GetBonds())
+    )
+
+
 def _is_nitro_oxygen(atom):
-    return atom.GetAtomicNum() != 6 and any(n.GetFormalCharge() > 0 for n in atom.GetNeighbors())
+    return _is_isocyano_carbon(atom) or (atom.GetAtomicNum() != 6 and any(n.GetFormalCharge() > 0 for n in atom.GetNeighbors()))
 
 
 def anion_atoms(mol):
