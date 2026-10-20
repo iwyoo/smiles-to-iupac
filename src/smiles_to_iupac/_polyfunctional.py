@@ -5580,15 +5580,21 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     return best[3]
 
 
-def _hydroxy_or_alkoxy_on_nitrogen(atom):
-    """The oxygen of an N-hydroxy or N-alkoxy group: an N-prefix of the amine, not a second parent (P-68.3.1.1.1.1)."""
-    return (
-        atom.GetAtomicNum() == 8
-        and not atom.GetFormalCharge()
-        and not atom.GetIsotope()
-        and all(n.GetAtomicNum() in (6, 7) for n in atom.GetNeighbors())
-        and sum(n.GetAtomicNum() == 7 for n in atom.GetNeighbors()) == 1
-    )
+def _chalcogen_group_on_nitrogen(atom, came_from=None):
+    """The first chalcogen of an N-hydroxy, N-alkoxy, N-sulfanyl or N-chalcogen-chain group: an N-prefix of the amine, not a
+    second parent (P-68.3.1.1.1.1)."""
+    if atom.GetAtomicNum() not in (8, 16, 34, 52) or atom.GetFormalCharge() or atom.GetIsotope():
+        return False
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+        return False
+    onward = [n for n in atom.GetNeighbors() if n.GetIdx() != came_from]
+    if came_from is None:
+        if sum(n.GetAtomicNum() == 7 for n in onward) != 1:
+            return False
+        onward = [n for n in onward if n.GetAtomicNum() != 7]
+    return all(
+        n.GetAtomicNum() == 6 or _chalcogen_group_on_nitrogen(n, atom.GetIdx()) for n in onward
+    ) and len(onward) <= 1
 
 
 def _parent_name_rank(name):
@@ -5666,7 +5672,7 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
         n.IsInRing() or (n.GetFormalCharge() and not (AMINIUM.get() is True and n.GetFormalCharge() == 1))
         or (n.GetTotalNumHs() > 1 and n.GetDegree() > 1) or any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds())
         or any(
-            not _hydroxy_or_alkoxy_on_nitrogen(x)
+            not _chalcogen_group_on_nitrogen(x)
             and not _ring_nitrogen_parent(x)
             and (x.GetAtomicNum() != 6 or is_functional_carbon(mol, x.GetIdx()) or _double_oxygens(mol, x.GetIdx()))
             for x in n.GetNeighbors()
