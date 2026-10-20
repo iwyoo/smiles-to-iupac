@@ -167,6 +167,7 @@ def test_locants_are_all_cited_once_a_nuclide_needs_one(smiles, expected):
         ("CC(=O)Oc1ccc(C)cc1[2H]", "4-methyl(2-2H)phenyl acetate"),
         ("CC(=O)Oc1ccc([2H])cc1", "(4-2H)phenyl acetate"),
         ("[2H]c1ccc2ccccc2c1", "(2-2H)naphthalene"),
+        ("[2H]c1nc(CCN)ns1", "2-[(5-2H)-1,2,4-thiadiazol-3-yl]ethan-1-amine"),
         ("[2H]c1cccc2ccccc12", "(1-2H)naphthalene"),
         ("[2H]c1c([2H])cc2ccccc2c1", "(2,3-2H2)naphthalene"),
         ("[2H]c1ccc2ccccc2n1", "(2-2H)quinoline"),
