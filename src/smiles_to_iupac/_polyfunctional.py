@@ -351,20 +351,44 @@ def _imide_parent(mol, carbon, partner):
 
 
 def _organyloxy(mol, chalcogen, nitrogen):
-    """A chain of chalcogen atoms (-O-, -S-, -Se-, -Te-) on nitrogen that ends in a plain carbon group: an alkoxy,
-    sulfanyl or disulfanyl-type prefix (P-63.2.2.1.1, P-63.4.2.2)."""
-    previous, atom = nitrogen, chalcogen
-    while atom.GetAtomicNum() in _CHALCOGEN_RANK:
-        if atom.GetDegree() != 2 or atom.GetFormalCharge() or atom.IsInRing():
-            return False
-        if mol.GetBondBetweenAtoms(previous.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() != 1.0:
-            return False
-        previous, atom = atom, next(n for n in atom.GetNeighbors() if n.GetIdx() != previous.GetIdx())
+    """A group on nitrogen that starts at a chalcogen atom (-O-, -S-, -Se-, -Te-) or a plain carbon group and continues
+    through single bonds to hydride groups, chalcogens and plain carbon groups: an alkoxy, silyloxy, aminooxy,
+    hydroperoxy or sulfanyl-type prefix (P-63.2.2.1.1, P-63.2.2.1.2, P-63.4.2.2)."""
+    return chalcogen.GetAtomicNum() in (6, *_CHALCOGEN_RANK) and _hydride_chain_group(mol, chalcogen, nitrogen)
+
+
+def _hydride_chain_group(mol, atom, origin):
+    """Whether `atom`, bonded to `origin`, roots an acyclic group of single bonds built from chalcogens, nitrogen and
+    mononuclear hydride atoms that ends in hydrogen or in plain carbon groups."""
+    from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
+
+    if mol.GetBondBetweenAtoms(origin.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    if atom.GetAtomicNum() == 6:
+        return not _double_oxygens(mol, atom.GetIdx()) and not is_functional_carbon(mol, atom.GetIdx())
+    if (
+        atom.GetAtomicNum() not in (7, *_CHALCOGEN_RANK, *MONONUCLEAR_HYDRIDES)
+        or atom.GetFormalCharge()
+        or atom.GetIsotope()
+        or atom.GetNumRadicalElectrons()
+        or atom.IsInRing()
+    ):
+        return False
+    return all(
+        _plain_ylidene_carbon(mol, atom, n) if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        else _hydride_chain_group(mol, n, atom)
+        for n in atom.GetNeighbors()
+        if n.GetIdx() != origin.GetIdx()
+    )
+
+
+def _plain_ylidene_carbon(mol, nitrogen, carbon):
     return (
-        atom.GetAtomicNum() == 6
-        and mol.GetBondBetweenAtoms(previous.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() == 1.0
-        and not _double_oxygens(mol, atom.GetIdx())
-        and not is_functional_carbon(mol, atom.GetIdx())
+        nitrogen.GetAtomicNum() == 7
+        and carbon.GetAtomicNum() == 6
+        and not carbon.IsInRing()
+        and not _double_oxygens(mol, carbon.GetIdx())
+        and not is_functional_carbon(mol, carbon.GetIdx())
     )
 
 

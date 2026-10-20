@@ -1888,6 +1888,8 @@ def test_acyl_group_on_nitroso_or_nitro_nitrogen_is_not_an_acyl_halide_or_aldehy
     "smiles,expected",
     [
         pytest.param("CC(=O)NOC", "N-methoxyacetamide", id="n_alkoxy_amide"),
+        pytest.param("CC(=O)N(C)O[SiH2][SiH3]", "N-(disilanyloxy)-N-methylacetamide", id="hydride_chain_joined_through_oxygen_on_amide_nitrogen"),
+        pytest.param("CC(=S)NON=CC", "N-[(ethylideneamino)oxy]ethanethioamide", id="ylidene_amino_oxy_on_thioamide_nitrogen"),
         pytest.param("CC(=O)NOCC(C)C", "N-(2-methylpropoxy)acetamide", id="branched_alkoxy_on_amide_nitrogen"),
         pytest.param("CC(=O)NOc1ccccc1", "N-phenoxyacetamide", id="n_aryloxy_amide"),
         pytest.param("CC(=O)N(C)OC", "N-methoxy-N-methylacetamide", id="alkoxy_and_alkyl_on_one_amide_nitrogen"),
