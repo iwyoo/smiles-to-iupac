@@ -1034,6 +1034,21 @@ def test_multiplicative_name_needs_identical_branches_on_the_linking_group(smile
             "(2R,2'S)-1,1'-trioxidanediylbis(2-hydroxypropan-1-one)",
             id="arm_centres_beside_a_chalcogen_chain",
         ),
+        pytest.param(
+            "OC(=O)CCN(CCC(=O)O)[C@H](C)Cl",
+            "3,3'-{[(1S)-1-chloroethyl]azanediyl}dipropanoic acid",
+            id="centre_of_a_substituent_on_a_chain_linker",
+        ),
+        pytest.param(
+            "OC(=O)CCOc1cc([C@H](C)Cl)c(OCCC(=O)O)cc1",
+            "3,3'-({2-[(1S)-1-chloroethyl]-1,4-phenylene}bis(oxy))dipropanoic acid",
+            id="centre_of_a_substituent_on_a_ring_linker",
+        ),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)N([C@H](C)Cl)c1ccc(cc1)C(=O)O",
+            "4,4'-{[(1S)-1-chloroethyl]azanediyl}dibenzoic acid",
+            id="centre_of_a_substituent_on_a_linker_between_rings",
+        ),
     ],
 )
 def test_stereodescriptors_in_a_multiplicative_name(smiles, expected):

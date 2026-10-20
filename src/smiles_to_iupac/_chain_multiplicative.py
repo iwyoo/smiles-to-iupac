@@ -14,6 +14,7 @@ from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _Context
 from ._multiplicative_groups import terminal_ligand
 from ._multiplicative_linker import DecompositionRejected, name_component
+from ._multiplicative_prefix import cited_linker_substituents
 from ._multiplicative_text import (
     enclose,
     join_parts,
@@ -543,6 +544,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     unit_stereo, branch_stereo = [], [[] for _ in edges[center]]
     branch_atoms = [_arm_atoms(graph, y, x) for x, y, _ in edges[center]]
     kind, atoms = components[center]
+    centre_side = set(range(mol.GetNumAtoms())) - set(atoms).union(*branch_atoms)
     centre_stereo = {}
     ring_stereo = []
     chain_stereo = []
@@ -560,6 +562,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         if kind == "carbon" and touched <= set(atoms):
             chain_stereo.append(element)
             continue
+        if touched <= centre_side:
+            continue
         holders = [i for i, atoms_ in enumerate(branch_atoms) if touched <= atoms_]
         if len(holders) != 1:
             return None
@@ -574,6 +578,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         return None
     branches = len(edges[center])
     per_branch = count // branches
+    centre_side_citation = cited_linker_substituents(mol, set(atoms).union(*branch_atoms), atoms)
     chain = []
     x, y, order = edges[center][0]
     previous, current = x, y
@@ -588,29 +593,30 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             break
         previous, current, order = onward[0][0], onward[0][1], onward[0][2]
     try:
-        ylidene = all(order == 2 for _, _, order in edges[center])
-        central = (
-            _fused_central(mol, graph, atoms, edges[center], _arm_atoms)
-            if _is_fused(mol, kind, atoms) and not ylidene
-            else None
-        )
-        if central is None:
-            central = _component_part(
-                mol, graph, kind, atoms, edges[center], ctx, None, stereo=centre_stereo or ring_stereo or None
+        with centre_side_citation:
+            ylidene = all(order == 2 for _, _, order in edges[center])
+            central = (
+                _fused_central(mol, graph, atoms, edges[center], _arm_atoms)
+                if _is_fused(mol, kind, atoms) and not ylidene
+                else None
             )
-        arm_parts = []
-        for cid, toward_center, onward, fan in chain:
-            akind, aatoms = components[cid]
-            if fan and per_branch > 1:
-                arm_parts.append(
-                    _component_part(mol, graph, akind, aatoms, [toward_center, *onward], ctx, None, toward_center[0])
+            if central is None:
+                central = _component_part(
+                    mol, graph, kind, atoms, edges[center], ctx, None, stereo=centre_stereo or ring_stereo or None
                 )
-            else:
-                arm_parts.append(
-                    _component_part(
-                        mol, graph, akind, aatoms, [toward_center, onward[0]], ctx, (onward[0][0], toward_center[0])
+            arm_parts = []
+            for cid, toward_center, onward, fan in chain:
+                akind, aatoms = components[cid]
+                if fan and per_branch > 1:
+                    arm_parts.append(
+                        _component_part(mol, graph, akind, aatoms, [toward_center, *onward], ctx, None, toward_center[0])
                     )
-                )
+                else:
+                    arm_parts.append(
+                        _component_part(
+                            mol, graph, akind, aatoms, [toward_center, onward[0]], ctx, (onward[0][0], toward_center[0])
+                        )
+                    )
     except DecompositionRejected:
         return None
     except UnsupportedStructure:

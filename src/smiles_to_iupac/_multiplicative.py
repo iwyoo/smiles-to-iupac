@@ -18,7 +18,7 @@ from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import CATION_RANK, KETONE_LIKE, SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, alternating_chalcogen_runs, name_component
-from ._multiplicative_prefix import SUFFIX_CARRIERS, consume_labels, hook_suspended, label_marked, labels_in
+from ._multiplicative_prefix import SUFFIX_CARRIERS, cited_linker_substituents, consume_labels, hook_suspended, label_marked, labels_in
 from ._multiplicative_ring import (
     bare_polycyclic_unit,
     name_monocyclic_unit,
@@ -554,16 +554,18 @@ def _attempt_units(mol, groups, selected, tree, core, name_function, merge_assem
                 skeletal = skeletal_linker(mol, graph, inner, starts, frozenset(ends))
                 if skeletal is not None:
                     return _assemble(2, unit, Part(f"({skeletal})bis(oxy)", True, True), [])
+    linker_atoms = set().union(*(set(a) for _, a in components.values()))
     try:
-        central = name_component(mol, kind, atoms, center_edges, ctx)
-        arm_parts = []
-        for cid, toward_center, toward_unit in arm_chain:
-            akind, aatoms = components[cid]
-            arm_parts.append(
-                name_component(
-                    mol, akind, aatoms, [toward_center, toward_unit], ctx, directed=(toward_unit[0], toward_center[0])
+        with cited_linker_substituents(mol, unit_atoms | linker_atoms, linker_atoms):
+            central = name_component(mol, kind, atoms, center_edges, ctx)
+            arm_parts = []
+            for cid, toward_center, toward_unit in arm_chain:
+                akind, aatoms = components[cid]
+                arm_parts.append(
+                    name_component(
+                        mol, akind, aatoms, [toward_center, toward_unit], ctx, directed=(toward_unit[0], toward_center[0])
+                    )
                 )
-            )
     except DecompositionRejected:
         return None
     except UnsupportedStructure:
@@ -592,6 +594,7 @@ def _attempt_units(mol, groups, selected, tree, core, name_function, merge_assem
         if diamido is not None:
             central, arm_parts = diamido, []
 
+    substituent_atoms = set(range(mol.GetNumAtoms())) - unit_atoms - linker_atoms
     represented = set(atoms)
     for cid, _, _ in arm_chain:
         represented.update(components[cid][1])
@@ -602,7 +605,7 @@ def _attempt_units(mol, groups, selected, tree, core, name_function, merge_assem
         else:
             bond = mol.GetBondWithIdx(idx)
             involved = {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()}
-        if (element_kind, idx) not in ctx.used and not involved <= elsewhere | unit_atoms:
+        if (element_kind, idx) not in ctx.used and not involved <= elsewhere | unit_atoms | substituent_atoms:
             raise UnsupportedStructure("stereodescriptors outside the linking group of a multiplicative name are not supported yet")
     consume_labels(elsewhere - unit_atoms)
     name = _assemble(len(selected), unit, central, arm_parts)
