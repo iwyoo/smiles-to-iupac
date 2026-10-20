@@ -1046,6 +1046,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if order == 1.0 and not atom.GetFormalCharge() and any(
             mol.GetAtomWithIdx(n).GetAtomicNum() == 7
             and not mol.GetAtomWithIdx(n).IsInRing()
+            and not mol.GetAtomWithIdx(n).GetFormalCharge()
             and not is_oxo_nitrogen(mol, mol.GetAtomWithIdx(n))
             for n in others
         ):
@@ -2206,13 +2207,19 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return (prefix + "-" if prefix else "") + f"λ{bonding}-" + base[:-2] + SUFFIX_OF_ORDER[order], True
         return prefix + base[:-2] + SUFFIX_OF_ORDER[order], bool(entries)
     if any(
-        mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum() and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0
+        mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum()
+        and not mol.GetAtomWithIdx(n).IsInRing()
+        and not mol.GetAtomWithIdx(n).GetFormalCharge()
+        and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0
         for n in others
     ):
         return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetAtomicNum() in _OXANE_ELEMENTS and any(
         mol.GetAtomWithIdx(n).GetAtomicNum() in _CHAIN_ELEMENTS and mol.GetAtomWithIdx(n).GetDegree() == 2 and not mol.GetAtomWithIdx(n).GetFormalCharge()
-        and any(m != root and mol.GetAtomWithIdx(m).GetAtomicNum() == atom.GetAtomicNum() for m in graph[n])
+        and any(
+            m != root and mol.GetAtomWithIdx(m).GetAtomicNum() == atom.GetAtomicNum() and not mol.GetAtomWithIdx(m).IsInRing()
+            for m in graph[n]
+        )
         for n in others
     ):
         return _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
@@ -2482,13 +2489,13 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 n != coming_from
                 and n not in chain_atoms
                 and mol.GetAtomWithIdx(n).GetAtomicNum() == z
+                and not mol.GetAtomWithIdx(n).IsInRing()
+                and not mol.GetAtomWithIdx(n).GetFormalCharge()
                 and mol.GetBondBetweenAtoms(current, n).GetBondTypeAsDouble() in (1.0, 2.0)
                 and not (z == 7 and _nitro_or_nitroso_nitrogen(mol, n, current))
             ):
                 chain_atoms.add(n)
                 stack.append(n)
-    if any(mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() for a in chain_atoms):
-        raise UnsupportedStructure("this heteroatom chain substituent is not supported yet")
     paths = _chain_paths(graph, chain_atoms, root)
     longest = max(len(p) for p in paths)
     best = None
@@ -2560,7 +2567,7 @@ def _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             ):
                 continue
             centre = [m for m in graph[n] if m != walk[-1]][0]
-            if mol.GetAtomWithIdx(centre).GetAtomicNum() != element or centre in walk:
+            if mol.GetAtomWithIdx(centre).GetAtomicNum() != element or centre in walk or mol.GetAtomWithIdx(centre).IsInRing():
                 continue
             found += walks(walk + [n, centre], n, atom.GetAtomicNum())
         return found or [(walk, bridge_element)]
