@@ -991,6 +991,7 @@ def test_heteroatom_chain_parent_hydrides(smiles, expected):
         ("C[SiH2]O[SiH2]C(=O)O", "3-methyldisiloxane-1-carboxylic acid"),
         ("OC(=O)[SiH2][SiH2]C(=O)O", "disilane-1,2-dicarboxylic acid"),
         ("NC(=O)[PH2]", "phosphanecarboxamide"),
+        ("NC(=O)[AsH4]", "λ5-arsanecarboxamide"),
         ("CCN(C)C(=O)[SiH2]C", "N-ethyl-N,1-dimethylsilanecarboxamide"),
         ("CNC(=O)[SiH2][SiH2]C(=O)NCC", "N'-ethyl-N-methyldisilane-1,2-dicarboxamide"),
         ("N#C[SiH3]", "silanecarbonitrile"),
