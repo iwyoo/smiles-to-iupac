@@ -5,6 +5,7 @@ of one class are cited alphanumerically."""
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, alpha_sort_key
+from ._inorganic_molecule import is_inorganic_molecule, molecule_name
 from ._seniority import SUFFIX_CLASS_RANK
 
 _NOBLE_GAS_NAMES = {2: "helium", 10: "neon", 18: "argon", 36: "krypton", 54: "xenon", 86: "radon"}
@@ -68,6 +69,17 @@ def _inorganic_name(frag):
     return _NOBLE_GAS_NAMES.get(z) or _METAL_NAMES.get(z) or _MAIN_GROUP_NAMES.get(z)
 
 
+def named_by_namer_or_molecule(frag, key, namer):
+    """The organic name of a component, or the name of a polyatomic inorganic molecule the organic namers refuse."""
+    try:
+        return namer(key)
+    except UnsupportedStructure:
+        name = molecule_name(frag)
+        if name is None:
+            raise
+        return name
+
+
 def metal_halide_salt(frag):
     """SMILES of the ionic salt that a neutral molecule of one metal atom and two or more halogens bonded to it is
     named as (P-14.8.2): the covalently drawn ZnCl2 is cited as 'zinc dichloride', None for any other fragment."""
@@ -124,7 +136,7 @@ def _parent_key(frag):
 def _class_rank(frag):
     if _is_bare_water(frag):
         return (_WATER_RANK,)
-    if not any(a.GetAtomicNum() == 6 for a in frag.GetAtoms()):
+    if is_inorganic_molecule(frag):
         return (_INORGANIC_RANK,)
     ranks = [
         SUFFIX_CLASS_RANK[name]
@@ -230,7 +242,7 @@ def name_adduct(mol, namer) -> str:
     named = []
     for smiles, (frag, count) in _components(mol):
         salt = metal_halide_salt(frag)
-        name = "water" if _is_bare_water(frag) else _inorganic_name(frag) or namer(salt or smiles)
+        name = "water" if _is_bare_water(frag) else _inorganic_name(frag) or named_by_namer_or_molecule(frag, salt or smiles, namer)
         named.append((_class_rank(frag), alpha_sort_key(name), name, count, frag))
     if len(named) == 1:
         raise UnsupportedStructure("identical components form a repeated molecule, not an adduct")

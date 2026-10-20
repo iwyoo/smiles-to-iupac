@@ -7,7 +7,7 @@ from math import gcd
 
 from rdkit import Chem
 
-from ._adduct import _MAIN_GROUP_NAMES, _class_rank, _inorganic_name, _is_bare_water
+from ._adduct import _MAIN_GROUP_NAMES, _class_rank, _inorganic_name, _is_bare_water, named_by_namer_or_molecule
 from ._common import UnsupportedStructure, alpha_sort_key
 
 _HALIDES = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
@@ -67,7 +67,7 @@ def _component_name(key, frag, namer):
         return name
     if any(a.GetNumRadicalElectrons() for a in frag.GetAtoms()):
         raise UnsupportedStructure("a radical beside ions is not supported in an adduct name")
-    return namer(key)
+    return named_by_namer_or_molecule(frag, key, namer)
 
 
 def name_ion_adduct(mol, namer) -> str:
