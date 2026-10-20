@@ -945,6 +945,16 @@ def test_stereodescriptors_cited_by_the_ring_parent_are_not_repeated():
     [
         pytest.param("C[C@H](O)C(=O)NC(=O)c1ccccc1", "N-[(2S)-2-hydroxypropanoyl]benzamide", id="diacylamine"),
         pytest.param("C[C@@H](O)C(=O)NNC(=O)c1ccccc1", "N'-[(2R)-2-hydroxypropanoyl]benzohydrazide", id="diacylhydrazine"),
+        pytest.param(
+            "OC(=O)C[C@H](C)CC(=O)NCC(=O)O",
+            "N-[(3R)-4-carboxy-3-methylbutanoyl]glycine",
+            id="centre_stereogenic_only_through_the_rest_of_the_molecule",
+        ),
+        pytest.param(
+            "OC(=O)C/C(=C\\C)CC(=O)NCC(=O)O",
+            "N-[(3Z)-3-(carboxymethyl)pent-3-enoyl]glycine",
+            id="double_bond_stereogenic_only_through_the_rest_of_the_molecule",
+        ),
         pytest.param("CC(C)(C)S[C@H]1CCN[C@@H]1C(=O)O", "(3S)-3-(tert-butylsulfanyl)-L-proline", id="proline_with_sulfur_on_c3"),
         pytest.param("C[C@@]1(O)CCN[C@@H]1C(=O)O", "(3R)-3-hydroxy-3-methyl-L-proline", id="proline_with_a_quaternary_stereocentre_on_c3"),
         pytest.param("C[C@]1(O)CCN[C@@H]1C(=O)OC", "methyl (3S)-3-hydroxy-3-methyl-L-prolinate", id="ester_with_a_quaternary_stereocentre"),

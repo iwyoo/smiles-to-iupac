@@ -1604,6 +1604,7 @@ def ring_bond_locants(position_of, bonds, ring_size):
 
 
 STEREO_OVERRIDE = "_StereoOverride"
+BOND_STEREO_OVERRIDE = "_BondStereoOverride"
 _ENANTIOMORPHIC_BOND_CODE = {"z": "seqCis", "e": "seqTrans"}
 
 
@@ -2024,12 +2025,15 @@ def specified_stereo_elements(mol):
     elements = Chem.FindPotentialStereo(mol)
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
     overridden = [a.GetIdx() for a in mol.GetAtoms() if a.HasProp(STEREO_OVERRIDE)]
-    if not specified and not overridden:
+    overridden_bonds = [b.GetIdx() for b in mol.GetBonds() if b.HasProp(BOND_STEREO_OVERRIDE)]
+    if not specified and not overridden and not overridden_bonds:
         return None
     assign_cip_labels(mol)
     labels = []
     for element in specified:
         if element.type == Chem.StereoType.Atom_Tetrahedral and mol.GetAtomWithIdx(element.centeredOn).HasProp(STEREO_OVERRIDE):
+            continue
+        if element.type == Chem.StereoType.Bond_Double and mol.GetBondWithIdx(element.centeredOn).HasProp(BOND_STEREO_OVERRIDE):
             continue
         if element.type == Chem.StereoType.Atom_Tetrahedral:
             atom = mol.GetAtomWithIdx(element.centeredOn)
@@ -2059,6 +2063,7 @@ def specified_stereo_elements(mol):
                 "P-92/P-93)"
             )
     labels += [("atom", idx, mol.GetAtomWithIdx(idx).GetProp(STEREO_OVERRIDE)) for idx in overridden]
+    labels += [("bond", idx, mol.GetBondWithIdx(idx).GetProp(BOND_STEREO_OVERRIDE)) for idx in overridden_bonds]
     return labels
 
 
