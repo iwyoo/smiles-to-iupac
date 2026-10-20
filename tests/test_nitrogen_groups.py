@@ -975,6 +975,7 @@ def test_n_substituted_cyclic_imide_named_via_ketone_module():
     "smiles,expected",
     [
         ("CCC=NOCC", "N-ethoxypropan-1-imine"),
+        ("CC/C=N/CCC=N", "(1E)-N-(3-iminopropyl)propan-1-imine"),
     ],
 )
 def test_smiles_to_iupac_simple_imine(smiles, expected):

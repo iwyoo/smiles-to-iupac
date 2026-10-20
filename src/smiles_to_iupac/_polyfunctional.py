@@ -3375,15 +3375,23 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
     principal = _principal_class(classes)
     token = IDE_EXTRA.set(ide_extra)
     imine_token = IMINE_PARENT.set(principal == "imine")
+    stereo_context = BRANCH_STEREO.get()
+    used_before = set(stereo_context["used"]) if stereo_context else set()
     try:
-        results = [
-            _select_with_principal(mol, graph, halogens, aromatic_atoms, kept, kept_rings, principal, attach, n_names, stereo)
-            for amidine_kept, amidine_rings in _diamidide_alternatives(mol, groups, ring_groups)
-            for kept, kept_rings in _joined_imine_alternatives(mol, graph, amidine_kept, amidine_rings)
-        ]
+        results, used_by_result = [], []
+        for amidine_kept, amidine_rings in _diamidide_alternatives(mol, groups, ring_groups):
+            for kept, kept_rings in _joined_imine_alternatives(mol, graph, amidine_kept, amidine_rings):
+                if stereo_context:
+                    stereo_context["used"] = set(used_before)
+                results.append(
+                    _select_with_principal(mol, graph, halogens, aromatic_atoms, kept, kept_rings, principal, attach, n_names, stereo)
+                )
+                used_by_result.append(set(stereo_context["used"]) if stereo_context else set())
         if None in results:
             return None
         best = min(results, key=lambda result: result[0])
+        if stereo_context:
+            stereo_context["used"] = used_by_result[results.index(best)]
     finally:
         IMINE_PARENT.reset(imine_token)
         IDE_EXTRA.reset(token)
