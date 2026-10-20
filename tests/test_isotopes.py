@@ -1212,6 +1212,17 @@ def test_nuclide_of_an_amino_group_on_a_carbanion_is_cited_once_in_the_prefix():
     assert smiles_to_iupac("[2H]N[CH2-]") == "(2H1)aminomethanide"
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[13CH2+]", "(1-13C)ethylium", id="locant_kept_when_the_isomer_is_labelled_elsewhere"),
+        pytest.param("CC[13C+](C)CC", "3-methyl(3-13C)pentan-3-ylium", id="branched_carbenium_centre"),
+    ],
+)
+def test_nuclide_of_a_carbenium_centre_or_its_neighbour(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-82.2.1, P-82.6.2: the added-hydrogen term of a name is not a nuclide, and the nuclides of the parent are cited in front of it
 @pytest.mark.parametrize(
     "smiles,expected",

@@ -239,9 +239,11 @@ from ._isotope_steroid import has_isotope_steroid_shape, name_isotope_steroid
 from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
 from ._radical_group import (
     has_group_cation_shape,
+    has_labelled_group_cation_shape,
     has_radical_group_shape,
     has_radical_shape,
     name_group_cation,
+    name_labelled_group_cation,
     name_radical_group,
 )
 from ._isotope_one_carbon import has_isotope_one_carbon_shape, name_isotope_one_carbon
@@ -674,6 +676,10 @@ _NONCARBON_PEROXY_ESTER = Chem.MolFromSmarts("[#5,#14,#15,#16,#33,#34,#51,#52]OO
 def _name_isotope_label(mol) -> str | None:
     from ._isotope_labels import split_isotopes
 
+    if has_labelled_group_cation_shape(mol):
+        name = name_labelled_group_cation(mol)
+        if nuclides_cited(mol, name):
+            return name
     split = split_isotopes(mol)
     if split is not None and has_guanidine_shape(split[0]):
         try:
