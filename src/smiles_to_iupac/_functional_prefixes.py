@@ -596,9 +596,11 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 bond == 2.0
                 and mol.GetAtomWithIdx(parent).GetAtomicNum() == 7
                 and not atom.IsInRing()
-                and len(kids) == 1
-                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 6
-                and _bond_order(mol, node, kids[0]) == 1.0
+                and (not kids or (
+                    len(kids) == 1
+                    and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 6
+                    and _bond_order(mol, node, kids[0]) == 1.0
+                ))
             ):
                 continue
             if (

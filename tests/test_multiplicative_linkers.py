@@ -671,6 +671,7 @@ def test_double_bond_descriptor_and_hydroxy_suffix_of_a_diazene_or_chain_hydride
         pytest.param("c1ccc(N=Nc2cccnc2)cc1", "3-(phenyldiazenyl)pyridine", id="pyridine_position_3"),
         pytest.param("CN=Nc1ccccn1", "2-(methyldiazenyl)pyridine", id="alkyl_on_the_far_nitrogen"),
         pytest.param("N=Nc1ccccn1", "2-diazenylpyridine", id="unsubstituted_diazenyl"),
+        pytest.param("N=Nc1nccs1", "2-diazenyl-1,3-thiazole", id="unsubstituted_diazenyl_on_a_ring_with_two_heteroatoms"),
         pytest.param("Cc1ccc(N=Nc2ccccn2)cc1", "2-[(4-methylphenyl)diazenyl]pyridine", id="substituted_aryl_group"),
         pytest.param("Cc1cccc(N=Nc2ccccc2)n1", "2-methyl-6-(phenyldiazenyl)pyridine", id="ring_substituent_beside_the_diazenyl"),
         pytest.param("c1ccc(/N=N/c2ccccn2)cc1", "2-[(E)-phenyldiazenyl]pyridine", id="e_descriptor_inside_the_prefix"),
