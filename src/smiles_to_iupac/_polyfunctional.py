@@ -6601,7 +6601,9 @@ def _ring_linker_name(mol, graph, stereo):
             arms_named = _stereo_arms(mol, arm_stereo, arms, units)
             if arms_named is None:
                 continue
-            parts, stereo_text = arms_named
+            stereo_text = arms_named[1]
+            if not labelled:
+                parts = arms_named[0]
         if spec is not None:
             linker = name_ring_component(mol, ring, attachments, [], None, stereo=ring_stereo)
         else:
@@ -6637,10 +6639,11 @@ def _ring_linker_name(mol, graph, stereo):
 def _stereo_arms(mol, stereo, parts_atoms, units):
     """(parts of the first unit, '(2R,2'S)-' text) for identical units whose stereo differs; None when the units name
     differently once their configurations are cited, so that the substitutive name is used (P-93.6)."""
-    from ._substituents import BRANCH_STEREO
+    from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
     per_arm = []
     token = BRANCH_STEREO.set(None)
+    unlabelled = ISOTOPE_LABELS.set(None)
     try:
         for atoms, (unit, attach) in zip(parts_atoms, units):
             index = {orig: i for i, orig in enumerate(sorted(atoms))}
@@ -6662,6 +6665,7 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
                 return None
             per_arm.append((parts, entries))
     finally:
+        ISOTOPE_LABELS.reset(unlabelled)
         BRANCH_STEREO.reset(token)
     if len({tuple(parts[:4]) for parts, _ in per_arm}) != 1:
         return None
