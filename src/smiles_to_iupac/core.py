@@ -966,7 +966,7 @@ def _cited_nuclides(name):
     repeats = 2 if _SYMMETRIC_ANHYDRIDE.fullmatch(name) else 1
     for found in re.finditer(r"\(([^()]*)\)", name):
         group = found.group(1)
-        if re.fullmatch(r"\d+H", group) and re.search(r"\d[a-z]?$", name[: found.start()]):
+        if re.fullmatch(r"\d+H(,\d+H)*", group) and re.search(r"\d[a-z]?$", name[: found.start()]):
             continue
         factor = _multiplied_factor(name, found.start()) * repeats
         items = group.split(",")
