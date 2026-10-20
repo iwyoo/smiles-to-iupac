@@ -956,3 +956,14 @@ def test_phosphorus_acid_group_with_a_carboxyalkyl_organyl_beside_a_carboxylic_a
 )
 def test_phosphoryl_with_nitrogen_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[N-]=[N+]=CP(=O)(OCC)OCC", "diethyl (diazomethyl)phosphonate", id="diazo_on_phosphonate_ester"),
+        pytest.param("[C-]#[N+]CP(=O)(O)O", "(isocyanomethyl)phosphonic acid", id="isocyano_on_phosphonic_acid"),
+    ],
+)
+def test_charged_prefix_groups_on_phosphonic_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

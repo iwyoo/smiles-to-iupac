@@ -47,6 +47,14 @@ def _nitroso_or_diazenyl(mol, nitrogen, centre):
     return other.GetAtomicNum() in (7, 8) and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), other.GetIdx()).GetBondTypeAsDouble() == 2.0
 
 
+_CHARGED_PREFIX_GROUPS = [Chem.MolFromSmarts(smarts) for smarts in ("[#6]=[N+]=[N-]", "[#6][N+]#[C-]")]
+
+
+def charged_prefix_group_atoms(mol):
+    """The charged atoms of the diazo and isocyano groups, whose charges belong to the substituent prefix."""
+    return {i for query in _CHARGED_PREFIX_GROUPS for match in mol.GetSubstructMatches(query) for i in match[1:]}
+
+
 def acid_group_parts(mol, atom):
     """(oxo, hydroxyl, organyl) counts of a phosphonic, phosphonous, phosphinic or phosphinous acid centre; None for any
     other P, As or Sb atom (acid halide, amide, ester, chalcogenide, ring member, organyl derivative)."""
@@ -89,7 +97,7 @@ def senior_acid_centres(mol, candidates):
 
 def require_phosphorus_acid_scope(mol):
     """Carboxylic and the sulfur-group acids are senior to the phosphorus acids, which become phosphono prefixes (P-41)."""
-    in_nitro_group = set().union(*nitro_group_atoms(mol))
+    in_nitro_group = set().union(*nitro_group_atoms(mol)) | charged_prefix_group_atoms(mol)
     for atom in mol.GetAtoms():
         if (atom.GetFormalCharge() != 0 and atom.GetIdx() not in in_nitro_group) or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
