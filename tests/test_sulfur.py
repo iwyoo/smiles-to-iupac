@@ -478,6 +478,9 @@ def test_multiple_sulfonate_groups_and_related(smiles, expected):
     [
         ("CCS(=O)(=O)CC", "(ethanesulfonyl)ethane"),
         ("CS(=O)(=O)CCCC", "1-(methanesulfonyl)butane"),
+        ("C=CC(=O)S(=O)(=O)c1ccccc1", "1-(benzenesulfonyl)prop-2-en-1-one"),
+        ("CC(=O)S(=O)(=O)C(C)=O", "1,1'-sulfonyldi(ethan-1-one)"),
+        ("CC(=O)S(=O)(=O)OC", "methyl 1-oxoethane-1-sulfonate"),
     ],
 )
 def test_sulfone(smiles, expected):

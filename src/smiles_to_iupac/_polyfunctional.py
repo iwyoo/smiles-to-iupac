@@ -57,6 +57,7 @@ from ._hetero_prefixes import (
     chalcogen_link_is_parent,
     is_functional_carbon,
     is_halogen_oxo_part,
+    is_sulfone_like,
     azono_ligands,
 )
 from ._multiplicative import _bare_key
@@ -1070,6 +1071,13 @@ def _group_of(mol, carbon):
                     return "hydrazide", {oxygens[0], other.GetIdx(), beta}
             if carbon_neighbors and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
                 return "ketone", {oxygens[0]}
+            if other.GetAtomicNum() in (16, 34, 52) and other.GetDegree() >= 3:
+                if carbon_neighbors and is_sulfone_like(mol, other):
+                    return "ketone", {oxygens[0]}
+                sulfonyls = _sulfonyl_groups_on(mol, carbon)
+                if sulfonyls:
+                    senior = min((cls for cls, _ in sulfonyls), key=lambda cls: _group_rank(cls))
+                    return senior, set().union(*(owned for cls, owned in sulfonyls if cls == senior))
             if carbon_neighbors and (
                 _is_pseudoketone_heteroatom(mol, other, carbon)
                 or _diacyl_chalcogen_chain(mol, carbon, other)
@@ -6697,8 +6705,8 @@ def _bis_unit(text, tail):
 
 
 def _is_acyl_root(mol, atoms, attach, chalcogen_cut):
-    """The carbonyl carbon of an acyl arm joined to its core through a carbon or a ring nitrogen: once cut it is a
-    ketone, not an aldehyde (P-64.2.2.1, P-64.1.2.1(b))."""
+    """The carbonyl carbon of an acyl arm joined to its core through a carbon, a ring nitrogen or a sulfonyl-type atom:
+    once cut it is a ketone, not an aldehyde (P-64.2.2.1, P-64.1.2.1(b), P-64.4)."""
     root = mol.GetAtomWithIdx(attach)
     cut = [n for n in root.GetNeighbors() if n.GetIdx() not in atoms]
     return (
@@ -6710,6 +6718,7 @@ def _is_acyl_root(mol, atoms, attach, chalcogen_cut):
             cut[0].GetAtomicNum() == 6
             or (cut[0].GetAtomicNum() == 7 and cut[0].IsInRing())
             or (chalcogen_cut and cut[0].GetAtomicNum() in (8, 16, 34, 52))
+            or is_sulfone_like(mol, cut[0])
         )
         and len(_double_oxygens(mol, attach)) == 1
         and root.GetDegree() == 3
@@ -7074,6 +7083,7 @@ def _is_ester_like(mol, carbon):
         n.GetAtomicNum() in (8, 7, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0
         and not _diacyl_chalcogen_chain(mol, carbon, n)
         and not _acyloxy_lambda_centre_oxygen(n, carbon)
+        and not (n.GetAtomicNum() == 16 and is_sulfone_like(mol, n))
         and not (
             n.GetAtomicNum() == 7
             and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()) or _ring_nitrogen_pair(mol, carbon))
