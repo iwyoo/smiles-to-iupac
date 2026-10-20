@@ -845,6 +845,8 @@ def test_thione_names(smiles, expected):
     "smiles, expected",
     [
         pytest.param("CC(=S)C1CCCCC1", "1-cyclohexylethane-1-thione", id="substituent_chain_thione"),
+        pytest.param("CC(=S)SN", "1-(aminosulfanyl)ethane-1-thione", id="thioacyl_on_sulfur_that_continues_to_nitrogen"),
+        pytest.param("CC(=S)ONC", "1-[(methylamino)oxy]ethane-1-thione", id="thioacyl_on_oxygen_that_continues_to_nitrogen"),
         pytest.param("S=C1CCCCC1CC(=S)C", "2-(2-sulfanylidenepropyl)cyclohexane-1-thione", id="with_thione_chain_thione_tie"),
     ],
 )
