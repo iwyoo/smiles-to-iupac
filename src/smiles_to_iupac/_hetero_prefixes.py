@@ -81,7 +81,7 @@ def require_plain_chalcogen_kids(mol, z, kids):
     if z in (34, 52) and not EXTENDED_PREFIXES.get():
         for kid in kids:
             atom = mol.GetAtomWithIdx(kid)
-            if atom.GetAtomicNum() in (14, 32, 50, 82) or (atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() <= 2):
+            if atom.GetAtomicNum() in (7, 14, 32, 50, 82) or (atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() <= 2):
                 continue
             if atom.GetAtomicNum() == 8 and atom.GetDegree() <= 2 and _dichalcogenide_only(mol):
                 continue
@@ -187,9 +187,7 @@ def chalcogen_link_is_parent(mol):
             if z in _CHAIN_ELEMENTS:
                 linked = _chain_prefix_allowed(mol)
             else:
-                linked = _hetero_connection_is_prefix(mol) or (
-                    atom.GetAtomicNum() == 8 and _carbon_nitrogen_group(mol, other.GetIdx(), atom.GetIdx())
-                )
+                linked = _hetero_connection_is_prefix(mol) or _carbon_nitrogen_group(mol, other.GetIdx(), atom.GetIdx())
             if not linked:
                 return True
     return False
