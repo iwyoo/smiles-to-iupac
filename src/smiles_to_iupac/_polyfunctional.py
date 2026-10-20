@@ -4529,7 +4529,9 @@ def _assembly_hydro_positions(mol, hydro_rings, locants):
     return sorted(found, key=_locant_order)
 
 
-def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None, mol=None, stereo=None, hydro_rings=()):
+def _assembly_numbering(
+    graph, rings, join, marked, entries, specs=None, cite_marked=None, mol=None, stereo=None, hydro_rings=(), n_names=()
+):
     """Atom -> (prime count, locant) for the best numbering of two directly
     joined identical rings. Benzene and cycloalkane rings number from the
     junction (1 and 1'); heteroaromatic rings keep their fixed numbering and
@@ -4575,12 +4577,24 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                     tuple(_locant_order(loc) for loc in _assembly_hydro_positions(mol, hydro_rings, locants)) if hydro_rings else (),
                     tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
                     _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),
+                    _n_prefix_key(n_names, locants),
                     _isotope_key({a: _locant_order(loc) for a, loc in locants.items()}, locants),
                     _branch_stereo_rank(sorted((_locant_order(locants[a]), code) for a, code in (stereo or {}).items() if a in locants)),
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, ene)
     return best[1]
+
+
+def _n_prefix_key(n_names, locants):
+    """The N-prefixes of the amine groups of an assembly: the lowest locants together, then to the prefix cited first
+    (P-31.1.4.3.4)."""
+    placed = []
+    for name, _, *located in n_names:
+        found = _n_position(located[0], locants) if located and isinstance(located[0], tuple) else None
+        if found is not None:
+            placed.append((alphanumerical_name_key(name), _locant_order(found)))
+    return (tuple(sorted(order for _, order in placed)), tuple(order for _, order in sorted(placed)))
 
 
 def _assembly_multiple_locants(specs, locants):
@@ -5028,7 +5042,8 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     locants = _assembly_numbering(
-        graph, rings, joins[0], [o[1] for o in occurrences], entries, specs, mol=mol, hydro_rings=hydro_rings
+        graph, rings, joins[0], [o[1] for o in occurrences], entries, specs, mol=mol, hydro_rings=hydro_rings,
+        n_names=n_names,
     )
 
     def cite(locant):
