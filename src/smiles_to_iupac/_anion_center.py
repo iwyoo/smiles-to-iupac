@@ -10,6 +10,7 @@ import re
 from rdkit import Chem
 
 from ._common import GROUP_13, UnsupportedStructure, adjacency, halogen_substituents
+from ._diester_ring_diyl import PARENT_START
 from ._hetero_prefixes import ANION_PARENT
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
@@ -282,7 +283,28 @@ def _name_skeletal_anion(mol, centers):
         name = name[: -len("e")] if name.endswith("e") else name
         name = f"{name}-{','.join(str(x) for x in uide_locants)}-{count}uide"
     lam_locants = {position_of[i]: n for i, n in lams.items() if n is not None}
-    return _insert_lambda(name, lam_locants) if lam_locants else name
+    name = _insert_lambda(name, lam_locants) if lam_locants else name
+    return _with_ring_nuclides(neutral, name, position_of, PARENT_START.get())
+
+
+def _with_ring_nuclides(mol, name, position_of, start):
+    """`name` with the descriptor of the nuclides on the ring atoms in front of the parent hydride, after the substituent
+    prefixes (P-82.2.1, P-82.6.1)."""
+    from ._isotope_labels import descriptor
+    from ._polyfunctional import _sole_heteroatoms
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if not context:
+        return name
+    labelled = {a: e for a, e in context["labels"].items() if a in position_of and a not in context["consumed"]}
+    if not labelled:
+        return name
+    capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in labelled}
+    text = descriptor(labelled, position_of, False, capacity=capacity, sole=_sole_heteroatoms(mol, labelled, position_of))
+    context["consumed"].update(labelled)
+    head, rest = name[:start], name[start:]
+    return head + text + ("-" if rest[:1].isdigit() else "") + rest
 
 
 def _name_ring_zwitterion(mol, centers, cation):
