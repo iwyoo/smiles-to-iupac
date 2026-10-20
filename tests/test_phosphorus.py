@@ -519,6 +519,7 @@ def test_heteroatom_chains_cite_nonstandard_bonding_numbers_and_alternate_by_sen
     "smiles,expected",
     [
         ("CPCl", "methylphosphinous chloride"),
+        ("CN(C)[PH]P", "N,N-dimethyl-P-phosphanylphosphinous amide"),
         ("c1ccccc1P(c1ccccc1)Cl", "diphenylphosphinous chloride"),
         ("CP(Cl)Cl", "methylphosphonous dichloride"),
         ("C(C)=[N+](O)[O-]", "ethylideneazinic acid"),

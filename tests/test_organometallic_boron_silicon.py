@@ -47,6 +47,7 @@ def test_halogen_substituted_alkyl_chain():
         pytest.param("NN[BH2]", "boranylhydrazine", id="boron_monohydrazide"),
         pytest.param("[Si](O)(O)(O)OC#N", "cyanatosilicic acid", id="cyanato_prefix_on_silicic_acid"),
         pytest.param("[Si](O)(O)(OC#N)OC#N", "dicyanatosilicic acid", id="multiplied_cyanato_prefix"),
+        pytest.param("CN(C)[SiH2][SiH2]C", "N,N,2-trimethyldisilan-1-amine", id="amine_suffix_on_a_silane_chain"),
     ],
 )
 def test_amides_and_cyanates_of_boron_and_silicon_acids(smiles, expected):
