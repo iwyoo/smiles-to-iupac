@@ -408,6 +408,11 @@ def test_isotope_on_characteristic_group_atom(smiles, expected):
     [
         pytest.param("CC(=O)Nc1ccccc1C[13CH3]", "N-[2-(2-13C)ethylphenyl]acetamide", id="labelled_alkyl_on_a_ring_substituent"),
         pytest.param("CC(=O)c1ccc([18F])cc1", "1-[4-(18F)fluorophenyl]ethan-1-one", id="labelled_halogen_on_a_ring_substituent"),
+        pytest.param(
+            "CO[C@H]1O[C@H](CO)[C@@H](O)[C@H](O)[C@H]1[17OH]",
+            "(2S,3R,4S,5S,6R)-4,5-dihydroxy-6-(hydroxymethyl)-2-methoxyoxan-3-(17O)ol",
+            id="labelled_hydroxyl_of_a_methyl_glycoside_leaves_the_retained_name",
+        ),
         pytest.param("O=C(O)c1ccc(cc1)C([2H])([2H])[2H]", "4-(2H3)methylbenzoic acid", id="labelled_methyl_beside_a_ring_principal_group"),
         pytest.param("C([2H])([2H])([2H])Oc1ccc(cc1)C(=O)O", "4-(2H3)methoxybenzoic acid", id="labelled_methoxy_beside_a_ring_principal_group"),
         pytest.param("CC(=O)Nc1ccccc1OC[13CH3]", "N-{2-[(2-13C)ethoxy]phenyl}acetamide", id="labelled_ethoxy_on_a_ring_substituent"),

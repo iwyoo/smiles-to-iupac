@@ -702,9 +702,12 @@ def sugar_substituent_group(mol, graph, root, coming_from):
     """(name, True) of a monosaccharide cited as a substituent group through an atom other than its anomeric carbon
     (P-102.6.2): the sugar is named with a hydrogen atom in place of the bond to the parent, its final e is dropped
     and the position of the free valence is cited before 'yl', 'O-yl' or 'C-yl'."""
+    from ._substituents import ISOTOPE_LABELS
     from .core import smiles_to_iupac
 
     atom = mol.GetAtomWithIdx(root)
+    if ISOTOPE_LABELS.get() is not None:
+        return None
     if atom.GetAtomicNum() not in (6, 8) or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         return None
     atoms = subtree(graph, root, coming_from)
