@@ -2419,7 +2419,10 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         group for group in _principal_owned(mol)[1]
         if any(a in parts[4] or any(n.GetIdx() in parts[4] for n in mol.GetAtomWithIdx(a).GetNeighbors()) for a in group)
     ]
-    suffix_atoms = set().union(*parent_groups) if parent_groups else set()
+    carbanide_parent = (parts[1] or "").endswith("ide") and any(
+        mol.GetAtomWithIdx(a).HasProp(ANION_PROP) and mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in parts[4]
+    )
+    suffix_atoms = set().union(*parent_groups) if parent_groups and not carbanide_parent else set()
     rest = {a: e for a, e in labels.items() if a not in in_parent and a not in cited and (a not in consumed or a in suffix_atoms)}
     if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in rest):
         name, parts, suffix_text = _carbon_group_label(mol, rest, reselect)

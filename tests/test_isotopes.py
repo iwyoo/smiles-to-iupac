@@ -1194,3 +1194,7 @@ def test_nuclides_of_an_adduct_component_are_counted_once_per_molecule_of_its_ra
 
 def test_halogen_nuclide_of_a_hypohalous_amide_is_cited_after_the_substituent_prefixes():
     assert smiles_to_iupac("CN[18F]") == "methyl(18F)hypofluorous amide"
+
+
+def test_nuclide_of_an_amino_group_on_a_carbanion_is_cited_once_in_the_prefix():
+    assert smiles_to_iupac("[2H]N[CH2-]") == "(2H1)aminomethanide"
