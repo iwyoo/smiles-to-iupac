@@ -339,7 +339,7 @@ def is_diazonium_nitrogen(atom):
 
 
 _YLIDYNIUM_STEMS = {7: "azaniumylidyne", 8: "oxidaniumylidyne", 16: "sulfaniumylidyne"}
-_YLIDENIUM_STEMS = {8: "oxidaniumylidene", 16: "sulfaniumylidene", 34: "selaniumylidene", 52: "telluraniumylidene"}
+_YLIDENIUM_STEMS = {8: "oxidaniumylidene", 16: "sulfaniumylidene", 34: "selaniumylidene", 52: "tellaniumylidene"}
 
 
 def _terminal_anion(mol, idx):
@@ -1712,7 +1712,7 @@ _ONIUM_PREFIX_STEMS = {
     8: ("oxidanium", 3),
     16: ("sulfanium", 3),
     34: ("selanium", 3),
-    52: ("telluranium", 3),
+    52: ("tellanium", 3),
     15: ("phosphanium", 4),
     33: ("arsanium", 4),
     51: ("stibanium", 4),

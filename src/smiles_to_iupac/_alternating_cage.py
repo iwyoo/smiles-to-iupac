@@ -17,7 +17,7 @@ _A_TERM = {
     "Ga": "galla", "In": "inda", "Tl": "thalla",
 }
 _PARENT = {
-    "O": "oxane", "S": "thiane", "Se": "selenane", "Te": "telluranane", "N": "azane", "P": "phosphane", "As": "arsane",
+    "O": "oxane", "S": "thiane", "Se": "selenane", "Te": "tellurane", "N": "azane", "P": "phosphane", "As": "arsane",
     "Sb": "stibane", "Bi": "bismuthane", "Si": "silane", "Ge": "germane", "Sn": "stannane", "Pb": "plumbane",
     "B": "borane",
 }

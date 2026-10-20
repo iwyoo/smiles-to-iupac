@@ -106,7 +106,7 @@ def _anion_name(frag):
 
 # 'di' + a mononuclear onium would read as the dinuclear parent (diazanium = N2H5+)
 _MONONUCLEAR_ONIUM = frozenset(
-    {"azanium", "phosphanium", "arsanium", "stibanium", "bismuthanium", "oxidanium", "sulfanium", "selanium", "telluranium"}
+    {"azanium", "phosphanium", "arsanium", "stibanium", "bismuthanium", "oxidanium", "sulfanium", "selanium", "tellanium"}
 )
 
 
