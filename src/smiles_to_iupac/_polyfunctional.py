@@ -1776,6 +1776,17 @@ def _hydride_centre(atom):
     return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not atom.IsInRing() and not atom.GetFormalCharge()
 
 
+def _chalcogen_centre(atom):
+    """An acyclic neutral sulfur, selenium or tellurium atom carrying at most one carbon: a sulfanyl or organylsulfanyl group."""
+    return (
+        atom.GetAtomicNum() in (16, 34, 52)
+        and not atom.IsInRing()
+        and not atom.GetFormalCharge()
+        and atom.GetDegree() <= 2
+        and sum(n.GetAtomicNum() != 6 for n in atom.GetNeighbors()) <= 1
+    )
+
+
 def _aminium_base(mol, ignore=frozenset()):
     """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
     (a cation outranks every acid, P-41), else None; the charges of an azoxy group are not ammonium charges."""
@@ -1789,13 +1800,13 @@ def _aminium_base(mol, ignore=frozenset()):
             or nitrogen.IsInRing()
             or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
             or any(
-                (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n) and not _hydride_centre(n))
+                (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n) and not _hydride_centre(n) and not _chalcogen_centre(n))
                 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
                 or _double_oxygens(mol, n.GetIdx())
                 for n in nitrogen.GetNeighbors()
             )
             or not any(n.GetAtomicNum() == 6 or _hydride_centre(n) for n in nitrogen.GetNeighbors())
-            or (nitrogen.GetTotalNumHs() == 0 and any(_hydride_centre(n) for n in nitrogen.GetNeighbors()))
+            or (nitrogen.GetTotalNumHs() == 0 and any(n.GetAtomicNum() == 7 for n in nitrogen.GetNeighbors()))
         ):
             return None
     if all(n.GetTotalNumHs() == 0 for n in charged):
@@ -7020,14 +7031,19 @@ def _substituted_amine_nitrogen(mol, atom):
         n.GetAtomicNum() == 6 and _is_ester_like(mol, n.GetIdx()) for n in atom.GetNeighbors()
     ):
         return False
-    if any(n.GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in atom.GetNeighbors()):
+    cation = bool(AMINIUM.get() and (atom.GetFormalCharge() == 1 or atom.HasProp("_cationic_amine")))
+    if not cation and any(n.GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in atom.GetNeighbors()):
         return False
-    if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
+    if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not cation) or atom.GetIsAromatic() or atom.IsInRing():
         return False
     if AMINIUM.get() is True and not atom.GetFormalCharge() and not atom.HasProp("_cationic_amine"):
         return False
     if any(
-        n.GetAtomicNum() not in (6, 8, 16, 34, 52) and not _ring_nitrogen_parent(n) and not is_oxo_nitrogen(mol, n) and not _terminal_chalcogen_hydride(n)
+        n.GetAtomicNum() not in (6, 8, 16, 34, 52)
+        and not _ring_nitrogen_parent(n)
+        and not is_oxo_nitrogen(mol, n)
+        and not _terminal_chalcogen_hydride(n)
+        and not (cation and _hydride_centre(n) and n.GetAtomicNum() != 7)
         for n in atom.GetNeighbors()
     ):
         return False

@@ -140,7 +140,7 @@ def _onium_center(mol):
     if any(b.GetBondTypeAsDouble() > (3.0 if triple_allowed else 2.0) for b in atom.GetBonds()):
         return None
     if atom.GetAtomicNum() in (7, 8, 16):
-        oxygen_allowed = (6, 8, 9, 17, 35, 53) if atom.GetAtomicNum() in (7, 16) else (6, 9, 17, 35, 53)
+        oxygen_allowed = {7: (6, 8, 9, 17, 35, 53), 16: (6, 7, 8, 9, 17, 35, 53)}.get(atom.GetAtomicNum(), (6, 9, 17, 35, 53))
         if any(n.GetAtomicNum() not in oxygen_allowed for n in atom.GetNeighbors()):
             return None
     elif any(n.GetAtomicNum() not in _ONIUM_NEIGHBOURS or n.GetAtomicNum() == atom.GetAtomicNum() for n in atom.GetNeighbors()):
