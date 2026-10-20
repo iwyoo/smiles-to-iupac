@@ -735,7 +735,8 @@ def _parent_acid(center, link_elements):
     if center.z not in _STEM_WORD or len(center.oxo) > 1:
         return None
     oxo = len(center.oxo)
-    effective = len(center.singles) + (1 if link_elements == ("O",) and center.hydrogens >= 1 else 0)
+    own_acid_positions = bool(center.singles or center.oxo)
+    effective = len(center.singles) + (1 if link_elements == ("O",) and center.hydrogens >= 1 and own_acid_positions else 0)
     if effective not in (1, 2, 3) or (center.z == 5 and oxo):
         return None
     stem = _STEM_WORD[center.z][effective - 1]
