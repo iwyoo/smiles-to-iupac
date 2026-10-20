@@ -503,8 +503,8 @@ def test_different_rings_joined_nitrogen_to_nitrogen(smiles, expected):
         pytest.param(
             "CN(C)c1ccc(-c2ccc(N(C)C)cc2)cc1", "N4,N4,N4',N4'-tetramethyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_two_groups_on_each_nitrogen"
         ),
-        pytest.param("CCNc1ccc(-c2ccc(NC)cc2)cc1", "N4'-ethyl-N4-methyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_different_groups"),
-        pytest.param("CNc1ccc(-c2ccc(N)cc2)cc1", "N4'-methyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_with_one_primary_group"),
+        pytest.param("CCNc1ccc(-c2ccc(NC)cc2)cc1", "N4-ethyl-N4'-methyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_different_groups"),
+        pytest.param("CNc1ccc(-c2ccc(N)cc2)cc1", "N4-methyl[1,1'-biphenyl]-4,4'-diamine", id="diamine_with_one_primary_group"),
         pytest.param("CNc1ccc(-c2ccc(O)cc2)cc1", "4'-(methylamino)[1,1'-biphenyl]-4-ol", id="alcohol_outranks_the_amine"),
         pytest.param("CNc1ccc2ccccc2c1-c1ccc2ccccc2c1", "N-methyl[1,2'-binaphthalen]-2-amine", id="fused_system_assembly"),
         pytest.param(
