@@ -1923,6 +1923,14 @@ def _imido_symbol(mol, nitrogen):
     return "NH"
 
 
+def _replacement_words(symbols):
+    """Replacement prefixes of one group in alphabetical order, each multiplied: 'selenothio', 'diselenothio' (P-15.5.1)."""
+    counts = {}
+    for symbol in symbols:
+        counts[_REPLACEMENT_PREFIX[symbol]] = counts.get(_REPLACEMENT_PREFIX[symbol], 0) + 1
+    return "".join((multiplying_prefix(count) if count > 1 else "") + word for word, count in sorted(counts.items()))
+
+
 def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """Prefixes of the acyl groups of sulfonic, sulfinic, selenonic ... acids (P-65.3.2): 'sulfo', 'sulfamoyl',
     'benzenesulfonyl', 'methoxysulfonyl', 'chlorosulfinyl', 'trithiosulfo'. None when the centre is no such prefix here (a
@@ -1957,10 +1965,8 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if not _is_anionic_oxygen(mol.GetAtomWithIdx(x)):
                 return base, False
             return ("sulfonato" if base == "sulfo" else base[:-1] + "ato"), False
-        if len(set(replaced)) == 1 and replaced[0] in _REPLACEMENT_PREFIX:
-            return {1: "", 2: "di", 3: "tri"}[len(replaced)] + _REPLACEMENT_PREFIX[replaced[0]] + base, True
-        if not any(e in ("NH", "NNH2") for e in replaced):
-            raise UnsupportedStructure("a mixed chalcogen acid group on a substituent is not supported yet")
+        if all(e in _REPLACEMENT_PREFIX for e in replaced):
+            return _replacement_words(replaced) + base, True
     xatom = mol.GetAtomWithIdx(x)
     if (
         zx in _REPLACEMENT_SYMBOL
@@ -1970,10 +1976,8 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         and mol.GetBondBetweenAtoms(root, x).GetBondTypeAsDouble() == 1.0
     ):
         replaced = [*(e for e in symbols if e != "O"), _REPLACEMENT_SYMBOL[zx]]
-        if len(set(replaced)) == 1 and replaced[0] in _REPLACEMENT_PREFIX:
-            return {1: "", 2: "di", 3: "tri"}[len(replaced)] + _REPLACEMENT_PREFIX[replaced[0]] + _E_ACID_PREFIX[(center, len(oxo))], True
-        if not any(e in ("NH", "NNH2") for e in replaced):
-            raise UnsupportedStructure("a mixed chalcogen acid group on a substituent is not supported yet")
+        if all(e in _REPLACEMENT_PREFIX for e in replaced):
+            return _replacement_words(replaced) + _E_ACID_PREFIX[(center, len(oxo))], True
     if zx == 7 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 7 for n in graph[x] if n != root):
         from ._hetero_carboxylic import hydrazine_acyl_prefix
 
