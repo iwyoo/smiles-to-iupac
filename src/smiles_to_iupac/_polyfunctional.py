@@ -2489,10 +2489,7 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         finally:
             FORCE_LOCANTS.reset(force_token)
     # a suffix group cannot also be cited as a prefix, so labels that candidate names consumed there are still open
-    parent_groups = [
-        group for group in _principal_owned(mol)[1]
-        if any(a in parts[4] or any(n.GetIdx() in parts[4] for n in mol.GetAtomWithIdx(a).GetNeighbors()) for a in group)
-    ]
+    parent_groups = _groups_on_parent(mol, _principal_owned(mol)[1], parts[4])
     carbanide_parent = (parts[1] or "").endswith("ide") and any(
         mol.GetAtomWithIdx(a).HasProp(ANION_PROP) and mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in parts[4]
     )
@@ -2784,6 +2781,25 @@ _SUFFIX_WORD = {
 _SUFFIX_ELEMENT = {"thiol": 16, "selenol": 34, "tellurol": 52, "thione": 16, "selone": 34, "tellone": 52}
 
 
+def _groups_on_parent(mol, groups, parent_atoms):
+    """The principal `groups` that are characteristic groups of the parent: an atom of the group inside the parent, or the
+    carbon that carries the group in it. An identical group inside a substituent is not one."""
+
+    def carries(atom, group):
+        found = _group_of(mol, atom)
+        return found is not None and found[1] == group
+
+    return [
+        group
+        for group in groups
+        if any(
+            a in parent_atoms
+            or any(n.GetIdx() in parent_atoms and carries(n.GetIdx(), group) for n in mol.GetAtomWithIdx(a).GetNeighbors())
+            for a in group
+        )
+    ]
+
+
 def _principal_owned(mol):
     """(principal class, [atoms owned by each principal group])."""
     groups = {}
@@ -2815,6 +2831,8 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     from ._isotope_labels import _nuclide_sort_key
 
     principal, owned_groups = _principal_owned(mol)
+    if parent_atoms is not None:
+        owned_groups = _groups_on_parent(mol, owned_groups, parent_atoms) or owned_groups
     if principal in (None, "amine"):
         substituted = [{a.GetIdx()} for a in mol.GetAtoms() if _substituted_amine_nitrogen(mol, a)]
         if substituted:
