@@ -207,7 +207,13 @@ def carbonohydrazonic_diamide_name(mol):
         if any(n.GetAtomicNum() == 7 for amide in nitrogens[:2] for n in amide.GetNeighbors() if n.GetIdx() != carbon.GetIdx()):
             continue
         core = {carbon.GetIdx(), imine.GetIdx(), terminal.GetIdx(), *amides}
-        if has_group_senior_to_urea(mol, core):
+        acyl_on_amide = any(
+            m.GetAtomicNum() == 6 and any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(m).GetAtomicNum() in (7, 8, 16) for b in m.GetBonds())
+            for i in amides
+            for m in mol.GetAtomWithIdx(i).GetNeighbors()
+            if m.GetIdx() != carbon.GetIdx()
+        )
+        if has_group_senior_to_urea(mol, core, hydrazide_junior=not acyl_on_amide):
             continue
         try:
             found = n_substituent_names(
