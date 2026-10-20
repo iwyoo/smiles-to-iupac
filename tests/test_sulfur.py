@@ -559,7 +559,8 @@ def test_sulfanium_chain_locants_and_lambda_centre(smiles, expected):
         pytest.param("C[Se@+](CC)c1ccccc1.[Cl-]", "(R)-ethyl(methyl)(phenyl)selanium chloride", id="selanium_centre"),
         pytest.param("C[S@+](CC)CC(=O)[O-]", "[(R)-ethyl(methyl)sulfaniumyl]acetate", id="prefix_of_an_anionic_parent"),
         pytest.param("C[N@+](CC)(CCC)CC(=O)[O-]", "[(S)-ethyl(methyl)(propyl)azaniumyl]acetate", id="azaniumyl_prefix"),
-        pytest.param("C[S@+]1CCC[C@H]1C", "(1R,2R)-1,2-dimethylthiolan-1-ium", id="ring_centre"),
+        pytest.param("C[S@+]1CCC[C@H]1C", "(1S,2R)-1,2-dimethylthiolan-1-ium", id="ring_centre"),
+        pytest.param("[S@+](C)(CC)CCC", "(S)-ethyl(methyl)(propyl)sulfanium", id="centre_without_preceding_atom"),
     ],
 )
 def test_stereogenic_sulfanium_and_selanium_centres_cite_their_descriptor(smiles, expected):
