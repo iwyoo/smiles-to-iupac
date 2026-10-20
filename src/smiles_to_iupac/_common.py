@@ -38,17 +38,27 @@ _LEADING_STEREO_RE = re.compile(r"^[(\[](?:[\dRSEZrsezMPmp,' ()]|seqCis|seqTrans
 _LEADING_ANOMER_RE = re.compile(r"^[αβ]-[DL]-")
 
 
-class UnsupportedStructure(NotImplementedError):
+class SmilesToIupacError(Exception):
+    pass
+
+
+# The input is not a SMILES string RDKit can parse; the caller's input is at fault, not the library.
+class InvalidSmilesError(SmilesToIupacError, ValueError):
+    pass
+
+
+# A rule that is not implemented yet: a gap to fill, unlike RuleUndefinedStructure.
+class UnsupportedStructure(SmilesToIupacError, NotImplementedError):
     pass
 
 
 # The code contradicted itself; no input is declined by it, so it is deliberately not an UnsupportedStructure.
-class InternalInvariantError(RuntimeError):
+class InternalInvariantError(SmilesToIupacError, RuntimeError):
     pass
 
 
-# The recommendations give no single name for this structure (undefined or self-contradictory); any other UnsupportedStructure is an implementation gap.
-class RuleUndefinedStructure(UnsupportedStructure):
+# The recommendations give no single name for this structure (undefined or self-contradictory); no implementation can help, so it is not an UnsupportedStructure.
+class RuleUndefinedStructure(SmilesToIupacError):
     pass
 
 

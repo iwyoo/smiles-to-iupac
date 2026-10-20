@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from smiles_to_iupac import __version__, smiles_to_alternative_names, smiles_to_iupac
+from smiles_to_iupac import SmilesToIupacError, __version__, smiles_to_alternative_names, smiles_to_iupac
 
 
 def main(argv=None):
@@ -34,7 +34,7 @@ def main(argv=None):
                 lines = [f"{alt.kind}\t{alt.name}" for alt in smiles_to_alternative_names(smiles)]
             else:
                 lines = [smiles_to_iupac(smiles)]
-        except (ValueError, NotImplementedError) as e:
+        except (ValueError, SmilesToIupacError) as e:
             had_error = True
             print(f"{smiles}: {e}", file=sys.stderr)
             continue

@@ -2,7 +2,7 @@ import pytest
 from rdkit import Chem
 
 import smiles_to_iupac
-from smiles_to_iupac import RuleUndefinedStructure, UnsupportedStructure, smiles_to_alternative_names, smiles_to_iupac as name
+from smiles_to_iupac import InternalInvariantError, InvalidSmilesError, RuleUndefinedStructure, SmilesToIupacError, UnsupportedStructure, smiles_to_alternative_names, smiles_to_iupac as name
 from smiles_to_iupac._conjunctive import conjunctive_names
 
 
@@ -11,10 +11,15 @@ def _arylalkanoic_acid(chain_length, branch_at):
     return "c1ccccc1" + "".join(chain) + "C(=O)O"
 
 
-def test_exports_are_subclasses_of_not_implemented_error():
+def test_error_hierarchy():
     assert issubclass(UnsupportedStructure, NotImplementedError)
-    assert issubclass(RuleUndefinedStructure, UnsupportedStructure)
-    assert {"UnsupportedStructure", "RuleUndefinedStructure"} <= set(smiles_to_iupac.__all__)
+    assert issubclass(InternalInvariantError, RuntimeError)
+    assert issubclass(InvalidSmilesError, ValueError)
+    for kind in (UnsupportedStructure, RuleUndefinedStructure, InternalInvariantError, InvalidSmilesError):
+        assert issubclass(kind, SmilesToIupacError)
+    assert not issubclass(RuleUndefinedStructure, UnsupportedStructure)
+    assert not issubclass(RuleUndefinedStructure, NotImplementedError)
+    assert {"SmilesToIupacError", "UnsupportedStructure", "RuleUndefinedStructure", "InternalInvariantError", "InvalidSmilesError"} <= set(smiles_to_iupac.__all__)
 
 
 @pytest.mark.parametrize("chain_length", [25, 26])
@@ -44,3 +49,22 @@ def test_implementation_gap_is_not_rule_undefined(smiles):
 def test_substituted_fullerene_without_defined_numbering_is_rule_undefined():
     with pytest.raises(RuleUndefinedStructure, match="P-27.3"):
         name("CC12C3C4C5C1C1C6C2C2C3C3C4C4C5C1C1C6C2C3C41")
+
+
+@pytest.mark.parametrize("function", [name, smiles_to_alternative_names])
+@pytest.mark.parametrize("smiles", ["not_a_smiles", "", "C(("])
+def test_invalid_smiles_is_an_invalid_smiles_error(function, smiles):
+    with pytest.raises(InvalidSmilesError):
+        function(smiles)
+
+
+def test_runtime_error_handlers_let_internal_invariant_errors_through():
+    import pathlib
+    import re
+
+    source_dir = pathlib.Path(smiles_to_iupac.__file__).parent
+    for path in source_dir.glob("*.py"):
+        lines = path.read_text().split("\n")
+        for i, line in enumerate(lines):
+            if re.match(r"\s*except .*\bRuntimeError\b", line):
+                assert lines[i - 2].strip() == "except InternalInvariantError:", f"{path.name}:{i + 1}"

@@ -2,10 +2,12 @@
 
 ## Unreleased
 
-- `UnsupportedStructure` (a `NotImplementedError`) and its subclass
-  `RuleUndefinedStructure` are exported: the subclass marks a structure for which
-  the Blue Book defines no single name (undefined or self-contradictory), every other `UnsupportedStructure` is a rule that
-  is not implemented yet.
+- The library's own errors are exported and share the base class `SmilesToIupacError`:
+  `UnsupportedStructure` (also a `NotImplementedError`) is a rule that is not implemented yet;
+  `RuleUndefinedStructure` (no longer an `UnsupportedStructure`) is a structure for which the
+  Blue Book defines no single name (undefined or self-contradictory); `InternalInvariantError`
+  (also a `RuntimeError`) is a bug in the naming pipeline; `InvalidSmilesError`
+  (also a `ValueError`) is an input that is not a valid SMILES string.
 - `smiles_to_alternative_names()` and `smiles-to-iupac --alternatives` return the
   general-nomenclature alternatives to the preferred name, starting with
   functional-modifier names (oximes, hydrazones, azines, semicarbazones,

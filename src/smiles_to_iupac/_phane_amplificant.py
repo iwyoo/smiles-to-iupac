@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from rdkit import Chem
 from rdkit.Chem import BondType, RWMol
 
-from ._common import UnsupportedStructure, adjacency, superscript_locant
+from ._common import InternalInvariantError, UnsupportedStructure, adjacency, superscript_locant
 from ._fusion_bridged import BRIDGED_MAX_CYCLE, SENIORITY_MAX_CYCLE
 from ._ring_system_seniority import ring_seniority_key
 from ._ring_diyl_numbering import (
@@ -311,6 +311,8 @@ def build_amplificant(mol, atoms, free_atom=None, free_order=1):
     token = SUFFIX_ATOMS.set(frozenset(oxo))
     try:
         numberings = _numberings_of(with_oxo if oxo else source, bare.GetNumAtoms())
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, StopIteration, RuntimeError):
         return None
     finally:

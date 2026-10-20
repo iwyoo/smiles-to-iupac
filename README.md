@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > **Alpha release.** Coverage of the Blue Book is incomplete and growing.
-> Unsupported structures raise `NotImplementedError`; names should still be
+> Unsupported structures raise `UnsupportedStructure`; names should still be
 > checked before use in anything that matters.
 
 Rule-based conversion of SMILES strings to IUPAC names, implemented directly
@@ -76,7 +76,7 @@ PIN), organoelement hydrides (B, Si, P, ...) and onium, carbocation and
 carbanion species.
 
 Coverage grows rule by rule and is audited per rule. Structures that fall
-outside what is currently implemented raise `NotImplementedError` (see
+outside what is currently implemented raise `UnsupportedStructure` (see
 below); they are never silently mis-named.
 
 ## Installation
@@ -143,11 +143,27 @@ joined to the side chain that carries the principal group, as in
 
 ### Errors
 
+Every error the library defines derives from `SmilesToIupacError`, so one `except SmilesToIupacError` catches them all.
+
 | Exception | Meaning |
 |---|---|
-| `ValueError` | The input is not a valid SMILES string. |
-| `NotImplementedError` | The SMILES is valid but uses a rule that is not implemented yet. Raised as `UnsupportedStructure`. |
-| `RuleUndefinedStructure` | A subclass of `UnsupportedStructure`: the Blue Book itself gives no single name for the structure (the rules leave it undefined or contradict each other), so no further implementation can help. |
+| `InvalidSmilesError` | Also a `ValueError`. The input is not a valid SMILES string. A non-`str` input raises `TypeError`. |
+| `UnsupportedStructure` | Also a `NotImplementedError`. The SMILES is valid but uses a rule that is not implemented yet: a gap that will be filled. |
+| `RuleUndefinedStructure` | Not an `UnsupportedStructure`. The Blue Book itself gives no single name for the structure (the rules leave it undefined or contradict each other), so waiting for more implementation will not help. |
+| `InternalInvariantError` | Also a `RuntimeError`. A bug, not a declined input: the naming pipeline contradicted itself, for example a name that lost a nuclide of its structure (P-82.2.1). Please report the SMILES. |
+
+```python
+from smiles_to_iupac import RuleUndefinedStructure, SmilesToIupacError, UnsupportedStructure, smiles_to_iupac
+
+try:
+    name = smiles_to_iupac(smiles)
+except RuleUndefinedStructure:
+    ...  # the Blue Book gives no name; retrying later will not help
+except UnsupportedStructure:
+    ...  # a rule that is not implemented yet
+except SmilesToIupacError:
+    ...  # invalid input or an internal error
+```
 
 ### Command line
 

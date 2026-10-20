@@ -6,7 +6,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import nonstandard_bonding, UnsupportedStructure
+from ._common import nonstandard_bonding, InternalInvariantError, UnsupportedStructure
 
 # P-44.2.1 (c) and (g): heteroatoms by seniority, nitrogen taking its place only in (g)
 _SENIORITY = (9, 17, 35, 53, 8, 16, 34, 52, 7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81)
@@ -91,6 +91,8 @@ def _parent_key(mol, atoms, assembly=False, as_carbon=frozenset()):
     rank = _TYPE_ORDER.index(kind) if kind in _TYPE_ORDER else _MONOCYCLE
     try:
         specific = _TYPE_KEYS[kind](mol, atoms) if kind in _TYPE_KEYS else ()
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         specific = ()
     return general_key(mol, atoms, as_carbon) + (rank,) + _hashable(specific)
@@ -130,6 +132,8 @@ def _phane_key(mol, atoms):
         return None
     try:
         return phane_seniority_key(_bare_skeleton(mol, atoms)[0])
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         return None
 
@@ -262,6 +266,8 @@ def _replacement_atoms(mol, comp):
         return hetero
     try:
         return hetero if _component(mol, comp, False)["replacement"] else frozenset()
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         return frozenset()
 
