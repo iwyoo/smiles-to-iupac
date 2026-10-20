@@ -1244,3 +1244,7 @@ def test_nuclide_beside_the_added_hydrogen_term(smiles, expected):
 )
 def test_nuclide_of_the_carbamoyl_prefix_beside_a_senior_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_isotopic_ring_stereocentre_in_a_cycloalkyl_substituent_on_benzene():
+    assert smiles_to_iupac("[2H][C@H]1CCCC1c1ccccc1") == "[(2S)-(2-2H1)cyclopentyl]benzene"
