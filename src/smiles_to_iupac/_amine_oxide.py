@@ -12,6 +12,7 @@ from ._substituents import name_branch
 
 
 _CHALCOGEN_CLASS = {8: "oxide", 16: "sulfide", 34: "selenide", 52: "telluride"}
+_AMINE_NAME = re.compile(r"(?:amine|aniline)$")
 _NUCLIDE_GROUP = re.compile(r"\((?:[^()]*-)?(?:\d+[A-Z][a-z]?\d*,?)+\)")
 
 
@@ -103,11 +104,16 @@ def name_amine_oxide(mol) -> str:
     if nitrogen.IsInRing():
         raise UnsupportedStructure("the ring of an oxidized ring nitrogen is the parent of its N-oxide (P-62.5)")
     try:
-        base_name = name_polyfunctional(reduced_mol)
+        base_name = _name_with_nitrile_prefix(reduced_mol)
     except UnsupportedStructure:
         base_name = None
-    if base_name is None:
-        base_name = _name_with_nitrile_prefix(reduced_mol)
+    if base_name is None or not _AMINE_NAME.search(base_name):
+        try:
+            base_name = name_polyfunctional(reduced_mol)
+        except UnsupportedStructure:
+            base_name = None
+        if base_name is None:
+            base_name = _name_with_nitrile_prefix(reduced_mol)
     return f"{with_unlocated_descriptor(base_name, nitrogen_code)} N-{class_word}"
 
 
