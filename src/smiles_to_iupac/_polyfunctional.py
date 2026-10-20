@@ -977,7 +977,7 @@ def _group_of(mol, carbon):
         if found and all(
             n.GetAtomicNum() == 6
             or _acyl_diazene_nitrogen(mol, n, carbon)
-            or (n.GetAtomicNum() in (8, 16, 34, 52) and _diacyl_chalcogen_chain(mol, carbon, n))
+            or (n.GetAtomicNum() in (8, 16, 34, 52) and (_diacyl_chalcogen_chain(mol, carbon, n) or _acyloxy_amine_oxygen(mol, n, carbon)))
             for n in atom.GetNeighbors()
             if n.GetIdx() != found[0]
         ) and atom.GetDegree() == 3:
