@@ -948,6 +948,12 @@ def test_nuclides_on_the_end_groups_of_a_polychalcogen_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_multiplied_isotopic_prefix_keeps_its_marks_when_cited_first():
+    assert (
+        smiles_to_iupac("[2H]C([2H])([2H])P(c1ccccc1)C([2H])([2H])[2H]") == "di[(2H3)methyl](phenyl)phosphane"
+    )
+
+
 # P-82.2.1, P-73.2.2.3: the diazonium suffix stands where the amine suffix does, so the nuclides of the skeleton are cited as for an amine
 @pytest.mark.parametrize(
     "smiles,expected",

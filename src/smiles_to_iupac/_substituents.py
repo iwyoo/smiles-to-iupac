@@ -265,7 +265,8 @@ def format_mononuclear_prefixes(entries) -> str:
             # (the Blue Book), so the prefix sits outside the
             # parens at any position, not just the first.
             needs_kis = compound_of[name] and not is_plain_stem_prefix(name)
-            parts.append(multiplying_prefix(count, compound=needs_kis) + (name if i == 0 and not compound_of[name] else wrap_marks(name)))
+            first_bare = i == 0 and not compound_of[name] and not _isotope_only_prefix(name)
+            parts.append(multiplying_prefix(count, compound=needs_kis) + (name if first_bare else wrap_marks(name)))
         elif compound_of[name]:
             parts.append(wrap_marks(name))
         else:
