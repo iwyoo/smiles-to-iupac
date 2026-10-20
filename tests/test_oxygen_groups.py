@@ -1066,6 +1066,8 @@ def test_ester_class_names(smiles, expected):
         ("CC(=S)OC(=S)C", "ethanethioic anhydride"),
         ("CS(=O)(=O)OS(=O)(=O)C", "methanesulfonic anhydride"),
         ("CC(=O)OC(=O)CCC(=O)OC(C)=O", "diacetic butanedioic dianhydride"),
+        ("CPOC(=O)CCC(=O)OPC", "bis(methylphosphinous) butanedioic dianhydride"),
+        ("ClCC(=O)OC(=O)CCC(=O)OC(=O)CCl", "bis(chloroacetic) butanedioic dianhydride"),
         ("CC(=O)OC(=O)C(C)CC(=O)OC(C)=O", "diacetic 2-methylbutanedioic dianhydride"),
         ("CC(=O)OC(=O)CCC(=O)OC(=O)CCC(=O)OC(=O)CC", "acetic butanedioic 4-oxo-4-(propanoyloxy)butanoic dianhydride"),
         ("CC(=O)OC(=O)CC(=O)OC(=O)CCC(=O)OC(C)=O", "acetic 3-(acetyloxy)-3-oxopropanoic butanedioic dianhydride"),

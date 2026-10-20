@@ -1407,10 +1407,17 @@ def _located_acid_word(mol, atoms, centers):
     return acid_word(selected[1])
 
 
+_SUBSTITUENT_LEADING_WORD = re.compile(
+    r"^(?:di|tri|tetra|penta|hexa)?(?:fluoro|chloro|bromo|iodo|hydroxy|amino|nitroso|nitro|cyano|oxo|sulfanyl|carboxy|azido|imino|acetyl|"
+    r"(?:meth|eth|prop|but|pent|hex|hept|oct|non|dec)(?:yl|oxy)|phenyl|phenoxy|benzyl)"
+)
+
+
 def _multiplied_word(word, count):
     if count == 1:
         return word
-    return multiplying_prefix(count, compound=not word.isalpha()) + (word if word.isalpha() else enclose(word))
+    compound = not word.isalpha() or _SUBSTITUENT_LEADING_WORD.match(word) is not None
+    return multiplying_prefix(count, compound=compound) + (enclose(word) if compound else word)
 
 
 def _component_word(name):
