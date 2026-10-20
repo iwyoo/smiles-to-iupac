@@ -166,6 +166,8 @@ def _neutral_ligand_name(mol, metal, donor, atoms):
     atomic_num = donor.GetAtomicNum()
     if atomic_num not in _NEUTRAL_VALENCE:
         raise UnsupportedStructure("this donor atom is not supported as a ligand yet")
+    if atomic_num == 7 and donor.IsInRing() and not donor.GetFormalCharge():
+        return name_branch(adjacency(mol), donor.GetIdx(), metal.GetIdx(), halogen_substituents(mol), mol=mol)[0]
     own = [n for n in donor.GetNeighbors() if n.GetIdx() != metal.GetIdx()]
     valence = sum(mol.GetBondBetweenAtoms(donor.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in own)
     anionic = {7: "azanido", 8: "hydroxido"}

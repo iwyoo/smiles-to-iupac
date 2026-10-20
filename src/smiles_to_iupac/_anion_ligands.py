@@ -55,6 +55,8 @@ def _prefixed(mol, graph, donor, metal_idx, suffix, atoms):
 
 
 def monodentate_anion(mol, metal, donor, atoms):
+    if donor.IsInRing() and donor.GetAtomicNum() == 7:
+        return None
     graph = adjacency(mol)
     z, d, m = donor.GetAtomicNum(), donor.GetIdx(), metal.GetIdx()
     own = [n.GetIdx() for n in donor.GetNeighbors() if n.GetIdx() != m]
