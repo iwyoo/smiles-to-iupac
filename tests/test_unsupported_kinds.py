@@ -78,3 +78,9 @@ def test_carbenium_beside_a_carbanion_and_a_cationic_heteroatom_is_refused_not_u
 def test_phosphoryl_cation_in_a_branch_is_refused_not_an_internal_error():
     with pytest.raises(UnsupportedStructure):
         name("C[P+](=O)OP(=O)([O-])[O-]")
+
+
+@pytest.mark.parametrize("smiles", ["C1=CC=C2C=C[Po]C2=C1", "C1=CC2=CC=C[At]2C=C1"])
+def test_fused_ring_with_an_element_that_has_no_replacement_prefix_is_refused(smiles):
+    with pytest.raises(UnsupportedStructure):
+        name(smiles)

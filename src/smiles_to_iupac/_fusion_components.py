@@ -361,12 +361,19 @@ def _join_hw(pieces):
     return text
 
 
+def require_replacement_prefixes(elements):
+    missing = sorted({e for e in elements if e != "C" and e not in A_PREFIX})
+    if missing:
+        raise UnsupportedStructure(f"Table 2.4 gives {', '.join(missing)} no replacement prefix for a ring component (P-22.2.2.1.1)")
+
+
 def monocycle_prototype(sub):
     """Prototype for a mancude monocycle (benzene, [n]annulene, Hantzsch-Widman and 'ine' names), numbering inside."""
     order = _cycle_order(sub)
     elements = [sub.GetAtomWithIdx(i).GetSymbol() for i in order]
     size = len(order)
     hetero = [e for e in elements if e != "C"]
+    require_replacement_prefixes(hetero)
     candidates = []
     for direction in (1, -1):
         for start in range(size):
