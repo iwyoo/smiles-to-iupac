@@ -340,12 +340,12 @@ def _positions(centers, links, reverse):
 def _link_replacement(elements):
     if elements in ((), ("O",)):
         return None
-    if elements == ("O", "O"):
-        return "peroxy"
-    if elements == ("S", "S"):
-        return "(dithioperoxy)"
     if len(elements) == 2:
-        return "(thioperoxy)" if set(elements) == {"O", "S"} else None
+        replacing = sorted(_REPLACEMENT_WORD[e] for e in elements if e != "O")
+        if not replacing:
+            return "peroxy"
+        stem = f"di{replacing[0]}" if len(replacing) == 2 and replacing[0] == replacing[1] else "".join(replacing)
+        return f"({stem}peroxy)"
     return _REPLACEMENT_WORD.get(elements[0])
 
 
