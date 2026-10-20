@@ -342,7 +342,7 @@ def _render_children(ctx, sources, parent_primes, is_root):
         groups.setdefault(_signature(item[0]), []).append(item)
     rendered_groups = []
     for members in groups.values():
-        rendered = _render_group(ctx, members, parent_primes, is_root)
+        rendered = _render_group(ctx, members, parent_primes, is_root, sole=len(items) == 1)
         if rendered is None:
             return None
         rendered_groups.extend(rendered)
@@ -380,14 +380,14 @@ def _prime_letters(letters, count):
     return "".join(c + chr(39) * count for c in letters) if count else letters
 
 
-def _render_group(ctx, members, parent_primes, is_root):
+def _render_group(ctx, members, parent_primes, is_root, sole=True):
     first = members[0][0]
     source_part = members[0][4]
     child_level = first.order
     hydrocarbon_monocycle = first.comp.kind in ("mono", "attached_only") and all(e == "C" for e in first.comp.elements)
     omit_own = hydrocarbon_monocycle and not first.children
     bare = (
-        is_root and omit_own and len(members) == 1 and source_part.comp.kind == "mono" and all(e == "C" for e in source_part.comp.elements)
+        is_root and sole and omit_own and len(members) == 1 and source_part.comp.kind == "mono" and all(e == "C" for e in source_part.comp.elements)
         and source_part.role == "root"
     )
     best_per_member = []
@@ -408,7 +408,7 @@ def _render_group(ctx, members, parent_primes, is_root):
         if len(nested_texts) > 1:
             singles = []
             for member in members:
-                rendered = _render_group(ctx, [member], parent_primes, is_root)
+                rendered = _render_group(ctx, [member], parent_primes, is_root, sole)
                 if rendered is None:
                     return None
                 singles.extend(rendered)
