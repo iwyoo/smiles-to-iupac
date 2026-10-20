@@ -93,6 +93,21 @@ def _role(mol, center, atom):
     return {6: "C", 7: "N"}.get(z, "other")
 
 
+def _plain_amino(atom, centre):
+    """An acyclic NH2, NHR or NR2 group of carbon substituents on `centre`: the amid infix of a boramidic acid
+    (P-67.1.2.4.1)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and not atom.IsInRing()
+        and not atom.GetFormalCharge()
+        and all(
+            n.GetAtomicNum() == 6 and atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            for n in atom.GetNeighbors()
+            if n.GetIdx() != centre.GetIdx()
+        )
+    )
+
+
 def _inorganic_center(mol, idx):
     """'inorganic' kind for a boron or phosphorus acid centre (borates, phosphates, phosphonates, phosphinates):
     only P=O, hydroxy/oxy and organyl neighbours, at least one oxy position."""
@@ -105,7 +120,10 @@ def _inorganic_center(mol, idx):
     direct = [n for n in rest if n.GetAtomicNum() == atom.GetAtomicNum()]
     rest = [n for n in rest if n not in direct]
     if len(oxo) + len(rest) + len(direct) != atom.GetDegree() or any(
-        n.GetAtomicNum() not in (6, 8, 16, 34, 52) and not _nitroso_or_diazenyl(mol, n, atom) for n in rest
+        n.GetAtomicNum() not in (6, 8, 16, 34, 52)
+        and not _nitroso_or_diazenyl(mol, n, atom)
+        and not (atom.GetAtomicNum() == 5 and _plain_amino(n, atom))
+        for n in rest
     ):
         return None
     positions = [(n.GetIdx(), "Y") for n in rest if n.GetAtomicNum() in (8, 16, 34, 52)]
