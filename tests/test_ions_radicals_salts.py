@@ -657,6 +657,7 @@ def test_mixed_anions_cited_alphanumerically():
 def test_carbanide_salt_names():
     assert smiles_to_iupac("[CH3-].[Li+]") == "lithium methanide"
     assert smiles_to_iupac("C[CH2-].[Na+]") == "sodium ethanide"
+    assert smiles_to_iupac("[CH2-][C@@H](C)CCC.[Li+]") == "lithium (2S)-2-methylpentan-1-ide"
 
 
 @pytest.mark.parametrize(
