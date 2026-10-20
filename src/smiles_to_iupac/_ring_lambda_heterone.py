@@ -172,6 +172,14 @@ def _match(mol):
         if bond is not None and not mancude and bond.GetBondTypeAsDouble() != 1.0:
             return None
     exo_atoms = {x for xs in exo_chalcogens.values() for x in xs}
+    imine_groups = set()
+    for idx in roots:
+        if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6:
+            continue
+        for root in roots[idx]:
+            bond = mol.GetBondBetweenAtoms(idx, root)
+            if mol.GetAtomWithIdx(root).GetAtomicNum() == 7 and bond.GetBondTypeAsDouble() == 2.0:
+                imine_groups |= {root} | _group_beyond(graph, idx, root)
     imino_groups = set()
     for centre, xs in exo_chalcogens.items():
         for x in xs:
@@ -189,6 +197,8 @@ def _match(mol):
             continue
         if atom.GetAtomicNum() == 8 and atom.GetIdx() in phosphorus_branch:
             continue
+        if atom.GetAtomicNum() in (7, 8) and atom.GetIdx() in imine_groups:
+            continue
         if atom.GetAtomicNum() not in (6, 9, 17, 35, 53):
             return None
     if any(
@@ -196,7 +206,7 @@ def _match(mol):
         for b in mol.GetBonds()
         if b.GetBeginAtomIdx() not in exo_atoms
         and b.GetEndAtomIdx() not in exo_atoms
-        and not ({b.GetBeginAtomIdx(), b.GetEndAtomIdx()} & imino_groups)
+        and not ({b.GetBeginAtomIdx(), b.GetEndAtomIdx()} & (imino_groups | imine_groups))
         and not (mancude and b.IsInRing())
     ):
         return None
@@ -251,6 +261,17 @@ def _imino_text(group):
     return (enclose(name) if compound else name) + "imino"
 
 
+def _carbon_imino(mol, graph, atom, root, halogens):
+    """('imino' or '(R-imino)', whether compound) of an =N-R group on a ring carbon, cited as a prefix beside the suffix
+    of the λ-heterone (P-62.3.1.1), else None."""
+    if mol.GetAtomWithIdx(root).GetAtomicNum() != 7 or mol.GetBondBetweenAtoms(atom, root).GetBondTypeAsDouble() != 2.0:
+        return None
+    group = [n for n in graph[root] if n != atom]
+    if not group:
+        return "imino", False
+    return _imino_text(name_branch(graph, group[0], root, halogens, mol=mol)), True
+
+
 def name_ring_lambda_heterone(mol) -> str:
     ring_order, ring_hetero, exo_chalcogens_raw, roots = _match(mol)
     if specified_stereocenters(mol) is not None or any(
@@ -267,7 +288,7 @@ def name_ring_lambda_heterone(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     branch_names = {
-        (atom, root): name_branch(graph, root, atom, halogens, mol=mol)
+        (atom, root): _carbon_imino(mol, graph, atom, root, halogens) or name_branch(graph, root, atom, halogens, mol=mol)
         for atom, rts in roots.items()
         for root in rts
     }
