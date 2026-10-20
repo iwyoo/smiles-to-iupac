@@ -1760,7 +1760,14 @@ def _anionic_chain_prefix(graph, root, coming_from, mol):
 
     atoms = _arm_atoms(graph, root, coming_from)
     unit, attach = _unit_molecule(mol, atoms, root, refill=mol.GetAtomWithIdx(root).HasProp("_anion"))
-    _, _, parts = _select(unit, attach)
+    from ._substituents import BRANCH_STEREO, BRANCH_STEREO_MOL
+
+    tokens = (BRANCH_STEREO.set(None), BRANCH_STEREO_MOL.set(None))
+    try:
+        _, _, parts = _select(unit, attach)
+    finally:
+        BRANCH_STEREO_MOL.reset(tokens[1])
+        BRANCH_STEREO.reset(tokens[0])
     prefix, body, tail, locant = parts[:4]
     if not body.endswith("ide"):
         raise UnsupportedStructure("this anionic substituent chain is not named as a parent anion yet")
