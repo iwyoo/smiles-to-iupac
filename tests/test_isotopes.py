@@ -568,6 +568,7 @@ def test_parent_chain_with_more_isotopic_modifications_is_senior(smiles, expecte
         pytest.param("[13CH3]c1ccc(cc1)[13CH3]", "1,4-di[(13C)methyl]benzene", id="multiplied_isotopic_prefix_para"),
         pytest.param("[13CH3]C1CCCCC1[13CH3]", "1,2-di[(13C)methyl]cyclohexane", id="multiplied_isotopic_prefix_on_a_ring"),
         pytest.param("[2H]C([2H])([2H])c1ccccc1C([2H])([2H])[2H]", "1,2-di[(2H3)methyl]benzene", id="multiplied_deuterated_prefix"),
+        pytest.param("[2H]C([2H])([2H])N(C([2H])([2H])[2H])C1CCCCC1=O", "2-{di[(2H3)methyl]amino}cyclohexan-1-one", id="multiplied_deuterated_group_on_an_amino_prefix"),
         pytest.param("C(C)S[34S]SCCC(=O)O", "3-[ethyl(2-34S)trisulfanyl]propanoic acid", id="modified_atom_in_a_sulfanyl_chain"),
         pytest.param("CC[34S]SCCC(=O)O", "3-[ethyl(2-34S)disulfanyl]propanoic acid", id="modified_atom_in_a_disulfanyl_group"),
         pytest.param("OC(=O)CCSS[34S]CC", "3-[ethyl(3-34S)trisulfanyl]propanoic acid", id="modified_terminal_atom_of_a_sulfanyl_chain"),

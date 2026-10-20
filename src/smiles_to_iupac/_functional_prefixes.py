@@ -323,10 +323,10 @@ def _cite_stereo_of_acyl(mol, acid, kept, adjusted, name):
 
 def _multiplied_amino(children, tail):
     parts = sorted(children, key=lambda c: alpha_sort_key(c[0]))
-    names = [(_enclose(n) if c else n) for n, c in parts]
+    names = [(_enclose(n) if c or n.startswith("(") else n) for n, c in parts]
     if len(set(parts)) == 1 and len(parts) > 1:
         n, c = parts[0]
-        return multiplying_prefix(len(parts), compound=c) + (_enclose(n) if c else n) + tail
+        return multiplying_prefix(len(parts), compound=c) + (_enclose(n) if c or n.startswith("(") else n) + tail
     first, rest = names[0], names[1:]
     return first + "".join(_enclose(r) if not r.startswith(("(", "[")) else r for r in rest) + tail
 
