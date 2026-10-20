@@ -6,11 +6,11 @@ from typing import NamedTuple
 
 from rdkit import Chem, rdBase
 
-from ._common import InvalidSmilesError, RuleUndefinedStructure, UnsupportedStructure
+from ._common import InvalidSmilesError, RuleUndefinedStructure, UnsupportedStructure, spec_chirality_as_parsed
 from ._conjunctive import conjunctive_names
 from ._functional_modifier import functional_modifier_names
 from ._ionic_prefix import ionic_prefix_names
-from .core import _parse_smiles, smiles_to_iupac
+from .core import _parse_smiles, smiles_to_iupac_as_parsed
 
 
 class AlternativeName(NamedTuple):
@@ -34,13 +34,13 @@ def smiles_to_alternative_names(smiles: str) -> list[AlternativeName]:
     try:
         with rdBase.BlockLogs(), warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            mol = _parse_smiles(smiles) if smiles.strip() else None
+            mol = _parse_smiles(spec_chirality_as_parsed(smiles)) if smiles.strip() else None
             if mol is None:
                 raise InvalidSmilesError(f"invalid SMILES: {smiles!r}")
             found = []
             for kind, generator in _GENERATORS:
                 try:
-                    found += [AlternativeName(kind, name, rule) for name, rule in generator(mol, smiles_to_iupac)]
+                    found += [AlternativeName(kind, name, rule) for name, rule in generator(mol, smiles_to_iupac_as_parsed)]
                 except (UnsupportedStructure, RuleUndefinedStructure):
                     continue
             return found

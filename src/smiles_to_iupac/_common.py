@@ -1691,6 +1691,47 @@ def genuine_stereo_centres(mol):
 
 ISOTOPIC_CIP = ContextVar("isotopic_cip", default=None)
 
+_ORGANIC_ATOM = re.compile(r"Cl|Br|[BCNOPSFIbcnops*]")
+_RING_CLOSURE = re.compile(r"[-=#$:/\\]?(?:\d|%\d\d)")
+_BRACKET_CHIRALITY = re.compile(r"(\[[^\]@]*)(@@?)(?![A-Z])([^\]@]*\])")
+
+
+def spec_chirality_as_parsed(smiles):
+    """`smiles` with the tag of each three-coordinate centre without hydrogen (a lone pair standing where an implicit
+    hydrogen would, P-93.3.4.1) inverted wherever RDKit reads it against the neighbour order of the SMILES text: the
+    lone pair is not moved ahead of the first ring-closure digit, nor to the front of an atom without a preceding one
+    (P-92.1.4)."""
+    if "@" not in smiles:
+        return smiles
+    raw = Chem.MolFromSmiles(smiles, sanitize=False)
+    if raw is None:
+        return smiles
+    pieces, position, atom_index, has_preceding = [], 0, -1, False
+    while position < len(smiles):
+        char = smiles[position]
+        if char == "[":
+            token_end = smiles.index("]", position) + 1
+        elif (found := _ORGANIC_ATOM.match(smiles, position)) is not None:
+            token_end = found.end()
+        else:
+            has_preceding = has_preceding and char != "."
+            pieces.append(char)
+            position += 1
+            continue
+        atom_index += 1
+        end, closures = token_end, 0
+        while (ring := _RING_CLOSURE.match(smiles, end)) is not None:
+            closures += 1
+            end = ring.end()
+        token = smiles[position:token_end]
+        atom = raw.GetAtomWithIdx(atom_index)
+        if token.startswith("[") and atom.GetDegree() == 3 and not atom.GetNumExplicitHs() and (closures + (not has_preceding)) % 2:
+            token = _BRACKET_CHIRALITY.sub(lambda m: m.group(1) + ("@" if m.group(2) == "@@" else "@@") + m.group(3), token, count=1)
+        pieces.append(token + smiles[token_end:end])
+        position = end
+        has_preceding = True
+    return "".join(pieces)
+
 
 def assign_cip_labels(mol):
     """`rdCIPLabeler.AssignCIPLabels` with the lowercase double-bond labels written as the descriptors of
