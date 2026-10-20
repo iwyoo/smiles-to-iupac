@@ -48,6 +48,7 @@ from ._common import (
     group_substituents,
     longest_chains,
     name_from_substituents,
+    refuse_specified_stereo,
     substituent_locant_set_and_citation,
 )
 from ._substituents import format_substituent_prefixes, substituents_for_chain
@@ -166,7 +167,8 @@ def _candidate_key(chain_length, locant, substituents, force_own_locant=False):
 
 
 def name_carbanide(mol) -> str:
-    anion, ketone_oxygen, ketone_carbon_idx = _validate_and_find_carbanide(mol)
+    refuse_specified_stereo(mol)
+    anion,ketone_oxygen, ketone_carbon_idx = _validate_and_find_carbanide(mol)
     anion_idx = anion.GetIdx()
     graph = adjacency(mol)
     chains = longest_chains(carbon_adjacency(mol))
