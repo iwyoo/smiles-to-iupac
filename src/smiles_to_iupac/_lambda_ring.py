@@ -7,7 +7,7 @@ from rdkit import Chem
 from ._common import adjacency, ring_cycle
 from ._ring_lambda_heterone import _SENIORITY, _stem
 
-_LAMBDA_STANDARD = {"S": 2, "Se": 2, "Te": 2, "P": 3, "Cl": 1, "Br": 1, "I": 1}
+_LAMBDA_STANDARD = {"O": 2, "S": 2, "Se": 2, "Te": 2, "P": 3, "Cl": 1, "Br": 1, "I": 1}
 
 
 def _match(mol):
@@ -42,8 +42,6 @@ def _match(mol):
                 lam[idx] = valence
             else:
                 return None
-        elif symbol == "O" and not doubles:
-            hetero[idx] = "O"
         else:
             return None
     if not lam:
@@ -56,6 +54,11 @@ def has_lambda_ring_shape(mol) -> bool:
 
 
 def name_lambda_ring(mol) -> str:
+    return numbered_lambda_ring(mol)[0]
+
+
+def numbered_lambda_ring(mol):
+    """(name, {ring atom: locant}) of a ring that `has_lambda_ring_shape`."""
     order, hetero, lam = _match(mol)
     size = len(order)
     best = None
@@ -77,4 +80,4 @@ def name_lambda_ring(mol) -> str:
         for a in sorted((x for x, e in hetero.items() if e == element), key=position.get):
             cited.append(f"{position[a]}λ{lam[a]}" if a in lam else str(position[a]))
     stem = _stem([hetero[a] for a in order if a in hetero], size, True)
-    return f"{','.join(cited)}-{stem}"
+    return f"{','.join(cited)}-{stem}", position
