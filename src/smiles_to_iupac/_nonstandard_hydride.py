@@ -16,7 +16,9 @@ _HYDRIDES = {
     7: ("azane", 3), 15: ("phosphane", 3), 33: ("arsane", 3), 51: ("stibane", 3), 83: ("bismuthane", 3),
     8: ("oxidane", 2), 16: ("sulfane", 2), 34: ("selane", 2), 52: ("tellane", 2),
     9: ("fluorane", 1), 17: ("chlorane", 1), 35: ("bromane", 1), 53: ("iodane", 1),
+    84: ("polane", 2), 85: ("astatane", 1),
 }
+_STANDARD_NAMED = (84, 85)
 _CHALCOGENS = (8, 16, 34, 52)
 _HYDROXY_ON_CARBON = Chem.MolFromSmarts("[OX2H1][#6]")
 _SENIOR_TO_ALCOHOL = [
@@ -45,7 +47,7 @@ def _center(mol):
         return None
     center = centers[0]
     excess = center.GetTotalValence() - _HYDRIDES[center.GetAtomicNum()][1]
-    if excess == 0 or excess % 2 or (excess < 0 and center.GetDegree()):
+    if (excess == 0 and center.GetAtomicNum() not in _STANDARD_NAMED) or excess % 2 or (excess < 0 and center.GetDegree()):
         return None
     if any(not _substituent_atom(b.GetOtherAtom(center)) or not _bond_allowed(b, center) for b in center.GetBonds()):
         return None
@@ -172,7 +174,8 @@ def name_nonstandard_hydride(mol) -> str:
         if n not in hydroxyls and n not in amines
     ]
     stem, _ = _HYDRIDES[center.GetAtomicNum()]
-    prefixes = f"{format_mononuclear_prefixes(entries)}-" if entries else ""
+    standard = center.GetTotalValence() == _HYDRIDES[center.GetAtomicNum()][1]
+    prefixes = format_mononuclear_prefixes(entries) + ("" if standard else "-") if entries else ""
     suffix = ""
     if hydroxyls:
         suffix = multiplied_word(len(hydroxyls), "ol")
@@ -180,7 +183,8 @@ def name_nonstandard_hydride(mol) -> str:
     elif amines:
         suffix = multiplied_word(len(amines), "amine")
         stem = stem[:-1] if len(amines) == 1 else stem
-    return f"{_polyhedral_prefix(mol, center)}{prefixes}λ{center.GetTotalValence()}-{stem}{suffix}"
+    bonding = "" if standard else f"λ{center.GetTotalValence()}-"
+    return f"{_polyhedral_prefix(mol, center)}{prefixes}{bonding}{stem}{suffix}"
 
 
 def _polyhedral_prefix(mol, center):

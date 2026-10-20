@@ -10,10 +10,10 @@ from ._substituents import format_substituent_prefixes
 
 _MONONUCLEAR_HYDRIDES = {
     5: "borane", 7: "azane", 8: "oxidane", 13: "alumane", 14: "silane", 15: "phosphane", 16: "sulfane", 31: "gallane",
-    32: "germane", 33: "arsane", 34: "selane", 49: "indigane", 50: "stannane", 51: "stibane", 52: "tellane",
+    32: "germane", 33: "arsane", 34: "selane", 49: "indigane", 50: "stannane", 51: "stibane", 52: "tellane", 84: "polane",
     81: "thallane", 82: "plumbane", 83: "bismuthane",
 }
-_HALANES = {9: "fluorane", 17: "chlorane", 35: "bromane", 53: "iodane"}
+_HALANES = {9: "fluorane", 17: "chlorane", 35: "bromane", 53: "iodane", 85: "astatane"}
 
 
 def _heavy_chain(mol):
@@ -46,7 +46,7 @@ def _heavy_chain(mol):
     return order
 
 
-_STANDARD_VALENCE = {5: 3, 7: 3, 8: 2, 13: 3, 14: 4, 15: 3, 16: 2, 31: 3, 32: 4, 33: 3, 34: 2, 49: 3, 50: 4, 51: 3, 52: 2, 81: 3, 82: 4, 83: 3, 9: 1, 17: 1, 35: 1, 53: 1}
+_STANDARD_VALENCE = {5: 3, 7: 3, 8: 2, 13: 3, 14: 4, 15: 3, 16: 2, 31: 3, 32: 4, 33: 3, 34: 2, 49: 3, 50: 4, 51: 3, 52: 2, 81: 3, 82: 4, 83: 3, 9: 1, 17: 1, 35: 1, 53: 1, 84: 2, 85: 1}
 
 
 def _is_radical(mol, atom):
