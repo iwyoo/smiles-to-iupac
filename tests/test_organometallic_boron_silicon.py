@@ -1095,6 +1095,8 @@ def test_group_14_hydride_outranks_two_rings_and_branched_silicon_chain_is_paren
         ("OC1CCCCC1P=C", "2-(methylidenephosphanyl)cyclohexan-1-ol"),
         ("OC1CCCCC1[SiH]=[SiH2]", "2-(silylidenesilyl)cyclohexan-1-ol"),
         ("OC1CCCCC1[SiH2][SiH]=C", "2-(2-methylidenedisilanyl)cyclohexan-1-ol"),
+        ("OC(=O)CO[Si](C)(C)O[Si]1(C)CCCC1", "({dimethyl[(1-methylsilolan-1-yl)oxy]silyl}oxy)acetic acid"),
+        ("OC(=O)CN(C)[SiH2][Si]1(C)CCCC1", "N-methyl-N-[(1-methylsilolan-1-yl)silyl]glycine"),
         ("OC1CCCCC1N=C", "2-(methylideneamino)cyclohexan-1-ol"),
     ],
 )
