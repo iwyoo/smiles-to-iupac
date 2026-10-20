@@ -301,8 +301,6 @@ def _parse(mol, centre):
             return None
         found["atom"] = neighbor.GetIdx()
         (ylidenes if found["role"] == "ylidene" else singles).append(found)
-    if sum(1 for p in singles if p.get("anion")) > 1:
-        return None
     k = len(organyl) + hydrogens
     nitrido = sum(1 for y in ylidenes if y["kind"] == "nitride")
     if z in _PENTAVALENT_STEMS:
@@ -413,8 +411,8 @@ def _acid_candidates(mol):
             return []
         anions = [p["atom"] for p in part["singles"] if p.get("anion")]
         charged = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() in anion_atoms]
-        free_anion = cation is None and len(anions) == 1 and charged == anions
-        if (bool(cation) != bool(anions) and not free_anion) or (anions and charged != anions):
+        free_anion = cation is None and bool(anions) and charged == anions
+        if (bool(cation) != bool(anions) and not free_anion) or (anions and charged != anions) or (cation and len(anions) > 1):
             return []
         part["cation"] = cation
         part["free_anion"] = free_anion
