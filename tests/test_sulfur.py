@@ -1503,3 +1503,7 @@ def test_anions_and_salts_of_thiocarbonic_acid_esters(smiles, expected):
 )
 def test_sulfonyl_and_sulfinyl_prefixes_on_a_carbamic_acid_nitrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_sulfoxide_descriptor_with_an_amide_on_the_second_chain():
+    assert smiles_to_iupac("OC(=O)C[S@](=O)CC(N)=O") == "[(R)-2-amino-2-oxoethane-1-sulfinyl]acetic acid"

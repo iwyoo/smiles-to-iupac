@@ -130,6 +130,9 @@ def nitroso_atoms(mol):
 _FREE_CARBOXY = Chem.MolFromSmarts("[$([CX3](=O)[OX2H1]),$([CX3;!R](=[O,S])[O,N,S,F,Cl,Br,I]),$([CX3H1;!R]=O)]")
 _MULTIPLIED_ACID = re.compile(r"(?:di|tri|tetra)carboxylic acid$|(?:di|tri|tetra)oic acid$")
 _CARBOXYLIC_CLASS = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N)]")
+_ACID_SENIOR_TO_SULFUR_ACID = Chem.MolFromSmarts(
+    "[$([CX3](=[O,S,Se,Te,N])[O,S,Se,Te;X2H1,X1-]),$([CX3](=[O,S,Se,Te,N])[O,S;X2][O,S;X2H1])]"
+)
 
 
 def _restore_cation(editable, index):
@@ -174,7 +177,11 @@ def _acyl_prefix(mol, subtree, root, parent):
         raise UnsupportedStructure("the acyl group cannot be cut from its ring system as a valid molecule") from error
     root_atom = mol.GetAtomWithIdx(root)
     own_acid = None
-    if root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_CARBOXYLIC_CLASS):
+    from ._substituents import BRANCH_STEREO
+
+    stereo = BRANCH_STEREO.get()
+    cited_centre = bool(stereo) and root in stereo["atoms"]
+    if root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_ACID_SENIOR_TO_SULFUR_ACID if cited_centre else _CARBOXYLIC_CLASS):
         own_acid = _imido_acid_class(sub, sorted(subtree).index(root))
         if own_acid is None:
             raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
