@@ -296,6 +296,35 @@ def hydrazine_with_substituents(mol, n1_idx, n2_idx, aromatic_atoms, unsaturated
     return format_substituent_prefixes(best_grouped) + "hydrazine"
 
 
+def hydrazine_oxide_name(mol, oxidised, class_word):
+    """P-62.5, P-74.2.1.2: the functional class name of the oxide of a plain hydrazine, 'hydrazine 1-oxide', whose
+    nitrogen `oxidised` takes the lower locant once the substituent locants are lowest; both locants are cited, as the
+    oxide would otherwise not be placed. None when `mol` is not such a hydrazine."""
+    nitrogens = _hydrazine_nitrogens(mol)
+    if nitrogens is None or len(Chem.GetMolFrags(mol)) > 1 or oxidised not in (a.GetIdx() for a in nitrogens):
+        return None
+    if any(a.GetAtomicNum() not in (6, 7) or a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
+        return None
+    n1, n2 = (a.GetIdx() for a in nitrogens)
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    unsaturated = any(b.GetBondTypeAsDouble() != 1.0 and not b.GetIsAromatic() for b in mol.GetBonds())
+    with cited_whole_stereo(mol):
+        names = {
+            n: _substituent_names(graph, n, other, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+            for n, other in ((n1, n2), (n2, n1))
+        }
+    candidates = []
+    for first, second in ((n1, n2), (n2, n1)):
+        entries = [(1, name, compound) for name, compound in names[first]] + [(2, name, compound) for name, compound in names[second]]
+        grouped = _group(entries)
+        locant = 1 if oxidised == first else 2
+        candidates.append(((_candidate_key(grouped), locant), grouped, locant))
+    _, grouped, locant = min(candidates, key=lambda candidate: candidate[0])
+    return f"{format_substituent_prefixes(grouped)}hydrazine {locant}-{class_word}"
+
+
 def name_hydrazine_with_heteroatom_groups(mol) -> str:
     """P-68.3.1.2.1, P-44.1.2: a hydrazine whose substituents include oxygen, sulfur or other heteroatom groups, with
     no principal group senior to the hydrazine class (alcohol, thiol, carbonyl, nitrile or amine on carbon)."""

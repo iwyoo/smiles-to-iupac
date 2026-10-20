@@ -385,6 +385,8 @@ def test_ring_amine_oxide_is_the_parent_beside_a_heteroaromatic_ring(smiles, exp
     ("smiles", "expected"),
     [
         pytest.param("CC(=O)OCC[N+](C)(C)[O-]", "2-(acetyloxy)-N,N-dimethylethan-1-amine N-oxide", id="ester_on_the_chain_is_a_prefix"),
+        pytest.param("C[NH+]([O-])N", "1-methylhydrazine 1-oxide", id="hydrazine_oxide_cites_the_locant_of_the_oxidized_nitrogen"),
+        pytest.param("C[N+](C)([O-])N1CC1", "N,N-dimethylaziridin-1-amine N-oxide", id="oxide_of_the_amino_nitrogen_of_an_n_aminoamine"),
         pytest.param(
             "CN(C)C(=O)OCC[N+](C)(C)[O-]", "2-[(dimethylcarbamoyl)oxy]-N,N-dimethylethan-1-amine N-oxide", id="carbamate_is_a_prefix"
         ),
