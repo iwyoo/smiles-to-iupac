@@ -56,7 +56,7 @@ from ._common import UnsupportedStructure, adjacency, bfs, has_simple_imine_shap
 from ._onium_prefixes import onium_name
 from ._sulfonate import _find_sulfonate_group, _name_acyclic_sulfonate
 
-_ONIUM_STEMS = {8: ("oxidanium", 3), 16: ("sulfanium", 3), 34: ("selanium", 3), 52: ("telluranium", 3), 15: ("phosphanium", 4), 33: ("arsanium", 4)}
+_ONIUM_STEMS = {8: ("oxidanium", 3), 16: ("sulfanium", 3), 34: ("selanium", 3), 52: ("tellanium", 3), 15: ("phosphanium", 4), 33: ("arsanium", 4)}
 
 
 def _onium_centre(mol):

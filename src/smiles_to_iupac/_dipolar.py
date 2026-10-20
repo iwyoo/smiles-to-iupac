@@ -15,8 +15,8 @@ from ._common import UnsupportedStructure, adjacency, alpha_sort_key, assign_cip
 from ._multiplicative_text import enclose
 from ._substituents import FORCED_BRANCH_NAMES, format_mononuclear_prefixes, name_branch
 
-_ONIUM_STEMS = {7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium", 34: "selanium", 52: "telluranium", 33: "arsanium"}
-_ANION_HYDRIDES = {7: "azanide", 15: "phosphanide", 16: "sulfanide", 34: "selanide", 52: "telluranide"}
+_ONIUM_STEMS = {7: "azanium", 8: "oxidanium", 15: "phosphanium", 16: "sulfanium", 34: "selanium", 52: "tellanium", 33: "arsanium"}
+_ANION_HYDRIDES = {7: "azanide", 15: "phosphanide", 16: "sulfanide", 34: "selanide", 52: "tellanide"}
 _CHAIN_STEMS = {(7, 2): "hydrazin", (8, 2): "dioxidan", (7, 3): "triaz"}
 
 
@@ -64,7 +64,7 @@ def _cation_prefix(mol, graph, x, y):
     Chem.SanitizeMol(fragment)
     try:
         name = smiles_to_iupac(Chem.MolToSmiles(fragment))
-        single = re.fullmatch(r"(.+?ylidene)(oxidanium|sulfanium|selanium|telluranium|chloranium|bromanium|iodanium)", name)
+        single = re.fullmatch(r"(.+?ylidene)(oxidanium|sulfanium|selanium|tellanium|chloranium|bromanium|iodanium)", name)
         if single and "," not in single.group(1) and single.group(1)[0] not in "([":
             return f"({single.group(1)}){single.group(2)}yl"
         ring_cation = re.search(r"-(\d+)-ium$", name) if mol.GetAtomWithIdx(x).IsInRing() else None

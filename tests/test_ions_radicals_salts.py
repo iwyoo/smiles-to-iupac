@@ -420,11 +420,13 @@ def test_oxidanium():
     [
         ("[AsH4+]", "arsanium"),
         ("[SeH3+]", "selanium"),
-        ("[TeH3+]", "telluranium"),
+        ("[TeH3+]", "tellanium"),
+        ("C[Te+](C)C.[Cl-]", "trimethyltellanium chloride"),
+        ("C[Te+](C)CC(=O)[O-]", "(dimethyltellaniumyl)acetate"),
         ("[ClH2+]", "chloranium"),
     ],
 )
-def test_unsubstituted_onium_cations_of_the_other_mononuclear_hydrides(smiles, expected):
+def test_onium_cations_of_the_other_mononuclear_hydrides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

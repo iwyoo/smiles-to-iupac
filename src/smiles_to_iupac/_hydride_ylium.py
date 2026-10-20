@@ -107,7 +107,7 @@ def _oxylium(mol, graph, center, halogens, aromatic):
 _ONIUM_STEM = {
     7: "azanium", 8: "oxidanium", 9: "fluoranium", 15: "phosphanium", 16: "sulfanium", 33: "arsanium", 34: "selanium",
     51: "stibanium",
-    52: "telluranium", 17: "chloranium", 35: "bromanium", 53: "iodanium", 83: "bismuthanium",
+    52: "tellanium", 17: "chloranium", 35: "bromanium", 53: "iodanium", 83: "bismuthanium",
 }
 _ONIUM_NEIGHBOURS = (6, 7, 8, 9, 16, 17, 34, 35, 52, 53)
 

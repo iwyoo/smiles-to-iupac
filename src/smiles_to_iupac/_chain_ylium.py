@@ -17,7 +17,7 @@ from ._substituents import format_substituent_prefixes, name_branch
 
 _STEM = {
     7: ("az", 3), 8: ("oxid", 2), 14: ("sil", 4), 15: ("phosph", 3), 16: ("sulf", 2), 33: ("ars", 3), 34: ("sel", 2),
-    51: ("stib", 3), 52: ("tellur", 2), 32: ("germ", 4), 50: ("stann", 4), 82: ("plumb", 4),
+    51: ("stib", 3), 52: ("tell", 2), 32: ("germ", 4), 50: ("stann", 4), 82: ("plumb", 4),
 }
 _GROUP = {8: "perox", 16: "disulfan", 34: "diselan", 52: "ditellan"}
 _BIS = {2: "bis", 3: "tris", 4: "tetrakis"}
