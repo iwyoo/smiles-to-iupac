@@ -17,6 +17,9 @@ def test_methyl_ethyl_disulfide():
         pytest.param("c1ccccc1SS", "benzenedithioperoxol", id="terminal_persulfide_benzene"),
         pytest.param("CCCOS", "propane-1-OS-thioperoxol", id="oxygen_sulfur_peroxol_analogue"),
         pytest.param("CSO", "methane-SO-thioperoxol", id="sulfur_oxygen_peroxol_analogue"),
+        pytest.param("CC(=O)[Se]N", "1-(aminoselanyl)ethan-1-one", id="acyl_selenium_nitrogen_is_a_pseudoketone"),
+        pytest.param("NSc1ccncc1", "4-(aminosulfanyl)pyridine", id="sulfur_nitrogen_link_on_a_heteroaromatic_ring"),
+        pytest.param("CCOP(=O)(Cl)CSC", "ethyl [(methylsulfanyl)methyl]phosphonochloridate", id="thioether_in_the_organyl_group_of_a_phosphonic_derivative"),
     ],
 )
 def test_tetrasulfide_chain_and_related(smiles, expected):

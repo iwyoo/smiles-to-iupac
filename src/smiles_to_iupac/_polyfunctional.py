@@ -805,9 +805,9 @@ def _acyl_diazene_nitrogen(mol, atom, carbon):
 
 
 def _acyloxy_amine_oxygen(mol, oxygen, carbon):
-    """The ester oxygen of an acyl-O-N group on an acyclic amine or oxime nitrogen: a pseudoketone (P-65.6.3.4), since only a
-    cyclic nitrogen gives a traditional ester."""
-    if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
+    """The ester oxygen (or sulfur, selenium, tellurium) of an acyl-O-N group on an acyclic amine or oxime nitrogen: a
+    pseudoketone (P-65.6.3.4, P-64.3.2), since only a cyclic nitrogen gives a traditional ester."""
+    if oxygen.GetAtomicNum() not in (8, 16, 34, 52) or oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
         return False
     far = next((n for n in oxygen.GetNeighbors() if n.GetIdx() != carbon), None)
     if far is None or far.GetAtomicNum() != 7 or far.GetFormalCharge() or far.IsInRing() or far.GetIsAromatic():

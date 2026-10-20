@@ -105,6 +105,9 @@ def _plain_tree(mol, graph, root, behind):
         elif z == 8:
             if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()) and atom.GetDegree() != 1:
                 return False
+        elif z in (16, 34, 52):
+            if atom.GetDegree() != 2 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+                return False
         elif z == 7:
             pass
         elif z != 6 and z not in _HALIDE:
@@ -136,7 +139,7 @@ def _carbon_substituents(mol, graph, halogens, atom, skip):
             found.append(("hydroxy", False))
             continue
         carbon = neighbor.GetAtomicNum() == 6
-        if not carbon and not (neighbor.GetAtomicNum() == 8 and neighbor.GetDegree() == 2 and not neighbor.IsInRing()):
+        if not carbon and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()):
             return None
         if not _plain_tree(mol, graph, n, atom.GetIdx()):
             return None
