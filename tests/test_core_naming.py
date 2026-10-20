@@ -137,6 +137,14 @@ def test_continues_after_error(capsys):
     assert "not_a_smiles" in captured.err
 
 
+@pytest.mark.parametrize("smiles", ["FCl", "CC12C3C4C5C1C1C6C2C2C3C3C4C4C5C1C1C6C2C3C41"])
+def test_cli_reports_unsupported_and_rule_undefined_structures_and_continues(capsys, smiles):
+    assert main([smiles, "CC"]) == 1
+    captured = capsys.readouterr()
+    assert "CC\tethane" in captured.out
+    assert smiles in captured.err
+
+
 def test_alternatives_flag_prints_kind_and_name(capsys):
     assert main(["--alternatives", "CCC=NO", "CCO"]) == 0
     assert capsys.readouterr().out == "CCC=NO\tfunctional-modifier\tpropanal oxime\n"

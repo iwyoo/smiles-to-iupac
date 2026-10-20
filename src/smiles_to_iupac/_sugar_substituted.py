@@ -12,7 +12,7 @@ from rdkit import Chem, rdBase
 from ._common import assign_cip_labels
 from ._carbohydrate import _D_2_KETOSE_PATTERNS, _D_ALDOSE_PATTERNS, _FLIP_CIP
 from ._cited_group import cited_group, subtree
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, numerical_term
+from ._common import InternalInvariantError, UnsupportedStructure, adjacency, alpha_sort_key, numerical_term
 from ._inositol_derivative import ester_anion, ester_words
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
@@ -643,6 +643,8 @@ def _anhydro_name(mol):
             for kept, opened_end in (ends, ends[::-1]):
                 try:
                     opened = _opened_ether(current, oxygen.GetIdx(), opened_end)
+                except InternalInvariantError:
+                    raise
                 except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
                     continue
                 chosen = [*bridges, (kept, opened_end)]
@@ -650,6 +652,8 @@ def _anhydro_name(mol):
                 for namer in (_substituted_sugar_name, _chain_name):
                     try:
                         found = namer(opened, bridges=chosen)
+                    except InternalInvariantError:
+                        raise
                     except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
                         found = None
                     if found is not None:
@@ -747,6 +751,8 @@ def sugar_substituent_group(mol, graph, root, coming_from):
             exo = [n for n in sugar_graph[carbon] if n not in skeleton_atoms]
             kind = "C" if exo else ""
         name = smiles_to_iupac(Chem.MolToSmiles(sugar))
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError, KeyError, StopIteration, Chem.rdchem.MolSanitizeException):
         return None
     if not name.endswith(("ose", "oside")) or name.count(" ") > 1 or ("(" in name and " " in name) or len(name) < 7:
@@ -806,6 +812,8 @@ def sugar_dianhydride_name(mol):
                 ends = [n.GetIdx() for n in opened.GetAtomWithIdx(oxygen).GetNeighbors()]
                 links.append(tuple(ends))
                 opened = _opened_ether(opened, oxygen, ends[1])
+        except InternalInvariantError:
+            raise
         except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
             continue
         frags = Chem.GetMolFrags(opened)
@@ -816,6 +824,8 @@ def sugar_dianhydride_name(mol):
             continue
         try:
             names = [smiles_to_iupac(Chem.MolToSmiles(u)) for u in units]
+        except InternalInvariantError:
+            raise
         except (UnsupportedStructure, ValueError, RuntimeError):
             continue
         order = sorted(range(2), key=lambda i: _parent_rank(names[i]))
@@ -854,6 +864,8 @@ def sugar_dianhydride_name(mol):
 def has_sugar_dianhydride_shape(mol) -> bool:
     try:
         return sugar_dianhydride_name(mol) is not None
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         return False
 

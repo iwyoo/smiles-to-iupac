@@ -99,12 +99,20 @@ def is_fullerene_cage(mol, atoms) -> bool:
     return sum(len(r) == 5 for r in rings) == 12 and all(len(r) in (5, 6) for r in rings)
 
 
+def fullerene_cage_atoms(mol):
+    """The atoms of the fused ring system that is a closed fullerene cage, or None; rings of substituents are not part of it."""
+    rings = [set(r) for r in mol.GetRingInfo().AtomRings()]
+    systems = []
+    for ring in rings:
+        touching = [system for system in systems if len(system & ring) >= 2]
+        merged = ring.union(*touching)
+        systems = [system for system in systems if system not in touching] + [merged]
+    return next((system for system in systems if is_fullerene_cage(mol, system)), None)
+
+
 def has_substituted_fullerene_cage(mol) -> bool:
-    ring_info = mol.GetRingInfo()
-    if sum(len(r) == 5 for r in ring_info.AtomRings()) < 12:
-        return False
-    cage = {a for r in ring_info.AtomRings() for a in r}
-    return mol.GetNumAtoms() > len(cage) and is_fullerene_cage(mol, cage)
+    cage = fullerene_cage_atoms(mol)
+    return cage is not None and mol.GetNumAtoms() > len(cage)
 
 
 def _cage_graph(mol, atoms):

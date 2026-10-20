@@ -10,7 +10,7 @@ from rdkit import Chem
 
 from ._carbohydrate import ring_sugar_name_and_order
 from ._cited_group import cited_group, subtree
-from ._common import UnsupportedStructure, adjacency
+from ._common import InternalInvariantError, UnsupportedStructure, adjacency
 
 _HALIDES = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _AGLYCONE_ELEMENTS = {6, 8, 9, 17, 35, 53}
@@ -243,6 +243,8 @@ def _substituted_name(mol, graph, unit, groups, children, ester_prefixes):
     token = FORCED_BRANCH_NAMES.set((sub.GetNumAtoms(), {index[k]: v for k, v in forced.items()}))
     try:
         name = _substituted_sugar_name(sub, ester_prefixes=ester_prefixes)
+    except InternalInvariantError:
+        raise
     except (ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
         name = None
     finally:

@@ -150,7 +150,7 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, InternalInvariantError, has_hydrazone_shape, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, phantom_capped, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, InternalInvariantError, InvalidSmilesError, has_hydrazone_shape, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, phantom_capped, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -170,6 +170,7 @@ from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER, fused_ring_sy
 from ._hetero_prefixes import CATION_PARENT, _has_senior_principal_group
 from ._fullerene import (
     has_fullerene_name,
+    fullerene_cage_atoms,
     has_substituted_fullerene_cage,
     name_fullerene,
     require_defined_fullerene_numbering,
@@ -532,7 +533,7 @@ def smiles_to_iupac(smiles: str) -> str:
     if not isinstance(smiles, str):
         raise TypeError(f"smiles must be a str, not {type(smiles).__name__}")
     if not smiles.strip():
-        raise ValueError(f"invalid SMILES: {smiles!r}")
+        raise InvalidSmilesError(f"invalid SMILES: {smiles!r}")
     legacy = Chem.GetUseLegacyStereoPerception()
     Chem.SetUseLegacyStereoPerception(False)
     nested = _NAMING.get()
@@ -1680,7 +1681,7 @@ def _run_fallbacks(smiles, original):
 def _smiles_to_iupac_dispatch(smiles: str) -> str:
     mol = _parse_smiles(smiles)
     if mol is None:
-        raise ValueError(f"invalid SMILES: {smiles!r}")
+        raise InvalidSmilesError(f"invalid SMILES: {smiles!r}")
     return _name_mol(mol)
 
 
@@ -2196,7 +2197,7 @@ def _name_mol(mol) -> str:
     if has_fullerene_name(mol):
         return name_fullerene(mol)
     if has_substituted_fullerene_cage(mol):
-        require_defined_fullerene_numbering(mol, {a for r in mol.GetRingInfo().AtomRings() for a in r})
+        require_defined_fullerene_numbering(mol, fullerene_cage_atoms(mol))
     for has_shape, namer in (
         # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
         # retained-name-style recognition, see module docstring) are recognized

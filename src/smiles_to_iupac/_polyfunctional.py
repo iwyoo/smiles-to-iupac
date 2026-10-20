@@ -1667,6 +1667,8 @@ def _numbered_monocycle(base, center):
     graph = {a.GetIdx(): [n.GetIdx() for n in a.GetNeighbors()] for a in base.GetAtoms()}
     try:
         numberings = monocycle_numberings(base, ring_cycle(graph, list(graph)), {}, 0)
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, KeyError, RuntimeError):
         return None
     if not numberings:
@@ -1700,6 +1702,8 @@ def _bare_ring_name(base, center, hydro_ok=False):
     if name is None and hydro_ok and _ortho_fused_only(base):
         try:
             name = str(fusion_name(base)[0])
+        except InternalInvariantError:
+            raise
         except (UnsupportedStructure, ValueError, KeyError, RuntimeError):
             name = None
     if name is None:

@@ -11,7 +11,7 @@ import re
 from rdkit import Chem
 
 from ._carbohydrate import has_open_chain_aldose_shape, name_open_chain_aldose
-from ._common import UnsupportedStructure, adjacency, alphanumerical_name_key
+from ._common import InternalInvariantError, UnsupportedStructure, adjacency, alphanumerical_name_key
 
 _MIN_CARBONS, _MAX_CARBONS = 4, 7
 
@@ -389,6 +389,8 @@ def sugar_lactone_name(mol):
     carbonyl, _, oxygen, closing = matches[0]
     try:
         opened = _opened_ether(mol, oxygen, closing)
+    except InternalInvariantError:
+        raise
     except (ValueError, RuntimeError):
         return None
     acid = sugar_alcohol_acid_name(opened)
@@ -575,6 +577,8 @@ def substituted_chain_name(mol, bridges=()):
         return None
     try:
         model, atom_of = _restored_chain(mol, chain, decorations)
+    except InternalInvariantError:
+        raise
     except (ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
         return None
     modeled = _chain(model)
@@ -695,6 +699,8 @@ _AMINO_ALDITOLS = {"D-glucose", "D-galactose"}
 def has_substituted_chain_shape(mol) -> bool:
     try:
         return substituted_chain_name(mol) is not None
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         return False
 
@@ -725,6 +731,8 @@ def sugar_lactam_name(mol):
         chain_mol = editable.GetMol()
         Chem.SanitizeMol(chain_mol)
         acid = substituted_chain_name(chain_mol)
+    except InternalInvariantError:
+        raise
     except (ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
         return None
     if acid is None or not acid.endswith("onic acid"):
@@ -743,6 +751,8 @@ def sugar_lactam_name(mol):
 def has_sugar_lactam_shape(mol) -> bool:
     try:
         return sugar_lactam_name(mol) is not None
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         return False
 
@@ -816,6 +826,8 @@ def sugar_ring_acid_name(mol):
         model = editable.GetMol()
         Chem.SanitizeMol(model)
         name = smiles_to_iupac(Chem.MolToSmiles(model))
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
         return None
     nitrogen = _nitrogen_prefix(substituents)
@@ -847,6 +859,8 @@ def sugar_ring_acid_name(mol):
 def has_sugar_ring_acid_shape(mol) -> bool:
     try:
         return sugar_ring_acid_name(mol) is not None
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         return False
 
@@ -880,6 +894,8 @@ def ketoaldonic_chain_name(mol):
         skeleton = _Skeleton(chain, False)
         centres, _ = _labels(model, skeleton, atom_of)
         parent = _parent(skeleton, centres, None, False)
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError, KeyError, Chem.rdchem.MolSanitizeException):
         return None
     if parent is None:
@@ -920,6 +936,8 @@ def ketoaldonic_chain_name(mol):
 def has_ketoaldonic_chain_shape(mol) -> bool:
     try:
         return ketoaldonic_chain_name(mol) is not None
+    except InternalInvariantError:
+        raise
     except (UnsupportedStructure, ValueError, RuntimeError):
         return False
 

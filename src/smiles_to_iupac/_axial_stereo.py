@@ -12,7 +12,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import STEREO_OVERRIDE, UnsupportedStructure
+from ._common import STEREO_OVERRIDE, InternalInvariantError, UnsupportedStructure
 from ._numerals import numerical_term
 
 _ATOM = re.compile(r"\[[^\]]+\]|Cl|Br|[BCNOPSFIbcnops]")
@@ -528,6 +528,8 @@ def _pseudoasymmetric_labels(smiles, mol, centre, terminals, written, ring_side,
         surrogate = Chem.RemoveHs(surrogate)
         Chem.AssignStereochemistry(surrogate, cleanIt=True, force=True)
         assign_cip_labels(surrogate)
+    except InternalInvariantError:
+        raise
     except (ValueError, RuntimeError):
         return {}
     labels = {}
