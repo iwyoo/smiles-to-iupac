@@ -308,12 +308,10 @@ def name_hydride_carbo_suffix(mol) -> str:
     _, suffix_locants, ene_locants, grouped, descriptors, marks = best
     total = count + sum(len(info["locants"]) for info in grouped.values())
     siloxane = parent_name.endswith("siloxane")
-    symmetric_sole = (total == 1 and len(skeleton) == (3 if siloxane else 2) and not ene_locants) or (
-        len(skeleton) == 2 and bool(ene_locants)
-    )
-    body = multiplied_word(count, word)
     diazene_like = len(skeleton) == 2 and bool(ene_locants)
-    prefix = format_substituent_prefixes(grouped, omit_all=diazene_like)
+    symmetric_sole = (total == 1 and len(skeleton) == (3 if siloxane else 2) and not ene_locants) or diazene_like
+    body = multiplied_word(count, word)
+    prefix = format_substituent_prefixes(grouped, omit_all=diazene_like and not any(nitrogen_entries.values()))
     if ene_locants:
         stem = parent_name[:-3]
         if len(skeleton) == 2:
@@ -355,7 +353,7 @@ def _join_parent(prefix, marked):
 def _amide_nitrogen(mol, carbon, host):
     """The nitrogen of the amide group on `carbon`, or None when the group is not an amide."""
     return next(
-        (n.GetIdx() for n in mol.GetAtomWithIdx(carbon).GetNeighbors() if n.GetAtomicNum() == _NITROGEN),
+        (n.GetIdx() for n in mol.GetAtomWithIdx(carbon).GetNeighbors() if n.GetAtomicNum() == _NITROGEN and n.GetIdx() != host),
         None,
     )
 
