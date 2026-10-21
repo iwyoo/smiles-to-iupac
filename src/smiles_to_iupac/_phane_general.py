@@ -176,6 +176,28 @@ def _leaf_prune(adj, alive, amplificant_count, amplificants_too):
         stack.extend(x for x in adj[n] if x in alive)
 
 
+def _keep_longest_path(adj, alive):
+    """A pendant amplificant of an acyclic skeleton is a substituent: only the longest path between two terminal
+    amplificants stays in `alive`."""
+    leaves = sorted(n for n in alive if sum(1 for x in adj[n] if x in alive) == 1)
+    if len(leaves) < 3:
+        return
+    best = []
+    for start in leaves:
+        trail = {start: [start]}
+        stack = [start]
+        while stack:
+            n = stack.pop()
+            for x in adj[n]:
+                if x in alive and x not in trail:
+                    trail[x] = [*trail[n], x]
+                    stack.append(x)
+        for end in leaves:
+            if end > start and len(trail.get(end, ())) > len(best):
+                best = trail[end]
+    alive.intersection_update(best)
+
+
 def _attached_to_skeleton_ring(component_rings, atoms, attached, graph, joined):
     """True when two attachment atoms that close a skeleton ring (`joined(a, b)`) are ortho or peri positions: the
     skeleton ring would then be fused to the amplificant. Bridged ring systems have no peri positions."""
@@ -236,8 +258,10 @@ def _try_subset(mol, graph, subset, ring_atoms, ring_bonds, ignore, free_atom, f
     cyclic = edges - len(alive) + 1 >= 1
     if cyclic:
         _leaf_prune(adj, alive, count, True)
-    elif sum(1 for n in alive if sum(1 for x in adj[n] if x in alive) == 1) != 2:
-        return None
+    else:
+        _keep_longest_path(adj, alive)
+        if sum(1 for n in alive if sum(1 for x in adj[n] if x in alive) == 1) != 2:
+            return None
     core = sorted(alive)
     if sum(1 for n in core if n < count) < 2:
         return None
