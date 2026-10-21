@@ -174,12 +174,21 @@ def name_isotope_acid_hydrogen(mol) -> str:
             element = clean.GetAtomWithIdx(index).GetAtomicNum()
             sole = sum(1 for a in clean.GetAtoms() if a.GetAtomicNum() == element) == 1
             add(entry["skeleton"], None if sole else "1", 1, False)
-    for atom, locant in _letter_locants(clean, sorted(entries)) if entries else ():
+    named_by_symbol = {a for a, e in entries.items() if e["skeleton"] and not e["H"]} if any(e["H"] and not e["skeleton"] for e in entries.values()) else set()
+    cited = [a for a in sorted(entries) if a not in named_by_symbol]
+    located = dict(_letter_locants(clean, cited)) if cited else {}
+    for atom in sorted(entries):
+        locant = located.get(atom)
         entry = entries[atom]
+        own_symbol = entry["skeleton"] and entry["H"]
+        hydrogen_locant = entry["skeleton"] + locant[len(clean.GetAtomWithIdx(atom).GetSymbol()):] if own_symbol else locant
+        if atom in named_by_symbol:
+            add(entry["skeleton"], None, 1, False)
+            continue
         for nuclide, count in entry["H"].items():
-            add(nuclide, locant, count, clean.GetAtomWithIdx(atom).GetTotalNumHs() > 1)
+            add(nuclide, hydrogen_locant, count, clean.GetAtomWithIdx(atom).GetTotalNumHs() > 1)
         if entry["skeleton"]:
-            add(entry["skeleton"], locant, 1, False)
+            add(entry["skeleton"], None if own_symbol else locant, 1, False)
     items, previous = [], None
     for nuclide, (locants, count, repeatable) in sorted(groups.items(), key=lambda item: _nuclide_sort_key(item[0])):
         symbol = f"{nuclide}{count if count > 1 else '1' if repeatable else ''}"

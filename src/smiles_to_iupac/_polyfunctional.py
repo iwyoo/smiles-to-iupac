@@ -2926,8 +2926,12 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
         ):
             locant += "'"
             letter += "'"
+        hydrogen_elsewhere = any(rest[a]["H"] and not rest[a]["skeleton"] for a in rest if a != atom)
+        if heavy_label and entry["H"] and not nitrogen:
+            locant = heavy_label + locant[len(symbol):]
         if heavy_label:
-            items.append((heavy_label, letter if several_atoms and only_heavy else None, 1, False))
+            tells_itself_apart = only_heavy and hydrogen_elsewhere and not nitrogen
+            items.append((heavy_label, letter if several_atoms and only_heavy and not tells_itself_apart else None, 1, False))
         for nuclide, count in entry["H"].items():
             items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
