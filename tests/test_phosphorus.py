@@ -970,3 +970,15 @@ def test_phosphoryl_with_nitrogen_groups(smiles, expected):
 )
 def test_charged_prefix_groups_on_phosphonic_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OPOPO", "diphosphonous acid", id="phosphonous"),
+        pytest.param("OP(O)OP(O)O", "diphosphorous acid", id="phosphorous"),
+        pytest.param("O[Si](O)(O)O[Si](O)(O)O", "disilicic acid", id="silicic"),
+    ],
+)
+def test_unsubstituted_dinuclear_acids_keep_their_retained_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

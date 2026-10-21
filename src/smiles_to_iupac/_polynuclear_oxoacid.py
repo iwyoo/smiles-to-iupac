@@ -579,8 +579,9 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
         candidates.append((key, center_pos, items))
     _, center_pos, items = min(candidates, key=lambda c: c[0])
     n_found = _n_substituents(mol, graph, halogens, centers, center_pos)
-    if priority and not items and senior is None and not n_found and not organyls and centers[0].z != 5 and not anionic:
-        raise UnsupportedStructure("a plain homogeneous polyacid or ester is named by the part-wise modules")
+    has_ester = any(lig.kind == "ester" for center in centers for lig in center.singles)
+    if priority and has_ester and not items and senior is None and not n_found and not organyls and centers[0].z != 5 and not anionic:
+        raise UnsupportedStructure("a plain homogeneous polyacid ester is named by the part-wise modules")
     n_prefix = _format_n_substituents(n_found + [(name, compound, center_pos[ci]) for name, compound, ci in organyls])
     if senior is not None and anionic:
         return None
