@@ -298,6 +298,10 @@ def test_double_bond_between_assembly_components_is_cited_with_both_locants():
     assert smiles_to_iupac("CC[C@H]1CC/C(CC1)=C1\\CC[C@@H](CC)CC1") == "[1(1')E,4s,4's]-4,4'-diethyl-1,1'-bi(cyclohexylidene)"
 
 
+def test_unsubstituted_assembly_group_is_a_simple_prefix_multiplied_with_di():
+    assert smiles_to_iupac("c1ccc(cc1)-c1ccc(cc1)-c1cncc(c1)-c1ccc(cc1)-c1ccccc1") == "3,5-di([1,1'-biphenyl]-4-yl)pyridine"
+
+
 def test_assembly_holding_the_principal_group_is_the_parent_beside_a_fused_ring_substituent():
     assert smiles_to_iupac("OC1CCCCN1C1CCCCN1c1ccc2ccccc2c1") == "1'-(naphthalen-2-yl)[1,2'-bipiperidin]-2-ol"
 
