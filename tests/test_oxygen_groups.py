@@ -1467,6 +1467,7 @@ def test_diesters_of_a_ring_joined_to_identical_chains(smiles, expected):
         ("CCN(CC)C(=S)S[Sb](C(C)C)C(C)C", "diethylcarbamothioic di(propan-2-yl)stibinous thioanhydride"),
         ("O=C(c1ccccc1)OI", "benzoic hypoiodous anhydride"),
         ("CB(C)OOB(C)C", "dimethylborinic peroxyanhydride"),
+        ("CC(=O)SOC(=O)CC", "S-acetic O-propanoic thioperoxyanhydride"),
     ],
 )
 def test_anhydrides_of_stibinous_halogen_and_boron_acids(smiles, expected):

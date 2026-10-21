@@ -1155,6 +1155,7 @@ def test_nuclide_on_an_atom_of_a_pseudohalide_group(smiles, expected):
     [
         pytest.param("ClCO[18O]C", "chloro[methyl(2-18O)peroxy]methane", id="peroxy_prefix"),
         pytest.param("CC(=O)O[18O]C(=O)c1ccccc1", "acetic benzoic (2-18O)peroxyanhydride", id="peroxyanhydride_bridge"),
+        pytest.param("O=C(c1ccc([2H])cc1)SSC(=O)c1ccc([2H])cc1", "(4-2H)benzoic dithioperoxyanhydride", id="symmetric_labelled_junction"),
         pytest.param("CP(=O)(O)O[18O]C", "O18O-methyl hydrogen methylphosphono(perox(18O1)oate)", id="peroxy_ester_of_a_phosphorus_acid"),
     ],
 )

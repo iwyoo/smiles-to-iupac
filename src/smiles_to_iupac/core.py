@@ -969,7 +969,7 @@ def _multiplied_factor(name, position):
     return factor
 
 
-_SYMMETRIC_ANHYDRIDE = re.compile(r"[^ ]+ anhydride")
+_SYMMETRIC_ANHYDRIDE = re.compile(r"[^ ]+ (?:(?:di)?(?:thio|seleno|telluro))*(?:peroxy)?anhydride")
 
 
 def _cited_nuclides(name):
