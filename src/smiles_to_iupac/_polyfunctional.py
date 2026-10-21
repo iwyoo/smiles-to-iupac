@@ -5842,7 +5842,7 @@ def _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitr
     amines on the others are amino prefixes of the N-substituents (P-62.2.2); of equally large backbones the senior
     parent is chosen (P-62.2.4.1.3). None unless a single backbone holds a part of the amines."""
     groups = _chain_backbone_groups(mol, graph, amine_nitrogens)
-    most = max(len(group) for group in groups)
+    most = max((len(group) for group in groups), default=0)
     if most < 2 or most == len(amine_nitrogens):
         return None
     named = [
