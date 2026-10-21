@@ -68,12 +68,15 @@ def _component(graph, start, blocked):
     return seen
 
 
-def _prefix_only(mol, atoms):
+def _prefix_only(mol, atoms, amino_prefix=False):
     """True when a substituent group carries only characteristic groups that are cited as prefixes: a phane parent
-    with a principal group (hydroxy, amino, oxo, carboxy, cyano, ...) takes it as a suffix (P-41, P-44.1.1)."""
+    with a principal group (hydroxy, amino, oxo, carboxy, cyano, ...) takes it as a suffix (P-41, P-44.1.1); an amino
+    group inside a larger branch is a prefix when the suffix is an amine or more senior (`amino_prefix`)."""
     for a in atoms:
         atom = mol.GetAtomWithIdx(a)
         z = atom.GetAtomicNum()
+        if amino_prefix and z == 7 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2 and atom.GetNeighbors()[0].GetAtomicNum() == 6:
+            continue
         if z in (6, 9, 17, 35, 53):
             if z == 6 and any(
                 b.GetBondTypeAsDouble() >= 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16) for b in atom.GetBonds()
@@ -288,8 +291,10 @@ def _try_subset(mol, graph, subset, ring_atoms, ring_bonds, ignore, free_atom, f
                 if r in ignore or r in core_atoms:
                     continue
                 branches.append((a, r, _component(graph, r, core_atoms | ignore)))
+    suffix_class = _principal_suffix(mol, branches)[0] if free_atom is None else None
+    amino_prefix = suffix_class is not None and SUFFIX_RANKS[suffix_class] <= SUFFIX_RANKS["amine"]
     if any(
-        not _prefix_only(mol, atoms) and (free_atom is not None or _suffix_class(mol, owner, root, atoms) is None)
+        not _prefix_only(mol, atoms, amino_prefix and len(atoms) > 1) and (free_atom is not None or _suffix_class(mol, owner, root, atoms) is None)
         for owner, root, atoms in branches
     ):
         return None

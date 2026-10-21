@@ -552,6 +552,17 @@ def test_linear_phane_with_a_pendant_ring_on_a_node_names_the_ring_as_a_substitu
     )
 
 
+def test_linear_phane_branch_with_an_amino_group_or_an_aryl_on_a_carbon_node():
+    assert (
+        smiles_to_iupac("Nc1ccc(cc1)Nc1ccc(cc1)N(c1ccc(N)cc1)c1ccc(cc1)Nc1ccc(cc1)N")
+        == "4-(4-aminophenyl)-2,4,6-triaza-1,7(1),3,5(1,4)-tetrabenzenaheptaphane-1\u2074,7\u2074-diamine"
+    )
+    assert (
+        smiles_to_iupac("OC(=O)c1ccc(cc1)Cc1ccc(cc1)C(c1ccccc1)c1ccc(cc1)Cc1ccc(cc1)C(O)=O")
+        == "4-phenyl-1,7(1),3,5(1,4)-tetrabenzenaheptaphane-1\u2074,7\u2074-dicarboxylic acid"
+    )
+
+
 def test_substituted_fused_unit():
     assert smiles_to_iupac("Clc1ccc2ccccc2c1Cc1c(Cl)ccc2ccccc12") == "1,1'-methylenebis(2-chloronaphthalene)"
     assert (

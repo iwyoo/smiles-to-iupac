@@ -741,6 +741,10 @@ def _is_linear_phane(core):
     return rings >= 4 and len(core) >= 7 and all(len(v) <= 2 for v in core.values())
 
 
+def _may_be_branched_phane(core):
+    return sum(1 for n in core if n[0] == "R") >= 4 and len(core) >= 7
+
+
 def _junction_key(mol, groups, selected, name_function):
     """P-45.2.2: of equally senior sets of multiplied parents, the one attached through the lower locants."""
     from ._substituents import _locant_sort_key
@@ -828,11 +832,12 @@ def _name_if_multiplicative(mol, name_function=None):
                 named.append((_junction_key(mol, groups, selected, name_function), name))
         if named:
             name = min(named)[1]
-            if _is_linear_phane(core):
+            if _may_be_branched_phane(core):
                 from ._linear_phane import has_linear_phane_shape, name_linear_phane
 
                 if has_linear_phane_shape(mol):
                     return name_linear_phane(mol)
-                raise UnsupportedStructure("the PIN of a linear phane (P-52.2.5.1) is a phane name, not supported yet")
+                if _is_linear_phane(core):
+                    raise UnsupportedStructure("the PIN of a linear phane (P-52.2.5.1) is a phane name, not supported yet")
             return name
     return None
