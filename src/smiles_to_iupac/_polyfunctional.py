@@ -6343,6 +6343,13 @@ def _arm_atoms(graph, start, blocked):
     return seen
 
 
+def _marked_unit_key(unit):
+    """The units of a multiplicative name are identical only when the same atoms carry the anionic mark."""
+    ranks = Chem.CanonicalRankAtoms(unit, breakTies=False)
+    marks = sorted(ranks[a.GetIdx()] for a in unit.GetAtoms() if a.HasProp(ANION_PROP))
+    return Chem.MolToSmiles(unit, isomericSmiles=False), tuple(marks)
+
+
 def _multiplicative_name(mol, stereo=None):
     """P-15.3: identical chain parents joined through one oxygen, chalcogen,
     NH or N atom are named multiplicatively (2,2'-oxydi(ethan-1-ol))."""
@@ -6403,7 +6410,7 @@ def _multiplicative_name(mol, stereo=None):
         if labelled:
             keys = {_modified_unit_smiles(unit[0], atoms) for unit, atoms in zip(units, parts_atoms)}
         else:
-            keys = {Chem.MolToSmiles(unit[0], isomericSmiles=False) for unit in units}
+            keys = {_marked_unit_key(unit[0]) for unit in units}
         if len(keys) != 1:
             continue
         if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] == "amine":
