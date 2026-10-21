@@ -8,7 +8,6 @@ from rdkit import Chem
 from ._common import assign_cip_labels
 
 _TEMPLATES = (
-    ("β-alanine", "NCCC(=O)O", False),
     ("sarcosine", "CNCC(=O)O", False),
     ("5-oxoproline", "O=C1CC[CH:1](N1)C(=O)O", False),
     ("homoserine lactone", "N[CH:1]1CCOC1=O", False),
