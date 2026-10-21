@@ -39,6 +39,8 @@ def test_phenoxide():
         pytest.param("[O-]c1ccc(CC=C)cc1", "4-(prop-2-en-1-yl)phenoxide", id="phenoxide_unsaturated_ring_substituent_is_named"),
         pytest.param("[O-]CC[O-]", "ethane-1,2-bis(olate)", id="two_alkoxide_groups_is_named"),
         pytest.param("[O-]CCOC", "2-methoxyethan-1-olate", id="ether_oxygen_alongside_alkoxide_is_named"),
+        pytest.param("[O-]CCOCCO", "2-(2-hydroxyethoxy)ethan-1-olate", id="neutral_hydroxy_across_an_ether_is_a_prefix"),
+        pytest.param("[O-]CCOCC[O-]", "2,2'-oxydi(ethan-1-olate)", id="two_alkoxide_groups_across_an_ether_are_multiplied"),
         pytest.param("C(S(=O)(=O)Cl)CC[O-]", "3-(chlorosulfonyl)propan-1-olate", id="acid_halide_below_the_anion_is_a_prefix"),
         pytest.param("C([NH3+])CCOC#N", "3-cyanatopropan-1-aminium", id="cyanate_below_the_cation_is_a_prefix"),
         pytest.param("C([N+](C)(C)C)CCSC#N", "N,N,N-trimethyl-3-(thiocyanato)propan-1-aminium", id="thiocyanate_below_a_quaternary_cation_is_a_prefix"),

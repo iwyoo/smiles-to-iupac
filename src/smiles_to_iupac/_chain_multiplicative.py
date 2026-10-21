@@ -7,6 +7,7 @@ from itertools import combinations
 
 from rdkit import Chem
 
+from ._anion import ANION_PROP
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, is_prefix_placeholder
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
@@ -160,6 +161,12 @@ def _principal_atoms(mol):
         elif _substituted_amine_nitrogen(mol, atom) and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors()):
             groups.setdefault("amine", {})[atom.GetIdx()] = {atom.GetIdx()}
     ring_groups = _ring_occurrences(mol)
+    marked = {a.GetIdx() for a in mol.GetAtoms() if a.HasProp(ANION_PROP)}
+    if any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 for i in marked):
+        groups = {
+            cls: kept for cls, members in groups.items() if (kept := {c: owned for c, owned in members.items() if owned & marked})
+        }
+        ring_groups = [g for g in ring_groups if g[2] & marked]
     classes = set(groups) | {c for c, _, _ in ring_groups}
     principal = "amine" if AMINIUM.get() is True and "amine" in classes else next((name for name in _SENIORITY if name in classes), None)
     if principal is None:
