@@ -1997,6 +1997,7 @@ def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expecte
         pytest.param("[NH2+]", "azanylium", id="nitrenium"),
         pytest.param("[SiH3+]", "silylium", id="silylium"),
         pytest.param("C[Si+](C)C", "trimethylsilylium", id="trimethylsilylium"),
+        pytest.param("C/C=C\\[Si+](C)C", "dimethyl[(1Z)-prop-1-en-1-yl]silylium", id="silylium-alkenyl-descriptor"),
         pytest.param("C1(=CC=CC=C1)[Si+](C1=CC=CC=C1)C1=CC=CC=C1", "triphenylsilylium", id="triphenylsilylium"),
         pytest.param("[PH2+]", "phosphanylium", id="phosphanylium"),
         pytest.param("C[PH+]", "methylphosphanylium", id="substituted_phosphanylium"),
