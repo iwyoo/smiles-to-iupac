@@ -359,8 +359,8 @@ def test_fused_system_to_be_bridged_has_the_most_skeletal_atoms_and_a_saturated_
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("OC1C2CC3CC1C1C3C21", "octahydro-2,3-methanocyclopropa[cd]pentalen-1-ol", id="suffix_on_a_saturated_cage"),
-        pytest.param("CC1C2CC3CC1C1C3C21", "1-methyloctahydro-2,3-methanocyclopropa[cd]pentalene", id="substituent_locant_of_the_cage"),
+        pytest.param("OC1C2CC3CC1C1C3C21", "octahydro-1,4-methanocyclopropa[cd]pentalen-2-ol", id="suffix_on_a_saturated_cage"),
+        pytest.param("CC1C2CC3CC1C1C3C21", "2-methyloctahydro-1,4-methanocyclopropa[cd]pentalene", id="substituent_locant_of_the_cage"),
         pytest.param(
             "CC1C2C=CC3CC1C1C3C21",
             "1-methyl-2,2a,2a1,2b,3,5a-hexahydro-1H-2,3-methanocyclopropa[cd]indene",
@@ -1545,5 +1545,5 @@ def test_spiro_atom_of_a_fused_ring_with_other_saturated_positions_is_not_named(
 
 
 def test_bridge_with_a_substituent_is_not_named():
-    with pytest.raises(UnsupportedStructure):
+    with pytest.raises(RuleUndefinedStructure):
         smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, attached=[((1, 7), "[Xe:1]C(Cl)C[Xe:2]")]))
