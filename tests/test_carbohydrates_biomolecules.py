@@ -434,6 +434,7 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
         pytest.param("COC[C@H]1O[C@@H](O)[C@H](OC)[C@@H](OC)[C@@H]1OC", "2,3,4,6-tetra-O-methyl-β-D-glucopyranose", id="multiplied_o_alkyl_prefix"),
         pytest.param("COC[C@H]1O[C@@H](O)[C@H](OC(C)=O)[C@@H](O)[C@@H]1O", "6-O-methyl-β-D-glucopyranose 2-acetate", id="ester_after_the_name"),
         pytest.param("OC1O[C@H](COP(O)(O)=O)[C@@H](O)[C@H](O)[C@H]1O", "D-glucopyranose 6-(dihydrogen phosphate)", id="phosphate_ester"),
+        pytest.param("CO[C@H]1O[C@H](COP(=O)O)[C@@H](O)[C@H](O)[C@H]1O", "methyl α-D-glucopyranoside 6-(hydrogen phosphonate)", id="phosphonate_ester"),
         pytest.param("OC[C@H]1O[C@@H](O)[C@@](O)(c2ccccc2)[C@@H](O)[C@@H]1O", "2-C-phenyl-β-D-glucopyranose", id="c_substituent_on_a_nonterminal_carbon"),
         pytest.param(
             "CN(CCCl)[C@@H]1[C@@H](O)[C@H](O)[C@@H](CO)O[C@H]1O",

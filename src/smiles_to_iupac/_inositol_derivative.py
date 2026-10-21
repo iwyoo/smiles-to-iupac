@@ -113,6 +113,11 @@ def ester_anion(mol, oxygen, acyl):
             if atom.GetAtomicNum() == 15:
                 return {1: "hydrogen phosphate", 2: "phosphate"}.get(anionic)
             return "sulfate" if anionic == 1 else None
+        if atom.GetAtomicNum() == 15 and atom.GetDegree() == 3 and atom.GetTotalNumHs() == 1 and sum(
+            n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in neighbors
+        ) == 2:
+            anionic = sum(n.GetFormalCharge() == -1 for n in neighbors)
+            return {0: "hydrogen phosphonate", 1: "phosphonate"}.get(anionic)
         return None
     graph = adjacency(mol)
     branch, stack = {oxygen}, [acyl]
