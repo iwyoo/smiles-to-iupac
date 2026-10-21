@@ -39,16 +39,19 @@ _FREE_INORGANIC_ACIDS = {"OB(O)O": "boric acid", "OP(O)O": "phosphorous acid",
 _HALIDES = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _PSEUDOESTER_ELEMENTS = {5, 7, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
 _RING_ONLY_PSEUDOESTER = {5, 15, 33, 51, 83, 7}
-_ANHYDRIDE_WORDS = {
-    ("O",): "anhydride",
-    ("S",): "thioanhydride",
-    ("Se",): "selenoanhydride",
-    ("Te",): "telluroanhydride",
-    ("O", "O"): "peroxyanhydride",
-    ("O", "S"): "thioperoxyanhydride",
-    ("S", "O"): "thioperoxyanhydride",
-    ("S", "S"): "dithioperoxyanhydride",
-}
+_CHALCOGEN_INFIX = {"S": "thio", "Se": "seleno", "Te": "telluro"}
+
+
+def _anhydride_word(kind):
+    """The class word of an anhydride whose junction atoms are `kind`: 'thioanhydride', 'selenothioperoxyanhydride'
+    (P-65.7.3, P-65.7.4); None for a junction of more than two atoms."""
+    if len(kind) > 2:
+        return None
+    replaced = [e for e in kind if e != "O"]
+    prefix = "".join(
+        ("di" if replaced.count(e) == 2 else "") + _CHALCOGEN_INFIX[e] for e in sorted(set(replaced), key=_CHALCOGEN_INFIX.get)
+    )
+    return prefix + ("peroxy" if len(kind) == 2 else "") + "anhydride"
 
 
 @dataclass
@@ -1542,9 +1545,9 @@ def name_anhydride(mol, links):
     links = _senior_bridge_links(mol, links)
     bridges, frags, owner = _bridged_components(mol, links)
     kinds = {tuple(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in chain) for chain, _, _ in bridges.values()}
-    if len(kinds) != 1 or next(iter(kinds)) not in _ANHYDRIDE_WORDS:
+    word = _anhydride_word(next(iter(kinds))) if len(kinds) == 1 else None
+    if word is None:
         raise UnsupportedStructure("the anhydride bridges are not all of one kind named by P-65.7")
-    word = _ANHYDRIDE_WORDS[next(iter(kinds))]
     bridge_atoms = set().union(*(set(chain) for chain, _, _ in bridges.values()))
     components = [i for i, atoms in enumerate(frags) if not set(atoms) <= bridge_atoms]
     adjacency_of = {i: [] for i in components}
@@ -1570,7 +1573,15 @@ def name_anhydride(mol, links):
     }
     if count == 1:
         words = list(word_of.values())
-        text = words[0] if words[0] == words[1] else " ".join(sorted(words, key=citation_order_key))
+        if words[0] == words[1]:
+            text = words[0]
+        else:
+            (chain, first, second), = bridges.values()
+            junction = {owner[first]: chain[0], owner[second]: chain[-1]}
+            marked = dict(word_of)
+            if len({mol.GetAtomWithIdx(a).GetAtomicNum() for a in chain}) > 1:
+                marked = {i: f"{_SYMBOL[mol.GetAtomWithIdx(junction[i]).GetAtomicNum()]}-{w}" for i, w in word_of.items()}
+            text = " ".join(marked[i] for i in sorted(word_of, key=lambda i: citation_order_key(word_of[i])))
         if word == "anhydride" and any(
             _acid_group_count(mol, [a for a in frags[i] if a not in bridge_atoms], centers[i]) > 1 for i in components
         ):
