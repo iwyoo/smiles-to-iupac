@@ -706,6 +706,7 @@ def test_non_pin_retained_name_cases_warn(smiles, warns):
     [
         pytest.param("O=S1CCCCC1", "1λ4-thian-1-one", id="ring_resolves_via_hetero_ring_oxide"),
         pytest.param("[S-]C(=O)CCC(=O)[S-]", "butanebis(thioate)", id="multiple_thioate_groups_is_named"),
+        pytest.param("CSC(=O)CCC(=O)SC", "S,S-dimethyl butanebis(thioate)", id="diester_of_a_bis_thioic_acid_cites_the_element_symbols"),
         pytest.param("[S-]C(=O)C1CCCCC1", "cyclohexanecarbothioate", id="thioate_on_ring_is_named"),
         pytest.param("CC(C)C(=O)[S-]", "2-methylpropanethioate", id="thioate_branched_r_group"),
     ],
