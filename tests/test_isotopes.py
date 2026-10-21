@@ -532,6 +532,11 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
         pytest.param("[2H]Oc1ccc(Oc2ccc(O[2H])cc2)cc1", "4,4'-oxydi[phen(2H)ol]", id="multiplied_ring_units_cite_the_modified_hydroxy_hydrogen"),
         pytest.param("[2H]Oc1ccc2ccccc2c1[13CH2]c1c(O[2H])ccc2ccccc12", "1,1'-[(13C)methylene]di[naphthalen-2-(2H)ol]", id="multiplied_fused_units_and_a_modified_linker_carbon"),
         pytest.param("Oc1ccc(cc1)c1[13cH]ccc2c1cccc2c1ccc(O)cc1", "4,4'-[(2-13C)naphthalene-1,5-diyl]diphenol", id="modified_atom_of_a_fused_ring_linker"),
+        pytest.param(
+            "[2H]C([2H])([2H])C(NC(C)=O)C(C)NC(C)=O",
+            "N,N'-[(1,1,1-2H3)butane-2,3-diyl]diacetamide",
+            id="modified_chain_linker_of_a_multiplied_amide",
+        ),
     ],
 )
 def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):

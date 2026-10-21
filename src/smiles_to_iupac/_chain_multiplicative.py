@@ -650,7 +650,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     parts_atoms = [a for _, _, a in arms]
     units = [_unit_molecule(mol, atoms_, root) for atoms_, root in zip(parts_atoms, roots)]
     if unit_kind != "chain":
-        if stereo:
+        if any(element[0] != "isotope" for element in stereo) or unit_stereo or any(branch_stereo):
             return None
         chain_unit = _substituted_chain_unit(mol, graph, roots[0], parts_atoms[0]) if unit_kind == "hydride" else None
         if unit_kind == "urea":
