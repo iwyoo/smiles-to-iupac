@@ -51,6 +51,7 @@ class Ligand:
     group: object = None
     extra: tuple = ()
     anionic: bool = False
+    substituents: tuple = ()
 
 
 @dataclass
@@ -239,6 +240,13 @@ def _single_or_bridge(mol, graph, center_set, c, n):
         if z == 7 and atom.GetTotalNumHs() == 2:
             return "single", Ligand(n, "NH2", kind="amide")
         return None
+    if z == 7 and not atom.GetFormalCharge() and atom.GetTotalNumHs() == 2 - len(others) and all(
+        mol.GetAtomWithIdx(m).GetAtomicNum() == 6
+        and not mol.GetAtomWithIdx(m).GetFormalCharge()
+        and mol.GetBondBetweenAtoms(n, m).GetBondTypeAsDouble() == 1.0
+        for m in others
+    ):
+        return "single", Ligand(n, "NH2", kind="amide", substituents=tuple(others))
     if len(others) != 1:
         return None
     m = others[0]
@@ -403,14 +411,26 @@ def _replacements(centers, links, center_pos, link_pos, senior):
 
 
 def _n_substituents(mol, graph, halogens, centers, center_pos):
-    """[(name, compound, locant text)] of the groups on imido nitrogens (P-67.2.2.2: N1, N2)."""
+    """[(name, compound, locant text)] of the groups on imido and amide nitrogens (P-67.2.2.2, P-67.2.4: N1, N2)."""
     found = []
     for ci, center in enumerate(centers):
         for lig in center.oxo:
             if lig.group is not None:
                 name, compound = name_branch(graph, lig.group, lig.atom, halogens, mol=mol)
                 found.append((name, compound, f"N{center_pos[ci]}"))
+        for lig in center.singles:
+            for carbon in lig.substituents:
+                name, compound = name_branch(graph, carbon, lig.atom, halogens, mol=mol)
+                found.append((name, compound, f"N{center_pos[ci]}"))
     return found
+
+
+def _n_centers(centers):
+    return [ci for ci, center in enumerate(centers) for lig in center.singles for _ in lig.substituents]
+
+
+def _has_n_substituents(centers):
+    return bool(_n_centers(centers))
 
 
 def _format_n_substituents(found):
@@ -537,6 +557,8 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     senior = _senior_class(centers)
+    if _has_n_substituents(centers) and senior != _class_rank(Ligand(0, "NH2", kind="amide")):
+        return None
     organyls = _organyl_substituents(mol, graph, halogens, centers)
     candidates = []
     for reverse in (False, True):
@@ -548,6 +570,7 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
         key = (
             _function_locants(centers, center_pos, senior),
             tuple(sorted(loc for _, loc in items)),
+            tuple(sorted(center_pos[ci] for ci in _n_centers(centers))),
             tuple(sorted(center_pos[ci] for _, _, ci in organyls)),
             tuple(center_pos[ci] for _, _, ci in sorted(organyls, key=lambda o: (alpha_sort_key(o[0]), center_pos[o[2]]))),
             tuple(tuple(sorted(by_word[w])) for w in sorted(by_word, key=lambda w: w.strip("()"))),
@@ -686,7 +709,7 @@ def _prefix_entry(mol, graph, halogens, lig):
 
 def _dithioxane_name(mol, centers, links):
     """P-67.3.2: sulfur(IV) centres joined through oxygen are an oxane-type chain, not 'disulfurous acid'."""
-    if any(center.organyls for center in centers):
+    if _has_n_substituents(centers) or any(center.organyls for center in centers):
         return None
     if any(c.z != 16 or len(c.oxo) != 1 for c in centers) or any(link.elements != ("O",) for link in links):
         return None
@@ -852,7 +875,7 @@ def _chain_group(mol, graph, halogens, centers, links, order, link_order):
 
 def _substitutive_name(mol, centers, links):
     """P-67.3.1: the senior mononuclear acid is the parent and the other centres a substituent group."""
-    if any(center.organyls for center in centers):
+    if _has_n_substituents(centers) or any(center.organyls for center in centers):
         return None
     if len(centers) < 2 or any(
         link.elements not in ((), ("O",), ("S",), ("Se",), ("Te",), ("NH",)) for link in links
@@ -941,7 +964,7 @@ _ANHYDRIDE_CLASS = {"O": "", "S": "thio", "Se": "seleno", "Te": "telluro"}
 def _anhydride_name(mol, centers, links):
     """P-67.3.1, P-65.7.2: two acid centres linked through one chalcogen are an anhydride of their two acids when
     neither centre can be the parent of a substitutive name."""
-    if any(center.organyls for center in centers):
+    if _has_n_substituents(centers) or any(center.organyls for center in centers):
         return None
     if len(centers) != 2 or len(links[0].elements) != 1 or links[0].elements[0] not in _ANHYDRIDE_CLASS:
         return None
