@@ -20,14 +20,17 @@ from ._common import (
 )
 from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._acid_groups import acid_group_at
+from ._acid_lexicon import chain_suffix, spec_from_key
 from ._common import UnsupportedStructure, nonstandard_bonding
 from ._polyfunctional import (
     _CHALCOGEN_AMIDE,
     CHAIN_SUFFIX_WORD,
     _SENIORITY,
     _TERMINAL,
+    _acid_rank,
     _group_of,
     _is_ester_like,
+    _is_variant,
     _paths,
     _ring_occurrences,
 )
@@ -361,6 +364,13 @@ def _long_identical_run(mol, path, hetero_positions):
     )
 
 
+def _principal(classes):
+    acids = [c for c in classes if c == "acid" or _is_variant(c)]
+    if acids and "ide" not in classes:
+        return min(acids, key=_acid_rank)
+    return next((c for c in _ORDER if c in classes), None)
+
+
 def name_heteroacyclic(mol, express_amine_suffixes=True):
     """The skeletal-replacement name, or None when `mol` does not qualify. A secondary or tertiary amine is the principal
     group when the chains qualify without its nitrogen atom, else its nitrogen is a skeletal atom (P-62.2.4.1.3); the
@@ -396,7 +406,7 @@ def _name_heteroacyclic(mol, amine_groups, express_amine_suffixes=True):
         groups["aminium"] = aminium
     ring_groups = _ring_occurrences(mol)
     classes = set(groups) | {c for c, _, _ in ring_groups} | {name for name, found in carbamoyl_of.items() if found}
-    principal = "aminium" if aminium else next((c for c in _ORDER if c in classes), None)
+    principal = "aminium" if aminium else _principal(classes)
     if amine_groups and not aminium and principal in (None, "amine"):
         for nitrogen in filter(lambda a: _amine_nitrogen(mol, a), mol.GetAtoms()):
             for neighbor in nitrogen.GetNeighbors():
@@ -680,7 +690,7 @@ def _evaluate(
 
     a_text = "-".join(a_unit(z) for z in _A_ORDER if z in by_element)
     prefix = format_substituent_prefixes(grouped_all)
-    halide_word = ""
+    halide_word = acid_tail = ""
     if attaches:
         ordered = [position_of[a] for a in attaches]
         body = name_from_substituents(length, ene, yne, "diyl", sorted(ordered), force_own_locant=True)
@@ -697,11 +707,16 @@ def _evaluate(
                 return None
             halide_word = " " + ("di" if count == 2 else "") + _HALIDE_WORD[halogens_cited.pop()]
             suffix_word = multiplied_word(count, "oyl")
+        elif _is_variant(principal):
+            spec = spec_from_key(principal)
+            if spec.center != "C":
+                return None
+            suffix_word, acid_tail = chain_suffix(spec, count)
         else:
             if principal not in _SUFFIX_WORD:
                 return None
             suffix_word = multiplied_word(count, _SUFFIX_WORD[principal])
-        body = name_from_substituents(length, ene, yne, suffix_word, suffix_locants) + halide_word
+        body = name_from_substituents(length, ene, yne, suffix_word, suffix_locants) + halide_word + acid_tail
     name = prefix + ("-" if prefix and a_text and not prefix.endswith("-") else "") + a_text + body
     stereo = _chain_stereo(chain, position_of, atom_codes, bond_codes)
     if attach is not None:
