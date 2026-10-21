@@ -17,6 +17,7 @@ from ._fusion_name import _MAX_RINGS_IN_SYSTEM, Context, _fusion_name_core, syst
 from ._numerals import alkane_name, numerical_term
 
 _MAX_CYCLE = 13
+_MAX_HETERO_CYCLE = 24
 SENIORITY_MAX_CYCLE = 12
 BRIDGED_MAX_CYCLE = ContextVar("bridged_max_cycle", default=_MAX_CYCLE)
 _MAX_STATES = 6000
@@ -98,7 +99,11 @@ def _candidates(mol, atoms, max_cycle):
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         if a in atoms and b in atoms:
             graph.add_edge(a, b)
-    cycles = [tuple(c) for c in nx.simple_cycles(graph, length_bound=max_cycle)]
+    cycles = [
+        tuple(c)
+        for c in nx.simple_cycles(graph, length_bound=max(max_cycle, _MAX_HETERO_CYCLE))
+        if len(c) <= max_cycle or any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in c)
+    ]
     edge_sets = [{frozenset((c[k], c[(k + 1) % len(c)])) for k in range(len(c))} for c in cycles]
     total = graph.number_of_edges() - graph.number_of_nodes() + 1
     seen, valid, by_edges = set(), {}, {}
