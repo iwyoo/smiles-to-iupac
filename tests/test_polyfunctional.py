@@ -763,6 +763,7 @@ def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expecte
     "smiles,expected",
     [
         ("OC[C@H]1CCCC[C@@H]1C", "[(1S,2S)-2-methylcyclohexyl]methanol"),
+        ("BrCC[C@@H](CC)[C@H](O)[C@@H](CC)CCI", "(3R,4S,5S)-1-bromo-3,5-diethyl-7-iodoheptan-4-ol"),
         ("OC(=O)CC[C@H]1CCCC[C@@H]1C", "3-[(1R,2S)-2-methylcyclohexyl]propanoic acid"),
         ("OC[C@H]1CCCC[C@@H]1Cl", "[(1R,2S)-2-chlorocyclohexyl]methanol"),
         ("OC(=O)CCNC(=O)[C@H](Cl)CC", "3-{[(2R)-2-chlorobutanoyl]amino}propanoic acid"),

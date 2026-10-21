@@ -3234,13 +3234,25 @@ def _parent_configuration_rank(stereo, position_of, ring_parent=False, direction
     cis = [locant for locant, code in entries if code == "Z" and locant != ""]
     centres = [code for _, code in entries if code in ("R", "S", "r", "s")]
     like = sum(1 for code in centres[1:] if code == centres[0])
+    if not directional:
+        return _isotope_counts(stereo, marked), -len(cis)
     return (
         _isotope_counts(stereo, marked),
         -len(cis),
         tuple(cis),
         -like,
-        tuple(0 if code in "Rr" else 1 for code in centres) if directional else (),
+        tuple(0 if code in "Rr" else 1 for code in centres),
     )
+
+
+def _numbering_configuration_rank(stereo, position_of):
+    """The part of `_parent_configuration_rank` that depends on the direction of the numbering: lower locants for Z
+    double bonds, then more like descriptor pairs. It only decides numberings that the locants of the prefixes leave
+    tied (P-14.4 (j))."""
+    entries, _ = _stereo_entries(stereo, position_of, False)
+    cis = [locant for locant, code in entries if code == "Z" and locant != ""]
+    centres = [code for _, code in entries if code in ("R", "S", "r", "s")]
+    return tuple(cis), -sum(1 for code in centres[1:] if code == centres[0])
 
 
 def _isotope_counts(stereo, marked):
@@ -4407,6 +4419,7 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
         locant_set,
         citation,
         alphanumerical_name_key(name),
+        _numbering_configuration_rank(stereo, position_of),
         _stereo_rank(stereo, position_of),
         name,
     )
@@ -4496,6 +4509,7 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
         citation,
         alphanumerical_name_key(name),
         _n_group_positions(n_names, position_of),
+        _numbering_configuration_rank(stereo, position_of),
         _stereo_rank(stereo, position_of),
         name,
     )
@@ -8143,6 +8157,7 @@ def _evaluate(
         _bonding_rank(mol, graph, chain_set, position_of),
         alphanumerical_name_key(name),
         _n_group_positions(n_names, position_of),
+        _numbering_configuration_rank(stereo, position_of),
         _stereo_rank(stereo, position_of),
         name,
     )
