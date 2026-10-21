@@ -306,6 +306,7 @@ def test_assembly_holding_the_principal_group_is_the_parent_beside_a_fused_ring_
     "smiles,expected",
     [
         ("C12(C=CC=C1C=CC=C2)C12C=CC=C1C=CC=C2", "3a,3'a-biindene"),
+        ("C12(C=CCC=C1C=CC=C2)C12C=CCC=C1C=CC=C2", "2H,2'H-4a,4'a-binaphthalene"),
         ("N1C=CC(=CC=C1)C=1CC=NC=CC1", "1H,3'H-4,4'-biazepine"),
         ("N1(CC=CC=C1)C1=NC=CC=C1", "2H-1,2'-bipyridine"),
         ("C1(SCCCCCCCCCCCC1)C1COCCCCCCCCCCC1", "3'-oxa-2-thia-1,1'-bi(cyclotetradecane)"),

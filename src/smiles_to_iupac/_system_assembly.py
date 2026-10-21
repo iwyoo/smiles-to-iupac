@@ -65,8 +65,8 @@ def _systems(mol):
 _HYDRO_HEAD = re.compile(r"^(?:[\d,a-z]+-)?(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca|undeca|dodeca)?hydro-?")
 
 
-def _stem(numbering, carries_suffix=False):
-    if numbering.added and not carries_suffix:
+def _stem(numbering, carries_suffix=False, indicated=False):
+    if numbering.added and not carries_suffix and not indicated:
         return None
     if numbering.stem:
         return re.sub(r"^\d+[a-z]*H(?:,\d+[a-z]*H)*-", "", numbering.stem)
@@ -307,16 +307,20 @@ def system_assembly(
     best = None
     for unprimed in (0, 1):
         for first in numbered[unprimed]:
-            stem_first = _stem(first, carries_suffix(first))
+            stem_first = _stem(first, carries_suffix(first), indicated=True)
             for second in numbered[1 - unprimed]:
-                stem_second = _stem(second, carries_suffix(second))
+                stem_second = _stem(second, carries_suffix(second), indicated=True)
                 if monocycles:
                     hydro_first = tuple(first.hydro_positions) if carries_suffix(first) else ()
                     hydro_second = tuple(second.hydro_positions) if carries_suffix(second) else ()
                     added_first = added_second = []
                 else:
-                    hydro_first, added_first = _split_added(first, frees) if frees and free_ylidene else (_hydro(first), [])
-                    hydro_second, added_second = _split_added(second, frees) if frees and free_ylidene else (_hydro(second), [])
+                    hydro_first, added_first = (
+                        _split_added(first, frees) if frees and free_ylidene else (_hydro(first), [] if carries_suffix(first) else list(first.added))
+                    )
+                    hydro_second, added_second = (
+                        _split_added(second, frees) if frees and free_ylidene else (_hydro(second), [] if carries_suffix(second) else list(second.added))
+                    )
                 if stem_first is None or stem_first != stem_second:
                     continue
                 locants = {a: (0, p) for a, p in first.position_of.items()}
