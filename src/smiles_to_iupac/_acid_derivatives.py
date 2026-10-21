@@ -1212,7 +1212,12 @@ def name_ester(mol, links):
                 CITE_SUBSTITUENT_LOCANTS.reset(token)
         else:
             cited = _diphosphate_locants(mol, acid_atoms, per_link, free_centers)
-    if not cited and len({l.center for l, _ in per_link}) > 1 and any(any(letters) for _, _, letters in named.values()):
+    if (
+        not cited
+        and len({l.center for l, _ in per_link}) > 1
+        and any(any(letters) for _, _, letters in named.values())
+        and len({symbols for _, _, letters in named.values() for symbols in letters}) > 1
+    ):
         raise UnsupportedStructure("the element letters of several acid centres need primes and centre locants")
     entries = [
         (name, compound, count, cited[name] if cited else letters) for name, (count, compound, letters) in named.items()
@@ -1252,7 +1257,8 @@ def _ester_locants(mol, acid_atoms, per_link, free_centers):
         return None
     cited = {}
     for l, name in per_link:
-        cited.setdefault(name, []).append(str(locants[l.center]))
+        symbol = _letters(mol, l)
+        cited.setdefault(name, []).append(f"{locants[l.center]}-{symbol}" if symbol else str(locants[l.center]))
     return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in cited.items()}
 
 
