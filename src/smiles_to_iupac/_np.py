@@ -460,7 +460,7 @@ def semisystematic_groups(mol, graph, attachments):
 
     links = {link for _, link in attachments}
     branch = _branch_of(graph, [root for root, _ in attachments], links)
-    if len(branch) < _MIN_HEAVY_ATOMS or any(n in branch for root, link in attachments for n in graph[link] if n != root):
+    if len(branch) < _MIN_HEAVY_ATOMS or any(n in branch for root, link in attachments for n in graph.get(link, ()) if n != root):
         return None
     if sum(1 for ring in mol.GetRingInfo().AtomRings() if branch.issuperset(ring)) < _MIN_RINGS_IN_GROUP:
         return None

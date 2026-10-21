@@ -954,7 +954,11 @@ def _is_enclosed(label: str) -> bool:
 
 def _sort_key(label: str) -> str:
     """Alphanumerical key of a ligand name: enclosing marks, locants,
-    stereodescriptors and eta terms are ignored (P-14.5)."""
+    stereodescriptors and eta terms are ignored (P-14.5); a ring system with a retained name sorts under that name
+    (P-23.7)."""
+    from .core import _retained_polycycle_names
+
+    label = _retained_polycycle_names(label)
     if re.match(r"\[\d+\(", label):
         label = label[label.index("]") + 1:]
     label = label.lstrip("[(")
