@@ -1,6 +1,6 @@
 """Naming of open-chain (Fischer-projection) monosaccharides -- currently
-plain aldoses of 3-7 carbons and plain 2-ketoses of 4-6 carbons, each
-named via their retained stem name (3-6 carbons) or, for the 7-carbon
+plain aldoses of 4-7 carbons and plain 2-ketoses of 4-6 carbons, each
+named via their retained stem name (4-6 carbons) or, for the 7-carbon
 heptoses, a two-segment configurational-prefix name -- per the IUPAC 2013
 Recommendations ("the Blue Book"), Chapter P-10
 (https://iupac.qmul.ac.uk/BlueBook/P10.html):
@@ -69,7 +69,7 @@ Scope, deliberately narrow (first pass at carbohydrate nomenclature,
 #1039): a plain, unbranched, acyclic aldose (WS1/M1 steps 1/3) or
 2-ketose (WS1/M1 step 2) backbone -- a terminal aldehyde or a C-2
 carbonyl flanked by a terminal -CH2OH, 1 to 5 more -CH(OH)-
-chirality-bearing carbons, and a second terminal -CH2OH, 3 to 7 (aldose)
+chirality-bearing carbons, and a second terminal -CH2OH, 4 to 7 (aldose)
 or 4 to 6 (2-ketose) carbons total; or a D-aldohexopyranose or
 D-aldohexofuranose cyclic form (WS2/M2 steps 1/2) -- see above. Every
 stereocenter's configuration must be specified, with no substituent
@@ -141,7 +141,7 @@ def _open_chain_aldose_backbone(mol):
     """The aldose backbone's carbon chain, aldehyde carbon first and
     terminal -CH2OH carbon last, or None if `mol` doesn't have this exact
     shape (see module docstring): acyclic, exactly one terminal aldehyde,
-    an unbranched carbon chain of 3-7 atoms from it, every chain carbon
+    an unbranched carbon chain of 4-7 atoms from it, every chain carbon
     bearing exactly one single-bonded oxygen substituent (an -OH, or the
     aldehyde's own =O at C-1), and no heavy atom anywhere in the molecule
     outside that chain and those oxygens."""
@@ -164,7 +164,7 @@ def _open_chain_aldose_backbone(mol):
     graph = adjacency(mol)
     oxygens = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetSymbol() == "O"}
     chain = ordered_chain(graph, aldehyde_carbon, -1, oxygens)
-    if chain is None or not 3 <= len(chain) <= 7:
+    if chain is None or not 4 <= len(chain) <= 7:
         return None
     if mol.GetNumAtoms() != 2 * len(chain):
         return None
