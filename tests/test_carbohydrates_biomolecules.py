@@ -786,7 +786,7 @@ def test_peptide_acyl_names(smiles, expected):
         pytest.param("NCCC[C@H](N)C(=O)O", "L-ornithine", id="side_chain_table_entry"),
         pytest.param("N[C@@H](CS(=O)(=O)O)C(=O)O", "L-cysteic acid", id="sulfur_on_c3_reverses_cip_to_ld"),
         pytest.param("CC(=O)NCCC[C@H](N)C(=O)O", "N5-acetyl-L-ornithine", id="side_chain_nitrogen_locant"),
-        pytest.param("NCCC(=O)O", "β-alanine", id="whole_molecule_retained_name"),
+        pytest.param("NCCC(=O)O", "3-aminopropanoic acid", id="beta_alanine_is_systematic_pin"),
         pytest.param("N[C@@H](CSSC[C@H](N)C(=O)O)C(=O)O", "L-cystine", id="two_centres_one_descriptor"),
         pytest.param("N[C@@H](CSC[C@@H](N)C(=O)O)C(=O)O", "(2R,2'S)-3,3'-sulfanediylbis(2-aminopropanoic acid)", id="disagreeing_centres_fall_through"),
     ],
