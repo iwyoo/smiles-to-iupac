@@ -228,8 +228,8 @@ def test_unspecified_stereo_2_ketose_still_falls_through_unchanged():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("C([C@H](C=O)O)O", "D-glyceraldehyde"),  # CID 79014
-        ("C([C@@H](C=O)O)O", "L-glyceraldehyde"),  # CID 439723
+        ("C([C@H](C=O)O)O", "(2R)-2,3-dihydroxypropanal"),  # CID 79014
+        ("C([C@@H](C=O)O)O", "(2S)-2,3-dihydroxypropanal"),  # CID 439723
     ],
 )
 def test_open_chain_aldose_naming(smiles, expected):
