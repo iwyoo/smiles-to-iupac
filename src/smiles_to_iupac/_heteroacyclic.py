@@ -443,12 +443,18 @@ def _name_heteroacyclic(mol, amine_groups, express_amine_suffixes=True):
     best, best_chain, replacement_atoms = None, (), set()
     carbamoyl = carbamoyl_of.get(principal, {})
     suffixes = amine_suffix_capacity(mol, graph) if express_amine_suffixes and principal in (None, "amine") else 0
+    centre = _ion_centre(mol)
+    if centre is not None and principal is not None:
+        return None
+    centre_atom, ion_word = centre if centre is not None else (None, None)
     for path in _chain_paths(graph, eligible, carbamoyl):
         if not _acceptable_path(mol, path):
             continue
         replacement_atoms.update(path)
         for chain in (path, path[::-1]):
-            candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl)
+            candidate = _evaluate(
+                mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl, attach=centre_atom, ion=ion_word
+            )
             if candidate is not None and -candidate[0][0] >= suffixes and (best is None or candidate[0] < best[0]):
                 best, best_chain = candidate, chain
     if best is None:
@@ -462,6 +468,24 @@ def _name_heteroacyclic(mol, amine_groups, express_amine_suffixes=True):
     ):
         return None
     return best[1]
+
+
+def _ion_centre(mol):
+    """(atom, 'ylium' or 'ide') for the single carbenium or carbanion carbon with three single bonds (P-73.1.1.2,
+    P-72.2.2), which is the parent's suffix and so outranks every other group."""
+    found = [
+        a
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 6
+        and a.GetFormalCharge() in (-1, 1)
+        and not a.IsInRing()
+        and not a.GetNumRadicalElectrons()
+        and a.GetTotalNumHs() + a.GetDegree() == 3
+        and all(b.GetBondTypeAsDouble() == 1.0 for b in a.GetBonds())
+    ]
+    if len(found) != 1:
+        return None
+    return found[0].GetIdx(), "ylium" if found[0].GetFormalCharge() == 1 else "ide"
 
 
 def _amine_nitrogen(mol, atom):
@@ -534,11 +558,13 @@ def _chain_stereo(chain, position_of, atom_codes, bond_codes):
 
 def _evaluate(
     mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl=None, attach=None, blocked=frozenset(),
-    attaches=(), directed=False,
+    attaches=(), directed=False, ion=None,
 ):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
     if attach is not None and attach not in chain_set:
+        return None
+    if any(mol.GetAtomWithIdx(a).GetFormalCharge() and a != attach for a in chain if mol.GetAtomWithIdx(a).GetAtomicNum() == 6):
         return None
     if attaches and (len(attaches) != 2 or any(a not in chain_set for a in attaches)):
         return None
@@ -661,7 +687,7 @@ def _evaluate(
         if directed:
             body = body.replace(",".join(map(str, sorted(ordered))) + "-diyl", ",".join(map(str, ordered)) + "-diyl")
     elif attach is not None:
-        body = name_from_substituents(length, ene, yne, "yl", [position_of[attach]], force_own_locant=True)
+        body = name_from_substituents(length, ene, yne, ion or "yl", [position_of[attach]], force_own_locant=True)
     elif principal is None:
         body = name_from_substituents(length, ene, yne, "e")
     else:
