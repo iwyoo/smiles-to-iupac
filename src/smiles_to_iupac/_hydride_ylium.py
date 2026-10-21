@@ -61,9 +61,10 @@ def name_hydride_ylium(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    entries = [
-        name_branch(graph, n, center.GetIdx(), halogens, aromatic, mol=mol) for n in graph[center.GetIdx()]
-    ]
+    with cited_branch_stereo(mol, graph, {center.GetIdx()}, graph[center.GetIdx()]):
+        entries = [
+            name_branch(graph, n, center.GetIdx(), halogens, aromatic, mol=mol) for n in graph[center.GetIdx()]
+        ]
     z = center.GetAtomicNum()
     if z == 8 and len(entries) == 1:
         return _oxylium(mol, graph, center, halogens, aromatic)
