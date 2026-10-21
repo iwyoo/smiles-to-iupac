@@ -17,7 +17,7 @@ from ._fusion_name import _MAX_RINGS_IN_SYSTEM, Context, _fusion_name_core, syst
 from ._numerals import alkane_name, numerical_term
 
 _MAX_CYCLE = 13
-_MAX_HETERO_CYCLE = 24
+_MAX_HETERO_CYCLE = 40
 SENIORITY_MAX_CYCLE = 12
 BRIDGED_MAX_CYCLE = ContextVar("bridged_max_cycle", default=_MAX_CYCLE)
 _MAX_STATES = 6000

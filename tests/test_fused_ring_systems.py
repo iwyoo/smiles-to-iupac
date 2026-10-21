@@ -111,6 +111,7 @@ def test_ring_atom_of_an_oxo_imino_or_sulfanylidene_prefix_is_a_saturated_positi
         pytest.param("C1CC2CC1c1ccccc12", "1,2,3,4-tetrahydro-1,4-methanonaphthalene", id="fully_saturated_bridge_is_von_baeyer_not_fusion_name"),
         pytest.param("Cc1ccc2c(c1)C1C=CC2O1", "6-methyl-1,4-dihydro-1,4-epoxynaphthalene", id="substituted_epoxy_aromatic_ring_is_named"),
         pytest.param("C1CCC2C(C1)OCCC3CCCC(O3)CCCO2", "hexadecahydro-4,8-epoxy-1,12-benzodioxacyclotetradecine", id="epoxy_bridge_across_a_heteromonocycle_of_more_than_thirteen_members"),
+        pytest.param("C1CCN2C(C1)COCCCCCCCCC3CCCC(O3)CCCCCCCC2", "hexacosahydro-3H-11,15-epoxypyrido[2,1-c][1,4]oxaazacyclopentacosine", id="epoxy_bridge_across_a_heteromonocycle_of_more_than_twenty_four_members"),
     ],
 )
 def test_substituted_triphenylene_is_and_related(smiles, expected):
