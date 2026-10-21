@@ -51,6 +51,9 @@ _PLAIN_STEM_PREFIX = None
 # an unsubstituted ring group carries no prefix before its stem, only its own attachment locant (P-16.3.4(a))
 _RING_GROUP_PREFIX = re.compile(r"^(?:\d+H-)?[a-z]+-\d+[a-z]?-(?:yl|ylidene|ylidyne)$")
 
+# an unsubstituted ring-assembly group is derived from the assembly's parent hydride name, so it is a simple prefix
+_ASSEMBLY_GROUP_PREFIX = re.compile(r"^\[[\d,':]+-(?:[^\[\]]|\[[^\[\]]*\])*\]-\d+'*[a-z]?-(?:yl|ylidene|ylidyne)$")
+
 
 def is_plain_stem_prefix(name: str) -> bool:
     """True for a prefix that is only a parent stem with its own locants
@@ -68,7 +71,7 @@ def is_plain_stem_prefix(name: str) -> bool:
         _PLAIN_STEM_PREFIX = re.compile(
             rf"^(?:\d+H-)?(?:cyclo)?(?:{escaped})(?:a|an)?(?:-[\d,]+-(?:di|tri|tetra)?(?:en|yn))*-?[\d,]*-?(?:(?:di|tri|tetra)?(?:en|yn))?(?:yl|ylidene|ylidyne|diyl)$"
         )
-    return bool(_PLAIN_STEM_PREFIX.match(name) or _RING_GROUP_PREFIX.match(name))
+    return bool(_PLAIN_STEM_PREFIX.match(name) or _RING_GROUP_PREFIX.match(name) or _ASSEMBLY_GROUP_PREFIX.match(name))
 
 
 _CHALCOGEN_HYDRIDE_GROUP = re.compile(
@@ -108,6 +111,8 @@ def prefix_multiplier(count: int, name: str, compound: bool):
     for simple names; 'di' with enclosing marks for simple names with locants, brackets or a leading numerical term;
     'bis' with marks for substituted names and for the mononuclear groups of a polynuclear chain; 'di-' for tert-butyl."""
     if _isotope_only_prefix(name):
+        return multiplying_prefix(count), True
+    if _ASSEMBLY_GROUP_PREFIX.match(name):
         return multiplying_prefix(count), True
     if name[:1] in "([{" and not name.startswith("(\u03b7") and _fully_enclosed(name):
         return multiplying_prefix(count, compound=True), False
