@@ -274,6 +274,51 @@ def is_functional_carbon(mol, idx):
     return False
 
 
+def _plain_onium_nitrogen(mol, atom):
+    """An acyclic quaternary nitrogen cation whose other neighbours may include one amino-type nitrogen."""
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetFormalCharge() == 1
+        and not atom.IsInRing()
+        and not atom.GetIsAromatic()
+        and atom.GetTotalValence() == 4
+        and all(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0 for n in atom.GetNeighbors())
+    )
+
+
+def _hydrazinium_prefix(graph, root, others, halogens, aromatic_atoms, mol):
+    """'1,1,1-trimethylhydrazin-1-ium-2-yl' (the free valence on the neutral nitrogen) or '1,1-dimethylhydrazin-1-ium-1-yl'
+    (on the cationic one): an N-N unit of an onium nitrogen cited as a prefix of the anionic parent (P-74.1.3, P-73.1.1.2)."""
+    from ._substituents import format_substituent_prefixes
+
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetIsAromatic() or atom.IsInRing() or atom.GetFormalCharge() not in (0, 1):
+        return None
+    nitrogens = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7]
+    if len(nitrogens) != 1:
+        return None
+    partner = mol.GetAtomWithIdx(nitrogens[0])
+    cation, neutral = (atom, partner) if atom.GetFormalCharge() == 1 else (partner, atom)
+    free = "1-yl" if cation is atom else "2-yl"
+    if not _plain_onium_nitrogen(mol, cation) or neutral.GetFormalCharge() or neutral.IsInRing() or neutral.GetIsAromatic():
+        return None
+    if any(mol.GetBondBetweenAtoms(neutral.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in neutral.GetNeighbors()):
+        return None
+    if sum(n.GetAtomicNum() == 7 for n in cation.GetNeighbors()) != 1:
+        return None
+    attached = {n for n in graph[root] if n not in others}
+    cation_groups = [n.GetIdx() for n in cation.GetNeighbors() if n.GetIdx() not in {neutral.GetIdx(), root, *attached}]
+    neutral_groups = [n.GetIdx() for n in neutral.GetNeighbors() if n.GetIdx() not in {cation.GetIdx(), root, *attached}]
+    grouped = {}
+    for locant, parent, groups in ((1, cation.GetIdx(), cation_groups), (2, neutral.GetIdx(), neutral_groups)):
+        if any(mol.GetAtomWithIdx(g).GetAtomicNum() != 6 for g in groups):
+            return None
+        for name, compound in _group_names(graph, mol, groups, parent, halogens, aromatic_atoms):
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    return f"{prefix}hydrazin-1-ium-{free}", True
+
+
 def _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
     """'trimethylphosphaniumyl', 'oxidodi(phenyl)phosphaniumyl': a cationic centre with organyl and oxido groups."""
     atom = mol.GetAtomWithIdx(root)
@@ -937,6 +982,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return oxidized
     if order == 1.0 and (is_diazonium_nitrogen(atom) or atom.HasProp("_diazonium_surrogate")):
         return "diazyn-1-ium-1-yl", True
+    if z == 7 and order == 1.0 and _alcoholate_anion_parent(mol):
+        hydrazinium = _hydrazinium_prefix(graph, root, others, halogens, aromatic_atoms, mol)
+        if hydrazinium is not None:
+            return hydrazinium
     if (
         z == 7
         and atom.GetFormalCharge() == 1

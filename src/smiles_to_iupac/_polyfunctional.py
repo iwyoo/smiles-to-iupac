@@ -1910,7 +1910,7 @@ def _cationic_prefix_nitrogen(atom):
         and atom.GetFormalCharge() == 1
         and not atom.IsInRing()
         and not atom.GetIsAromatic()
-        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
+        and all(n.GetAtomicNum() in (6, 7, 8) and not n.GetFormalCharge() for n in atom.GetNeighbors())
     )
 
 
