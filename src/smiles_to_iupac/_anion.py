@@ -28,6 +28,7 @@ _SWAPS = (
     (re.compile(r"imidic acid$"), lambda m: "imidate"),
     (re.compile(r"aniline$"), lambda m: "benzenaminide"),
     (re.compile(r"(di|tri|tetra|penta|hexa)(ol|thiol|amine)$"), lambda m: _bis(m.group(1), m.group(2))),
+    (re.compile(r"(thiol|ol|amine)\)$"), lambda m: {"thiol": "thiolate", "ol": "olate", "amine": "aminide"}[m.group(1)] + ")"),
     (re.compile(r"thiol$"), lambda m: "thiolate"),
     (re.compile(r"ol$"), lambda m: "olate"),
     (re.compile(r"amine$"), lambda m: "aminide"),
