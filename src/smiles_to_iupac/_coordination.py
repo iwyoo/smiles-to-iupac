@@ -554,8 +554,11 @@ def name_coordination(mol) -> str:
         return name
     if charge == 0 and others and not any(a.GetFormalCharge() for f in others for a in f.GetAtoms()):
         from ._adduct import name_adduct
+        from ._ion_adduct import name_ion_adduct
         from .core import smiles_to_iupac
 
+        if any(a.GetFormalCharge() for a in mol.GetAtoms()):
+            return name_ion_adduct(mol, smiles_to_iupac)
         return name_adduct(mol, smiles_to_iupac)
     if charge == 0:
         raise UnsupportedStructure("a neutral complex with counter-ions is not supported")

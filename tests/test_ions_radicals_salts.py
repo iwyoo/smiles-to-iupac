@@ -230,6 +230,11 @@ def test_benzenide_name_and_related(smiles, expected):
         pytest.param("[CH-]1C=CC=C1", "cyclopenta-2,4-dien-1-ide", id="cyclopentadienide_name"),
         pytest.param("C1=CC=CC1", "cyclopenta-1,3-diene", id="cyclopentadiene_neutral_parent_unaffected"),
         pytest.param(
+            "Cl[Ti+](Cl)Cl.c1cc[cH-]c1.O",
+            "trichloridotitanium(1+) cyclopenta-2,4-dien-1-ide—water (1/1)",
+            id="metal_cation_cyclopentadienide_salt_with_neutral_component",
+        ),
+        pytest.param(
             "C1(=CCC=C1)[C@H](C1=C[CH-]C=C1)O",
             "3-[(S)-(cyclopenta-1,4-dien-1-yl)(hydroxy)methyl]cyclopenta-2,4-dien-1-ide",
             id="stereocentre_recognised_only_through_the_charged_ring",
