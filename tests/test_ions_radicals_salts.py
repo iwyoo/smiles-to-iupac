@@ -1231,6 +1231,7 @@ def test_ylidene_ylidyne_and_ring_nitrogen_radicals_beside_groups(smiles, expect
         pytest.param("C[CH+]C(=O)C", "3-oxobutan-2-ylium", id="secondary_with_oxo"),
         pytest.param("C[C+](C)CO", "1-hydroxy-2-methylpropan-2-ylium", id="tertiary_with_hydroxy"),
         pytest.param("[CH2+]C=C", "prop-2-en-1-ylium", id="allyl_cation"),
+        pytest.param("C1=C\\C=C/[CH+]/C=C\\C=C/1", "(2Z,4Z,6Z,8Z)-cyclonona-2,4,6,8-tetraen-1-ylium", id="ring_double_bond_descriptors_of_a_carbenium"),
         pytest.param("[CH+]=C(C)C", "2-methylprop-1-en-1-ylium", id="vinyl_cation_with_terminal_cationic_carbon"),
         pytest.param("[CH+]1CCCC1O", "2-hydroxycyclopentan-1-ylium", id="ring_cation_with_hydroxy"),
         pytest.param("OCC[CH+]CCN", "1-amino-5-hydroxypentan-3-ylium", id="two_groups"),

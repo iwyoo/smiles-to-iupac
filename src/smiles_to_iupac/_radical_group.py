@@ -533,7 +533,9 @@ def name_group_cation(mol) -> str:
     anionic = Chem.RWMol(mol)
     anionic.GetAtomWithIdx(centre.GetIdx()).SetFormalCharge(-1)
     anionic = anionic.GetMol()
-    Chem.SanitizeMol(anionic)
+    stereo_bonds = any(b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds())
+    # a ring that turns aromatic in the anion would carry Z/E marks on aromatic bonds, which CIP perception rejects
+    Chem.SanitizeMol(anionic, Chem.SANITIZE_ALL ^ (Chem.SANITIZE_SETAROMATICITY if stereo_bonds else 0))
     match_cip_labels(mol, anionic)
     token = HYDRO_PREFIXED_CENTRE.set(True)
     try:
