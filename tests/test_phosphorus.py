@@ -653,6 +653,8 @@ def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smi
         ("CCOC(=O)CC(P)P", "ethyl 3,3-bis(phosphanyl)propanoate"),
         ("CC(=O)OC(=O)OC(=O)O", "{[(acetyloxy)carbonyl]oxy}formic acid"),
         ("COP(=O)(OC)O[PH](=O)OC", "methyl [(dimethoxyphosphoryl)oxy]phosphonate"),
+        ("CCSP(=O)(O)OP(=O)(O)O", "S-ethyl trihydrogen thiodiphosphate"),
+        ("CCOP(=O)(O)OP(=S)(O)O", "ethyl trihydrogen 3-thiodiphosphate"),
     ],
 )
 def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, expected):

@@ -561,13 +561,17 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
         return None
     organyls = _organyl_substituents(mol, graph, halogens, centers)
     candidates = []
+    sole_ester = [ci for ci, center in enumerate(centers) for lig in center.singles if lig.kind == "ester"]
+    from_ester = len(sole_ester) == 1 and len(centers) > 1 and sole_ester[0] in (0, len(centers) - 1)
     for reverse in (False, True):
         center_pos, link_pos = _positions(centers, links, reverse)
         items = _replacements(centers, links, center_pos, link_pos, senior)
         by_word = {}
         for word, locant in items:
             by_word.setdefault(word, []).append(locant)
+        locate = from_ester and any(word in ("thio", "seleno", "telluro") for word in by_word)
         key = (
+            center_pos[sole_ester[0]] if locate else 0,
             _function_locants(centers, center_pos, senior),
             tuple(sorted(loc for _, loc in items)),
             tuple(sorted(center_pos[ci] for ci in _n_centers(centers))),
@@ -602,7 +606,9 @@ def _chain_name(mol, centers, links, priority=False, anionic=False):
         prefix = _join_prefixes(n_prefix, _format_replacements(items, bare=_single_position_kind(centers, links)) + base)
         return f"{prefix} {_descriptors(centers, center_pos)}acid"
     ambiguous = bool(organyls) and not _unique_arrangement(centers, links, organyls, graph, halogens, mol)
-    return _ester_name(esters, hydrogens, items, base, n_prefix, ambiguous=ambiguous)
+    located = from_ester and any(word in ("thio", "seleno", "telluro") for word, _ in items)
+    own_chalcogen_ester = len(items) == 1 and esters[0][2] != "O"
+    return _ester_name(esters, hydrogens, items, base, n_prefix, located=located and not own_chalcogen_ester, ambiguous=ambiguous)
 
 
 def _unique_arrangement(centers, links, organyls, graph, halogens, mol):
@@ -672,7 +678,7 @@ def _ester_name(esters, hydrogens, items, base, n_prefix="", located=False, ambi
     replaced_chalcogen = any(word in ("thio", "seleno", "telluro") for word, _ in items)
     elements = [e for _, _, e, _ in esters]
     cite_locants = ambiguous or (replaced_chalcogen and len(set(elements)) < len(elements))
-    cite_letters = replaced_chalcogen and len(set(elements)) == len(elements) and len(esters) > 1
+    cite_letters = replaced_chalcogen and len(set(elements)) == len(elements) and (len(esters) > 1 or elements[0] != "O")
     grouped = {}
     for name, compound, element, pos in esters:
         grouped.setdefault((name, compound), []).append((element, pos))
