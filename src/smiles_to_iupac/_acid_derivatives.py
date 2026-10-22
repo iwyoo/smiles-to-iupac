@@ -126,6 +126,7 @@ def _inorganic_center(mol, idx):
         n.GetAtomicNum() not in (6, 8, 16, 34, 52)
         and not _nitroso_or_diazenyl(mol, n, atom)
         and not (atom.GetAtomicNum() == 5 and _plain_amino(n, atom))
+        and not (atom.GetAtomicNum() in (15, 16) and (_plain_amino(n, atom) or _role(mol, idx, n) == "hal"))
         for n in rest
     ):
         return None
