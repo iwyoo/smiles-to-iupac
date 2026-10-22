@@ -21,7 +21,7 @@ from ._common import (
     unsaturation_suffix,
     von_baeyer_unsaturation_citations,
 )
-from ._fusion_name import FUSION_NAME_REQUIRED
+from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER
 from ._fusion_components import EXCEPTIONS, system_numberings as fusion_system_numberings
 from ._hetero_monocyclic import (
     _ROLE_SEQUENCES,
@@ -923,6 +923,35 @@ def _von_baeyer(mol, skeleton_atoms):
     return out
 
 
+def _kekule_von_baeyer(mol, skeleton_atoms):
+    """P-52.2.4.1: the von Baeyer numberings of an aromatic ring system that has no preferred fusion name, from each Kekule
+    structure of its benzene ring (the double bonds are the 'ene' endings of the von Baeyer name)."""
+    base = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(base, clearAromaticFlags=True)
+    except Chem.KekulizeException:
+        raise UnsupportedStructure("this aromatic ring system has no Kekule structure") from None
+    forms = [base]
+    benzene = next((r for r in mol.GetRingInfo().AtomRings() if len(r) == 6 and all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in r)), None)
+    if benzene is not None:
+        ring = set(benzene)
+        ring_bonds = [b.GetIdx() for b in base.GetBonds() if b.GetBeginAtomIdx() in ring and b.GetEndAtomIdx() in ring]
+        flipped = Chem.RWMol(base)
+        for i in ring_bonds:
+            bond = flipped.GetBondWithIdx(i)
+            bond.SetBondType(Chem.BondType.SINGLE if bond.GetBondType() == Chem.BondType.DOUBLE else Chem.BondType.DOUBLE)
+        forms.append(flipped.GetMol())
+    numberings = []
+    for form in forms:
+        try:
+            numberings += _von_baeyer(form, skeleton_atoms)
+        except UnsupportedStructure:
+            continue
+    if not numberings:
+        raise UnsupportedStructure("this aromatic ring system has no von Baeyer numbering")
+    return numberings
+
+
 def _sp3_ring_atoms(mol, skeleton_atoms):
     """Skeleton atoms that are neither aromatic nor in a skeleton double bond."""
     sp3 = set()
@@ -1400,7 +1429,12 @@ def system_numberings(mol, graph, rings, skeleton_atoms):
         except UnsupportedStructure:
             pass
     if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
-        return _fused_mancude(mol, skeleton_atoms)
+        try:
+            return _fused_mancude(mol, skeleton_atoms)
+        except UnsupportedStructure:
+            if not PREFER_VON_BAEYER.get():
+                raise
+            return _kekule_von_baeyer(mol, skeleton_atoms)
     if is_hydro_fusion_system(mol, skeleton_atoms):
         try:
             found = _fused_mancude(mol, skeleton_atoms)
