@@ -271,6 +271,7 @@ def test_amine_suffix_name_is_preferred_to_the_skeletal_replacement_name():
         pytest.param("OB(O)c1ccc(B(O)O)cc1", "(1,4-phenylene)bis(boronic acid)", id="boronic_acids"),
         pytest.param("CB(O)CCB(C)O", "(ethane-1,2-diyl)bis(methylborinic acid)", id="borinic_acids"),
         pytest.param("CP(=O)(O)CCP(=O)(O)C", "(ethane-1,2-diyl)bis(methylphosphinic acid)", id="phosphinic_acids"),
+        pytest.param("O=P(N)(N)CCP(N)(N)=O", "(ethane-1,2-diyl)bis(phosphonic diamide)", id="phosphonic_diamides"),
         pytest.param("CP(O)CCP(C)O", "(ethane-1,2-diyl)bis(methylphosphinous acid)", id="phosphinous_acids"),
         pytest.param("OB(Cl)CCB(Cl)O", "(ethane-1,2-diyl)bis(boronochloridic acid)", id="halide_replaced_boronic_acids"),
         pytest.param("OB(N)CCB(N)O", "(ethane-1,2-diyl)bis(boronamidic acid)", id="amide_replaced_boronic_acids"),

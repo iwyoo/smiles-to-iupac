@@ -1237,7 +1237,9 @@ def _phosphonic_candidates(mol, graph):
     return candidates
 
 
-_CENTRE_ACID = re.compile(r"(?:bor|phosph|ars|stib)(?:on|in)[a-z()]*(?:ic|ous) (?:[A-Za-z,]+-)?acid$")
+_CENTRE_ACID = re.compile(
+    r"(?:bor|phosph|ars|stib)(?:on|in)[a-z()]*(?:ic|ous) (?:[A-Za-z,]+-)?(?:acid|(?:di|tri)?(?:fluor|chlor|brom|iod)ide|(?:di|tri)?amide)$"
+)
 _INORGANIC_AMIDE = re.compile(r"(?:nitramide|(?:ous|ic) amide)$")
 _CARBAMIC_ACID = re.compile(r"carbam\w*ic (?:[A-Za-z,]+-)?acid$|carbam\w*ic acid$")
 _UREA_STEMS = {8: "urea", 16: "thiourea", 34: "selenourea", 52: "tellurourea"}
@@ -1290,7 +1292,7 @@ def _acid_centre_candidates(mol, graph):
         if center.GetAtomicNum() == 5:
             fits = not oxo and hydroxyl and singles == 3
         else:
-            fits = hydroxyl and len(oxo) <= 1 and singles == 3
+            fits = (hydroxyl or replacers) and len(oxo) <= 1 and singles == 3
         if not fits or not carbons:
             continue
         for found in _unit_arms(mol, graph, center.GetIdx(), [n.GetIdx() for n in carbons]):
