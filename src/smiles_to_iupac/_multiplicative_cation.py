@@ -19,13 +19,40 @@ _CHALCOGENS = {8, 16, 34, 52}
 _JUNCTION_IODO = re.compile(r"(?:^|(?<=[-(\[{]))(\d+[a-z]?)-iodo")
 
 
+def _iminium_nitrogen(atom):
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetFormalCharge() == 1
+        and any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
+    )
+
+
 def _neutral_copy(mol):
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
         if atom.GetFormalCharge() < 0:
             atom.SetNoImplicit(True)
             atom.SetNumExplicitHs(atom.GetTotalNumHs() - atom.GetFormalCharge())
+        if _iminium_nitrogen(atom) and atom.GetTotalNumHs():
+            atom.SetNoImplicit(True)
+            atom.SetNumExplicitHs(atom.GetTotalNumHs() - 1)
         atom.SetFormalCharge(0)
+    neutral = editable.GetMol()
+    neutral.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(neutral)
+    return neutral
+
+
+def _parent_imine_copy(mol, units):
+    """The neutral molecule with the N-substituents of the iminium junction nitrogens cut off, so that each is the =N- of
+    an imine unit for the classification of the linking group."""
+    editable = Chem.RWMol(_neutral_copy(mol))
+    for unit in units:
+        if _iminium_nitrogen(mol.GetAtomWithIdx(unit.junction)):
+            for n in mol.GetAtomWithIdx(unit.junction).GetNeighbors():
+                bond = mol.GetBondBetweenAtoms(unit.junction, n.GetIdx())
+                if n.GetIdx() != unit.linker_atom and bond.GetBondTypeAsDouble() == 1.0:
+                    editable.RemoveBond(unit.junction, n.GetIdx())
     neutral = editable.GetMol()
     neutral.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(neutral)
@@ -44,7 +71,7 @@ def _decompose(mol, centres):
         elif idx in {a for a in core_of}:
             continue
         else:
-            if centre.GetAtomicNum() not in _ACYCLIC_CENTRES or centre.GetFormalCharge() < 0:
+            if (centre.GetAtomicNum() not in _ACYCLIC_CENTRES and not _iminium_nitrogen(centre)) or centre.GetFormalCharge() < 0:
                 raise UnsupportedStructure("this acyclic ionic centre is not a multiplied parent ion")
             core = {idx}
         if any(a in core_of for a in core):
@@ -168,7 +195,9 @@ def _unit_text(mol, unit):
     from .core import smiles_to_iupac
 
     bare = smiles_to_iupac(_unit_molecule(mol, unit, None))
-    if any(ch.isdigit() for ch in bare):
+    if _iminium_nitrogen(mol.GetAtomWithIdx(unit.junction)):
+        locant, text = "N", bare
+    elif any(ch.isdigit() for ch in bare):
         probe = smiles_to_iupac(_unit_molecule(mol, unit, 53))
         match = _JUNCTION_IODO.search(probe)
         if match is None:
@@ -181,6 +210,11 @@ def _unit_text(mol, unit):
     else:
         substituted = len(unit.atoms) > len(unit.ring_atoms)
     has_locants = any(ch.isdigit() for ch in text)
+    if _iminium_nitrogen(mol.GetAtomWithIdx(unit.junction)):
+        from ._chain_multiplicative import _imine_unit_needs_bis
+
+        fragment = Chem.MolFromSmiles(_unit_molecule(mol, unit, None))
+        return UnitText(text, locant, _imine_unit_needs_bis(text, fragment), has_locants)
     return UnitText(text, locant, substituted or not has_locants, has_locants)
 
 
@@ -296,7 +330,7 @@ def _multiplicative_assembly(mol, centres):
     if decomposed is None:
         return None
     units, linker = decomposed
-    groups = classify(_neutral_copy(mol))
+    groups = classify(_parent_imine_copy(mol, units))
     if groups is None:
         return None
     tree = _build_tree(mol)
