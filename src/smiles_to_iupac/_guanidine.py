@@ -146,6 +146,15 @@ def has_guanidine_shape(mol) -> bool:
     return _guanidine_core(mol) is not None or _guanidine_core(mol, hydrazine=True) is not None
 
 
+_GUANIDINE_CARBON = Chem.MolFromSmarts("[CX3;!R](~[#7])(~[#7])~[#7]")
+
+
+def has_single_guanidine(mol) -> bool:
+    """One guanidine group: its substituted guanidine is the parent, whatever skeletal chain the substituents could form
+    (P-66.4.1.2.1.2)."""
+    return has_guanidine_shape(mol) and len({match[0] for match in mol.GetSubstructMatches(_GUANIDINE_CARBON)}) == 1
+
+
 def has_carbonic_amide_parent(mol) -> bool:
     """A urea, thiourea or guanidine group: a class that outranks the element hydride whose atom is only a substituent
     on its nitrogen (P-41, P-44.1.1)."""
