@@ -1394,6 +1394,7 @@ def test_peroxy_prefixes_without_a_principal_group(smiles, expected):
         ("CC=[Te]", "ethanetellanal"),
         ("C(CCCC=S)=S", "pentanedithial"),
         ("C=CC=S", "prop-2-enethial"),
+        ("S=CC1OCCO1", "1,3-dioxolane-2-carbothialdehyde"),
         ("S=C1CCC(CC1)C=[Se]", "4-sulfanylidenecyclohexane-1-carboselenaldehyde"),
         ("OC(=O)c1ccc(C=S)cc1", "4-(methanethioyl)benzoic acid"),
         ("OC(=O)C1CCC(CC1)C=[Se]", "4-(methaneselenoyl)cyclohexane-1-carboxylic acid"),

@@ -17,7 +17,8 @@ _GROUP = {
 _MULTIPLIERS = {1: "", 2: "di", 3: "tri", 4: "tetra", 5: "penta", 6: "hexa"}
 WHOLE_MOLECULES = {"C=O": "formaldehyde", "C#N": "formonitrile", "C=S": "methanethial", "C=[Se]": "methaneselenal", "C=[Te]": "methanetellanal"}
 _ALDEHYDE = Chem.MolFromSmarts("[CX3H1](=O)[#6]")
-_FORMYL_ACID = re.compile(r"(\d+)-formyl([a-z]+(?:-\d+-[a-z]+)? acid)")
+_OXO_RING_STEM = re.compile(r"oxo(?:l|c(?:an|in)|n(?:an|in))")
+_FORMYL_ACID =re.compile(r"(\d+)-formyl([a-z]+(?:-\d+-[a-z]+)? acid)")
 
 
 def _groups(mol):
@@ -83,6 +84,6 @@ def name_chalcogen_aldehyde(mol) -> str:
         a.GetAtomicNum() == 8 and a.GetDegree() == 1 and mol.GetBondBetweenAtoms(a.GetIdx(), a.GetNeighbors()[0].GetIdx()).GetBondTypeAsDouble() == 2.0
         for a in mol.GetAtoms()
     )
-    if "oxo" in healed_name and not original_oxo:
+    if "oxo" in _OXO_RING_STEM.sub("", healed_name) and not original_oxo:
         raise UnsupportedStructure("a chalcogen aldehyde group expressed as a prefix beside another one is not supported yet")
     return _rename(healed_name, elements.pop(), len(chalcogens))
