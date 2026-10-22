@@ -1502,6 +1502,11 @@ def test_anions_and_salts_of_thiocarbonic_acid_esters(smiles, expected):
     "smiles,expected",
     [
         pytest.param("O=C(O)NCCS(=O)(=O)Cl", "[2-(chlorosulfonyl)ethyl]carbamic acid", id="sulfonyl_halide_on_a_carbamic_acid_nitrogen"),
+        pytest.param(
+            "CC[N+](C)(CC)S(=O)(=O)NC(=O)O",
+            "{[diethyl(methyl)azaniumyl]sulfonyl}carbamic acid",
+            id="cationic_nitrogen_on_the_sulfonyl_group_is_not_a_sulfamoyl",
+        ),
     ],
 )
 def test_sulfonyl_and_sulfinyl_prefixes_on_a_carbamic_acid_nitrogen(smiles, expected):
