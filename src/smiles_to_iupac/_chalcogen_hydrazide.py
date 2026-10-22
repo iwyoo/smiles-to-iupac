@@ -6,6 +6,8 @@ hydrazide beside them is the senior parent and they are named as its prefixes (P
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
+from ._dipolar import _smiles_with_order
+from ._substituents import FORCED_BRANCH_NAMES
 
 _INFIX = {16: "thio", 34: "seleno", 52: "telluro"}
 _HYDRAZIDE = Chem.MolFromSmarts("[CX3;$([CX3]-[#6]),$([CX3;H1]),$([CX3]-[NX3;R])](=[S,Se,Te;X1])-[NX3]-[NX3,$([NX2]=[#6])]")
@@ -39,7 +41,16 @@ def name_chalcogen_hydrazide(mol) -> str:
     Chem.SanitizeMol(healed)
     from .core import _smiles_to_iupac_unabridged
 
-    name = _smiles_to_iupac_unabridged(Chem.MolToSmiles(healed))
+    forced = FORCED_BRANCH_NAMES.get()
+    if forced is None:
+        name = _smiles_to_iupac_unabridged(Chem.MolToSmiles(healed))
+    else:
+        smiles, position = _smiles_with_order(healed)
+        token = FORCED_BRANCH_NAMES.set((forced[0], {position[i]: v for i, v in forced[1].items()}))
+        try:
+            name = _smiles_to_iupac_unabridged(smiles)
+        finally:
+            FORCED_BRANCH_NAMES.reset(token)
     if not name.endswith("hydrazide") or name.count("hydrazide") != 1:
         raise UnsupportedStructure("the oxygen analogue is not named by one hydrazide suffix")
     for retained, systematic in _RETAINED:
