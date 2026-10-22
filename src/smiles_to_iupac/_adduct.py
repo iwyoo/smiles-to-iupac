@@ -43,7 +43,7 @@ def _is_bare_water(frag):
     if frag.GetNumAtoms() != 1:
         return False
     atom = frag.GetAtomWithIdx(0)
-    return atom.GetAtomicNum() == 8 and atom.GetTotalNumHs() == 2
+    return atom.GetAtomicNum() == 8 and atom.GetTotalNumHs() == 2 and not atom.GetIsotope()
 
 
 def _inorganic_name(frag):
