@@ -219,7 +219,7 @@ def _added_hydrogen_ring(mol, atoms, free_atom):
 def _stereoparent(bare):
     """('gonane' | 'morphinan', {atom of `bare`: locant}) when the bare ring system is that stereoparent, whose
     numbering is retained (P-26.2.2.2.1)."""
-    if bare.GetNumAtoms() != 17 or bare.GetRingInfo().NumRings() < 4:
+    if bare.GetNumAtoms() != 17 or bare.GetNumBonds() - 17 + len(Chem.GetMolFrags(bare)) < 4:
         return None
     if bare.HasSubstructMatch(_MORPHINAN):
         match = bare.GetSubstructMatch(_MORPHINAN)
