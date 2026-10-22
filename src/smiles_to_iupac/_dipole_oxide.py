@@ -159,13 +159,27 @@ def _hydrogen_imine_configuration(mol, nitrogen, oxygen):
     return stereo[0][1] if stereo else None
 
 
-def _imine_name(stripped, configuration):
+def _demote_other_imines(stripped, nitrogen_idx):
+    """P-62.5: the imine oxide outranks the other imines, oximes and hydrazones, which are cited as prefixes."""
+    from ._polyfunctional import JUNIOR_GROUP
+
+    demoted = Chem.Mol(stripped)
+    for bond in stripped.GetBonds():
+        if bond.GetBondTypeAsDouble() != 2.0:
+            continue
+        for carbon, nitrogen in ((bond.GetBeginAtom(), bond.GetEndAtom()), (bond.GetEndAtom(), bond.GetBeginAtom())):
+            if carbon.GetAtomicNum() == 6 and nitrogen.GetAtomicNum() == 7 and nitrogen.GetIdx() != nitrogen_idx:
+                demoted.GetAtomWithIdx(carbon.GetIdx()).SetBoolProp(JUNIOR_GROUP, True)
+    return demoted
+
+
+def _imine_name(stripped, configuration, nitrogen_idx):
     """The imine name, with the E/Z code of a C=N bond that the stripped molecule cannot hold cited in front (P-93.4.2.1.3)."""
     from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
 
     token = FORCED_PRINCIPAL.set("imine")
     try:
-        name = name_polyfunctional(stripped)
+        name = name_polyfunctional(_demote_other_imines(stripped, nitrogen_idx))
     finally:
         FORCED_PRINCIPAL.reset(token)
     if name is None:
@@ -197,11 +211,12 @@ def name_nitrone(mol) -> str:
         Chem.SanitizeMol(source)
     stripped = _strip_dipole_oxygen(source, nitrogen.GetIdx(), oxygen.GetIdx())
     configuration = _hydrogen_imine_configuration(mol, nitrogen, oxygen)
+    stripped_nitrogen = nitrogen.GetIdx() - (oxygen.GetIdx() < nitrogen.GetIdx())
     if not labels:
-        return f"{_imine_name(stripped, configuration)} N-oxide"
+        return f"{_imine_name(stripped, configuration, stripped_nitrogen)} N-oxide"
     token = ISOTOPE_LABELS.set(None)
     try:
-        name = _imine_name(stripped, configuration)
+        name = _imine_name(stripped, configuration, stripped_nitrogen)
     finally:
         ISOTOPE_LABELS.reset(token)
     context["consumed"].update(labels)

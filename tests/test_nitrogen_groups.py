@@ -405,6 +405,9 @@ def test_ring_amine_oxide_is_the_parent_beside_a_heteroaromatic_ring(smiles, exp
         pytest.param(
             "CC(=O)Oc1ccc(C=[N+](C)[O-])cc1", "1-[4-(acetyloxy)phenyl]-N-methylmethanimine N-oxide", id="imine_oxide_beside_an_ester"
         ),
+        pytest.param(
+            "CC(C)=[N+]([O-])CCC(C)=NO", "N-[3-(hydroxyimino)butyl]propan-2-imine N-oxide", id="imine_oxide_beside_an_oxime"
+        ),
     ],
 )
 def test_amine_and_imine_oxides_outrank_esters_and_amides(smiles, expected):
