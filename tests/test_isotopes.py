@@ -341,6 +341,9 @@ def test_unplaceable_isotope_label_is_never_dropped(smiles):
         pytest.param("[2H]N=C(C)N[2H]", "(N,N'-2H2)ethanimidamide", id="both_nitrogens_of_an_amidine_in_one_descriptor"),
         pytest.param("CC(=O)N[15NH2]", "(N'-15N)acetohydrazide", id="terminal_hydrazide_nitrogen_nuclide_takes_the_primed_locant"),
         pytest.param("[2H]N1Cc2ccccc2C1", "2,3-dihydro(2-2H)-1H-isoindole", id="ring_nitrogen_that_carries_a_hydro_prefix"),
+        pytest.param(
+            "[2H]C1([2H])c2ccccc2C1", "(7,7-2H2)bicyclo[4.2.0]octa-1,3,5-triene", id="benzene_fused_cyclobutane_has_a_von_baeyer_name"
+        ),
         pytest.param("[2H]OP(=O)(O)O", "(O-2H)phosphoric acid", id="phosphoric_acid_oxygen"),
         pytest.param("[2H]OC(=O)NC", "methyl(O-2H)carbamic acid", id="carbamic_acid_oxygen"),
         pytest.param("[2H]OB(O)CC", "ethyl(O-2H)boronic acid", id="boronic_acid_oxygen"),
