@@ -1056,6 +1056,11 @@ def test_names_with_equal_locant_sets_are_ordered_by_their_letters(smiles, expec
             "N-{2-[2-(dimethylamino)propyl]-4-methylphenyl}-N'-methylurea",
             id="urea_with_an_amine_substituent",
         ),
+        pytest.param(
+            "COCOCCOCCN=C(N)N",
+            "N''-{2-[2-(methoxymethoxy)ethoxy]ethyl}guanidine",
+            id="guanidine_with_a_polyether_substituent_is_not_a_skeletal_chain",
+        ),
     ],
 )
 def test_guanidine_and_urea_beside_other_groups_keep_their_parent(smiles, expected):

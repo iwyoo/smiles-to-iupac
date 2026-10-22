@@ -111,7 +111,7 @@ from ._selenourea import has_selenourea_shape, name_selenourea
 from ._tellurourea import has_tellurourea_shape, name_tellurourea
 from ._urea import has_urea_shape, name_urea
 from ._chalcogenourea import carries_only_element_hydride_groups
-from ._guanidine import has_carbonic_amide_parent, has_guanidine_shape, name_guanidine
+from ._guanidine import has_carbonic_amide_parent, has_guanidine_shape, has_single_guanidine, name_guanidine
 from ._hetero_ring_amine import has_hetero_ring_amine_shape, name_hetero_ring_amine
 from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, name_ring_amine
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
@@ -1255,7 +1255,7 @@ def _name_unabridged_body(smiles: str) -> str:
             except UnsupportedStructure:
                 pass
         if parsed is not None and not has_sphingoid_shape(parsed):
-            if has_carbonless_acyl(parsed):
+            if has_carbonless_acyl(parsed) and not has_single_guanidine(parsed):
                 try:
                     skeletal = name_heteroacyclic(parsed)
                 except UnsupportedStructure:
@@ -1303,7 +1303,7 @@ def _name_unabridged_body(smiles: str) -> str:
             return name_inorganic_polyester(parsed)
         beyond_preferred = None
         if parsed is not None:
-            name = name_heteroacyclic(parsed)
+            name = None if has_single_guanidine(parsed) else name_heteroacyclic(parsed)
             if name is not None:
                 return name
             name = (
@@ -1623,8 +1623,8 @@ _FALLBACK_NAMERS = (
     name_halogen_acid_ester,
     name_halogen_oxo,
     name_hydrazine_with_heteroatom_groups,
-    name_polyfunctional,
     name_guanidine,
+    name_polyfunctional,
     name_urea,
     name_thiourea,
     name_selenourea,
