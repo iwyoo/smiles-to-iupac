@@ -264,6 +264,7 @@ def test_mixed_thiophene_and_and_related(smiles, expected):
     "smiles,expected",
     [
         ("C1CCC(=C2CCCC2)C1", "1,1'-bi(cyclopentylidene)"),  # CID 549125
+        ("C1=CC=CC1=C1C=CC=C1", "[1,1'-bi(cyclopentylidene)]-2,2',4,4'-tetraene"),
     ],
 )
 def test_ring_assembly_ylidene_name(smiles, expected):
