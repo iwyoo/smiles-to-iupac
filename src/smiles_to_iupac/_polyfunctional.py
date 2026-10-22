@@ -4723,7 +4723,7 @@ def _junction_is_ylidene(mol, join, specs):
     order = mol.GetBondBetweenAtoms(*join).GetBondTypeAsDouble()
     if order == 1.0:
         return False
-    if order == 2.0 and all(sp.kind == "cycloalkane" for sp in specs):
+    if order == 2.0 and all(sp.kind in ("cycloalkane", "cycloalkene") for sp in specs):
         return True
     return None
 
