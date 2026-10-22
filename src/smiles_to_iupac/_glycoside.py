@@ -91,6 +91,8 @@ def _capped_unit(mol, ring):
             if n.GetAtomicNum() not in (7, 8, 9, 17, 35, 53):
                 return None
             atoms.add(n.GetIdx())
+    if any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
+        return None
     anomeric = _anomeric_carbon(mol, ring_set, ring_oxygens[0])
     if anomeric is None:
         return None

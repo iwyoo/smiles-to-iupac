@@ -66,6 +66,13 @@ def _saturated(mol, carbons):
     )
 
 
+def _joined_only_by_the_skeleton(mol, atoms):
+    """Whether the atoms of a ring skeleton share no bond besides the chain and the one ring closure: a carbon-carbon
+    bond across the sugar makes another ring system, which the deoxy and anhydro prefixes cannot describe."""
+    ids = set(atoms)
+    return sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in ids and b.GetEndAtomIdx() in ids) == len(ids)
+
+
 def _walk_ring(ring_set, graph, start, away):
     path, previous, current = [], away, start
     while True:
@@ -142,7 +149,7 @@ def _ring_skeleton(mol, graph):
                 return None
             carbons = chain + tail + sixth
     closing = carbons.index(other) + 1
-    if not _saturated(mol, carbons):
+    if not _saturated(mol, carbons) or not _joined_only_by_the_skeleton(mol, [*carbons, hetero]):
         return None
     return _Skeleton(carbons, ketose, hetero, closing, size)
 
@@ -211,6 +218,8 @@ def _classify(mol, graph, atom, skeleton_atoms, skeleton):
     a = mol.GetAtomWithIdx(x)
     z = a.GetAtomicNum()
     if z in _CHALCOGEN_WORDS and a.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom, x).GetBondTypeAsDouble() == 2.0:
+        if mol.GetAtomWithIdx(atom).GetTotalNumHs() and (skeleton.ring or skeleton.position(atom) != skeleton.anomeric):
+            raise UnsupportedStructure("a thioaldehyde carbon is not the carbon of a thio sugar")
         return ("thione", x, None)
     if z == 8:
         if mol.GetBondBetweenAtoms(atom, x).GetBondTypeAsDouble() == 2.0:
