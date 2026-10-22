@@ -53,6 +53,14 @@ def _hydrazide_groups(mol, root):
     )
 
 
+def _chalcogen_seniority(mol, root):
+    """P-41: the acid with oxygen outranks its sulfur, selenium and tellurium analogues."""
+    for n in mol.GetAtomWithIdx(root).GetNeighbors():
+        if n.GetDegree() == 1 and mol.GetBondBetweenAtoms(root, n.GetIdx()).GetBondTypeAsDouble() == 2.0:
+            return n.GetAtomicNum()
+    return 0
+
+
 def _parent_rank(mol, graph, root, nitrogen):
     """P-44.1.1: the acid with the most principal groups gives the parent hydrazide, then the seniority of its skeleton."""
     rank = _rank(mol, graph, root, nitrogen)
@@ -72,7 +80,7 @@ def diacylhydrazine_name(mol):
         chalcogen_roots = {n.GetIdx(): _acyl_roots(mol, n, _CHALCOGEN_ACYL) for n in (a, b)}
         for n, found in chalcogen_roots.items():
             found[:] = [r for r in found if r not in roots[n]]
-        if any(mol.GetAtomWithIdx(r).GetAtomicNum() == 6 for rs in roots.values() for r in rs) and sum(len(r) for r in roots.values()) + sum(len(r) for r in chalcogen_roots.values()) >= 2:
+        if any(mol.GetAtomWithIdx(r).GetAtomicNum() == 6 for rs in (*roots.values(), *chalcogen_roots.values()) for r in rs) and sum(len(r) for r in roots.values()) + sum(len(r) for r in chalcogen_roots.values()) >= 2:
             pairs.append((a, b, roots, chalcogen_roots))
     nitrogens = [n for _, _, roots, _ in pairs for n in roots]
     if not pairs or len(set(nitrogens)) != len(nitrogens):
@@ -81,18 +89,21 @@ def diacylhydrazine_name(mol):
     parents, donors = set(), []
     for _, _, roots, chalcogen_roots in pairs:
         candidates = [(r, n) for n, rs in roots.items() for r in rs]
+        chalcogen_candidates = [(r, n) for n, rs in chalcogen_roots.items() for r in rs]
         parent = min(
-            candidates,
+            candidates or chalcogen_candidates,
             key=lambda item: (
+                _chalcogen_seniority(mol, item[0]),
                 _parent_rank(mol, graph, item[0], item[1]),
                 item[1] not in labels,
                 modified_atoms_beyond(graph, labels, *item),
+                -(mol.GetAtomWithIdx(item[1]).GetDegree() - 2),
                 item[0],
             ),
         )[0]
         parents.add(parent)
         donors += [(r, n) for r, n in candidates if r != parent]
-        donors += [(r, n) for n, rs in chalcogen_roots.items() for r in rs]
+        donors += [(r, n) for r, n in chalcogen_candidates if r != parent]
     taken = [_side(graph, r, n) for r, n in donors]
     if sum(len(s) for s in taken) != len(set().union(*taken)) or any(
         s & (parents | set(nitrogens)) for s in taken

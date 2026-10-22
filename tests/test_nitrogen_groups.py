@@ -770,6 +770,17 @@ def test_symmetric_diacyl_hydrazide(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("CC(=S)NNC(=S)C", "N'-(ethanethioyl)ethanethiohydrazide", id="thioacyl_on_a_thiohydrazide"),
+        pytest.param("CC(=S)NN(CC)C(=S)C", "N'-(ethanethioyl)-N-ethylethanethiohydrazide", id="lowest_locants_choose_the_parent_nitrogen"),
+    ],
+)
+def test_thioacyl_group_on_a_thiohydrazide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("CC(=O)NNC(=O)NC", "N'-(methylcarbamoyl)acetohydrazide", id="carbamoyl_on_terminal_hydrazide_nitrogen"),
         pytest.param("c1ccccc1C(=O)NNC(=S)Nc1ccccc1", "N'-(phenylcarbamothioyl)benzohydrazide", id="carbamothioyl_keeps_the_carboxylic_hydrazide_parent"),
         pytest.param("CC(=S)NNC(N)=O", "N'-carbamoylethanethiohydrazide", id="thiohydrazide_with_carbamoyl"),
