@@ -84,3 +84,8 @@ def test_phosphoryl_cation_in_a_branch_is_refused_not_an_internal_error():
 def test_fused_ring_with_an_element_that_has_no_replacement_prefix_is_refused(smiles):
     with pytest.raises(UnsupportedStructure):
         name(smiles)
+
+
+def test_pyridine_bridged_tetraaza_macrocycle_lactam_is_refused_not_an_internal_error():
+    with pytest.raises(UnsupportedStructure):
+        name("O=C(c1ccccc1)N1CCCCc2cccc(n2)NCCNC(=O)C1")
