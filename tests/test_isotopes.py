@@ -244,6 +244,7 @@ def test_nuclide_on_the_nitrogen_of_an_acylamino_prefix(smiles, expected):
     [
         pytest.param("[2H]C([2H])([2H])C(=O)Nc1cccc(C(=O)O)c1", "3-[(2H3)acetamido]benzoic acid", id="acylamino_prefix_beside_an_acid"),
         pytest.param("[2H]C([2H])([2H])C(=O)Nc1ccc(C(=O)OC)cc1", "methyl 4-[(2H3)acetamido]benzoate", id="acylamino_prefix_beside_an_ester"),
+        pytest.param("NC([2H])([2H])C(=O)NCC(=O)O", "[2-amino(2,2-2H2)acetamido]acetic acid", id="substituted_acyl_group_of_an_acylamino_prefix"),
         pytest.param("[2H]C([2H])([2H])C(=O)OCC(=O)O", "[(2H3)acetyloxy]acetic acid", id="acyloxy_prefix_beside_an_acid"),
     ],
 )

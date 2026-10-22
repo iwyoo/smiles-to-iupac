@@ -1231,7 +1231,7 @@ def _diacylamide_name(fragment):
     return diacylamine_name(fragment) or name_polyfunctional(fragment)
 
 
-def _chalcogen_amido(graph, root, others, mol):
+def _chalcogen_amido(graph, root, others, mol, retained=True):
     """'acetamido', 'ethanethioamido', 'methanesulfonamido' for R-CO-NH-, R-CS-NH-, R-SO2-NH- and N-substituted
     forms: the final 'e' in the complete name of the amide becomes 'o' (P-66.1.1.4.3); None for any other nitrogen."""
     from ._polyfunctional import name_polyfunctional
@@ -1240,7 +1240,7 @@ def _chalcogen_amido(graph, root, others, mol):
     rest = [n for n in others if n not in acyl]
     if len(acyl) not in (1, 2) or len(rest) > 1 or (len(acyl) == 2 and rest) or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in rest):
         return None
-    if not rest:
+    if not rest and retained:
         from ._amino_acyl_group import amino_acyl_group
 
         amino = amino_acyl_group(mol, graph, acyl[0], root)
