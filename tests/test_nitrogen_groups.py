@@ -1456,6 +1456,12 @@ def test_ring_imine_with_a_ring_nitrogen_group_or_an_amino_ring_nitrogen(smiles,
         pytest.param("NC(=N)CC(=N)N", "propanediimidamide", id="chain_diamidine"),
         pytest.param("NC(=NO)CCOCC(=N)NC", "N'-hydroxy-3-[2-imino-2-(methylamino)ethoxy]propanimidamide", id="second_amidine_in_a_prefix_keeps_the_primes"),
         pytest.param("CC(=N)CN=CC", "1-(ethylideneamino)propan-2-imine", id="second_imine_as_ylideneamino_prefix"),
+        pytest.param("CNCCN=C", "N-methyl-2-(methylideneamino)ethan-1-amine", id="secondary_amine_outranks_an_imine"),
+        pytest.param(
+            "C=NCCNCCN=C",
+            "2-(methylideneamino)-N-[2-(methylideneamino)ethyl]ethan-1-amine",
+            id="amine_linking_two_imines_is_the_parent",
+        ),
         pytest.param(
             "CC(=N)CN=Cc1c(Cl)cccc1Cl",
             "1-{[(2,6-dichlorophenyl)methylidene]amino}propan-2-imine",

@@ -301,6 +301,8 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             return Part(format_mononuclear_prefixes(entries) + stem, True, False)
     if z in _SUBSTITUTABLE_WORDS:
         divalent, trivalent = _SUBSTITUTABLE_WORDS[z]
+        if z == 7 and ctx.unit_group == "imine" and not mol.GetAtomWithIdx(atoms[0]).GetFormalCharge():
+            raise DecompositionRejected("the amine linker outranks the multiplied imines")
         if z == 7 and mol.GetAtomWithIdx(atoms[0]).GetFormalCharge() == 1:
             divalent = "azaniumdiyl"
         if count == 3 and not pend:
