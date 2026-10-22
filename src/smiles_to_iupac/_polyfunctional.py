@@ -171,6 +171,28 @@ def _group_rank(name):
     return (1, _SENIORITY.index(name) if name in _SENIORITY else len(_SENIORITY))
 
 
+def _with_substituted_amine_class(mol, classes, attach):
+    """P-41: an acyclic secondary or tertiary amine is a member of the amine class, which outranks the imines."""
+    if (
+        attach is None
+        and not SUBSTITUTED_AMINE_PREFIX.get()
+        and not (RING_CENTER.get() and not AMINIUM.get())
+        and "imine" in classes
+        and any(_substituted_amine_nitrogen(mol, a) and _plain_amine_nitrogen(mol, a) for a in mol.GetAtoms())
+    ):
+        return classes | {"amine"}
+    return classes
+
+
+def _plain_amine_nitrogen(mol, atom):
+    """No neighbour of the nitrogen is an acyl or sulfonyl-type centre: the nitrogen is an amine, not an amide."""
+    return not any(
+        (n.GetAtomicNum() == 6 and (_double_oxygens(mol, n.GetIdx()) or is_functional_carbon(mol, n.GetIdx())))
+        or (n.GetAtomicNum() in (16, 34, 52) and _double_oxygens(mol, n.GetIdx()))
+        for n in atom.GetNeighbors()
+    )
+
+
 def _principal_class(classes):
     if FORCED_PRINCIPAL.get():
         return FORCED_PRINCIPAL.get() if FORCED_PRINCIPAL.get() in classes else None
@@ -3330,7 +3352,7 @@ def _try_select(mol, attach=None, n_names=(), stereo=None):
     classes = {_group_of(mol, a.GetIdx())[0] for a in mol.GetAtoms() if _group_of(mol, a.GetIdx())} | {
         c for c, _, _ in _ring_occurrences(mol)
     }
-    principal = _principal_class(classes)
+    principal = _principal_class(_with_substituted_amine_class(mol, classes, attach))
     token = EXTENDED_PREFIXES.set(
         bool(AMINIUM.get() or RING_CENTER.get() or any(a.HasProp(ANION_PROP) for a in mol.GetAtoms()))
         or (_is_acid_family(principal) or principal in ("thioic", "peroxoic", "imidic") if principal else False)
@@ -3392,7 +3414,7 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
         if not groups and not ring_groups and not secondary:
             raise UnsupportedStructure("this anionic group is not a principal-capable characteristic group")
     classes = set(groups) | {c for c, _, _ in ring_groups}
-    principal = _principal_class(classes)
+    principal = _principal_class(_with_substituted_amine_class(mol, classes, attach))
     token = IDE_EXTRA.set(ide_extra)
     imine_token = IMINE_PARENT.set(principal == "imine")
     stereo_context = BRANCH_STEREO.get()
@@ -3400,7 +3422,12 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
     try:
         results, used_by_result = [], []
         for amidine_kept, amidine_rings in _diamidide_alternatives(mol, groups, ring_groups):
-            for kept, kept_rings in _joined_imine_alternatives(mol, graph, amidine_kept, amidine_rings):
+            joined = (
+                _joined_imine_alternatives(mol, graph, amidine_kept, amidine_rings)
+                if principal == "imine"
+                else [(amidine_kept, amidine_rings)]
+            )
+            for kept, kept_rings in joined:
                 if stereo_context:
                     stereo_context["used"] = set(used_before)
                 results.append(
@@ -6482,7 +6509,7 @@ def _multiplicative_name(mol, stereo=None):
             keys = {_marked_unit_key(unit[0]) for unit in units}
         if len(keys) != 1:
             continue
-        if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] == "amine":
+        if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] in ("amine", "imine"):
             continue
         unit, attach = units[0]
         try:
