@@ -129,7 +129,14 @@ def _hidden_amide_shape(mol):
 
 
 def has_hidden_amide_shape(mol) -> bool:
-    return _hidden_amide_shape(mol) is not None
+    """The plain shape whose acyl chain this module can name; other pseudoketones are left to the chain engine."""
+    if _hidden_amide_shape(mol) is None:
+        return False
+    try:
+        name_hidden_amide_ketone(mol)
+    except UnsupportedStructure:
+        return False
+    return True
 
 
 def name_hidden_amide_ketone(mol) -> str:

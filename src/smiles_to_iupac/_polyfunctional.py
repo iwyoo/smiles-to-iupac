@@ -1050,6 +1050,8 @@ def _group_of(mol, carbon):
             beta = _hydrazide_beta_nitrogen(mol, other, carbon) if other.GetAtomicNum() == 7 else None
             if beta is not None:
                 return "hydrazide", {oxygens[0], other.GetIdx(), beta}
+            if _is_pseudoketone_heteroatom(mol, other, carbon) and _ring_nitrogen_acyl(mol, ring_nitrogens[0], carbon):
+                return "ketone", {oxygens[0]}
             return None
         if len(hetero) == 1:
             other = hetero[0]
@@ -3673,6 +3675,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and (
                 a.GetIdx() in principal_atoms
                 or not is_functional_carbon(mol, a.GetIdx())
+                or a.GetIdx() in groups.get("ketone", {})
                 or (
                     (
                         _is_acid_family(principal)
@@ -7180,7 +7183,12 @@ def _is_ester_like(mol, carbon):
         and not (n.GetAtomicNum() == 16 and is_sulfone_like(mol, n))
         and not (
             n.GetAtomicNum() == 7
-            and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()) or _ring_nitrogen_pair(mol, carbon))
+            and (
+                atom.GetTotalNumHs() == 1
+                or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors())
+                or _ring_nitrogen_pair(mol, carbon)
+                or any(_is_pseudoketone_heteroatom(mol, c, carbon) for c in atom.GetNeighbors() if c.GetIdx() != n.GetIdx())
+            )
             and _ring_nitrogen_acyl(mol, n, carbon)
         )
         and not (n.GetAtomicNum() == 8 and _terminal_heteroatom(mol, n.GetIdx(), 1))
