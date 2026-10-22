@@ -16,7 +16,7 @@ from ._isotope_labels import _nuclide_sort_key, restore_labels, split_isotopes
 _ACID_PARENT = re.compile(
     r"(?:(?:phosph|ars|stib)[a-z]*(?:ic|ous)|sulfur\w*(?:ic|ous)|sulfuro\(peroxoic\)|sulfamic|bor(?:on|in)?ic|carbamic|carbonic|oxalic|cyanic"
     r"|nitr(?:ic|ous)|(?:(?:hypo|per)?(?:chlor|brom|iod))(?:ic|ous)|tellur(?:ic|ous)|selen(?:ic|ous)|silicic) acid$|cyanamide$"
-    r"|(?:sil|germ|stann|plumb|alum)ane?(?:di|tri|tetra)?(?:thiol|amine|ol)$"
+    r"|(?:sil|germ|stann|plumb|alum)ane?(?:di|tri|tetra)?(?:thiol|amine|ol)$|hydroxylamine$"
 )
 _CENTRE_WITHOUT_OXO = {5, 7, 13, 14, 15, 17, 32, 33, 34, 35, 50, 51, 52, 53}
 _POLY_STEM = re.compile(r"(?<![a-z])(?:di|tri|tetra)$")
@@ -168,8 +168,9 @@ def name_isotope_acid_hydrogen(mol) -> str:
         group[2] |= repeatable
 
     for index, entry in centre_labels.items():
+        centre_locant = clean.GetAtomWithIdx(index).GetSymbol() if name.endswith("hydroxylamine") else "1"
         for nuclide, count in entry["H"].items():
-            add(nuclide, "1", count, clean.GetAtomWithIdx(index).GetTotalNumHs() > 1)
+            add(nuclide, centre_locant, count, clean.GetAtomWithIdx(index).GetTotalNumHs() > 1)
         if entry["skeleton"]:
             element = clean.GetAtomWithIdx(index).GetAtomicNum()
             sole = sum(1 for a in clean.GetAtoms() if a.GetAtomicNum() == element) == 1

@@ -1222,6 +1222,14 @@ def test_nuclides_of_an_adduct_component_are_counted_once_per_molecule_of_its_ra
     assert smiles_to_iupac("C.[3H]C.[3H]C") == "(3H1)methane—methane (2/1)"
 
 
+def test_labelled_water_component_of_an_adduct_is_cited_as_the_labelled_oxidane():
+    assert smiles_to_iupac("CC#N.[18OH2]") == "acetonitrile\u2014(18O)oxidane (1/1)"
+
+
+def test_hydroxy_oxygen_of_an_n_substituted_hydroxylamine_takes_the_letter_locant():
+    assert smiles_to_iupac("[2H]ONOC") == "N-methoxy(O-2H)hydroxylamine"
+
+
 def test_halogen_nuclide_of_a_hypohalous_amide_is_cited_after_the_substituent_prefixes():
     assert smiles_to_iupac("CN[18F]") == "methyl(18F)hypofluorous amide"
 
