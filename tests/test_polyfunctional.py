@@ -1705,6 +1705,8 @@ def test_n_hydroxy_and_n_alkoxy_groups_on_two_amines_of_one_skeleton(smiles, exp
     "smiles,expected",
     [
         pytest.param("CNCC(CNC)CNC", "N1,N3-dimethyl-2-[(methylamino)methyl]propane-1,3-diamine", id="third_amine_is_an_n_substituted_amino_prefix"),
+        pytest.param("CNCC(CCN)CNC", "N1-methyl-2-[(methylamino)methyl]butane-1,4-diamine", id="longest_chain_between_a_primary_and_a_substituted_amine"),
+        pytest.param("CNCCC(CCN)CNC", "N1-methyl-3-[(methylamino)methyl]pentane-1,5-diamine", id="longest_diamine_chain_with_a_substituted_amine_arm"),
         pytest.param("CNCC(CN)CNC", "2-(aminomethyl)-N1,N3-dimethylpropane-1,3-diamine", id="third_amine_is_primary"),
         pytest.param("CN(C)CC(CN(C)C)CN(C)C", "2-[(dimethylamino)methyl]-N1,N1,N3,N3-tetramethylpropane-1,3-diamine", id="tertiary_amines"),
         pytest.param("CNCCC(CCNC)CCNC", "N1,N5-dimethyl-3-[2-(methylamino)ethyl]pentane-1,5-diamine", id="longer_arms"),

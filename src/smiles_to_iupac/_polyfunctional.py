@@ -5507,6 +5507,12 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             named = _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, [*amine_nitrogens, *primary_nitrogens])
             if named is not None:
                 return named
+            if _share_chain_backbone(mol, graph, [*amine_nitrogens, *primary_nitrogens]) and _longest_chain_joins_one_substituted_amine(
+                mol, graph, amine_nitrogens, primary_nitrogens
+            ):
+                return _one_of_substituted_amines(
+                    mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens, primaries=True
+                )
         raise UnsupportedStructure("several amine groups with N-substitution are not handled by the chain engine")
     nitrogen = amine_nitrogens[0]
     n_idx = nitrogen.GetIdx()
@@ -5868,9 +5874,45 @@ def _by_parent_then_prefix_count(result):
     return (*key[:7], key[13], *key[7:13], *key[14:], result[1])
 
 
-def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens):
-    """Several N-substituted amines, none primary: each in turn is the parent amine and the others are amino prefixes;
-    the oxidized nitrogen of an N-oxide, when marked, is the only candidate (P-62.5)."""
+def _longest_chain_joins_one_substituted_amine(mol, graph, substituted, primary):
+    """Whether the longest acyclic carbon chain between two amine nitrogens is unique and ends on one N-substituted and one
+    primary amine: the parent chain is then fixed before the substituent counts of P-45.2.1 can decide (P-44.3)."""
+    carbons = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
+    anchors = [
+        (n.GetIdx(), c.GetIdx())
+        for n in (*substituted, *primary)
+        for c in n.GetNeighbors()
+        if c.GetIdx() in carbons
+    ]
+
+    def carbon_count(start, end):
+        distance, frontier = {start: 1}, [start]
+        while frontier:
+            atom = frontier.pop(0)
+            for n in graph[atom]:
+                if n in carbons and n not in distance:
+                    distance[n] = distance[atom] + 1
+                    frontier.append(n)
+        return distance.get(end, 0)
+
+    ranks = Chem.CanonicalRankAtoms(mol, breakTies=False)
+    lengths = {}
+    for (n1, c1), (n2, c2) in itertools.combinations(anchors, 2):
+        if n1 != n2:
+            key = (n1, n2)
+            lengths[key] = max(lengths.get(key, 0), carbon_count(c1, c2))
+    longest = max(lengths.values(), default=0)
+    pairs = [key for key, length in lengths.items() if length == longest]
+    if len({frozenset(ranks[n] for n in key) for key in pairs}) != 1:
+        return False
+    primary_indexes = {n.GetIdx() for n in primary}
+    return len(set(pairs[0]) & primary_indexes) == 1
+
+
+def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens, primaries=False):
+    """Several N-substituted amines: each in turn is the parent amine and the others are amino prefixes; with primary
+    amines on the same skeleton the parent is a polyamine and the N-substituents carry the locant of its nitrogen
+    (P-62.2.4.1.2); the oxidized nitrogen of an N-oxide, when marked, is the only candidate (P-62.5)."""
     marked = [a for a in amine_nitrogens if a.HasProp("_oxidized_amine")]
     candidates = []
     for nitrogen in marked or amine_nitrogens:
@@ -5891,6 +5933,8 @@ def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, rin
                 if o != c
             ]
             parent, mapped = _amine_parent_molecule(mol, arm, c, n_idx)
+            if primaries:
+                n_names = [(name, compound, ("N", mapped)) for name, compound in n_names]
             token = SUBSTITUTED_AMINE_PREFIX.set(True)
             try:
                 with _renumbered_branch_stereo(sorted(arm | {n_idx})):
@@ -5900,6 +5944,8 @@ def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, rin
             finally:
                 SUBSTITUTED_AMINE_PREFIX.reset(token)
             if result is None or mapped not in result[2][4]:
+                continue
+            if primaries and any(name not in result[1] for name, *_ in n_names):
                 continue
             ring = parent.GetAtomWithIdx(mapped).IsInRing()
             kept = sorted(set(arm) | {n_idx})
