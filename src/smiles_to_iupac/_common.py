@@ -1707,6 +1707,7 @@ def spec_chirality_as_parsed(smiles):
     raw = Chem.MolFromSmiles(smiles, sanitize=False)
     if raw is None:
         return smiles
+    smiles, separator, extension = smiles.partition(" ")
     pieces, position, atom_index, has_preceding = [], 0, -1, False
     while position < len(smiles):
         char = smiles[position]
@@ -1731,7 +1732,7 @@ def spec_chirality_as_parsed(smiles):
         pieces.append(token + smiles[token_end:end])
         position = end
         has_preceding = True
-    return "".join(pieces)
+    return "".join(pieces) + separator + extension
 
 
 def assign_cip_labels(mol):
