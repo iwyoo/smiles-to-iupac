@@ -1836,15 +1836,17 @@ def _azoxy_charged_atoms(mol):
 
 
 def _plain_oxy_group(mol, atom):
-    """A hydroxy or alkoxy group: an oxygen with a hydrogen or one non-functional carbon."""
+    """A hydroxy, alkoxy or acyloxy group: an oxygen with a hydrogen or one non-functional or acyl carbon."""
     if atom.GetAtomicNum() != 8 or atom.GetFormalCharge() or atom.IsInRing():
         return False
     if atom.GetDegree() == 1:
         return atom.GetTotalNumHs() == 1
     carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
-    return atom.GetDegree() == 2 and len(carbons) == 1 and not (
-        is_functional_carbon(mol, carbons[0].GetIdx()) or _double_oxygens(mol, carbons[0].GetIdx())
-    )
+    if atom.GetDegree() != 2 or len(carbons) != 1:
+        return False
+    carbon = carbons[0]
+    acyl = bool(_double_oxygens(mol, carbon.GetIdx())) and not carbon.IsInRing()
+    return acyl or not is_functional_carbon(mol, carbon.GetIdx())
 
 
 def _hydride_centre(atom):
