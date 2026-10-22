@@ -433,7 +433,7 @@ def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogen
     cited as for the acyl group itself and in front of the name that group has without nuclides: '(2H3)acetamido',
     '(2H3)acetyloxy' (P-82.2.1)."""
     element = mol.GetAtomWithIdx(root).GetAtomicNum() if mol is not None else None
-    if element not in (7, 8) or not name.endswith(("amido", "ylamino") if element == 7 else ("yloxy",)):
+    if element not in (7, 8) or not name.endswith(("amido", "ylamino", ")amino") if element == 7 else ("yloxy",)):
         return None
     acyl = [
         n for n in graph[root]
@@ -442,19 +442,25 @@ def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogen
     if len(acyl) != 1 or any(a not in _subtree_atoms(graph, acyl[0], root) for a in labelled):
         return None
     acyl_name, _ = name_branch(graph, acyl[0], root, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
-    match = re.match(r"^(\([^()]*\))(.+)$", acyl_name)
+    match = re.match(r"^(.*?)(\((?:[\d,]+-)?\d+[A-Z][a-z]?\d*(?:,\d+[A-Z][a-z]?\d*)*\))([a-z]+)$", acyl_name)
     if match is None:
         return None
-    descriptor_text, bare = match.groups()
+    inside, descriptor_text, tail = match.groups()
+    bare = inside + tail
     if element == 8:
-        return descriptor_text + name if name == bare + "oxy" else None
+        return descriptor_text + name if name == bare + "oxy" and not inside else None
     from ._hetero_prefixes import _chalcogen_amido
 
     token = ISOTOPE_LABELS.set(None)
     try:
-        amido = _chalcogen_amido(graph, root, [n for n in graph[root] if n != coming_from], mol)
+        amido = _chalcogen_amido(graph, root, [n for n in graph[root] if n != coming_from], mol, retained=not inside)
     finally:
         ISOTOPE_LABELS.reset(token)
+    if inside:
+        if amido is None or not amido[0].endswith("amido") or bare[:-2] not in amido[0]:
+            return None
+        cut = amido[0].find(bare[:-2]) + len(inside)
+        return amido[0][:cut] + descriptor_text + amido[0][cut:]
     base = amido[0] if amido is not None and amido[0].startswith(bare[:-2]) else name
     if base != bare + "amino" and not (base.endswith("amido") and base.startswith(bare[:-2])):
         return None
