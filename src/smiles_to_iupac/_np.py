@@ -9,8 +9,8 @@ from ._common import UnsupportedStructure, assign_cip_labels
 from ._pin import mark
 from ._np_build import _homo_position, build
 from ._np_core import PARENTS, get_parent, loc_key
-from ._np_diff import MAX_MODIFICATIONS, MIN_RINGS_AFTER_SECO, WORK_LIMIT, lower_bound, read_operations
-from ._np_match import View, embeddings, skeleton_has_stereo
+from ._np_diff import MIN_RINGS_AFTER_SECO, WORK_LIMIT, lower_bound, read_operations
+from ._np_match import MAX_MODIFICATIONS, View, embeddings, skeleton_has_stereo
 from ._np_name import _SENIORITY, FREE_VALENCE, Outranked, classify
 from ._np_region import regions
 from ._np_rings import components
@@ -105,7 +105,7 @@ def _plausible(name, view, cost):
     missing = sum(max(0, n - view.rings_by_size.get(size, 0)) for size, n in rings.items())
     if missing > 2 * cost + 2:
         return False
-    return _replacements_needed(name, view) + cost <= MAX_MODIFICATIONS and _fits_region(name, view, cost)
+    return _replacements_needed(name, view) + cost <= view.limit and _fits_region(name, view, cost)
 
 
 @lru_cache(maxsize=None)
@@ -128,7 +128,7 @@ def _most_removed(name, cost):
 def _fits_region(name, view, cost):
     """A connected part of the molecule can hold the parent after `cost` operations and the replacements left (P-101.3.7.1)."""
     cyc, _, elements = _parent_facts(name)[:3]
-    spare = MAX_MODIFICATIONS - cost if _replaceable(name) else 0
+    spare = view.limit - cost if _replaceable(name) else 0
     atoms = len(get_parent(name).adj) - (_most_removed(name, cost) if cost else 0)
     return any(
         region.size >= atoms and region.cyclomatic >= cyc - cost and (region.stereo or cost < 2)
@@ -158,7 +158,7 @@ _MIN_PARENT_ATOMS_FOR_MODIFICATION = 14
 
 def _admissible(cand, view):
     modifications = len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced)
-    if modifications > MAX_MODIFICATIONS:
+    if modifications > view.limit:
         return False
     if modifications and len(cand.parent.adj) < _MIN_PARENT_ATOMS_FOR_MODIFICATION:
         return False
@@ -257,7 +257,7 @@ def _candidates(skel, view):
     secos = sum(1 for op in skel.ops if op[0] == "seco")
     if secos > 1 or (secos and cyclomatic < MIN_RINGS_AFTER_SECO):
         return []
-    budget = MAX_MODIFICATIONS - len(skel.ops)
+    budget = view.limit - len(skel.ops)
     missing = sum(max(0, n - view.rings_by_size.get(length, 0)) for length, n in rings.items())
     if missing > 2 * budget + _RING_SLACK:
         return []
@@ -281,8 +281,8 @@ def _promising(view, cost, exact):
     return names
 
 
-def _view(mol):
-    view = View(mol)
+def _view(mol, limit=MAX_MODIFICATIONS):
+    view = View(mol, limit)
     view.cyclomatic = _cyclomatic(view.adj)
     view.fused = _fused_rings(mol)
     view.rings_by_size = Counter(len(r) for r in mol.GetRingInfo().AtomRings())
@@ -295,18 +295,18 @@ def _view(mol):
     return view
 
 
-def _name_once(mol):
+def _name_once(mol, limit=MAX_MODIFICATIONS):
     heavy = mol.GetNumAtoms()
     if heavy < _MIN_HEAVY_ATOMS or heavy > _MAX_HEAVY_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
         return None
     if any(a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
-    view = _view(mol)
+    view = _view(mol, limit)
     if view.cyclomatic > _MAX_RINGS:
         return None
     best = None
     exact = set()
-    for cost in range(MAX_MODIFICATIONS + 1) if view.has_stereo else (0, 1):
+    for cost in range(limit + 1) if view.has_stereo else range(min(limit, 1) + 1):
         if best is not None and (best.cost < cost or (best.cost == cost and not best.key[1])):
             break
         found = []
@@ -365,31 +365,32 @@ def name_natural_product(mol):
     return name_natural_product_ranked(mol)[0]
 
 
-def name_natural_product_ranked(mol):
-    """(name, number of modifying operations incl. replacement): more than two have no preferred semisystematic name (P-101.3.7.2)."""
-    name, skeletal = _natural_product_name(mol)
+def name_natural_product_ranked(mol, limit=MAX_MODIFICATIONS):
+    """(name, number of modifying operations incl. replacement): more than two have no preferred semisystematic name (P-101.3.7.2).
+    A `limit` below the maximum stops the search after parents of that many operations."""
+    name, skeletal = _natural_product_name(mol, limit)
     return (mark(name, _NO_PIN), skeletal) if name else (None, 0)
 
 
-def _natural_product_name(mol):
+def _natural_product_name(mol, limit=MAX_MODIFICATIONS):
     """(name, operations): natural-product name, with 'ent' for a full inversion and 'rac'/'rel' for stereo groups (P-101.8)."""
     groups = mol.GetStereoGroups()
     if groups:
-        return _name_with_groups(mol, groups)
+        return _name_with_groups(mol, groups, limit)
     plain = _plain(mol)
     if plain is None:
         return None, 0
-    built = _name_once(plain)
+    built = _name_once(plain, limit)
     if built is None:
         return None, 0
     if built.implied_total and built.implied_cited == built.implied_total:
-        other = _name_once(_mirror(plain))
+        other = _name_once(_mirror(plain), limit)
         if other is not None and other.implied_cited == 0 and other.implied_total == built.implied_total:
             return f"ent-{other.name}", other.skeletal
     return built.name, built.skeletal
 
 
-def _name_with_groups(mol, groups):
+def _name_with_groups(mol, groups, limit):
     kinds = {g.GetGroupType() for g in groups}
     if len(groups) != 1 or len(kinds) != 1:
         return None, 0
@@ -401,11 +402,11 @@ def _name_with_groups(mol, groups):
     if word is None:
         return None, 0
     plain = _plain(mol)
-    built = _name_once(plain)
+    built = _name_once(plain, limit)
     if built is None:
         return None, 0
     if built.first_face == "β":
-        other = _name_once(_mirror(plain))
+        other = _name_once(_mirror(plain), limit)
         if other is not None and other.first_face == "α":
             built = other
     return f"{word}-{built.name}", built.skeletal
@@ -443,7 +444,7 @@ def _group_of(smiles):
     # the fragment's atom indices are not those of the molecule the enclosing contexts refer to
     tokens = (ISOTOPE_LABELS.set(None), FORCED_BRANCH_NAMES.set(None))
     try:
-        name, operations = _natural_product_name(Chem.MolFromSmiles(smiles))
+        name, operations = _natural_product_name(Chem.MolFromSmiles(smiles), PREFERRED_OPERATIONS)
     except UnsupportedStructure:
         return None
     finally:

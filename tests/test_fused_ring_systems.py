@@ -1174,3 +1174,10 @@ def test_added_hydrogen_of_a_ketone_suffix_beside_an_ylidene_prefix(smiles, expe
 def test_multiparent_fused_system_with_a_suffix_and_monocycle_component_numbering(smiles, expected):
     # P-22.2.2.1.3, P-25.3.1.3, P-16.5.1.9
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_stereo_specified_fused_polycycle_is_named_within_the_time_limit():
+    assert (
+        smiles_to_iupac("COC(=O)c1ccc([C@H]2Nc3ccc(C)cc3[C@@H]3CCC[C@@H]23)cc1")
+        == "methyl 4-[(3aR,4S,9bR)-8-methyl-2,3,3a,4,5,9b-hexahydro-1H-cyclopenta[c]quinolin-4-yl]benzoate"
+    )

@@ -351,7 +351,7 @@ def _semisystematic_diyl_esters(mol, graph, matches, pool):
     if len({name for name, _ in anions}) != 1:
         from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
 
-        name, operations = name_natural_product_ranked(mol)
+        name, operations = name_natural_product_ranked(mol, PREFERRED_OPERATIONS)
         return name if name is not None and operations <= PREFERRED_OPERATIONS else None
     group = semisystematic_groups(mol, graph, [(m[3].GetIdx(), m[2].GetIdx()) for m in on])
     return f"{group[0]} {cite_anions(anions, [0] * len(on), False)}" if group else None
