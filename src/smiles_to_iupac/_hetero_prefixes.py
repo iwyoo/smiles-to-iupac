@@ -47,6 +47,7 @@ _SENIOR_TO_SELENOL = [
         "[#6][CX3](=O)[#6]",
         "[#6][CX3](=S)[#6]",
         "[cX3;R]=[O,S,Se,Te]",
+        "[#6][CX3;R](=[O,S,Se,Te])[S,Se,Te;X2;R]",
         "[CX3](=[O,S,Se,Te])[NX2]=[NX2]",
         "[CX3;!R](=[NX2;!R])[NX3;!R]",
         "[#6][CX3](=O)[O,S,Se,Te;X2][O,S,Se,Te;X2][O,S,Se,Te;X2]",

@@ -1225,6 +1225,7 @@ def test_heteroatom_to_heteroatom_substituent_groups_on_a_carboxylic_acid_ring(s
         ("OC(=O)c1ccc(cc1)C=N", "4-(methanimidoyl)benzoic acid"),
         ("On1ccc2c1CCCC2=NO", "4-(hydroxyimino)-4,5,6,7-tetrahydro-1H-indol-1-ol"),
         ("On1cnc2cc(C=NO)ccc21", "5-(N-hydroxymethanimidoyl)-1H-1,3-benzimidazol-1-ol"),
+        ("CN=C1CCSC1=O", "3-(methylimino)thiolan-2-one"),
     ],
 )
 def test_imino_prefixes_under_a_senior_group(smiles, expected):
