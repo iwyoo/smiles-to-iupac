@@ -2693,10 +2693,50 @@ def _hydride_centre_with_amino_groups(mol):
     )
 
 
+def _substituted_azanediyl_linker_name(mol, labels):
+    """The multiplicative name of identical labelled arms joined through a nitrogen that carries one plain unlabelled group:
+    the group is cut off to name the NH linker and cited in front of 'azanediyl' (P-15.3, P-62.2.5.1, P-82.2.2)."""
+    from ._substituents import name_branch
+
+    graph = adjacency(mol)
+    for nitrogen in mol.GetAtoms():
+        if nitrogen.GetAtomicNum() != 7 or nitrogen.IsInRing() or nitrogen.GetFormalCharge() or nitrogen.GetDegree() != 3:
+            continue
+        if nitrogen.GetTotalNumHs() or any(b.GetBondTypeAsDouble() != 1.0 for b in nitrogen.GetBonds()):
+            continue
+        n_idx = nitrogen.GetIdx()
+        arms = sorted(((_arm_atoms(graph, n.GetIdx(), n_idx), n.GetIdx()) for n in nitrogen.GetNeighbors()), key=lambda a: len(a[0]))
+        for group, root in arms:
+            if n_idx in group or mol.GetAtomWithIdx(root).GetAtomicNum() != 6 or any(a in labels for a in group):
+                continue
+            if any(len(other) == len(group) for other, _ in arms if other is not group):
+                continue
+            kept = [i for i in range(mol.GetNumAtoms()) if i not in group]
+            new_index = {old: new for new, old in enumerate(kept)}
+            editable = Chem.RWMol(mol)
+            editable.GetAtomWithIdx(n_idx).SetNumExplicitHs(1)
+            editable.GetAtomWithIdx(n_idx).SetNoImplicit(True)
+            for index in sorted(group, reverse=True):
+                editable.RemoveAtom(index)
+            reduced = editable.GetMol()
+            try:
+                Chem.SanitizeMol(reduced)
+                name = _name_labelled(reduced, {new_index[a]: e for a, e in labels.items()})
+                cited, compound = name_branch(graph, root, n_idx, halogen_substituents(mol), mol=mol)
+            except (UnsupportedStructure, ValueError, Chem.rdchem.MolSanitizeException):
+                continue
+            if name is not None and name.count("azanediyl") == 1:
+                return name.replace("azanediyl", f"({enclose(cited) if compound else cited}azanediyl)")
+    return None
+
+
 def _name_labelled(mol, labels, finish=None):
     """The name of `mol`, None when its parent is a heteroatom hydride this engine does not build."""
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
+    linked = _substituted_azanediyl_linker_name(mol, labels) if labels else None
+    if linked is not None:
+        return linked if finish is None else finish(linked, {})
     mol = _demote_junior_groups(mol, labels)
 
     stereo = _check_scope(mol) + _isotope_entries(labels)
