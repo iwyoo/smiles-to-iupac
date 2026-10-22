@@ -409,6 +409,21 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
         pytest.param("OC[C@H]1O[C@@H](S)[C@H](O)[C@@H](O)[C@@H]1O", "1-thio-β-D-glucopyranose", id="sulfur_on_the_anomeric_carbon"),
         pytest.param("OC[C@H]1O[C@@H](SC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl 1-thio-β-D-glucopyranoside", id="thioglycoside"),
         pytest.param("S=C[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "1-thio-D-glucose", id="thioaldehyde_sugar"),
+        pytest.param(
+            "O[C@@H]1O[C@H](C=S)[C@@H](O)[C@H](O)[C@H]1O",
+            "(2S,3S,4S,5R,6R)-3,4,5,6-tetrahydroxyoxane-2-carbothialdehyde",
+            id="thioaldehyde_on_the_terminal_carbon_is_not_a_thio_sugar",
+        ),
+        pytest.param(
+            "O[C@@H]1O[C@@H]2[C@@H](CO)[C@@H]2[C@@H]1O",
+            "(1R,3R,4S,5R,6R)-6-(hydroxymethyl)-2-oxabicyclo[3.1.0]hexane-3,4-diol",
+            id="bond_across_the_sugar_ring_makes_a_bicycle",
+        ),
+        pytest.param(
+            "CO[C@@H]1[OH+][C@H](CO)[C@@H](O)[C@H](O)[C@H]1O",
+            "(2R,3S,4S,5R,6R)-3,4,5-trihydroxy-2-(hydroxymethyl)-6-methoxyoxan-1-ium",
+            id="charged_ring_oxygen_of_a_glycoside",
+        ),
         pytest.param("[O-]P([O-])(=O)OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O", "D-glucopyranose 6-phosphate", id="phosphate_dianion"),
         pytest.param("[O-]P(O)(=O)OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O", "D-glucopyranose 6-(hydrogen phosphate)", id="hydrogen_phosphate_monoanion"),
         pytest.param("OC[C@H]1O[C@H](OP([O-])([O-])=O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranose 1-phosphate", id="phosphate_on_the_anomeric_carbon"),
