@@ -7514,7 +7514,13 @@ def _amidine_nitrogens(mol, atom):
         for n in nitrogen.GetNeighbors():
             if n.GetIdx() == carbon:
                 continue
-            if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            ylidene = (
+                nitrogen is amino
+                and nitrogen.GetDegree() == 2
+                and n.GetAtomicNum() == 6
+                and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            )
+            if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 and not ylidene:
                 return None
             if _ring_nitrogen_substituent(mol, n, nitrogen):
                 continue
@@ -7893,9 +7899,7 @@ def _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
         rest = tuple(a for a in graph[carbon] if a not in owned)
         for nitrogen in (a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7):
             atom = mol.GetAtomWithIdx(nitrogen)
-            imino = any(
-                b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds()
-            )
+            imino = any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetIdx() == carbon for b in atom.GetBonds())
             base = "N'" if imino else "N"
             located = (base, anchor, carbon, rest, "amidine") if len(members) > 1 else base
             for n in graph[nitrogen]:

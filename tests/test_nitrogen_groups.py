@@ -98,6 +98,7 @@ def test_amidine_names(smiles, expected):
     [
         pytest.param("CC(=Nc1ccccc1)N", "N'-phenylethanimidamide", id="phenylamidine"),
         pytest.param("CC(=NC)Nc1ccccc1", "N'-methyl-N-phenylethanimidamide", id="methyl_n_phenylamidine"),
+        pytest.param("CC=NC(=N)CO", "N-ethylidene-2-hydroxyethanimidamide", id="ylidene_on_the_amino_nitrogen"),
     ],
 )
 def test_n_prime_cases(smiles, expected):
