@@ -2065,7 +2065,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if hydrazine is not None:
             return hydrazine, True
     pseudohalide = zx == 7 and any(b.GetBondTypeAsDouble() > 1.0 for b in mol.GetAtomWithIdx(x).GetBonds())
-    if center == "S" and all(e == "O" for e in symbols) and len(oxo) == 2 and zx == 7 and not pseudohalide:
+    if center == "S" and all(e == "O" for e in symbols) and len(oxo) == 2 and zx == 7 and not pseudohalide and not xatom.GetFormalCharge():
         subs = [n for n in graph[x] if n != root]
         if not subs:
             return "sulfamoyl", False
