@@ -4,12 +4,15 @@ from dataclasses import dataclass, field
 
 from rdkit import Chem
 
+MAX_MODIFICATIONS = 4
+
 
 class View:
     """Heavy-atom view of a molecule: adjacency, elements, ring atoms and a bond-order-free copy for matching."""
 
-    def __init__(self, mol):
+    def __init__(self, mol, limit=MAX_MODIFICATIONS):
         self.mol = mol
+        self.limit = limit
         self.adj = {a.GetIdx(): {n.GetIdx() for n in a.GetNeighbors()} for a in mol.GetAtoms()}
         self.elem = {a.GetIdx(): a.GetSymbol() for a in mol.GetAtoms()}
         self.rings = {i for ring in mol.GetRingInfo().AtomRings() for i in ring}

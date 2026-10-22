@@ -201,7 +201,6 @@ class Exhausted(Exception):
     """The search effort allowed for one molecule is spent."""
 
 _MIN_ATOMS_PER_OPERATION = 5
-MAX_MODIFICATIONS = 4
 MIN_RINGS_AFTER_SECO = 2
 
 
@@ -771,7 +770,7 @@ def read_operations(parent, view, cost, terminal_only=False):
     """Skeletons with exactly `cost` nor/homo/seco operations that may explain the molecule; None without a junction."""
     if len(parent.adj) - cost > len(view.adj) or len(parent.adj) < _MIN_ATOMS_PER_OPERATION * (cost + 1):
         return []
-    if cost < lower_bound(parent, view, MAX_MODIFICATIONS) or view.work < 0:
+    if cost < lower_bound(parent, view, view.limit) or view.work < 0:
         return []
     sites = [site for site in homo_sites(parent) if not is_branch_site(parent, site)]
     nors = nor_variants(parent)
@@ -781,7 +780,7 @@ def read_operations(parent, view, cost, terminal_only=False):
     skel = Skel.of(parent)
     try:
         cuts = not terminal_only and ring_count(skel.adj) - 1 >= MIN_RINGS_AFTER_SECO
-        outcome = _search(skel.adj, view, cost, cuts, parent.name, parent.elem, MAX_MODIFICATIONS - cost)
+        outcome = _search(skel.adj, view, cost, cuts, parent.name, parent.elem, view.limit - cost)
     except Exhausted:
         return []
     if outcome is None:

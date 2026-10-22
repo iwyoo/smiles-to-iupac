@@ -1319,11 +1319,12 @@ def _name_unabridged_body(smiles: str) -> str:
             name = name_appendix3_skeleton(parsed) if glycosyl_token is None else None
             if name is not None:
                 return name
-            natural, operations = name_natural_product_ranked(parsed) if glycosyl_token is None else (None, 0)
-            if natural is not None:
-                phane_name = linear_phane_pin(parsed)
-                if phane_name is not None:
-                    return phane_name
+            natural, operations = (
+                name_natural_product_ranked(parsed, PREFERRED_OPERATIONS) if glycosyl_token is None else (None, 0)
+            )
+            phane_name = linear_phane_pin(parsed) if glycosyl_token is None else None
+            if phane_name is not None and (natural is not None or name_natural_product_ranked(parsed)[0] is not None):
+                return phane_name
             if natural is not None and operations <= PREFERRED_OPERATIONS:
                 return natural
             beyond_preferred = natural
@@ -1362,6 +1363,8 @@ def _name_unabridged_body(smiles: str) -> str:
                 if parsed is not None and _drops_anionic_charge(parsed, name, anywhere=True):
                     raise UnsupportedStructure("the negative charge of this structure is not cited by any supported name")
             except UnsupportedStructure:
+                if beyond_preferred is None and parsed is not None and glycosyl_token is None:
+                    beyond_preferred = name_natural_product_ranked(parsed)[0]
                 if beyond_preferred is None:
                     raise
                 name = beyond_preferred
