@@ -64,6 +64,7 @@ from ._condensed_guanidine import has_condensed_guanidine_shape, name_condensed_
 from ._ring_heteroatom_nitrile import name_ring_heteroatom_nitrile
 from ._chain_onium import has_chain_onium_shape, name_chain_onium
 from ._hetero_acylium import has_hetero_acylium_shape, name_hetero_acylium
+from ._imidoyl_cation import has_imidoyl_cation_shape, name_imidoyl_cation
 from ._chain_ylium import has_chain_ylium_shape, name_chain_ylium
 from ._group_polycation import has_group_polycation_shape, name_group_polycation
 from ._hydride_ylium import (
@@ -2001,6 +2002,7 @@ def _name_mol(mol) -> str:
         # dispatch, which rejects any charged atom outright.
         (has_chain_ylium_shape, name_chain_ylium),
         (has_hetero_acylium_shape, name_hetero_acylium),
+        (has_imidoyl_cation_shape, name_imidoyl_cation),
         (has_skeleton_radical_ion_shape, name_skeleton_radical_ion),
         (has_radical_ion_shape, name_radical_ion),
         # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed

@@ -224,6 +224,7 @@ def test_benzenide_name_and_related(smiles, expected):
     [
         pytest.param("C[C+]=O", "acetylium", id="acetylium_acylium_cation_name"),
         pytest.param("CC(C)C[C+]=O", "3-methylbutanoylium", id="branched_acylium_name"),
+        pytest.param("C[C+]=NC", "N-methylethanimidoylium", id="imidoyl_cation_name"),
         pytest.param("O=[C+]C1CCCCC1", "cyclohexanecarbonylium", id="cyclohexanecarbonylium_acylium_name"),
         pytest.param("O=[C+]c1ccccc1", "benzoylium", id="benzoylium_acylium_name"),
         pytest.param("CC#[O+]", "acetylium", id="acylium_oxygen_charged_resonance_form"),
