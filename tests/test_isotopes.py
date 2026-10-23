@@ -1299,3 +1299,9 @@ def test_nuclide_of_an_isothiocyanato_prefix_on_a_fused_ring_system():
 def test_nuclide_is_cited_whichever_silicon_parent_the_atom_order_tries_first():
     smiles = "[2H]/C(=C/C[Si](C)(C)C)[Si](C)(C)C"
     assert smiles_to_iupac(smiles) == "trimethyl[(1Z)-3-(trimethylsilyl)(1-2H)prop-1-en-1-yl]silane"
+
+
+def test_nuclides_of_a_chain_between_two_different_amide_groups_are_cited_in_the_substituent_of_the_parent_amide():
+    # P-82.2.1, P-44.1: the amide that is not the parent is an acylamino prefix on the labelled chain
+    smiles = "[2H]C([2H])(C)C(C)(NC(=O)c1ccccc1)C(C)NC(=O)c1ccccc1C"
+    assert smiles_to_iupac(smiles) == "N-[3-benzamido-3-methyl(4,4-2H2)pentan-2-yl]-2-methylbenzamide"

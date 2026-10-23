@@ -7876,6 +7876,9 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
             for prime, (*_, group) in enumerate(sorted(members)):
                 primes[group] = prime
     stereo_context = BRANCH_STEREO.get()
+    from ._substituents import ISOTOPE_LABELS
+
+    isotope_context = ISOTOPE_LABELS.get()
     for name, compound, *locant in n_names:
         located = locant[0] if locant else "N"
         if isinstance(located, tuple):
@@ -7884,6 +7887,8 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
                 continue
             if stereo_context:
                 stereo_context["used"] |= stereo_context.get("parked", {}).get(located, set())
+            if isotope_context:
+                isotope_context["consumed"] |= isotope_context.get("parked", {}).get(located, set())
             if group_count == 1:
                 located = located[0]
             else:
@@ -7939,13 +7944,21 @@ def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, c
 def _n_branch(located, graph, root, nitrogen, halogens, aromatic_atoms, mol):
     """`name_branch` of an N-substituent of one of several groups; the stereo elements it cites count as cited only once
     that group proves to be the parent (`_with_n_names`), not while another group may still be."""
+    from ._substituents import ISOTOPE_LABELS
+
     context = BRANCH_STEREO.get()
+    isotopes = ISOTOPE_LABELS.get()
     before = set(context["used"]) if context else set()
+    consumed_before = set(isotopes["consumed"]) if isotopes else set()
     named = name_branch(graph, root, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
     if context and isinstance(located, tuple):
         added = context["used"] - before
         context["used"] -= added
         context.setdefault("parked", {}).setdefault(located, set()).update(added)
+    if isotopes and isinstance(located, tuple):
+        added = isotopes["consumed"] - consumed_before
+        isotopes["consumed"] -= added
+        isotopes.setdefault("parked", {}).setdefault(located, set()).update(added)
     return named
 
 
