@@ -385,6 +385,8 @@ def test_partial_thioesters_oxoanion_salts_pseudohalides_and_amido_ligands(smile
         pytest.param("CP(=O)=O", "methyl-λ5-phosphanedione", id="phosphanedione"),
         pytest.param("CC(C)CN[As]=O", "[(2-methylpropyl)amino]arsanone", id="amino_substituted_arsanone"),
         pytest.param("CCC=S=O", "propylidene-λ4-sulfanone", id="thioketone_oxide"),
+        pytest.param("ClP=S", "chlorophosphanethione", id="halogen_on_a_phosphanethione"),
+        pytest.param("Cl[Si](C)=O", "chloro(methyl)silanone", id="halogen_on_a_silanone"),
     ],
 )
 def test_heterones_of_group_14_15_16_atoms(smiles, expected):
