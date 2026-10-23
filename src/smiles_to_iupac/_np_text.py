@@ -85,7 +85,9 @@ def unsaturation(cand, view, fusion=frozenset()):
 def locant_pair(skel, final, a, b):
     ordered = sorted(skel.adj, key=lambda x: loc_key(final(x)))
     low, high = sorted((a, b), key=lambda x: loc_key(final(x)))
-    if abs(ordered.index(low) - ordered.index(high)) == 1:
+    low_key, high_key = loc_key(final(low)), loc_key(final(high))
+    extra_carbon = low_key[1] == high_key[1] and low_key[2] == 0 and high_key[2] > 0
+    if abs(ordered.index(low) - ordered.index(high)) == 1 and not extra_carbon:
         return final(low)
     return f"{final(low)}({final(high)})"
 
