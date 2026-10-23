@@ -83,6 +83,18 @@ def _senior_carbonyl(atom):
     )
 
 
+def _acyloxy_on_acyclic_nitrogen(atom):
+    """The acyl carbon of an acyl-O-N group on an acyclic nitrogen: a pseudoketone, junior to every acid amide, since only a
+    cyclic nitrogen gives a traditional ester (P-65.6.3.4)."""
+    return any(
+        b.GetBondTypeAsDouble() == 1.0
+        and (oxygen := b.GetOtherAtom(atom)).GetAtomicNum() == 8
+        and oxygen.GetDegree() == 2
+        and any(n.GetAtomicNum() == 7 and not n.IsInRing() and not n.GetIsAromatic() for n in oxygen.GetNeighbors())
+        for b in atom.GetBonds()
+    )
+
+
 def _plain_tree(mol, graph, root, behind):
     """Whether the group starting at carbon `root` holds only carbon, halogen, nitrogen and sp3 oxygen atoms and no
     acid-type carbonyl, so that nothing in it outranks the acid derivative being named; other acid centres and their ligands are tolerated here and ranked
@@ -114,7 +126,7 @@ def _plain_tree(mol, graph, root, behind):
             pass
         elif z != 6 and z not in _HALIDE:
             return False
-        if z == 6 and _senior_carbonyl(atom):
+        if z == 6 and _senior_carbonyl(atom) and not _acyloxy_on_acyclic_nitrogen(atom):
             return False
         stack.extend(graph[index])
     return True
