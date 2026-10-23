@@ -377,13 +377,13 @@ def orientation_key(mol):
 def _locant_key(text):
     digits = ""
     for ch in text:
-        if ch.isdigit():
+        if ch in "0123456789":
             digits += ch
         else:
             break
     rest = text[len(digits):]
     letters = "".join(c for c in rest if c.isalpha())
-    sup = "".join(c for c in rest if c.isdigit())
+    sup = "".join(c for c in rest if c in "¹²³").translate(str.maketrans("¹²³", "123"))
     return int(digits), letters, int(sup) if sup else 0
 
 
