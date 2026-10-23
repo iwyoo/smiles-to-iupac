@@ -1547,3 +1547,7 @@ def test_spiro_atom_of_a_fused_ring_with_other_saturated_positions_is_not_named(
 def test_bridge_with_a_substituent_is_not_named():
     with pytest.raises(RuleUndefinedStructure):
         smiles_to_iupac(_modified_fullerene(_FULLERENE_C60_SMILES, attached=[((1, 7), "[Xe:1]C(Cl)C[Xe:2]")]))
+
+
+def test_arene_bridged_macrocycle_with_a_ring_heteroatom_and_a_suffix_group_is_a_von_baeyer_lactam():
+    assert smiles_to_iupac("O=C1CCCCc2cccc(c2)CCCCN1") == "6-azabicyclo[10.3.1]hexadeca-1(16),12,14-trien-7-one"
