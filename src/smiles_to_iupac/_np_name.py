@@ -318,13 +318,47 @@ def alkyl_count(cand, view, groups, bridge_locants=()):
 
 
 def principal_groups_left_outside(mol, classes, principal, mapped=frozenset()):
-    """True when a group of the principal class or a senior one sits outside the parent (P-44.1.1.2, maximum number)."""
+    """True when another parent would carry more of the principal class or a senior one than this parent, or as many
+    on a ring (P-44.1.1.2 maximum number; P-44.1.2.2 a ring is senior to a chain)."""
     senior = _SENIORITY if principal is None else _SENIORITY[: _SENIORITY.index(principal) + 1]
+    components = None
     for cls in senior:
         smarts = _COUNTED.get(cls)
         if smarts is None:
             continue
-        total = sum(1 for match in mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)) if not mapped.issuperset(match))
-        if total > len(classes.get(cls, [])):
+        found = [m for m in mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)) if not mapped.issuperset(m)]
+        inside = len(classes.get(cls, []))
+        if len(found) <= inside:
+            continue
+        pure = [m for m in found if not mapped.intersection(m)]
+        if len(found) - len(pure) > inside:
+            return True
+        if components is None:
+            components = _outside_components(mol, mapped)
+        per_component = Counter(components[m[0]][0] for m in pure)
+        best = max(per_component.values())
+        if best > inside or (best == inside and any(components[m[0]][1] for m in pure if per_component[components[m[0]][0]] == best)):
             return True
     return False
+
+
+def _outside_components(mol, mapped):
+    """{atom outside `mapped`: (component number, whether the component holds a ring atom)}."""
+    seen = {}
+    for start in range(mol.GetNumAtoms()):
+        if start in mapped or start in seen:
+            continue
+        stack, atoms = [start], []
+        seen[start] = None
+        while stack:
+            atom = stack.pop()
+            atoms.append(atom)
+            for neighbour in mol.GetAtomWithIdx(atom).GetNeighbors():
+                index = neighbour.GetIdx()
+                if index not in mapped and index not in seen:
+                    seen[index] = None
+                    stack.append(index)
+        ring = any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms)
+        for a in atoms:
+            seen[a] = (start, ring)
+    return seen
