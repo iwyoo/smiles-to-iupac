@@ -260,3 +260,12 @@ def test_spiro_on_a_skeleton_that_is_not_a_ring_system_is_named_substitutively()
 def test_spiro_ring_on_a_parent_with_ene_endings(smiles, expected):
     # P-101.5.3, P-24.5: the ene endings of the primed component carry primed locants
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles, expected", [
+    ('CC(=O)N1CCc2ccccc2[C@H]1c1ccccc1', '1-[(1R)-1-phenyl-3,4-dihydroisoquinolin-2(1H)-yl]ethan-1-one'),
+    ('CC(=O)N1CCc2cc(OC)c(OC)cc2[C@H]1Cc1ccccc1', '1-[(1R)-1-benzyl-6,7-dimethoxy-3,4-dihydroisoquinolin-2(1H)-yl]ethan-1-one'),
+])
+def test_ordinary_ring_system_with_an_aromatic_ring_is_not_a_seco_or_bridged_natural_product(smiles, expected):
+    # P-101.2.0: a structure that the systematic rules name is not given a semisystematic parent
+    assert smiles_to_iupac(smiles) == expected
