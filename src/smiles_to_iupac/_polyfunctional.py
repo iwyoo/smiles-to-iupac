@@ -2885,10 +2885,19 @@ def _groups_on_parent(mol, groups, parent_atoms):
         found = _group_of(mol, atom)
         return found is not None and found[1] == group
 
+    def suffix_carbon_on_parent(group):
+        carbons = {n.GetIdx() for a in group for n in mol.GetAtomWithIdx(a).GetNeighbors()} - group
+        return any(
+            group <= {n.GetIdx() for n in mol.GetAtomWithIdx(c).GetNeighbors()}
+            and any(n.GetIdx() in parent_atoms for n in mol.GetAtomWithIdx(c).GetNeighbors())
+            for c in carbons
+        )
+
     return [
         group
         for group in groups
-        if any(
+        if suffix_carbon_on_parent(group)
+        or any(
             a in parent_atoms
             or any(n.GetIdx() in parent_atoms and carries(n.GetIdx(), group) for n in mol.GetAtomWithIdx(a).GetNeighbors())
             for a in group
