@@ -2905,3 +2905,16 @@ def test_functional_modifier_names_of_imine_derivatives(smiles, expected):
 
 def test_three_halogens_on_nitrogen_are_an_amide_of_a_halogen_acid():
     assert smiles_to_iupac("ClN(Cl)Cl") == "dichlorohypochlorous amide"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(=NCCN)N1CCCCC1", "2-{[1-(piperidin-1-yl)ethylidene]amino}ethan-1-amine"),
+        ("CC(=NC(=O)C)N1CCCCC1", "N-[1-(piperidin-1-yl)ethylidene]acetamide"),
+        ("CN=C(NS(=O)(=O)c1ccccc1)N1CCCCC1", "N-(N-methylpiperidine-1-carboximidoyl)benzenesulfonamide"),
+    ],
+)
+def test_ring_nitrogen_amidine_is_a_prefix_beside_a_senior_group(smiles, expected):
+    # P-41, P-62.3.1.2: amines and amides outrank the imine form of an amidine with a ring nitrogen
+    assert smiles_to_iupac(smiles) == expected
