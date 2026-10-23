@@ -2423,3 +2423,9 @@ def test_ring_n_oxide_is_the_parent_of_a_cationic_prefix(smiles, expected):
 )
 def test_ylidene_on_the_nitrogen_cation_of_an_unsaturated_ring(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_spiro_ring_system_on_an_aromatic_ring_cation_is_a_substituent_of_the_cation():
+    # P-24.5, P-73.1.1.2, P-29.2: the spiro system is numbered without the aromatic ring of the cation
+    smiles = "C[n+]1ccccc1-c1ccc2c(c1)C1(CCCC1)CC2"
+    assert smiles_to_iupac(smiles) == "2-[2′,3′-dihydrospiro[cyclopentane-1,1′-inden]-6′-yl]-1-methylpyridin-1-ium"

@@ -935,12 +935,30 @@ def _spiro_descriptor(mol, locant_of, name):
     return f"({','.join(text for _, text in cited)})-{name}"
 
 
+def _without_aromaticity_outside(mol, atoms):
+    """`mol` with the aromatic bonds and atoms outside the ring system `atoms` made plain: a ring of a cation read with its
+    charge removed has no Kekule structure, and nothing outside the system is numbered here."""
+    outside = [b for b in mol.GetBonds() if b.GetIsAromatic() and not (b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms)]
+    if not outside:
+        return mol
+    plain = Chem.RWMol(mol)
+    for bond in outside:
+        edited = plain.GetBondWithIdx(bond.GetIdx())
+        edited.SetIsAromatic(False)
+        edited.SetBondType(Chem.BondType.SINGLE)
+    for atom in plain.GetAtoms():
+        if atom.GetIdx() not in atoms:
+            atom.SetIsAromatic(False)
+    return plain.GetMol()
+
+
 def spiro_union_numberings(mol, graph, skeleton_atoms):
     """Numberings of a spiro union of rings, with its name text for a suffix or free valence, for the engine that
     names ring systems bearing principal characteristic groups."""
     from ._ring_diyl_numbering import SUFFIX_ATOMS, Numbering, _exocyclic_oxo, _locs, _split_hydrogen, _yl
 
     atoms = set(skeleton_atoms)
+    mol = _without_aromaticity_outside(mol, atoms)
     ctx = _analyse(mol, atoms)
     _mark_ambiguous(ctx, "")
     kekule = Chem.Mol(mol)
