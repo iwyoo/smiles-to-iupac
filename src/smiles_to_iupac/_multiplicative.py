@@ -805,6 +805,34 @@ def _name_if_multiplicative(mol, name_function=None):
         return None
     systems, node_of, adj = tree
     core = _peel_acyclic(adj)
+    while len(core) > 2:
+        named = _name_for_core(mol, groups, tree, core, name_function)
+        if named is not None:
+            return named
+        core = _peel_leaf_rings(core)
+    return None
+
+
+def _peel_leaf_rings(core):
+    """`core` without its leaf ring nodes and the acyclic atoms that then dangle: the substituent rings of the units are
+    absorbed into the units, which become the leaves (P-15.3.2)."""
+    remaining = {n: set(v) for n, v in core.items()}
+    leaves = [n for n, v in remaining.items() if n[0] == "R" and len(v) <= 1]
+    queue = list(leaves)
+    while queue:
+        n = queue.pop()
+        if n not in remaining:
+            continue
+        for m in remaining[n]:
+            remaining[m].discard(n)
+            if m[0] == "A" and len(remaining[m]) <= 1:
+                queue.append(m)
+        del remaining[n]
+    return remaining
+
+
+def _name_for_core(mol, groups, tree, core, name_function):
+    systems, node_of, adj = tree
     units = _leaf_units(mol, systems, node_of, core)
     by_key = {}
     for u in units:

@@ -536,12 +536,14 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
 
 
 def ring_pseudoketone_oxygens(mol, ring_atoms):
-    """The oxygens of ring carbonyls bonded to a skeletal heteroatom (lactams, lactones: pseudoketones, P-64.1.2.1(a)),
-    whose names carry added hydrogen that the monocycle namer does not cite."""
+    """The oxygens of ring carbonyls bonded to a skeletal heteroatom (lactams, lactones: pseudoketones, P-64.1.2.1(a)) or
+    on a carbon of a mancude ring, whose names carry added hydrogen that the monocycle namer does not cite."""
     found = set()
     for a in ring_atoms:
         atom = mol.GetAtomWithIdx(a)
-        if atom.GetAtomicNum() != 6 or not any(n.GetIdx() in ring_atoms and n.GetAtomicNum() != 6 for n in atom.GetNeighbors()):
+        if atom.GetAtomicNum() != 6 or not (
+            atom.GetIsAromatic() or any(n.GetIdx() in ring_atoms and n.GetAtomicNum() != 6 for n in atom.GetNeighbors())
+        ):
             continue
         found.update(
             n.GetIdx()
