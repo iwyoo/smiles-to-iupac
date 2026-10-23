@@ -1328,6 +1328,13 @@ def _name_unabridged_body(smiles: str) -> str:
             phane_name = linear_phane_pin(parsed) if glycosyl_token is None else None
             if phane_name is not None and (natural is not None or name_natural_product_ranked(parsed)[0] is not None):
                 return phane_name
+            if natural is not None and operations and has_chain_multiplicative_shape(parsed) and not _has_ionic_centre(parsed):
+                try:
+                    unmodified = name_polyfunctional(parsed)
+                except UnsupportedStructure:
+                    unmodified = None
+                if unmodified is not None:
+                    return unmodified
             if natural is not None and operations <= PREFERRED_OPERATIONS:
                 return natural
             beyond_preferred = natural
