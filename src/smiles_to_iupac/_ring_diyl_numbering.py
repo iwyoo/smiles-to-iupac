@@ -21,7 +21,7 @@ from ._common import (
     unsaturation_suffix,
     von_baeyer_unsaturation_citations,
 )
-from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER
+from ._fusion_name import FUSION_NAME_REQUIRED
 from ._fusion_components import EXCEPTIONS, system_numberings as fusion_system_numberings
 from ._hetero_monocyclic import (
     _ROLE_SEQUENCES,
@@ -1433,8 +1433,6 @@ def system_numberings(mol, graph, rings, skeleton_atoms):
         try:
             return _fused_mancude(mol, skeleton_atoms)
         except UnsupportedStructure:
-            if not PREFER_VON_BAEYER.get():
-                raise
             return _kekule_von_baeyer(mol, skeleton_atoms)
     if is_hydro_fusion_system(mol, skeleton_atoms):
         try:
