@@ -1199,3 +1199,9 @@ def test_stereo_specified_fused_polycycle_is_named_within_the_time_limit():
 def test_oxo_of_a_ring_component_is_a_prefix_with_hydro_prefixes_beside_a_senior_group(smiles, expected):
     # P-41, P-64.1, P-14.7: the ring oxo group is not the principal group of the phane
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_ring_substituents_of_a_fused_system_do_not_enter_its_von_baeyer_numbering():
+    # P-25.3.1.3, P-14.3: a substituent ring joined to the fused system by a single bond is not part of the attached component
+    smiles = "C(Oc1ccccc1)c1nc2c3c(ncn2n1)OC1=C(CCCC1)C3c1ccccc1"
+    assert smiles_to_iupac(smiles) == "2-(phenoxymethyl)-12-phenyl-8,10,11,12-tetrahydro-9H-[1]benzopyrano[3,2-e][1,2,4]triazolo[1,5-c]pyrimidine"
