@@ -813,6 +813,9 @@ def _ring_unit(mol, graph, root, parent, atoms):
     unit = editable.GetMol()
     unit.UpdatePropertyCache(strict=False)
     Chem.GetSymmSSSR(unit)
+    for atom in unit.GetAtoms():
+        if atom.GetIsAromatic() and not atom.IsInRing():
+            atom.SetIsAromatic(False)
     renumber = {old: new for new, old in enumerate(order)}
     unit_graph = {a.GetIdx(): [n.GetIdx() for n in a.GetNeighbors()] for a in unit.GetAtoms()}
     rings, system = _system_of(unit, renumber[root])

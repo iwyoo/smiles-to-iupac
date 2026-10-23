@@ -1231,14 +1231,42 @@ def name_polyfunctional(mol) -> str | None:
     if grouped is not None:
         return _name_ring_group_cation(*grouped)
     center = _ring_center_base(mol)
+    prefix_cations = False
+    if center is None and (zwitterion := _oxide_parent(mol)) is not None:
+        center = _ring_center_base(mol, parent=zwitterion)
+        prefix_cations = center is not None
     if center is not None:
-        with _oxide_stereo_carried(mol, center[0]):
-            return _name_ring_center(*center)
+        token = CATION_PREFIXES.set(prefix_cations)
+        try:
+            with _oxide_stereo_carried(mol, center[0]):
+                return _name_ring_center(*center)
+        finally:
+            CATION_PREFIXES.reset(token)
     carbocation = _carbocation_base(mol)
     if carbocation is not None:
         base, atom = carbocation
         return _name_labelled(base, {}, lambda name, placed: _ylium_inserted(name, base, atom, placed))
     return _name_labelled(mol, {})
+
+
+def _oxide_of(mol, atom, nitrogen):
+    return (
+        atom.GetAtomicNum() == 8
+        and atom.GetFormalCharge() == -1
+        and atom.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen) is not None
+    )
+
+
+def _oxide_parent(mol):
+    """The ring nitrogen of the only N-oxide of a molecule with further cations: a zwitterion outranks a cation, whose
+    ring or chain is cited as a prefix (P-73.6)."""
+    oxidised = [
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1 and any(_oxide_of(mol, n, a.GetIdx()) for n in a.GetNeighbors())
+    ]
+    return oxidised[0] if len(oxidised) == 1 else None
 
 
 def _ring_center_base(mol, parent=None):
@@ -1259,7 +1287,7 @@ def _ring_center_base(mol, parent=None):
         and not (anionic_parent and _cationic_prefix_nitrogen(a))
     ]
     if parent is not None:
-        charged = [a for a in charged if a.GetIdx() == parent]
+        charged = [a for a in charged if a.GetIdx() == parent or _oxide_of(mol, a, parent)]
     chalcogen_centers = [a for a in charged if _is_chalcogenium_ring_centre(a)]
     if len(charged) == 1 and chalcogen_centers:
         return _chalcogenium_base(mol, chalcogen_centers[0])
