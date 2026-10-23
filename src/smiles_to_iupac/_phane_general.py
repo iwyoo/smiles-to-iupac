@@ -637,9 +637,9 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     suffix_class, suffix_roots = _principal_suffix(mol, phane.branches) if free_atom is None else (None, frozenset())
-    for owner, root, atoms in phane.branches:
-        if root not in suffix_roots and _is_aromatic_ring_oxo(mol, owner, root, atoms):
-            raise UnsupportedStructure("an oxo prefix on a ring component of a phane is not supported")
+    oxo_roots = {
+        root for owner, root, atoms in phane.branches if root not in suffix_roots and _is_aromatic_ring_oxo(mol, owner, root, atoms)
+    }
     valence = len(_free_atoms(free_atom))
     best = None
     for skeleton in phane.skeleton:
@@ -648,6 +648,9 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
             best = result
     _, skeleton_name, position, chosen, subs, free_locs, added_loc, ih_locs, hetero, bonds, hydro_locs, descriptors, added_hydrogens = best
     suffix_locs = sorted((loc for loc, _, root in subs if root in suffix_roots), key=int)
+    if oxo_roots:
+        hydro_locs = [*hydro_locs, *(loc for loc, _, root in subs if root in oxo_roots), *added_hydrogens]
+        added_hydrogens = []
     grouped = {}
     located = {d[3] for d in descriptors}
     context = {
