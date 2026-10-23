@@ -1283,3 +1283,7 @@ def test_nuclide_of_the_carbamoyl_prefix_beside_a_senior_acid(smiles, expected):
 
 def test_isotopic_ring_stereocentre_in_a_cycloalkyl_substituent_on_benzene():
     assert smiles_to_iupac("[2H][C@H]1CCCC1c1ccccc1") == "[(2S)-(2-2H1)cyclopentyl]benzene"
+
+
+def test_five_identical_nuclide_modified_prefixes_are_counted():
+    assert smiles_to_iupac("O=CC([18OH])C([18OH])C([18OH])C([18OH])C[18OH]") == "2,3,4,5,6-pentakis[(18O)hydroxy]hexanal"

@@ -151,7 +151,8 @@ from ._chalcogen_imide import has_chalcogen_imide_shape, name_chalcogen_imide
 from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._acid_groups import acid_group_at
-from ._common import CITE_SKELETAL_LAMBDA, InternalInvariantError, InvalidSmilesError, has_hydrazone_shape, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, phantom_capped, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds, spec_chirality_as_parsed
+from ._numerals import multiplying_prefix
+from ._common import CITE_SKELETAL_LAMBDA,InternalInvariantError, InvalidSmilesError, has_hydrazone_shape, has_simple_imine_shape, has_amide_shape, has_amidine_shape, has_imide_shape, find_carboxylic_acid_carbon, HALOGEN_PREFIXES, adjacency, ISOTOPIC_CIP, STEREO_OVERRIDE, UnsupportedStructure, phantom_capped, genuine_stereo_centres, alphanumerical_name_key, assign_cip_labels, non_single_bonds, spec_chirality_as_parsed
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -949,8 +950,10 @@ def _labelled_namer(namer, oxygens=False):
     return name
 
 
-_MULTIPLIER_VALUE = {"di": 2, "bis": 2, "tri": 3, "tris": 3, "tetra": 4, "tetrakis": 4, "penta": 5, "hexa": 6}
-_MULTIPLIED_GROUP = re.compile(r"(di|bis|tri|tris|tetra|tetrakis|penta|hexa)[\[{(]$")
+_KIS_VALUE = {multiplying_prefix(n, compound=True): n for n in range(2, 21)}
+_MULTIPLIER_VALUE = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6, **_KIS_VALUE}
+_KIS_WORDS = "|".join(sorted(_KIS_VALUE, key=len, reverse=True))
+_MULTIPLIED_GROUP = re.compile(rf"(di|tri|tetra|penta|hexa|{_KIS_WORDS})[\[{{(]$")
 _NUCLIDE_ITEM = re.compile(r"^(\d+)([A-Z][a-z]?)(\d*)$")
 
 
@@ -1496,7 +1499,7 @@ def _override_count(mol) -> int:
     return sum(1 for a in mol.GetAtoms() if a.HasProp(STEREO_OVERRIDE))
 
 
-_MULTIPLIED_GROUP_WORD = re.compile(r"\b(?:bis|tris|tetrakis)\b|(?:bis|tris|tetrakis)(?=[(\[{])|\b(?:di|tri|tetra)[(\[{]")
+_MULTIPLIED_GROUP_WORD = re.compile(rf"\b(?:{_KIS_WORDS})\b|(?:{_KIS_WORDS})(?=[(\[{{])|\b(?:di|tri|tetra)[(\[{{]")
 
 
 def _acid_repeats(name):
