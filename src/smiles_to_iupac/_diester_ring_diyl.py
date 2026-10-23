@@ -778,7 +778,15 @@ def _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order):
     if found is None or found[2] != "ium" or suffix is None or found[1] not in atoms or len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a charged ring atom is not supported in this substituent group yet")
     base, center = found[0], found[1]
-    named = evaluate_skeleton(base, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    from ._substituents import BRANCH_STEREO
+
+    # The unit is renumbered, so descriptors an enclosing name holds by atom index do not apply to it.
+    fresh = BRANCH_STEREO.set(None) if unit is not None else None
+    try:
+        named = evaluate_skeleton(base, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    finally:
+        if fresh is not None:
+            BRANCH_STEREO.reset(fresh)
     if named is None:
         raise UnsupportedStructure("this ring cation has no supported substituent name yet")
     tail = re.search(r"-\d+(?:,\d+)*-(?:di|tri)?yl(?:idene|idyne)?$", named[1])

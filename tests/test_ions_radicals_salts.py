@@ -2397,3 +2397,7 @@ def test_atom_whose_hydride_is_still_a_radical_is_refused_not_overflowed():
 )
 def test_ylidene_ligands_with_aromatic_or_heteroatom_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_double_bond_descriptor_of_a_substituent_beside_a_cationic_ring():
+    assert smiles_to_iupac("C[n+]1ccc(/N=N/[O-])cc1") == "[(E)-(1-methylpyridin-1-ium-4-yl)diazenyl]oxidanide"
