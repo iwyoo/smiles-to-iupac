@@ -1287,3 +1287,7 @@ def test_isotopic_ring_stereocentre_in_a_cycloalkyl_substituent_on_benzene():
 
 def test_five_identical_nuclide_modified_prefixes_are_counted():
     assert smiles_to_iupac("O=CC([18OH])C([18OH])C([18OH])C([18OH])C[18OH]") == "2,3,4,5,6-pentakis[(18O)hydroxy]hexanal"
+
+
+def test_nuclide_of_an_isothiocyanato_prefix_on_a_fused_ring_system():
+    assert smiles_to_iupac("S=C=[15N]c1cccc2ccccc12") == "1-(15N)isothiocyanatonaphthalene"

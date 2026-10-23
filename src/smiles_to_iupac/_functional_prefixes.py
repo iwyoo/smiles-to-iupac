@@ -33,7 +33,7 @@ from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._pin import mark
 from ._retained_acids import is_compound_acyl
-from ._substituents import FORCED_BRANCH_NAMES, _terminal_amide, name_branch
+from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS, _terminal_amide, name_branch
 
 _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
 
@@ -465,7 +465,10 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             record(node, *azoxy_groups[node])
             continue
         if node in pseudohalides:
-            record(node, pseudohalides[node], False)
+            if ISOTOPE_LABELS.get() is not None:
+                record(node, *name_branch(graph, node, parent_of[node], shown, aromatic_atoms, mol=mol))
+            else:
+                record(node, pseudohalides[node], False)
             continue
         if node in ring_entries:
             name, compound = name_branch(graph, node, parent_of[node], shown, aromatic_atoms, mol=mol)
