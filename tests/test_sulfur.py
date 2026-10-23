@@ -941,6 +941,7 @@ def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
         pytest.param("CS(=NC)(=O)n1cccc1", "1-(N-methylmethanesulfonimidoyl)-1H-pyrrole", id="n_substituted_sulfonimidoyl_on_an_aromatic_nitrogen"),
         pytest.param("c1ccccc1S(=S)(=N)NC", "N-methylbenzenesulfonimidothioamide", id="replaced_oxygen_on_a_ring"),
         pytest.param("CS(=O)(=N)NN", "methanesulfonimidohydrazide", id="sulfonimidohydrazide"),
+        pytest.param("CS(=O)(=NC(=O)NC)N(C)C", "N,N-dimethyl-N'-(methylcarbamoyl)methanesulfonimidamide", id="carbamoyl_on_the_imido_nitrogen"),
         pytest.param("CS(=[Se])(=NC)NNC", "N',N''-dimethylmethanesulfonimidoselenohydrazide", id="primes_continue_over_the_hydrazide_and_imido_nitrogens"),
     ],
 )
@@ -1519,3 +1520,15 @@ def test_sulfoxide_descriptor_with_an_amide_on_the_second_chain():
 
 def test_o_sulfonyl_hydroxylamine_is_a_prefix_beside_a_hydroxy_group():
     assert smiles_to_iupac("OCCS(=O)(=O)ON") == "2-[(aminooxy)sulfonyl]ethan-1-ol"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(=O)ON(C)S(=O)(=O)C", "N-(acetyloxy)-N-methylmethanesulfonamide"),
+        ("NS(=O)(=O)N(C)OC(C)=O", "N-(acetyloxy)-N-methylsulfuric diamide"),
+    ],
+)
+def test_acyloxy_on_the_nitrogen_of_a_sulfur_acid_amide_is_a_prefix(smiles, expected):
+    # P-65.6.3.4: acyl-O-N on an acyclic nitrogen is a pseudoketone, junior to the amide
+    assert smiles_to_iupac(smiles) == expected

@@ -684,7 +684,11 @@ def _sulfonyl_group(mol, s_idx, attached):
         if n.GetAtomicNum() == 7
         and not n.GetFormalCharge()
         and mol.GetBondBetweenAtoms(s_idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
-        and all(m.GetIdx() == s_idx or (m.GetAtomicNum() == 6 and not is_functional_carbon(mol, m.GetIdx())) for m in n.GetNeighbors())
+        and all(
+            m.GetIdx() == s_idx
+            or (m.GetAtomicNum() == 6 and (not is_functional_carbon(mol, m.GetIdx()) or _acyl_chalcogen(mol, m.GetIdx()) is not None))
+            for m in n.GetNeighbors()
+        )
     ]
     replaced = [
         n.GetIdx()
@@ -868,8 +872,16 @@ def _acyloxy_amine_oxygen(mol, oxygen, carbon):
     if len(doubles) > 1 or any(b.GetBondTypeAsDouble() != 2.0 for b in doubles):
         return False
     return all(
-        n.GetIdx() == previous.GetIdx() or n.GetAtomicNum() == 6 or _hydride_chain_group(mol, n, far)
+        n.GetIdx() == previous.GetIdx() or n.GetAtomicNum() == 6 or _sulfonyl_type_centre(mol, n) or _hydride_chain_group(mol, n, far)
         for n in far.GetNeighbors()
+    )
+
+
+def _sulfonyl_type_centre(mol, atom):
+    """A sulfur, selenium or tellurium atom with a terminal oxo group: the acyl-type centre of a sulfonamide or sulfinamide."""
+    return atom.GetAtomicNum() in (16, 34, 52) and any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
     )
 
 
@@ -7307,7 +7319,7 @@ def _acyloxy_lambda_centre_oxygen(oxygen, carbon):
 
 
 _AMIDE_FAMILY = frozenset(
-    {"amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values()}
+    {"amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values(), *_CHALCOGEN_IMIDAMIDE.values()}
 )
 
 
@@ -7317,7 +7329,10 @@ def _nitrogen_acyl(mol, carbon):
     atom = mol.GetAtomWithIdx(carbon)
     return not any(
         (n.GetAtomicNum() not in (6, 7) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0)
-        or (n.GetAtomicNum() == 7 and any(b.GetBondTypeAsDouble() != 1.0 for b in n.GetBonds()))
+        or (
+            n.GetAtomicNum() == 7
+            and any(b.GetBondTypeAsDouble() != 1.0 and b.GetOtherAtom(n).GetAtomicNum() not in (16, 34, 52) for b in n.GetBonds())
+        )
         for n in atom.GetNeighbors()
     )
 
