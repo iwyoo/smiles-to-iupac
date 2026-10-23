@@ -34,7 +34,10 @@ def imidoyl_prefix(mol, graph, root, coming_from):
     if nitrogen.GetFormalCharge() or nitrogen.IsInRing():
         return None
     if rest and (
-        mol.GetAtomWithIdx(rest[0]).GetAtomicNum() != 6
+        not (
+            mol.GetAtomWithIdx(rest[0]).GetAtomicNum() == 6
+            or (mol.GetAtomWithIdx(rest[0]).GetAtomicNum() == 7 and mol.GetAtomWithIdx(rest[0]).IsInRing())
+        )
         or mol.GetBondBetweenAtoms(root, rest[0]).GetBondTypeAsDouble() != 1.0
     ):
         return None

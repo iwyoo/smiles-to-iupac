@@ -579,7 +579,7 @@ def _amidine_ylidene(mol, atom, nitrogen):
     return (
         len(amino) + len(carbon) == len(rest)
         and bool(amino)
-        and all(not n.GetFormalCharge() and not n.IsInRing() and _plain_nitrogen_substituents(mol, n, atom.GetIdx()) for n in amino)
+        and all(not n.GetFormalCharge() and not n.GetIsAromatic() and _plain_nitrogen_substituents(mol, n, atom.GetIdx()) for n in amino)
     )
 
 
