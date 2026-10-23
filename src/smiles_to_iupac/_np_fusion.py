@@ -6,7 +6,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._fused_numbering import _locant_key
-from ._fullerene_fused import _bridged_alicyclic
+from ._fullerene_fused import _bridged_alicyclic, _fused_ring_atoms
 from ._fusion_components import identify, skeleton
 from ._fusion_name import fused_prefix_data
 from ._np_core import loc_key
@@ -117,6 +117,11 @@ def name_fused(comp, cand, view, final, parent_centers, hfaces):
     if path is None or len(path) > 3:
         raise UnsupportedStructure("an added ring that spans more than three skeleton atoms")
     ring = _ring_atoms(set(comp.atoms) | set(path), view)
+    fused = _fused_ring_atoms(view.mol, set(comp.atoms) | set(path), sa, sb)
+    if fused:
+        kept = ring & (fused | {sa, sb})
+        if not any(set(r) & kept and set(r) & (ring - kept) for r in view.mol.GetRingInfo().AtomRings()):
+            ring = kept
     members = sorted(ring)
     index = {a: i for i, a in enumerate(members)}
     sub = _skeleton(members, view)
