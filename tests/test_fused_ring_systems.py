@@ -1181,3 +1181,21 @@ def test_stereo_specified_fused_polycycle_is_named_within_the_time_limit():
         smiles_to_iupac("COC(=O)c1ccc([C@H]2Nc3ccc(C)cc3[C@@H]3CCC[C@@H]23)cc1")
         == "methyl 4-[(3aR,4S,9bR)-8-methyl-2,3,3a,4,5,9b-hexahydro-1H-cyclopenta[c]quinolin-4-yl]benzoate"
     )
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "N#CC1CN(c2ccccc2Nc3cccc4c(NCc5ccccc5)cc(=O)[nH]c34)C1",
+            "4²-oxo-4¹,4²-dihydro-3,5-diaza-4(8,4)-quinolina-1(1)-azetidina-2(1,2),7(1)-dibenzenaheptaphane-1³-carbonitrile",
+        ),
+        (
+            "COC(=O)c1cnn(-c2ccccc2)c1NCCn1nc(C2CC2)ccc1=O",
+            "methyl 2⁶-oxo-2¹,2⁶-dihydro-6¹H-5-aza-2(3,1)-pyridazina-6(5,1)-pyrazola-7(1)-benzena-1(1)-cyclopropanaheptaphane-6⁴-carboxylate",
+        ),
+    ],
+)
+def test_oxo_of_a_ring_component_is_a_prefix_with_hydro_prefixes_beside_a_senior_group(smiles, expected):
+    # P-41, P-64.1, P-14.7: the ring oxo group is not the principal group of the phane
+    assert smiles_to_iupac(smiles) == expected
