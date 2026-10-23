@@ -1,7 +1,8 @@
 """Group 13 to 15 heterones ('boranone', 'dimethylsilanone', 'triphenyl-λ5-phosphanone', 'methyl-λ5-phosphanedione',
 '[(2-methylpropyl)amino]arsanone'; P-61.6, P-64.1.2.2, P-64.4.1, P-74.2.1.4): a mononuclear hydride atom carrying
 terminal =O/=S/=Se/=Te takes the suffix 'one'/'thione'/..., multiplied for several, and a λ label when its total
-valence differs from the standard one. Carbon and amino groups are cited as prefixes; acid amides are left out.
+valence differs from the standard one. Carbon and amino groups are cited as prefixes, and halogens on a centre of
+standard valence; acid amides are left out.
 """
 
 from rdkit import Chem
@@ -25,6 +26,7 @@ _STANDARD_VALENCE = {
     14: 4, 32: 4, 50: 4, 82: 4, 15: 3, 33: 3, 51: 3, 83: 3, 16: 2, 34: 2, 52: 2, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3,
 }
 _YLIDENE_ONLY = {16, 34, 52}
+_HALOGENS = {9, 17, 35, 53}
 _SUFFIX = {8: "one", 16: "thione", 34: "selone", 52: "tellone"}
 _SENIOR = [
     Chem.MolFromSmarts(smarts)
@@ -75,7 +77,9 @@ def _heterone_at(mol, center):
     others = [n for n in center.GetNeighbors() if n.GetIdx() not in {c.GetIdx() for c in chalcogens}]
     amino = [n for n in others if n.GetAtomicNum() == 7]
     oxy = [n for n in others if center.GetAtomicNum() == 5 and _oxy_group(mol, n, center)]
-    if len(others) != sum(n.GetAtomicNum() == 6 for n in others) + len(amino) + len(oxy):
+    standard = center.GetTotalValence() == _STANDARD_VALENCE.get(center.GetAtomicNum())
+    halogens = [n for n in others if standard and n.GetAtomicNum() in _HALOGENS and n.GetDegree() == 1 and not n.GetFormalCharge()]
+    if len(others) != sum(n.GetAtomicNum() == 6 for n in others) + len(amino) + len(oxy) + len(halogens):
         return None
     if amino and len(chalcogens) == 1 and center.GetTotalValence() == 5:
         return None
