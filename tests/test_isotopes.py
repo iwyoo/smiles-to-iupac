@@ -1291,3 +1291,8 @@ def test_five_identical_nuclide_modified_prefixes_are_counted():
 
 def test_nuclide_of_an_isothiocyanato_prefix_on_a_fused_ring_system():
     assert smiles_to_iupac("S=C=[15N]c1cccc2ccccc12") == "1-(15N)isothiocyanatonaphthalene"
+
+
+def test_nuclide_is_cited_whichever_silicon_parent_the_atom_order_tries_first():
+    smiles = "[2H]/C(=C/C[Si](C)(C)C)[Si](C)(C)C"
+    assert smiles_to_iupac(smiles) == "trimethyl[(1Z)-3-(trimethylsilyl)(1-2H)prop-1-en-1-yl]silane"

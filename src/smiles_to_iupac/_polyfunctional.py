@@ -4273,21 +4273,31 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if centers and _ring_outranks_hydrides(mol, centers):
         centers = []
     if centers:
-        named = [
-            (
-                -_hydroxy_suffix_count(n),
-                -_amine_count(n),
-                _PARENT_HYDRIDE_ORDER.index(c.GetAtomicNum()) if c.GetAtomicNum() in _PARENT_HYDRIDE_ORDER else 99,
-                -len(graph[c.GetIdx()]),
-                n,
-                c.GetIdx(),
-            )
-            for c in centers
-            if (n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c))
-        ]
+        from ._substituents import ISOTOPE_LABELS, centre_nuclides
+
+        context = ISOTOPE_LABELS.get()
+        before = set(context["consumed"]) if context else set()
+        named = []
+        for c in centers:
+            if context:
+                context["consumed"] = set(before)
+            if n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c):
+                named.append(
+                    (
+                        -_hydroxy_suffix_count(n),
+                        -_amine_count(n),
+                        _PARENT_HYDRIDE_ORDER.index(c.GetAtomicNum()) if c.GetAtomicNum() in _PARENT_HYDRIDE_ORDER else 99,
+                        -len(graph[c.GetIdx()]),
+                        n,
+                        c.GetIdx(),
+                    )
+                )
+        if context:
+            context["consumed"] = set(before)
         if named:
             *_, name, center = min(named)
-            from ._substituents import centre_nuclides
+            if context:
+                name = _mononuclear_parent(mol, graph, halogens, aromatic_atoms, mol.GetAtomWithIdx(center))
 
             cited = bool(centre_nuclides(center))
             return ((0,), name, (None, None, None, 0, {} if cited else {center: 1}, False))
