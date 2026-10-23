@@ -2401,3 +2401,14 @@ def test_ylidene_ligands_with_aromatic_or_heteroatom_groups(smiles, expected):
 
 def test_double_bond_descriptor_of_a_substituent_beside_a_cationic_ring():
     assert smiles_to_iupac("C[n+]1ccc(/N=N/[O-])cc1") == "[(E)-(1-methylpyridin-1-ium-4-yl)diazenyl]oxidanide"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[O-][n+]1ccccc1-[n+]1ccccc1", "2-(pyridin-1-ium-1-yl)pyridine 1-oxide", id="ring_cation_prefix"),
+        pytest.param("[O-][n+]1ccccc1C[N+](C)(C)C", "2-[(trimethylazaniumyl)methyl]pyridine 1-oxide", id="chain_cation_prefix"),
+    ],
+)
+def test_ring_n_oxide_is_the_parent_of_a_cationic_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
