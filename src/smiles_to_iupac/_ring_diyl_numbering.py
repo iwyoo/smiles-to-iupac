@@ -438,6 +438,7 @@ def _hetero_monocycle(mol, ring_order, attached):
                 exocyclic_double
                 and (aromatic or ring_double)
                 and a.GetAtomicNum() != 6
+                and not (a.GetAtomicNum() == 7 and n.GetAtomicNum() == 6)
                 and a.GetAtomicNum() not in GROUP_13
                 and a.GetIdx() not in heterones
                 and a.GetIdx() not in ylidene_centres
