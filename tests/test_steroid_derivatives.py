@@ -157,3 +157,8 @@ def test_esters_of_different_alkyl_groups_are_cited_alphanumerically_with_locant
 def test_terminal_ester_below_the_principal_group_is_cited_as_alkoxy_and_oxo():
     smiles = "C[C@]12CC[C@H]3[C@@H](CC[C@H]4C[C@@H](C(=O)O)CC[C@]34C)[C@@H]1CC[C@@H]2CC(=O)OC"
     assert smiles_to_iupac(smiles) == "21-methoxy-21-oxo-5α-pregnane-3β-carboxylic acid"
+
+
+def test_suffix_on_an_extra_side_chain_carbon_is_not_located_by_a_superscript_locant():
+    smiles = "CC(C)C(CCC(C)C1CCC2C3CCC4CCCCC4(C)C3CCC12C)C(=O)O"
+    assert smiles_to_iupac(smiles) == "cholestane-24-carboxylic acid"

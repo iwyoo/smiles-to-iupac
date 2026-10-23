@@ -100,6 +100,9 @@ def build(cand, view):
             groups.branches = [b for b in groups.branches if b[1] != chain[1]]
             classes["yl"] = [(chain[0], {chain[1]}, {"anchor": chain[1], "root": chain[1]})]
             principal = "yl"
+    located = [loc for loc, _ in groups.branches] + [loc for members in classes.values() for loc, _, _ in members]
+    if any(isinstance(loc, str) and loc_key(loc)[2] for loc in located):
+        return None  # P-101.7.1.1.3: a superscript locant only identifies an atom, it never locates a substituent
     if principal not in ("yl", "diyl", "ester_o") and principal_groups_left_outside(view.mol, classes, principal, set(cand.mapping.values()) | layout.backbone):
         if any(view.order[frozenset((root, mapping[loc]))] != 1 for loc, root in groups.branches):
             return None
