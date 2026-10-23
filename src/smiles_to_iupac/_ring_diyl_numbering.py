@@ -21,7 +21,7 @@ from ._common import (
     unsaturation_suffix,
     von_baeyer_unsaturation_citations,
 )
-from ._fusion_name import FUSION_NAME_REQUIRED
+from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER
 from ._fusion_components import EXCEPTIONS, system_numberings as fusion_system_numberings
 from ._hetero_monocyclic import (
     _ROLE_SEQUENCES,
@@ -924,6 +924,12 @@ def _von_baeyer(mol, skeleton_atoms):
     return out
 
 
+def _is_bridged_bicycle(mol, skeleton_atoms):
+    """Two rings that share more than the two atoms of an ortho-fusion bond."""
+    rings = [set(ring) for ring in mol.GetRingInfo().AtomRings() if set(ring) <= set(skeleton_atoms)]
+    return len(rings) == 2 and len(rings[0] & rings[1]) > 2
+
+
 def _kekule_von_baeyer(mol, skeleton_atoms):
     """P-52.2.4.1: the von Baeyer numberings of an aromatic ring system that has no preferred fusion name, from each Kekule
     structure of its benzene ring (the double bonds are the 'ene' endings of the von Baeyer name)."""
@@ -1433,6 +1439,8 @@ def system_numberings(mol, graph, rings, skeleton_atoms):
         try:
             return _fused_mancude(mol, skeleton_atoms)
         except UnsupportedStructure:
+            if not PREFER_VON_BAEYER.get() and not _is_bridged_bicycle(mol, skeleton_atoms):
+                raise
             return _kekule_von_baeyer(mol, skeleton_atoms)
     if is_hydro_fusion_system(mol, skeleton_atoms):
         try:
