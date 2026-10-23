@@ -1214,3 +1214,15 @@ def test_multiplied_units_with_nuclides_and_stereo_outside_their_parent_chain(sm
 )
 def test_multiplied_unit_with_enclosing_marks_nests_them(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=c1cc[nH]cc1Cc1c[nH]ccc1=O", "3,3'-methylenedi(pyridin-4(1H)-one)"),
+        ("Cc1[nH]n(-c2ccccc2)c(=O)c1Cc1c(C)[nH]n(-c2ccccc2)c1=O", "4,4'-methylenebis(5-methyl-2-phenyl-1,2-dihydro-3H-pyrazol-3-one)"),
+    ],
+)
+def test_ring_units_with_the_principal_oxo_group_are_multiplied_with_added_hydrogen_and_ring_substituents(smiles, expected):
+    # P-15.3.1.1, P-14.7.2: the substituent ring of a unit is part of the unit
+    assert smiles_to_iupac(smiles) == expected
