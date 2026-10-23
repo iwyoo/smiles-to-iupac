@@ -172,3 +172,8 @@ def test_steroid_ring_parent_wins_a_tie_with_a_hydroxyalkyl_chain_on_the_princip
 def test_double_bond_to_the_extra_side_chain_carbon_takes_a_compound_locant():
     smiles = "C=C(CCC(C)C1CCC2C3CCC4CCCCC4(C)C3CCC12C)C(C)C"
     assert smiles_to_iupac(smiles) == "campest-24(24¹)-ene"
+
+
+def test_ring_closed_through_the_extra_side_chain_carbon_is_a_substituent_of_the_shorter_parent():
+    smiles = "O=C1OC(C(C)C2CCC3C4CCC5CCCCC5(C)C4CCC23C)CC(C)C1C"
+    assert smiles_to_iupac(smiles) == "17-[1-(4,5-dimethyl-6-oxooxan-2-yl)ethyl]androstane"
