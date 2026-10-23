@@ -2412,3 +2412,14 @@ def test_double_bond_descriptor_of_a_substituent_beside_a_cationic_ring():
 )
 def test_ring_n_oxide_is_the_parent_of_a_cationic_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C=[N+]1C=CC=C1", "1-methylidene-1H-pyrrol-1-ium", id="mancude_ring"),
+        pytest.param("C=[N+]1CC=CC1", "1-methylidene-2,5-dihydro-1H-pyrrol-1-ium", id="hydro_ring"),
+    ],
+)
+def test_ylidene_on_the_nitrogen_cation_of_an_unsaturated_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
