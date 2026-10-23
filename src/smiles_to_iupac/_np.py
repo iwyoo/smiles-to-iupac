@@ -175,7 +175,15 @@ def _admissible(cand, view):
         return False
     if any(op[0] == "des" for op in cand.skel.ops) and (len(cand.skel.ops) > 1 or cand.cyclo or cand.replaced):
         return False
-    return True
+    return not any(_seco_cuts_aromatic_ring(cand, view, op) for op in cand.skel.ops)
+
+
+def _seco_cuts_aromatic_ring(cand, view, op):
+    """P-101.2.0: a cleavage that leaves an aromatic ring of the structure as a substituent of its neighbour describes an
+    ordinary ring system, which is named by the systematic rules."""
+    return op[0] == "seco" and any(
+        view.mol.GetAtomWithIdx(cand.mapping[locant]).GetIsAromatic() for locant in op[1:3] if locant in cand.mapping
+    )
 
 
 def _branch_homo_outside_ring(cand, view):

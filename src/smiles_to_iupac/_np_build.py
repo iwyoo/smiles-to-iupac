@@ -30,7 +30,7 @@ from ._np_name import (
     principal_groups_left_outside,
 )
 from ._np_fusion import assign_primes, fusion_text, hydro_texts, indicated_texts, name_fused
-from ._np_rings import bridge_layout, bridge_prefixes, components, name_spiro, split_components
+from ._np_rings import _fused_ok, bridge_layout, bridge_prefixes, components, name_spiro, split_components
 from ._np_text import core_text, locant_pair, op_prefixes, unsaturation
 from ._numerals import multiplying_prefix
 from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
@@ -58,6 +58,18 @@ def nondetachable_cost(cand):
     return len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced)
 
 
+def _bridge_fused_to_aromatic_ring(bridge_comps, cand, view):
+    """P-25.4: a bridge that closes a ring with an aromatic ring of a parent that is no polycycle makes a fused ring system,
+    which is named by fusion and not as a bridged semisystematic parent."""
+    if not bridge_comps or _fused_ok(cand.parent):
+        return False
+    bridge_atoms = set().union(*(comp.atoms for comp in bridge_comps))
+    return any(
+        bridge_atoms & set(ring) and any(view.mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring)
+        for ring in view.mol.GetRingInfo().AtomRings()
+    )
+
+
 def build(cand, view):
     skel, mapping, parent = cand.skel, cand.mapping, cand.parent
     mapped = set(mapping.values())
@@ -70,6 +82,8 @@ def build(cand, view):
         raise UnsupportedStructure("a spiro ring together with other added rings is not supported")
     if spiro_comps and not all(view.mol.GetAtomWithIdx(a).IsInRing() for a in mapped):
         raise UnsupportedStructure("a parent skeleton that is not a ring system is not a spiro component (P-24.5, P-101.5.3)")
+    if _bridge_fused_to_aromatic_ring(bridge_comps, cand, view):
+        return None
     spiro = name_spiro(spiro_comps[0], cand, view) if spiro_comps else None
     parent_prime = ring_prime = ""
     if spiro:
