@@ -695,6 +695,7 @@ def test_imino_plus_amino_different_names_alphabetized():
         pytest.param("CN/C(=N\\C#N)NCC", "(E)-N''-cyano-N-ethyl-N'-methylguanidine", id="configuration_beside_different_amino_groups"),
         pytest.param("CN/C(=N/c1ccccc1)NC", "N,N'-dimethyl-N''-phenylguanidine", id="equal_amino_groups_leave_the_bond_without_configuration"),
         pytest.param("NN/C(=N\\C)NC", "(Z)-N,N'-dimethylhydrazinecarboximidamide", id="configuration_on_a_hydrazinecarboximidamide"),
+        pytest.param("N/C=N/S(=O)C", "N-[(E)-aminomethylidene]methanesulfinamide", id="configuration_of_an_aminomethylidene_on_a_sulfinamide"),
     ],
 )
 def test_n_n_prime_and_related(smiles, expected):
