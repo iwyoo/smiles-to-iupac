@@ -1660,9 +1660,10 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
             for a in amines
         ):
             entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
-            from ._substituents import format_mononuclear_prefixes
+            from ._substituents import _branch_stereo_entries, _branch_stereo_prefix, format_mononuclear_prefixes
 
-            return format_mononuclear_prefixes(entries) + "methylidene", True
+            stereo = _branch_stereo_prefix(_branch_stereo_entries({root: 1}, record=True, parent=coming_from), single_atom=True)
+            return stereo + format_mononuclear_prefixes(entries) + "methylidene", True
     if (
         mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0
         and len(others) == 1
