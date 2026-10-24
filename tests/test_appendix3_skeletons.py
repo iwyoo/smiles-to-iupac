@@ -263,6 +263,11 @@ def test_arms_with_stereo_outside_the_group_keep_the_multiplicative_name():
         # P-101.6.2, P-101.6.3: cis and trans in retinoids and carotenoids
         ("CC1=C(C(CCC1)(C)C)/C=C/C(=C/C=C/C(=C/C=O)/C)/C", "all-trans-retinal"),
         ("CC1=C(C(CCC1)(C)C)/C=C/C(=C/C=C\\C(=C\\C=O)\\C)/C", "11-cis-retinal"),
+        # P-101.2.7: retinal is the aldehyde, so a retinoid whose C15 is not CHO is named systematically
+        (
+            "CC(C=CC1=C(C)CCCC1(C)C)=CC=CC(C)=CC(=O)O",
+            "3,7-dimethyl-9-(2,6,6-trimethylcyclohex-1-en-1-yl)nona-2,4,6,8-tetraenoic acid",
+        ),
         (
             "CC1=C(C(C[C@@H](C1)O)(C)C)/C=C/C(=C/C=C/C(=C/C=C/C=C(/C=C/C=C(/C=C/C2=C(C[C@H](CC2(C)C)O)C)\\C)\\C)/C)/C",
             "all-trans-(3R,3′R)-β,β-carotene-3,3′-diol",
