@@ -389,6 +389,8 @@ def _hydride_chain_group(mol, atom, origin):
         return False
     if atom.GetAtomicNum() == 6:
         return not _double_oxygens(mol, atom.GetIdx()) and not is_functional_carbon(mol, atom.GetIdx())
+    if _ring_nitrogen_substituent(mol, atom, origin):
+        return True
     if (
         atom.GetAtomicNum() not in (7, *_CHALCOGEN_RANK, *MONONUCLEAR_HYDRIDES)
         or atom.GetFormalCharge()
@@ -399,9 +401,20 @@ def _hydride_chain_group(mol, atom, origin):
         return False
     return all(
         _plain_ylidene_carbon(mol, atom, n) if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
-        else _hydride_chain_group(mol, n, atom)
+        else (atom.GetAtomicNum() == 7 and _acyl_on_chain_nitrogen(mol, n, atom)) or _hydride_chain_group(mol, n, atom)
         for n in atom.GetNeighbors()
         if n.GetIdx() != origin.GetIdx()
+    )
+
+
+def _acyl_on_chain_nitrogen(mol, carbon, nitrogen):
+    """An acyl carbon on a nitrogen inside a chalcogen chain: the chain joins two acylated nitrogens, which are the units
+    of a multiplicative name (P-15.3.1.1)."""
+    return (
+        carbon.GetAtomicNum() == 6
+        and not carbon.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and bool(_double_oxygens(mol, carbon.GetIdx()))
     )
 
 
@@ -7555,6 +7568,26 @@ def _amino_group_on(mol, atom, nitrogen):
     )
 
 
+def _ring_nitrogen_ylidene_carbon(mol, carbon, nitrogen):
+    """An acyclic carbon doubly bonded to `nitrogen` whose other neighbours are one ring-nitrogen group and plain carbon
+    groups: a '(piperidin-1-yl)methylidene' prefix, since the ring nitrogen cannot be the nitrogen of an amidrazone."""
+    if carbon.GetAtomicNum() != 6 or carbon.IsInRing() or carbon.GetFormalCharge():
+        return False
+    if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 2.0:
+        return False
+    rest = [n for n in carbon.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    ring = [n for n in rest if _ring_nitrogen_substituent(mol, n, carbon)]
+    return len(ring) == 1 and all(
+        n in ring
+        or (
+            n.GetAtomicNum() == 6
+            and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and not is_functional_carbon(mol, n.GetIdx())
+        )
+        for n in rest
+    )
+
+
 def _hydrazide_beta_fits(mol, alpha, beta, carbonyl):
     """Whether `beta` can be the terminal nitrogen of the acyl-NR-NR'R'' group on `alpha`, the other nitrogens of `alpha`
     being amino-type prefixes."""
@@ -7568,6 +7601,9 @@ def _hydrazide_beta_fits(mol, alpha, beta, carbonyl):
             if (nitrogen is beta and _carbamoyl_on(mol, n, nitrogen)) or _cyano_on(mol, n, nitrogen):
                 continue
             if _heteroatom_on_nitrogen(mol, n, nitrogen) or (nitrogen is alpha and _amino_group_on(mol, n, nitrogen)):
+                continue
+            if nitrogen is beta and _ring_nitrogen_ylidene_carbon(mol, n, nitrogen):
+                orders.append(2.0)
                 continue
             if n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
                 return False

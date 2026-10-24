@@ -741,7 +741,7 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     modified = any(_chalcogen_modified(mol, l) for l in hub_links)
     if not pendants and (
         (any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 for l in hub_links) and not modified)
-        or any(_free_acid_hydroxyl(mol, a) for c in centers for a in acid_atoms[c])
+        or (not modified and any(_free_acid_hydroxyl(mol, a) for c in centers for a in acid_atoms[c]))
     ):
         return None
     hydroxyls = {sum(_free_acid_hydroxyl(mol, a) for a in acid_atoms[c]) for c in centers}

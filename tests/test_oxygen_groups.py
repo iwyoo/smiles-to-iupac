@@ -254,6 +254,7 @@ def test_mixed_anhydride_with_an_amino_acid_component(smiles, expected):
         pytest.param("COC(=O)OC", "dimethyl carbonate", id="dimethyl_carbonate"),
         pytest.param("COC(=O)O", "methyl hydrogen carbonate", id="methyl_hydrogen_carbonate"),
         pytest.param("OC(=O)OCCOC(=O)O", "ethane-1,2-diyl bis(hydrogen carbonate)", id="multiplicative_hydrogen_carbonate"),
+        pytest.param("OC(=O)SCCSC(=O)O", "S,S\u2032-ethane-1,2-diyl bis(hydrogen carbonothioate)", id="multiplicative_hydrogen_carbonothioate"),
         pytest.param("OC(=O)OCCOC(C)=O", "ethane-1,2-diyl acetate hydrogen carbonate", id="hydrogen_carbonate_beside_another_anion"),
         pytest.param("COC(=O)[O-].[Na+]", "sodium methyl carbonate", id="salt_of_a_monoester"),
         pytest.param("COC(=O)[O-].[Ca+2].COC(=O)[O-]", "calcium bis(methyl carbonate)", id="multiplied_monoester_anion"),
