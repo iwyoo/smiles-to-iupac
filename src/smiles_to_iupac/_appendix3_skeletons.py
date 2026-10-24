@@ -208,6 +208,11 @@ class Skeleton:
         self.systems = _systems(query.GetRingInfo().AtomRings())
         self.elements = Counter(a.GetAtomicNum() for a in query.GetAtoms())
         self.terminals = {self.labels[a.GetIdx()] for a in query.GetAtoms() if not a.IsInRing() and a.GetDegree() == 1}
+        self.aldehydes = [
+            (o.GetIdx(), o.GetNeighbors()[0].GetIdx())
+            for o in query.GetAtoms()
+            if o.GetAtomicNum() == 8 and o.GetDegree() == 1 and o.GetNeighbors()[0].GetDegree() == 2
+        ]
         self.mancude = bool(re.search(r"\dH[,-]", name))
         self.forms = [
             {(self._pair(a, b), order) for (a, b), order in form}
@@ -322,8 +327,18 @@ def _candidates(skeleton, mol, flat):
             for q in skeleton.query.GetAtoms()
         ):
             continue
+        if not all(_aldehyde_intact(mol, match, o, c) for o, c in skeleton.aldehydes):
+            continue
         found.append({skeleton.labels[q]: match[q] for q in range(len(match))})
     return found
+
+
+def _aldehyde_intact(mol, match, oxygen, carbon):
+    """P-101.2.7, Table 10.1 (c): 'retinal' names the aldehyde, so a parent that ends in -CHO is not matched by a group
+    that edits that carbon (acid, ester, alcohol, halide)."""
+    o, c = mol.GetAtomWithIdx(match[oxygen]), mol.GetAtomWithIdx(match[carbon])
+    bond = mol.GetBondBetweenAtoms(o.GetIdx(), c.GetIdx())
+    return bond.GetBondTypeAsDouble() == 2.0 and o.GetDegree() == 1 and c.GetDegree() == 2
 
 
 def _short_alkyl_on_terminal_segment(skeleton, mol, mapping, branches):
