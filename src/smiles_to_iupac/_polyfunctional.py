@@ -5633,6 +5633,9 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             named = _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, [*amine_nitrogens, *primary_nitrogens])
             if named is not None:
                 return named
+            named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, [*amine_nitrogens, *primary_nitrogens])
+            if named is not None:
+                return named
             if _share_chain_backbone(mol, graph, [*amine_nitrogens, *primary_nitrogens]) and _longest_chain_joins_one_substituted_amine(
                 mol, graph, amine_nitrogens, primary_nitrogens
             ):
@@ -5974,23 +5977,48 @@ def _chain_backbone_groups(mol, graph, nitrogens):
     return groups
 
 
+def _ring_backbone_groups(mol, graph, nitrogens):
+    """`nitrogens` grouped by the ring system they are bonded to: the amino groups one ring system can carry as suffixes."""
+    systems = []
+    for ring in map(set, mol.GetRingInfo().AtomRings()):
+        merged = [system for system in systems if system & ring]
+        for system in merged:
+            systems.remove(system)
+            ring |= system
+        systems.append(ring)
+    groups = []
+    for system in systems:
+        group = [n for n in nitrogens if not n.IsInRing() and any(c in system for c in graph[n.GetIdx()])]
+        if group:
+            groups.append(group)
+    return groups
+
+
 def _share_chain_backbone(mol, graph, nitrogens):
     return any(len(group) > 1 for group in _chain_backbone_groups(mol, graph, nitrogens))
 
 
 def _largest_backbone_polyamine(mol, graph, halogens, aromatic_atoms, amine_nitrogens):
     """Amines on several backbones: the backbone with the most amine groups gives the polyamine parent (P-44.1.1) and the
-    amines on the others are amino prefixes of the N-substituents (P-62.2.2); of equally large backbones the senior
-    parent is chosen (P-62.2.4.1.3). None unless a single backbone holds a part of the amines."""
-    groups = _chain_backbone_groups(mol, graph, amine_nitrogens)
-    most = max((len(group) for group in groups), default=0)
+    amines on the others are amino prefixes of the N-substituents (P-62.2.2); of equally large backbones a ring system
+    is preferred to a chain (P-44.1.2.2), then the senior parent is chosen (P-62.2.4.1.3). None unless a single backbone
+    holds a part of the amines."""
+    groups = [
+        *((False, group) for group in _chain_backbone_groups(mol, graph, amine_nitrogens)),
+        *((True, group) for group in _ring_backbone_groups(mol, graph, amine_nitrogens)),
+    ]
+    most = max((len(group) for _, group in groups), default=0)
     if most < 2 or most == len(amine_nitrogens):
         return None
     named = [
-        _backbone_polyamine(mol, graph, halogens, aromatic_atoms, group) for group in groups if len(group) == most
+        (ring, _backbone_polyamine(mol, graph, halogens, aromatic_atoms, group))
+        for ring, group in groups
+        if len(group) == most
     ]
-    named = [result for result in named if result is not None]
-    return min(named, key=_by_parent_then_prefix_count) if named else None
+    named = [(ring, result) for ring, result in named if result is not None]
+    if not named:
+        return None
+    return min(named, key=lambda item: (not item[0], item[1][0] if item[0] else _by_parent_then_prefix_count(item[1])))[1]
 
 
 def _by_parent_then_prefix_count(result):

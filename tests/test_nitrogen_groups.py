@@ -122,6 +122,11 @@ def test_phenyl_chain_amidine_ring_halogen():
         pytest.param("CNCc1nc(Br)ccc1N", "6-bromo-2-[(methylamino)methyl]pyridin-3-amine", id="halogenated_pyridine_amine_with_a_secondary_amine_prefix"),
         pytest.param("CNc1cccnc1N", "N3-methylpyridine-2,3-diamine", id="secondary_amine_nitrogen_on_the_ring_is_a_principal_group"),
         pytest.param("NCCNCc1ccccn1", "N1-[(pyridin-2-yl)methyl]ethane-1,2-diamine", id="chain_diamine_beats_a_ring_with_one_amine"),
+        pytest.param(
+            "CNc1ccccc1CNc1ccccc1N",
+            "N1-{[2-(methylamino)phenyl]methyl}benzene-1,2-diamine",
+            id="ring_diamine_beats_a_ring_and_a_chain_with_one_amine_each",
+        ),
         pytest.param("Nc1ccc2ccccc2c1CNC", "1-[(methylamino)methyl]naphthalen-2-amine", id="fused_ring_amine_with_a_secondary_amine_prefix"),
         pytest.param(
             "CNC(=C[N+](=O)[O-])NCCSCc1ccc(CN(C)C)o1",
