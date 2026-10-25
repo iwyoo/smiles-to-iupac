@@ -16,6 +16,8 @@ from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS, name_branch
 def _acyl_roots(mol, nitrogen, carbon_chalcogens=(8,)):
     """Neighbours of `nitrogen` that are the carbon of an acyl group whose double bond goes to one of `carbon_chalcogens`
     or the sulfur of a sulfonyl or sulfinyl group."""
+    from ._polyfunctional import _ring_nitrogen_substituent
+
     roots = []
     for n in nitrogen.GetNeighbors():
         if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 or n.IsInRing():
@@ -27,7 +29,9 @@ def _acyl_roots(mol, nitrogen, carbon_chalcogens=(8,)):
         if n.GetAtomicNum() == 6 and len(doubly) == 1:
             if (not rest and n.GetTotalNumHs() == 1) or (len(rest) == 1 and rest[0].GetAtomicNum() == 6):
                 roots.append(n.GetIdx())
-        elif n.GetAtomicNum() == 16 and len(doubly) in (1, 2) and len(rest) == 1 and rest[0].GetAtomicNum() == 6:
+        elif n.GetAtomicNum() == 16 and len(doubly) in (1, 2) and len(rest) == 1 and (
+            rest[0].GetAtomicNum() == 6 or _ring_nitrogen_substituent(mol, rest[0], n)
+        ):
             roots.append(n.GetIdx())
     return roots
 

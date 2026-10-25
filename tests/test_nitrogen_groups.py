@@ -953,6 +953,7 @@ def test_phenyl_o_substituent():
         pytest.param("CC(=O)N(c1ccc2ccccc2c1)C(=O)c1ccccc1", "N-acetyl-N-(naphthalen-2-yl)benzamide", id="acylamine_with_aryl"),
         pytest.param("CS(=O)(=O)NS(C)(=O)=O", "N-(methanesulfonyl)methanesulfonamide", id="disulfonylamine"),
         pytest.param("CS(=O)(=O)NC(C)=O", "N-(methanesulfonyl)acetamide", id="carboxamide_senior_to_sulfonamide"),
+        pytest.param("CC(=O)NS(=O)N1CCCC1", "N-[(pyrrolidin-1-yl)sulfinyl]acetamide", id="ring_nitrogen_on_a_sulfinyl_acyl_group"),
         pytest.param("CCS(=O)NC(C)=O", "N-(ethanesulfinyl)acetamide", id="carboxamide_senior_to_sulfinamide"),
         pytest.param("CS(=O)NS(C)(=O)=O", "N-(methanesulfinyl)methanesulfonamide", id="sulfonamide_senior_to_sulfinamide"),
         pytest.param("CS(=O)N(C(C)=O)C(C)=O", "N-acetyl-N-(methanesulfinyl)acetamide", id="sulfinyl_beside_two_carboxyl_acyls"),
