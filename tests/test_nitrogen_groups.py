@@ -1507,6 +1507,14 @@ def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expe
         pytest.param("CC(=O)N/N=C1/CCCCC1C", "N'-[(1Z)-2-methylcyclohexylidene]acetohydrazide", id="ring_acylhydrazone"),
         pytest.param("c1ccccc1N/N=C1/CCCCC1C", "[(1Z)-2-methylcyclohexylidene](phenyl)hydrazine", id="ring_phenylhydrazone"),
         pytest.param("CNC(=O)NNC", "N,2-dimethylhydrazine-1-carboxamide", id="substituted_semicarbazide"),
+        pytest.param(
+            "NC(=O)NNC(=S)NCCO",
+            "2-[(2-hydroxyethyl)carbamothioyl]hydrazine-1-carboxamide",
+            id="group_junior_to_the_amide_on_the_nitrogen_of_the_carbamothioyl_prefix",
+        ),
+        pytest.param(
+            "CC(=O)NC(C)=NOC", "N-(N-methoxyethanimidoyl)acetamide", id="alkoxy_on_the_nitrogen_of_an_imidoyl_prefix_of_an_amide"
+        ),
         pytest.param("CC=NNC(=O)c1ccccc1", "N'-ethylidenebenzohydrazide", id="acylhydrazone"),
         pytest.param("O=C(NN=Cc1ccccc1)c1ccncc1", "N'-benzylidenepyridine-4-carbohydrazide", id="ring_carbohydrazide_hydrazone"),
         pytest.param("CC(=O)N(c1ccccc1)Nc1ccccc1", "N,N'-diphenylacetohydrazide", id="n_and_n_prime_substituents"),

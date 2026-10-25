@@ -535,6 +535,8 @@ def _hydrazine_dicarboxamide(mol, graph, found, nitro):
     core = set()
     for nitrogen, (carbon, amide) in found:
         core |= {nitrogen.GetIdx(), carbon.GetIdx(), amide.GetIdx(), _carbonyl_chalcogen(carbon).GetIdx()}
+    if has_group_senior_to_urea(mol, core | {carbon.GetIdx() for _, (carbon, _) in found}):
+        return None
     elements = [_carbonyl_chalcogen(carbon).GetAtomicNum() for _, (carbon, _) in found]
     senior = min(range(2), key=lambda i: elements[i])
     mixed = elements[0] != elements[1]
@@ -552,7 +554,7 @@ def _hydrazine_dicarboxamide(mol, graph, found, nitro):
                 arm = _arm_atoms(graph, root, atom.GetIdx())
                 if atom.GetIdx() in arm or covered & arm or core & arm:
                     return None
-                if any(mol.GetAtomWithIdx(i).GetAtomicNum() not in _CARBON_AND_HALOGEN and i not in nitro for i in arm):
+                if any(mol.GetAtomWithIdx(i).GetAtomicNum() not in _UREA_SUBSTITUENT_ELEMENTS and i not in nitro for i in arm):
                     return None
                 covered |= arm
                 names.append(name_branch(graph, root, atom.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True))

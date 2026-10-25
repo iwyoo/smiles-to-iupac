@@ -43,7 +43,7 @@ def imidoyl_prefix(mol, graph, root, coming_from):
         return None
     if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (1, 6, 7, 8) for n in graph[imino[0]] if n != root):
         return None
-    if any(
+    if mol.GetAtomWithIdx(coming_from).GetAtomicNum() != 7 and any(
         mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() > 1
         for n in graph[imino[0]]
         if n != root
