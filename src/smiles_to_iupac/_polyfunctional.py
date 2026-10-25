@@ -442,7 +442,7 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
     if len(imino) != 1 or len(rest) > 1 or imino[0].GetAtomicNum() != 7 or imino[0].GetFormalCharge() or imino[0].IsInRing():
         return False
     if atom.GetTotalNumHs() != (0 if rest else 1) or not (
-        _plain_nitrogen_substituents(mol, imino[0], atom.GetIdx())
+        _imidoyl_nitrogen_substituents(mol, imino[0], atom.GetIdx())
         or _amino_hydrazone_nitrogen(mol, imino[0], atom.GetIdx())
         or _oximino_nitrogen(mol, imino[0], atom.GetIdx())
     ):
@@ -454,6 +454,21 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
         rest[0].GetAtomicNum() == 7 and not rest[0].GetFormalCharge() and not rest[0].GetIsAromatic()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
         and _carbamimidoyl_nitrogen_substituents(mol, rest[0], atom.GetIdx())
+    )
+
+
+def _imidoyl_nitrogen_substituents(mol, nitrogen, origin):
+    """Whether every neighbour of `nitrogen` other than `origin` is a plain carbon group or a further imidoyl group
+    (the N-imidoylimidoyl prefix, P-66.4.1.3)."""
+    return all(
+        (
+            n.GetAtomicNum() == 6
+            and not is_functional_carbon(mol, n.GetIdx())
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        )
+        or _carbamimidoyl_on(mol, n, nitrogen)
+        for n in nitrogen.GetNeighbors()
+        if n.GetIdx() != origin
     )
 
 
