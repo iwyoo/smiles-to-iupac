@@ -15,6 +15,7 @@ from ._free_valence import SUFFIX_OF_ORDER, attach, suffix_of
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    alpha_sort_key,
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
@@ -168,6 +169,21 @@ def _senior_by_acid(mol, graph, matches, units):
 def select_skeleton(mol, graph, matches):
     """(kind, rings_or_paths, atoms) of the single best ring system or chain, or None when no skeleton carries
     an ester oxygen; raises when several equally ranked units tie (multiplicative/ring-assembly names)."""
+    best = _ranked_units(mol, graph, matches)
+    if best is None:
+        return None
+    if len(best) > 1:
+        raise UnsupportedStructure(
+            "several equally ranked ring/chain units carry the esters (multiplicative or ring-assembly names, "
+            "P-15.3/P-28) -- not handled here"
+        )
+    kind, _, body, atoms = best[0]
+    return kind, body, atoms
+
+
+def _ranked_units(mol, graph, matches):
+    """The skeleton units that carry the most ester oxygens and tie after the seniority criteria of P-44, or None
+    when no skeleton carries one."""
     alcohol = {m[3].GetIdx() for m in matches}
     ring_info = mol.GetRingInfo()
     units = []
@@ -205,13 +221,30 @@ def select_skeleton(mol, graph, matches):
         best = _senior_units(mol, best)
     if len(best) > 1:
         best = _senior_by_acid(mol, graph, matches, best)
-    if len(best) > 1:
-        raise UnsupportedStructure(
-            "several equally ranked ring/chain units carry the esters (multiplicative or ring-assembly names, "
-            "P-15.3/P-28) -- not handled here"
-        )
-    kind, _, body, atoms = best[0]
-    return kind, body, atoms
+    return best
+
+
+def _parent_among_unlike_rings(mol, graph, matches):
+    """P-45.2.1, P-45.2.2: of ring units that carry one ester each and are not equivalent by symmetry, the parent is the
+    one with the most substituent prefixes, then the lower locants, then the earlier name (P-45.5); None when the units
+    are equivalent."""
+    units = _ranked_units(mol, graph, matches)
+    if units is None or len(units) < 2 or any(u[0] != "ring" for u in units):
+        return None
+    ranks = Chem.CanonicalRankAtoms(mol, breakTies=False)
+    if len({frozenset(ranks[m[3].GetIdx()] for m in matches if m[3].GetIdx() in u[3]) for u in units}) == 1:
+        return None
+    results = []
+    for _, _, rings, atoms in units:
+        on = [m for m in matches if m[3].GetIdx() in atoms]
+        result = _best_for_option(mol, graph, "ring", rings, atoms, on)
+        if result is not None:
+            results.append(result)
+    if not results:
+        return None
+    best = min(results, key=lambda result: (result[0], alpha_sort_key(result[1])))
+    skeleton_nuclides({a: p for a, p in best[2].items()})
+    return best[1]
 
 
 def _arm(mol, graph, start, ester_oxygen):
@@ -310,7 +343,11 @@ def name_diester_ring_diyl(mol, matches):
     try:
         selection = select_skeleton(mol, graph, matches)
     except UnsupportedStructure:
-        star = _assembly_diyl_esters(mol, graph, matches) or _star_group(mol, graph, matches)
+        star = (
+            _assembly_diyl_esters(mol, graph, matches)
+            or _star_group(mol, graph, matches)
+            or _parent_among_unlike_rings(mol, graph, matches)
+        )
         if star is None:
             raise
         return star

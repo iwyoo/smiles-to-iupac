@@ -1459,6 +1459,9 @@ def test_ester_end_carbon_joins_the_substituent_chain(smiles, expected):
     [
         ("CC(=O)OCCCC1(C(CCCC1)CCCOC=O)CCCOC(C)=O", "2-[3-(formyloxy)propyl]cyclohexane-1,1-diyldi(propane-3,1-diyl) diacetate"),
         ("CC(=O)OCc1ccc(COC(C)=O)cc1", "1,4-phenylenebis(methylene) diacetate"),
+        ("CC(=O)Oc1ccc(/C=C/c2ccc(OC(C)=O)cc2)cc1", "(1E)-ethene-1,2-diyldi(4,1-phenylene) diacetate"),
+        ("CC(=O)Oc1ccc(CCc2ccccc2OC(C)=O)cc1", "2-{2-[4-(acetyloxy)phenyl]ethyl}phenyl acetate"),
+        ("CC(=O)Oc1ccc(OCCc2ccc(OC(C)=O)cc2)cc1", "4-{2-[4-(acetyloxy)phenoxy]ethyl}phenyl acetate"),
     ],
 )
 def test_diesters_of_a_ring_joined_to_identical_chains(smiles, expected):
