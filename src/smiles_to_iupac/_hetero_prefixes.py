@@ -1579,6 +1579,32 @@ def _carbon_nitrogen_group(mol, nitrogen, oxygen):
     )
 
 
+def azine_nitrogen(mol, nitrogen, origin):
+    """Whether the only other neighbour of `nitrogen` is the nitrogen of an ylideneamino group =N-N=CR2 with plain carbon
+    groups: the (ethylideneamino) end of an amidrazone azine (P-66.4.2)."""
+    others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != origin]
+    if len(others) != 1 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), others[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    far = others[0]
+    ends = [n for n in far.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    return (
+        far.GetAtomicNum() == 7
+        and not far.GetFormalCharge()
+        and not far.IsInRing()
+        and len(ends) == 1
+        and mol.GetBondBetweenAtoms(far.GetIdx(), ends[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+        and ends[0].GetAtomicNum() == 6
+        and not ends[0].IsInRing()
+        and _carbonyl_oxygen(mol, ends[0].GetIdx()) is None
+        and not is_functional_carbon(mol, ends[0].GetIdx())
+        and all(
+            n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx())
+            for n in ends[0].GetNeighbors()
+            if n.GetIdx() != far.GetIdx()
+        )
+    )
+
+
 def _chain_amidine_ylidene(mol, graph, root, coming_from):
     """A carbon joined to `coming_from` by a double bond that carries one plain carbon group and amino groups: the
     ylidene end of a chain, as in '1-aminoethylidene', not an amidine group of its own. `coming_from` may carry a carbon,
@@ -1596,7 +1622,7 @@ def _chain_amidine_ylidene(mol, graph, root, coming_from):
         and not is_functional_carbon(mol, carbons[0].GetIdx())
         and all(
             not a.GetFormalCharge() and mol.GetBondBetweenAtoms(root, a.GetIdx()).GetBondTypeAsDouble() == 1.0
-            and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors() if n.GetIdx() != root)
+            and (all(n.GetAtomicNum() == 6 for n in a.GetNeighbors() if n.GetIdx() != root) or azine_nitrogen(mol, a, root))
             for a in amino
         )
         and all(
