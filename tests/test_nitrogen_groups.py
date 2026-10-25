@@ -2953,3 +2953,8 @@ def test_ring_nitrogen_amidine_is_a_prefix_beside_a_senior_group(smiles, expecte
 )
 def test_chain_of_three_carbonyl_units_joined_through_nitrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_mancude_ring_imine_beside_an_amino_group_on_the_ring_nitrogen():
+    # P-41: the amine outranks the imine, so the ring nitrogen with the amino group takes the suffix
+    assert smiles_to_iupac("NN1C=CSC1=NC") == "2-(methylimino)-1,3-thiazol-3(2H)-amine"
