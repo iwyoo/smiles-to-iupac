@@ -72,7 +72,7 @@ _SENIOR_SULFONYL = [
     )
 ]
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
-_AMINO_ON_RING_NITROGEN = Chem.MolFromSmarts("[NX3H2;!R]-[NX3;R;+0]")
+_AMINO_ON_RING_NITROGEN = Chem.MolFromSmarts("[NX3H2;!R]-[#7X3;R;+0]")
 _PEROXOL = Chem.MolFromSmarts("[O,S,Se,Te;X2H1][O,S,Se,Te;X2H0][#6]")
 
 
