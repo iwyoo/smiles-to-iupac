@@ -986,3 +986,16 @@ def test_charged_prefix_groups_on_phosphonic_acids(smiles, expected):
 )
 def test_unsubstituted_dinuclear_acids_keep_their_retained_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-67.1.3.2, P-65.6.3.2.2: identical C-substituted acid units of phosphorus or arsenic esterified on one diyl component keep 'hydrogen'; unlike distributions of esters over equivalent units are told apart by O and P locants
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CP(=S)(O)OCCOP(=S)(O)C", "ethane-1,2-diyl bis(hydrogen methylphosphonothioate)", id="diyl_of_phosphonothioic_units"),
+        pytest.param("COP(=O)(O)CCP(=O)(O)OC", "O,O′-dimethyl dihydrogen P,P′-(ethane-1,2-diyl)bis(phosphonate)", id="one_ester_on_each_unit"),
+        pytest.param("COP(=O)(OC)CCP(=O)(O)O", "O,O-dimethyl dihydrogen P,P′-(ethane-1,2-diyl)bis(phosphonate)", id="both_esters_on_one_unit"),
+    ],
+)
+def test_organyl_acid_units_of_phosphorus_on_one_component(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

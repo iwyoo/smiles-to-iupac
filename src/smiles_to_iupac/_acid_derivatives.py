@@ -1219,6 +1219,13 @@ def name_ester(mol, links):
                 CITE_SUBSTITUENT_LOCANTS.reset(token)
         else:
             cited = _diphosphate_locants(mol, acid_atoms, per_link, free_centers)
+            if cited is None and not ester_nuclides:
+                located = _unit_locants(mol, acid_atoms, per_link, free_slots)
+                if located is not None:
+                    cited, unit_locants = located
+                    from ._radical_poly import _benzene
+
+                    anion = f"{unit_locants}-{_benzene(anion)}"
     if (
         not cited
         and len({l.center for l, _ in per_link}) > 1
@@ -1267,6 +1274,51 @@ def _ester_locants(mol, acid_atoms, per_link, free_centers):
         symbol = _letters(mol, l)
         cited.setdefault(name, []).append(f"{locants[l.center]}-{symbol}" if symbol else str(locants[l.center]))
     return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in cited.items()}
+
+
+def _unit_locants(mol, acid_atoms, per_link, free_slots):
+    """({organyl name: element-symbol locants}, 'P,P′' locants of the acid units) when equivalent acid units of one
+    multiplied acid carry their organyl groups and free hydroxy groups in more than one way, which the bare name cannot
+    tell apart (P-67.1.3.2: 'S,S′-diethyl O,O′-dimethyl P,P′-(ethane-1,2-diyl)bis(phosphonothioate)'); None when
+    the arrangement is determined."""
+    centers = sorted({l.center for l, _ in per_link} | {c for c, _ in free_slots})
+    if len(centers) < 2 or len({mol.GetAtomWithIdx(c).GetAtomicNum() for c in centers}) != 1:
+        return None
+    slots = [(l.center, l.chain[-1], (name, "".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in l.chain))) for l, name in per_link]
+    slots += [(c, atom, ("", "")) for c, atom in free_slots]
+    if len(slots) <= 6:
+        keep = sorted(acid_atoms)
+        base = Chem.RWMol(mol)
+        for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
+            base.RemoveAtom(idx)
+        ranked = sorted({item for _, _, item in slots})
+        shapes = set()
+        for order in set(itertools.permutations([item for _, _, item in slots])):
+            labelled = Chem.Mol(base)
+            for (_, atom, _), item in zip(slots, order):
+                labelled.GetAtomWithIdx(keep.index(atom)).SetIsotope(1 + ranked.index(item))
+            labelled.UpdatePropertyCache(strict=False)
+            Chem.FastFindRings(labelled)
+            shapes.add(Chem.MolToSmiles(labelled))
+        if len(shapes) == 1:
+            return None
+    symbol = mol.GetAtomWithIdx(centers[0]).GetSymbol()
+    best = None
+    for order in itertools.permutations(centers):
+        rank = {c: i for i, c in enumerate(order)}
+        cited = {}
+        for link, name in per_link:
+            cited.setdefault(name, []).append(
+                "".join(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in link.chain) + "\u2032" * rank[link.center]
+            )
+        cited = {name: sorted(found, key=lambda t: (len(t), t)) for name, found in cited.items()}
+        key = (
+            sorted((len(x), x) for found in cited.values() for x in found),
+            [x for name in sorted(cited, key=alpha_sort_key) for x in cited[name]],
+        )
+        if best is None or key < best[0]:
+            best = (key, cited, ",".join(symbol + "\u2032" * i for i in range(len(order))))
+    return best[1], best[2]
 
 
 def _polycarbonic_locants(mol, acid_atoms, per_link, free):
