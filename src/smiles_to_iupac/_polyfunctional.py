@@ -401,10 +401,17 @@ def _hydride_chain_group(mol, atom, origin):
         return False
     return all(
         _plain_ylidene_carbon(mol, atom, n) if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
-        else (atom.GetAtomicNum() == 7 and _acyl_on_chain_nitrogen(mol, n, atom)) or _hydride_chain_group(mol, n, atom)
+        else (atom.GetAtomicNum() == 7 and _acyl_on_chain_nitrogen(mol, n, atom))
+        or (atom.GetAtomicNum() in _CHALCOGEN_RANK and _halogen_ligand(n))
+        or _hydride_chain_group(mol, n, atom)
         for n in atom.GetNeighbors()
         if n.GetIdx() != origin.GetIdx()
     )
+
+
+def _halogen_ligand(atom):
+    """A terminal neutral halogen atom: the chloro of a chlorooxy group (P-61.3)."""
+    return atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1 and not atom.GetFormalCharge() and not atom.GetIsotope()
 
 
 def _acyl_on_chain_nitrogen(mol, carbon, nitrogen):
