@@ -53,6 +53,7 @@ from ._hetero_prefixes import (
     MONONUCLEAR_HYDRIDES,
     _oxo_or_imino,
     _ring_outranks_centre,
+    azine_nitrogen,
     azoxy_atoms,
     chalcogen_link_is_parent,
     is_functional_carbon,
@@ -451,6 +452,7 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
     if atom.GetTotalNumHs() != (0 if rest else 1) or not (
         _imidoyl_nitrogen_substituents(mol, imino[0], atom.GetIdx())
         or _amino_hydrazone_nitrogen(mol, imino[0], atom.GetIdx())
+        or azine_nitrogen(mol, imino[0], atom.GetIdx())
         or _oximino_nitrogen(mol, imino[0], atom.GetIdx())
     ):
         return False
@@ -623,7 +625,12 @@ def _amidine_ylidene(mol, atom, nitrogen):
     return (
         len(amino) + len(carbon) == len(rest)
         and bool(amino)
-        and all(not n.GetFormalCharge() and not n.GetIsAromatic() and _plain_nitrogen_substituents(mol, n, atom.GetIdx()) for n in amino)
+        and all(
+            not n.GetFormalCharge()
+            and not n.GetIsAromatic()
+            and (_plain_nitrogen_substituents(mol, n, atom.GetIdx()) or azine_nitrogen(mol, n, atom.GetIdx()))
+            for n in amino
+        )
     )
 
 
