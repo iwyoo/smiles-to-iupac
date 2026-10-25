@@ -986,6 +986,28 @@ def _suffix_links(mol, links, keep, cap_of):
     return kept or list(links)
 
 
+def _one_ester_as_suffix(mol, graph, links, acid_atoms):
+    """(links, acid atoms, atoms of the organyl part, acid name) when the acid with every ester of `links` turned into an acid
+    group has no name: one ester is the suffix and the others stay esters, cited as prefixes of the acid (P-65.6.3.2.3);
+    None unless the choice does not change the name."""
+    found = []
+    for l in links:
+        rest = [m for m in links if m is not l]
+        far_sides = [_far_side(graph, m.far, m.chain[-1]) for m in rest]
+        keep = set(acid_atoms).union(*far_sides)
+        organyl = _far_side(graph, l.far, l.chain[-1])
+        if organyl & keep:
+            return None
+        try:
+            found.append((l, keep, organyl, _acid_name(mol, keep, [l.chain[-1]])))
+        except UnsupportedStructure:
+            continue
+    if not found or len({name for *_, name in found}) != 1:
+        return None
+    link, keep, organyl, name = found[0]
+    return [link], sorted(keep), organyl, name
+
+
 def _acid_rank(mol, atoms, links, entering):
     """(ring parent, parent size, substituents cited as prefixes) of the acid component made of `atoms`, in the order of
     P-44.1.2.2, P-44.3 and P-45.2.1; an ester oxygen entering the component counts as an acyloxy prefix."""
@@ -1167,7 +1189,14 @@ def name_ester(mol, links):
             raise UnsupportedStructure("a ring-closing ester is not named part-wise")
         removed |= far_side
     ester_nuclides = _ester_oxygen_nuclides(mol, chosen)
-    acid = _acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen], ester_nuclides)
+    try:
+        acid = _acid_name(mol, acid_atoms, [l.chain[-1] for l in chosen], ester_nuclides)
+    except UnsupportedStructure:
+        reduced = _one_ester_as_suffix(mol, graph, chosen, acid_atoms) if len(chosen) > 1 else None
+        if reduced is None:
+            raise
+        chosen, acid_atoms, removed, acid = reduced
+        ester_nuclides = _ester_oxygen_nuclides(mol, chosen)
     if _other_inorganic_group_is_prefix(mol, acid_atoms, chosen, acid):
         raise UnsupportedStructure("an acid group of the same kind on another part of the skeleton is a prefix of the acid name")
     anion = anion_name(acid, letters_in_anion=False)

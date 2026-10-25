@@ -2940,3 +2940,16 @@ def test_three_halogens_on_nitrogen_are_an_amide_of_a_halogen_acid():
 def test_ring_nitrogen_amidine_is_a_prefix_beside_a_senior_group(smiles, expected):
     # P-41, P-62.3.1.2: amines and amides outrank the imine form of an amidine with a ring nitrogen
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-66.3.1.1, P-66.3.5, P-65.6.3.2.3: carbonyl units joined through hydrazine or amine nitrogens are cited as one acyl prefix on the parent hydrazide, urea or ester
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=O)NNC(=O)NC(=O)NNC(C)=O", "N'-[(2-acetylhydrazine-1-carbonyl)carbamoyl]acetohydrazide", id="chain_through_an_imide_nitrogen"),
+        pytest.param("CNC(=O)NNC(=O)NNC(=O)NC", "N',2-bis(methylcarbamoyl)hydrazine-1-carbohydrazide", id="semicarbazide_ends_on_a_carbonohydrazide"),
+        pytest.param("CCOC(=O)NNC(=O)NNC(=O)OCC", "ethyl 2-[2-(ethoxycarbonyl)hydrazine-1-carbonyl]hydrazine-1-carboxylate", id="second_carbazate_as_a_prefix"),
+    ],
+)
+def test_chain_of_three_carbonyl_units_joined_through_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

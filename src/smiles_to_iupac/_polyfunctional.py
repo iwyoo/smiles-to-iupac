@@ -7533,27 +7533,54 @@ def _carbamoyl_on(mol, atom, nitrogen):
         and not amino[0].GetFormalCharge()
         and not amino[0].IsInRing()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), amino[0].GetIdx()).GetBondTypeAsDouble() == 1.0
-        and (_plain_nitrogen_substituents(mol, amino[0], atom.GetIdx()) or _plain_hydrazinyl(mol, amino[0], atom.GetIdx()))
+        and _acyl_nitrogen_arm(mol, amino[0], atom.GetIdx())
     )
 
 
-def _plain_hydrazinyl(mol, nitrogen, origin):
-    """Whether `nitrogen` is the first nitrogen of a hydrazinyl group whose every substituent is a plain carbon group."""
-    partners = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != origin and n.GetAtomicNum() == 7]
-    if len(partners) != 1:
+def _acyl_nitrogen_arm(mol, nitrogen, origin):
+    """Whether the neutral acyclic `nitrogen` carries, besides `origin`, only plain carbon groups, one further nitrogen that
+    is such an arm in turn (a hydrazinyl group), and acyl groups -C(=X)-R or -C(=X)-NR2 of the same kind: a chain of carbonyl
+    units joined through nitrogen, cited as one prefix."""
+    if nitrogen.GetAtomicNum() != 7 or nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
         return False
-    (partner,) = partners
-    return (
-        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), partner.GetIdx()).GetBondTypeAsDouble() == 1.0
-        and not partner.GetFormalCharge()
-        and not partner.IsInRing()
-        and _plain_nitrogen_substituents(mol, partner, nitrogen.GetIdx())
-        and all(
-            n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx())
-            for n in nitrogen.GetNeighbors()
-            if n.GetIdx() not in (origin, partner.GetIdx())
-        )
-    )
+    partners = 0
+    for n in nitrogen.GetNeighbors():
+        if n.GetIdx() == origin:
+            continue
+        if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            return False
+        if n.GetAtomicNum() == 7:
+            partners += 1
+            if partners > 1 or not _acyl_nitrogen_arm(mol, n, nitrogen.GetIdx()):
+                return False
+        elif n.GetAtomicNum() != 6 or n.GetFormalCharge():
+            return False
+        elif is_functional_carbon(mol, n.GetIdx()) and not _acyl_carbon_arm(mol, n, nitrogen.GetIdx()):
+            return False
+    return True
+
+
+def _acyl_carbon_arm(mol, carbon, origin):
+    """Whether `carbon` is an acyl carbon -C(=X)- (X = O, S, Se, Te) whose other substituents are plain carbon groups or
+    nitrogen arms of `_acyl_nitrogen_arm`."""
+    chalcogens = [
+        n for n in carbon.GetNeighbors()
+        if n.GetAtomicNum() in _CHALCOGEN_RANK and n.GetDegree() == 1 and not n.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(chalcogens) != 1 or carbon.GetDegree() != 3 or carbon.IsInRing():
+        return False
+    for n in carbon.GetNeighbors():
+        if n.GetIdx() in (origin, chalcogens[0].GetIdx()):
+            continue
+        if mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            return False
+        if n.GetAtomicNum() == 7:
+            if not _acyl_nitrogen_arm(mol, n, carbon.GetIdx()):
+                return False
+        elif n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
+            return False
+    return True
 
 
 def _heteroatom_on_nitrogen(mol, atom, nitrogen):

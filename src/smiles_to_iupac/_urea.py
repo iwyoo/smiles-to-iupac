@@ -119,10 +119,10 @@ def _core_extent(mol, atomic_num, core):
     atoms = {carbon_idx, chalcogen_idx, *nitrogens}
     tails = _hydrazine_tails(mol, adjacency(mol), carbon_idx, nitrogens)
     if all(t is not None for t in tails):
-        return atoms | set(tails), frozenset()
+        return atoms | set(tails), _junior_cores(mol, carbon_idx, set(nitrogens))
     amino_idx = _semicarbazide_amino_nitrogen(mol, *nitrogens, carbon_idx)
     if amino_idx is not None:
-        return atoms | {amino_idx}, frozenset()
+        return atoms | {amino_idx}, _junior_cores(mol, carbon_idx, set(nitrogens))
     return atoms, _junior_cores(mol, carbon_idx, set(nitrogens))
 
 
