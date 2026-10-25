@@ -650,13 +650,19 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     parts_atoms = [a for _, _, a in arms]
     units = [_unit_molecule(mol, atoms_, root) for atoms_, root in zip(parts_atoms, roots)]
     if unit_kind != "chain":
-        if any(element[0] == "isotope" for element in stereo) or unit_stereo or any(branch_stereo):
+        if any(element[0] == "isotope" for element in stereo) or any(branch_stereo):
+            return None
+        if unit_stereo and unit_kind not in _STEREO_UNIT_KINDS:
             return None
         chain_unit = _substituted_chain_unit(mol, graph, roots[0], parts_atoms[0]) if unit_kind == "hydride" else None
+        stereo_text = ""
         if unit_kind == "urea":
             text = _urea_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
         elif unit_kind == "semicarbazide":
             text = _semicarbazide_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
+        elif unit_stereo:
+            cited = _cited_unit_stereo(units, unit_kind)
+            text, stereo_text = cited if cited is not None else (None, "")
         else:
             text = chain_unit or _unit_name_by_pipeline(units[0][0], unit_kind)
         if text is None:
@@ -697,15 +703,13 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             return f"{_without_enclosing_marks(_linker_text(branches, central, arm_parts, False))}{multiplier_word(count, True)}{enclose(text)}"
         if unit_kind == "imine":
             if _imine_unit_needs_bis(text, units[0][0]):
-                return f"{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
-            return f"{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
-        if (
-            unit_kind == "hydride"
-            or text.startswith(("N-", "N'", "di", "tri", "tetra", "thio", "seleno", "telluro"))
-            or any(ch.isdigit() or ch in "- " for ch in text)
+                return f"{stereo_text}{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
+            return f"{stereo_text}{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
+        if unit_kind == "hydride" or text.startswith(("N-", "N'", "di", "tri", "tetra", "thio", "seleno", "telluro")) or (
+            any(ch.isdigit() or ch in "- " for ch in text) and not _UNSUBSTITUTED_PARENT.fullmatch(text)
         ):
-            return f"{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
-        return f"{lead}{linker}{multiplier_word(count, False)}{text}"
+            return f"{stereo_text}{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
+        return f"{stereo_text}{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
     linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
     if len(ctx.used) != len(branch_stereo[0]) + len(chain_stereo):
@@ -805,6 +809,42 @@ def _unsubstituted_anion(unit):
     return len(rest) == 2 and all(a.GetAtomicNum() in (6, 7) for a in rest) and sum(a.GetAtomicNum() == 7 for a in rest) == 1 and all(
         a.GetTotalNumHs() == 2 for a in rest if a.GetAtomicNum() == 7
     )
+
+
+_STEREO_UNIT_KINDS = ("amide", "amine", "imine")
+_UNSUBSTITUTED_PARENT = re.compile(r"[a-z]+(?:-\d+[a-z]?(?:,\d+[a-z]?)*-[a-z]+)+")
+_UNIT_DESCRIPTOR = re.compile(r"\((\d+[a-z]?[RSEZ](?:,\d+[a-z]?[RSEZ])*)\)-")
+_UNIT_LABEL = re.compile(r"(\d+[a-z]?)([RSEZ])")
+_MARKS_ONLY = re.compile(r"[()\[\]{}]")
+
+
+def _without_stereo(unit):
+    editable = Chem.RWMol(unit)
+    for atom in editable.GetAtoms():
+        atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+    for bond in editable.GetBonds():
+        bond.SetStereo(Chem.BondStereo.STEREONONE)
+        bond.SetBondDir(Chem.BondDir.NONE)
+    return editable.GetMol()
+
+
+def _cited_unit_stereo(units, unit_kind):
+    """(unit name, '(3E,3'E)-' text) of identical units whose descriptors are cited in front of the whole name, the locants
+    of each further unit with one more prime (P-93.4.2.1.1, P-93.4.2.1.2); None when a unit has no such name."""
+    plain = _unit_name_by_pipeline(_without_stereo(units[0][0]), unit_kind)
+    per_unit = []
+    for unit, _ in units:
+        name = _unit_name_by_pipeline(unit, unit_kind)
+        if plain is None or name is None:
+            return None
+        if _MARKS_ONLY.sub("", _UNIT_DESCRIPTOR.sub("", name)) != _MARKS_ONLY.sub("", plain):
+            return None
+        per_unit.append([_UNIT_LABEL.fullmatch(label).groups() for found in _UNIT_DESCRIPTOR.findall(name) for label in found.split(",")])
+    if not all(per_unit):
+        return None
+    ordered = sorted(per_unit, key=lambda labels: tuple(0 if code in ("R", "Z") else 1 for _, code in labels))
+    cited = [f"{locant}{chr(39) * i}{code}" for i, labels in enumerate(ordered) for locant, code in labels]
+    return plain, f"({','.join(cited)})-"
 
 
 def _unit_name_by_pipeline(unit, unit_kind):
