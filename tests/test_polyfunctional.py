@@ -1481,6 +1481,21 @@ def test_ring_nitrogens_are_never_chain_or_acyl_group_atoms_with_ring_copies(smi
             "benzyl [(2R)-1-(ethylamino)-1-oxopropan-2-yl]carbamate",
             id="stereocentre_in_the_nitrogen_substituent",
         ),
+        pytest.param(
+            "COC(=O)NCCN(C)C(=O)OC",
+            "methyl {2-[(methoxycarbonyl)amino]ethyl}(methyl)carbamate",
+            id="second_carbamate_of_unlike_nitrogen_is_a_prefix",
+        ),
+        pytest.param(
+            "COC(=O)NCCCCN(C(=O)OC)C(=O)OC",
+            "dimethyl N2-{4-[(methoxycarbonyl)amino]butyl}-2-imidodicarbonate",
+            id="carbamate_on_the_substituent_of_an_imidodicarbonate",
+        ),
+        pytest.param(
+            "COC(=O)CN(C)CCC(=O)NCC(=O)OC",
+            "methyl N-{3-[(2-methoxy-2-oxoethyl)amino]-3-oxopropyl}-N-methylglycinate",
+            id="second_glycinate_is_a_prefix",
+        ),
     ],
 )
 def test_carbamate_esters_are_the_parent_of_polyfunctional_molecules(smiles, expected):

@@ -80,6 +80,17 @@ def _anion_name(mol):
     return word + name[: -len("ic acid")] + "ate"
 
 
+def _bridged_groups(centers, bridges):
+    """The groups of two or more carbonic centres joined through bridging atoms; a lone centre elsewhere is a substituent."""
+    groups = {c: {c} for c in centers}
+    for pair in bridges:
+        first, second = tuple(pair)
+        merged = groups[first] | groups[second]
+        for member in merged:
+            groups[member] = merged
+    return [sorted(group) for group in {frozenset(g) for g in groups.values()} if len(group) > 1]
+
+
 def _chain_setup(mol, substituted=False):
     centers = [a.GetIdx() for a in mol.GetAtoms() if _carbonic_center(mol, a.GetIdx())]
     if len(centers) < 2:
@@ -105,6 +116,11 @@ def _chain_setup(mol, substituted=False):
                 far = [m for m in graph[n] if m != c and m in centers]
                 if len(far) == 1:
                     bridges.setdefault(frozenset((c, far[0])), n)
+    chains = _bridged_groups(centers, bridges)
+    if len(chains) != 1:
+        raise UnsupportedStructure("the carbonic units are not joined in a single chain")
+    centers = chains[0]
+    bridges = {pair: bridge for pair, bridge in bridges.items() if pair <= set(centers)}
     if len(bridges) != len(centers) - 1:
         raise UnsupportedStructure("the carbonic units are not joined in a single chain")
     degree = {c: sum(1 for pair in bridges if c in pair) for c in centers}
@@ -207,8 +223,10 @@ def _substituent_prefix(entries):
     return format_substituent_prefixes(grouped) if grouped else ""
 
 
-def _acid_group_in(mol, arm):
-    """Class 7a acids outrank the polycarbonic acids of class 7b (P-41), so an arm holding one would be the parent."""
+def _acid_group_in(mol, arm, carbon_attached=False):
+    """Class 7a acids outrank the polycarbonic acids of class 7b (P-41), so an arm holding one would be the parent; a single
+    carbonic acid group, also of class 7b, ranks below the polycarbonic acid (P-41)."""
+    lone_carbonic = carbon_attached and sum(_carbonic_center(mol, idx) for idx in arm) < 2
     for idx in arm:
         atom = mol.GetAtomWithIdx(idx)
         if atom.GetFormalCharge() or atom.GetNumRadicalElectrons():
@@ -220,6 +238,8 @@ def _acid_group_in(mol, arm):
                 x = next(m for m in x.GetNeighbors() if m.GetIdx() != atom.GetIdx())
             if x.GetAtomicNum() in (5, 15, 16, 33, 34, 51, 52):
                 return True
+            if lone_carbonic and _carbonic_center(mol, x.GetIdx()):
+                continue
             if any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(x).GetAtomicNum() in (7, 8, 16, 34, 52) for b in x.GetBonds()):
                 return True
     return False
@@ -233,7 +253,7 @@ def _arm_names(mol, graph, nitrogen, skip, locant):
         if root in skip:
             continue
         arm = _arm_atoms(graph, root, nitrogen)
-        if arm & skip or _acid_group_in(mol, arm):
+        if arm & skip or _acid_group_in(mol, arm, mol.GetAtomWithIdx(root).GetAtomicNum() == 6):
             raise UnsupportedStructure("a substituent on a nitrogen of a polycarbonic acid holds a senior group or closes a ring")
         name, compound = name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol, unsaturated=True)
         entries.append((locant, name, compound))

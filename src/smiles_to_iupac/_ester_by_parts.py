@@ -10,6 +10,7 @@ import re
 from rdkit import Chem
 
 from ._carbonic_amide import _carbonic_carbon
+from ._carbonic_family import parent_centres
 from ._common import assign_cip_labels
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._isotope_labels import restore_labels
@@ -186,14 +187,15 @@ def _arms_in_parent(mol, matches):
         selected = _try_select(acid)
     except (UnsupportedStructure, ValueError):
         return None
-    if selected is None:
-        return None
-    parts = selected[2]
-    if not (parts[1] or "").endswith(("oic", "carboxylic")):
-        return None
     new_index = {old: new for new, old in enumerate(kept)}
-    position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1 for i in parts[4]}
     carbons = [new_index[acyl] for acyl, _, _, _ in matches]
+    if selected is None:
+        parents = parent_centres(acid)
+        return None if parents is None else [arm for arm, c in enumerate(carbons) if c in parents]
+    parts = selected[2]
+    if not (parts[1] or "").removesuffix(" acid").endswith("ic"):
+        return None
+    position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1 for i in parts[4]}
     if any(c in position for c in carbons):
         return [arm for arm, c in enumerate(carbons) if c in position]
     attached = [[n.GetIdx() for n in acid.GetAtomWithIdx(c).GetNeighbors() if n.GetAtomicNum() == 6] for c in carbons]
