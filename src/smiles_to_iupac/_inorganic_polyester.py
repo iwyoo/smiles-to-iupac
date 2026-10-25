@@ -1,6 +1,6 @@
-"""One polyvalent alcohol component esterified by several sulfate, sulfite, phosphate or phosphite groups, each left
-with its remaining acid hydroxyl groups (P-65.6.3.2.2, P-67.1.3.2): the component is cited once as a 'diyl' group before
-the multiplied anion, 'ethane-1,2-diyl bis(hydrogen sulfate)'."""
+"""One polyvalent alcohol component esterified by several sulfate, sulfite, phosphate, phosphite, phosphonate or arsonate
+groups, each left with its remaining acid hydroxyl groups (P-65.6.3.2.2, P-67.1.3.2): the component is cited once as a
+'diyl' group before the multiplied anion, 'ethane-1,2-diyl bis(hydrogen sulfate)'."""
 
 from rdkit import Chem
 
@@ -8,29 +8,39 @@ from ._common import HALOGEN_PREFIXES, UnsupportedStructure
 from ._diester_anions import _INORGANIC_ANIONS
 from ._diester_ring_diyl import name_diester_ring_diyl
 
-_CENTRES = (15, 16)
+_CENTRES = (15, 16, 33)
 
 
 def _centre_match(mol, atom):
-    """(centre, doubly bonded oxygen or the centre itself, ester oxygen, alcohol carbon) of an acid centre esterified
-    once, or None."""
-    if atom.GetAtomicNum() not in _CENTRES or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetTotalNumHs():
+    """(centre, doubly bonded chalcogen or the centre itself, ester oxygen, alcohol carbon) of an acid centre esterified
+    once, or None. A phosphorus or arsenic centre may carry organyl groups (phosphonic, phosphonothioic, arsonic acids)."""
+    z = atom.GetAtomicNum()
+    if atom.GetFormalCharge() or atom.GetIsotope() or atom.GetTotalNumHs():
         return None
-    esters, doubled = [], []
+    esters, doubled, organyl = [], [], 0
     for n in atom.GetNeighbors():
-        if n.GetAtomicNum() != 8 or n.GetFormalCharge():
-            return None
         order = mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble()
-        if order == 2.0 and n.GetDegree() == 1:
-            doubled.append(n)
-        elif order == 1.0 and n.GetDegree() == 2:
-            esters.append(n)
-        elif not (order == 1.0 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1):
+        if n.GetAtomicNum() == 6 and z != 16 and order == 1.0 and not n.GetFormalCharge():
+            organyl += 1
+            continue
+        if n.GetFormalCharge():
             return None
-    if len(esters) != 1 or (atom.GetAtomicNum(), len(doubled)) not in _INORGANIC_ANIONS:
+        if order == 2.0 and n.GetDegree() == 1 and n.GetAtomicNum() in (8, 16):
+            doubled.append(n)
+        elif order == 1.0 and n.GetAtomicNum() == 8 and n.GetDegree() == 2:
+            esters.append(n)
+        elif not (order == 1.0 and n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1):
+            return None
+    if len(esters) != 1:
         return None
-    if atom.GetDegree() != {(16, 2): 4, (16, 1): 3, (15, 1): 4, (15, 0): 3}[(atom.GetAtomicNum(), len(doubled))]:
-        return None
+    if organyl:
+        if len(doubled) != 1 or atom.GetDegree() != 4:
+            return None
+    else:
+        if z == 33 or (z, len(doubled)) not in _INORGANIC_ANIONS or any(d.GetAtomicNum() != 8 for d in doubled):
+            return None
+        if atom.GetDegree() != {(16, 2): 4, (16, 1): 3, (15, 1): 4, (15, 0): 3}[(z, len(doubled))]:
+            return None
     carbon = next(n for n in esters[0].GetNeighbors() if n.GetIdx() != atom.GetIdx())
     if carbon.GetAtomicNum() != 6:
         return None
@@ -43,7 +53,7 @@ def inorganic_ester_matches(mol):
         return []
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() in _CENTRES and not atom.GetIsAromatic():
+        if atom.GetAtomicNum() in _CENTRES and not atom.GetIsAromatic() and atom.GetDegree() > 1:
             match = _centre_match(mol, atom)
             if match is None:
                 return []

@@ -22,6 +22,7 @@ from ._common import (
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 
+_LETTERED_ACID = re.compile(r" [A-Za-z,]+-acid$")
 _MULTIPLICATIVE_START = re.compile(r"(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec)")
 
 
@@ -204,10 +205,38 @@ _INORGANIC_ANIONS = {
 
 def inorganic_anion_name(mol, centre):
     """Anion of a sulfur or phosphorus acid esterified once, its remaining hydroxyl groups cited as 'hydrogen' (P-67.1.3.2)."""
+    if any(n.GetAtomicNum() == 6 for n in centre.GetNeighbors()):
+        return _organyl_acid_anion(mol, centre)
     doubled = sum(
         1 for n in centre.GetNeighbors() if mol.GetBondBetweenAtoms(centre.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
     )
     return _INORGANIC_ANIONS[(centre.GetAtomicNum(), doubled)]
+
+
+def _organyl_acid_anion(mol, centre):
+    """'hydrogen methylphosphonate': the anion of a C-substituted phosphorus or arsenic acid esterified once, named from
+    the acid's own name (P-65.6.3.2.1) with its remaining hydroxy groups cited as 'hydrogen' (P-67.1.3.2)."""
+    from ._acid_derivatives import anion_name
+    from .core import smiles_to_iupac
+
+    ester_oxygen = next(n for n in centre.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 2)
+    alcohol = next(n for n in ester_oxygen.GetNeighbors() if n.GetIdx() != centre.GetIdx())
+    editable = Chem.RWMol(mol)
+    editable.RemoveBond(ester_oxygen.GetIdx(), alcohol.GetIdx())
+    editable.GetAtomWithIdx(ester_oxygen.GetIdx()).SetNumExplicitHs(1)
+    atoms = next(frag for frag in Chem.GetMolFrags(editable) if centre.GetIdx() in frag)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        editable.RemoveAtom(idx)
+    acid = editable.GetMol()
+    Chem.SanitizeMol(acid)
+    acid_name = _LETTERED_ACID.sub(" acid", smiles_to_iupac(Chem.MolToSmiles(acid)))
+    hydroxyls = sum(
+        1
+        for n in centre.GetNeighbors()
+        if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1 and not n.GetFormalCharge()
+    )
+    anion = anion_name(acid_name)
+    return anion if not hydroxyls else ("hydrogen " if hydroxyls == 1 else multiplying_prefix(hydroxyls) + "hydrogen ") + anion
 
 
 def acid_anions(mol, matches):
