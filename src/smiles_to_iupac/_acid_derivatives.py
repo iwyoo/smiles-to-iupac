@@ -13,7 +13,7 @@ from ._common import assign_cip_labels, has_acyloxy_amine_group, match_cip_label
 from ._acid_lexicon import CHALCOGENS
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._amino_acid_retained import has_retained_amino_acid_shape
-from ._carbonic_family import pseudohalide_at
+from ._carbonic_family import parent_centres, pseudohalide_at
 from ._chalcogenourea import has_group_senior_to_urea, is_urea_substituent_root
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, citation_order_key, halogen_substituents, is_halide_ligand
 from ._locant_omission import CITE_SUBSTITUENT_LOCANTS
@@ -958,10 +958,13 @@ def _suffix_links(mol, links, keep, cap_of):
         return list(links)
     finally:
         ISOTOPE_LABELS.reset(token)
-    if selected is None:
-        return list(links)
-    position_of = selected[2][4]
     origin = {a.GetIdx(): a.GetIntProp("_origin") for a in acid.GetAtoms()}
+    if selected is None:
+        parents = parent_centres(acid)
+        if parents is None:
+            return list(links)
+        return [l for l in links if l.center in {origin[p] for p in parents}] or list(links)
+    position_of = selected[2][4]
     parent = {origin[i] for i in position_of if i in origin}
     occurrences = _ring_occurrences(acid)
     class_at = {}

@@ -11,7 +11,7 @@ from ._acid_lexicon import _INFIX, _MULTIPLIER, _peroxo_word
 from ._chalcogen_imide import ylidene_group_atoms
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
 from ._hetero_prefixes import EXTENDED_PREFIXES
-from ._parent_choice import senior_parent_name
+from ._parent_choice import identical_parent_groups, senior_parent_choice, senior_parent_name
 from ._retained_acids import single_site_prefixes
 from ._substituents import centre_nuclides, cited_branch_stereo, format_substituent_prefixes, name_branch
 
@@ -352,6 +352,30 @@ def name_carbonic_family(mol):
         raise UnsupportedStructure("no single carbonic or cyanic acid group")
     senior = min(_class_rank(mol, c) for c in centres)
     return senior_parent_name(mol, [c for c in centres if _class_rank(mol, c) == senior], lambda c: _name_at(mol, c))
+
+
+def parent_centres(mol):
+    """The centres of the acid groups that are the parent of a molecule with several; all of them when they are identically
+    substituted, else the senior one; None when the molecule is not a carbonic acid family parent."""
+    from ._polycarbonic import chain_numbering
+
+    try:
+        chain = chain_numbering(mol)
+        if chain:
+            return list(chain)
+        centres = _centres(mol)
+        if len(centres) < 2 or not all(_is_acid_centre(mol, c) for c in centres):
+            return None
+        senior = min(_class_rank(mol, c) for c in centres)
+        candidates = [c for c in centres if _class_rank(mol, c) == senior]
+        groups = identical_parent_groups(mol, candidates)
+        if len(groups) == len(candidates):
+            return [senior_parent_choice(candidates, lambda c: _name_at(mol, c))[0]]
+        widest = max(len(group) for group in groups)
+        multiplied = [group for group in groups if len(group) == widest]
+        return multiplied[0] if len(multiplied) == 1 else candidates
+    except UnsupportedStructure:
+        return None
 
 
 def _name_at(mol, center, cite_nuclides=False):

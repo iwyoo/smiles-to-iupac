@@ -209,16 +209,11 @@ def _amino_region(mol, graph, alkyl_c, ester_o):
 
 
 def has_carbamate_shape(mol) -> bool:
-    return bool(_carbamate_cores(mol))
+    return len(_carbamate_cores(mol)) == 1
 
 
 def name_carbamate(mol) -> str:
     cores = _carbamate_cores(mol)
-    if len(cores) != 1:
-        raise UnsupportedStructure(
-            "exactly one carbamate group is required; zero or multiple "
-            "carbamate groups are not supported yet"
-        )
     carbamate_c, carbonyl_o, ester_o, alkyl_c, amide_n, n_alkyl_cs = cores[0]
 
     full_graph = adjacency(mol)

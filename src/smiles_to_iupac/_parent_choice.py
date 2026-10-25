@@ -42,16 +42,32 @@ def _unit(mol, centre, centres):
     return tuple(sorted(unit))
 
 
-def senior_parent_name(mol, centres, build, prefix_context=contextlib.nullcontext):
-    """The name of the candidate with the most substituent prefixes, then the alphanumerically earlier name; `build(centre)`
-    gives (prefix count, name). Identically substituted groups are identical parents, named multiplicatively (P-15.3.1.1)."""
+def identical_parent_groups(mol, centres):
+    """The candidates grouped by identical substitution (P-15.3.1.1); raises when two share an atom."""
     groups = [_group_atoms(mol, c) for c in centres]
     if any(a & b for i, a in enumerate(groups) for b in groups[i + 1 :]):
         raise UnsupportedStructure("acid groups sharing an atom are not separate parent candidates")
-    units = [_unit(mol, c, centres) for c in centres]
-    if len(set(units)) != len(units):
+    by_unit = {}
+    for centre in centres:
+        by_unit.setdefault(_unit(mol, centre, centres), []).append(centre)
+    return list(by_unit.values())
+
+
+def distinct_parent_units(mol, centres):
+    return all(len(group) == 1 for group in identical_parent_groups(mol, centres))
+
+
+def senior_parent_choice(centres, build):
+    """The (centre, built) candidate with the most substituent prefixes, then the alphanumerically earlier name."""
+    return min(((c, build(c)) for c in centres), key=lambda entry: (-entry[1][0], alpha_sort_key(entry[1][1])))
+
+
+def senior_parent_name(mol, centres, build, prefix_context=contextlib.nullcontext):
+    """The name of the candidate with the most substituent prefixes, then the alphanumerically earlier name; `build(centre)`
+    gives (prefix count, name). Identically substituted groups are identical parents, named multiplicatively (P-15.3.1.1)."""
+    if not distinct_parent_units(mol, centres):
         return name_one_of_several_groups(mol, centres, lambda centre: build(centre)[1], prefix_context)
-    return min((build(c) for c in centres), key=lambda built: (-built[0], alpha_sort_key(built[1])))[1]
+    return senior_parent_choice(centres, build)[1][1]
 
 
 def name_one_of_several_groups(mol, centres, name_at, prefix_context):
