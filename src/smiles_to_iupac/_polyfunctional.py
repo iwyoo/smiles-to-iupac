@@ -6415,16 +6415,28 @@ def _unsymmetrical_branches(mol, linker, first_arm, second_arm):
     for bond in mol.GetBonds():
         if bond.GetBeginAtomIdx() in linker and bond.GetEndAtomIdx() in linker and same_kind(bond):
             parent[find(bond.GetBeginAtomIdx())] = find(bond.GetEndAtomIdx())
-    members = {}
-    for a in linker:
-        members.setdefault(find(a), set()).add(a)
-    neighbours = {c: set() for c in members}
-    for c, atoms in members.items():
-        for a in atoms:
-            for n in mol.GetAtomWithIdx(a).GetNeighbors():
-                if n.GetIdx() in linker and find(n.GetIdx()) != c:
-                    neighbours[c].add(find(n.GetIdx()))
-    touching = [[c for c, atoms in members.items() if any(n.GetIdx() in arm for a in atoms for n in mol.GetAtomWithIdx(a).GetNeighbors())] for arm in (first_arm, second_arm)]
+    def components():
+        found = {}
+        for a in linker:
+            found.setdefault(find(a), set()).add(a)
+        adjacent = {c: set() for c in found}
+        for c, atoms in found.items():
+            for a in atoms:
+                for n in mol.GetAtomWithIdx(a).GetNeighbors():
+                    if n.GetIdx() in linker and find(n.GetIdx()) != c:
+                        adjacent[c].add(find(n.GetIdx()))
+        reaching = [
+            [c for c, atoms in found.items() if any(n.GetIdx() in arm for a in atoms for n in mol.GetAtomWithIdx(a).GetNeighbors())]
+            for arm in (first_arm, second_arm)
+        ]
+        return found, adjacent, reaching
+
+    members, neighbours, touching = components()
+    pendant = next((c for c in members if len(neighbours[c]) == 1 and not any(c in t for t in touching)), None)
+    while pendant is not None:
+        parent[pendant] = next(iter(neighbours[pendant]))
+        members, neighbours, touching = components()
+        pendant = next((c for c in members if len(neighbours[c]) == 1 and not any(c in t for t in touching)), None)
     if len(members) < 2 or any(len(t) != 1 for t in touching) or any(len(n) > 2 for n in neighbours.values()):
         return False
     order, seen = [touching[0][0]], {touching[0][0]}
