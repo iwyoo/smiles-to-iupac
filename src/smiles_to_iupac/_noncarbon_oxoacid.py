@@ -16,6 +16,7 @@ from ._common import (
     halogen_substituents,
     specified_stereo_elements,
 )
+from ._chalcogen_imide import ylidene_group_atoms
 from ._halogen_amide import has_halogen_amide_shape
 from ._multiplicative_text import enclose
 from ._nitro_group import nitro_or_nitroso_group
@@ -148,6 +149,9 @@ def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False):
             continue
         neighbor = mol.GetAtomWithIdx(n)
         order = mol.GetBondBetweenAtoms(atom.GetIdx(), n).GetBondTypeAsDouble()
+        if ylidene and order == 2.0 and ylidene_group_atoms(mol, n, atom.GetIdx()):
+            found.append(name_branch(graph, n, atom.GetIdx(), halogens, mol=mol))
+            continue
         if order != 1.0 and not (ylidene and order == 2.0 and neighbor.GetAtomicNum() == 6):
             return None
         if n in halogens:
