@@ -55,6 +55,11 @@ def charged_prefix_group_atoms(mol):
     return {i for query in _CHARGED_PREFIX_GROUPS for match in mol.GetSubstructMatches(query) for i in match[1:]}
 
 
+def _ring_nitrogen_group(nitrogen):
+    """A neutral ring nitrogen on the acid centre is a substituent group (piperidin-1-yl), not an amid infix (P-67.1.2.4.2)."""
+    return nitrogen.GetAtomicNum() == 7 and nitrogen.IsInRing() and not nitrogen.GetFormalCharge() and not nitrogen.GetIsotope()
+
+
 def acid_group_parts(mol, atom):
     """(oxo, hydroxyl, organyl) counts of a phosphonic, phosphonous, phosphinic or phosphinous acid centre; None for any
     other P, As or Sb atom (acid halide, amide, ester, chalcogenide, ring member, organyl derivative)."""
@@ -67,7 +72,9 @@ def acid_group_parts(mol, atom):
             oxo += 1
         elif n.GetAtomicNum() == 8 and not double and n.GetDegree() == 1 and n.GetTotalNumHs() == 1:
             hydroxyl += 1
-        elif (n.GetAtomicNum() not in _ACYL_PARTNERS or _nitroso_or_diazenyl(mol, n, atom)) and not double:
+        elif (
+            n.GetAtomicNum() not in _ACYL_PARTNERS or _nitroso_or_diazenyl(mol, n, atom) or _ring_nitrogen_group(n)
+        ) and not double:
             organyl += 1
         else:
             return None
