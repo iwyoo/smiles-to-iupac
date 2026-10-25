@@ -111,21 +111,49 @@ def _plain_group_atom(atom):
     return number == 6 or number in HALOGEN_PREFIXES or (number in (7, 8, 16) and atom.GetIsAromatic()) or ether
 
 
+def _plain_amino(atom, centre):
+    """An acyclic NH2, NHR or NR2 group of single-bonded carbon substituents on `centre`: the amino group of a
+    sulfonimidamide-type centre (P-66.4.1.1)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and not atom.IsInRing()
+        and not atom.GetFormalCharge()
+        and not atom.GetIsotope()
+        and all(
+            b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6
+            for b in atom.GetBonds()
+            if b.GetOtherAtom(atom).GetIdx() != centre
+        )
+    )
+
+
 def ylidene_group_atoms(mol, center_idx, nitrogen_idx):
     """The atoms of a plain sulfoximide-type group =S(=O)R2 bonded through `center_idx` to the nitrogen `nitrogen_idx`
-    (empty when it is anything else): the centre, its doubly bonded chalcogens and its carbon groups."""
+    (empty when it is anything else): the centre, its doubly bonded chalcogens and imino groups, and its carbon,
+    amino and halogen groups."""
     center = mol.GetAtomWithIdx(center_idx)
     if center.GetAtomicNum() not in _PARENT or center.IsInRing() or center.GetFormalCharge() or center.GetIsotope():
         return set()
     graph = adjacency(mol)
     atoms = {center_idx}
+    nitrogens = set()
     for bond in center.GetBonds():
         other = bond.GetOtherAtom(center)
         if other.GetIdx() == nitrogen_idx:
             continue
         if _terminal_chalcogen(bond, center):
             atoms.add(other.GetIdx())
-        elif other.GetAtomicNum() == 6 and bond.GetBondTypeAsDouble() == 1.0:
+        elif other.GetAtomicNum() in HALOGEN_PREFIXES and other.GetDegree() == 1 and bond.GetBondTypeAsDouble() == 1.0:
+            atoms.add(other.GetIdx())
+        elif (
+            other.GetAtomicNum() == 6
+            and bond.GetBondTypeAsDouble() == 1.0
+            or _plain_amino(other, center_idx)
+            and bond.GetBondTypeAsDouble() == 1.0
+            or _imino_nitrogen(bond, center)
+        ):
+            if other.GetAtomicNum() == 7:
+                nitrogens.add(other.GetIdx())
             stack = [other.GetIdx()]
             while stack:
                 idx = stack.pop()
@@ -135,7 +163,11 @@ def ylidene_group_atoms(mol, center_idx, nitrogen_idx):
                 stack.extend(n for n in graph[idx] if n != center_idx)
         else:
             return set()
-    if any(not _plain_group_atom(mol.GetAtomWithIdx(i)) for i in atoms - {center_idx} if mol.GetAtomWithIdx(i).GetAtomicNum() not in _ONE):
+    if any(
+        not _plain_group_atom(mol.GetAtomWithIdx(i))
+        for i in atoms - {center_idx} - nitrogens
+        if mol.GetAtomWithIdx(i).GetAtomicNum() not in _ONE
+    ):
         return set()
     return atoms
 

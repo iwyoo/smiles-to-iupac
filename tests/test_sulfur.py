@@ -1458,6 +1458,16 @@ def test_sulfimides_sulfoximides_and_sulfur_imides_on_the_lambda_sulfane_parent(
         pytest.param("CS(=O)(=NC#N)C", "[dimethyl(oxo)-\u03bb6-sulfanylidene]cyanamide", id="sulfoximide_under_a_cyanamide"),
         pytest.param("N#CN=S(C)C", "(dimethyl-\u03bb4-sulfanylidene)cyanamide", id="sulfimide_under_a_cyanamide"),
         pytest.param(
+            "COC(=O)N=S(C)(N)=O",
+            "methyl [amino(methyl)(oxo)-\u03bb6-sulfanylidene]carbamate",
+            id="sulfonimidamide_nitrogen_under_a_carbamate",
+        ),
+        pytest.param(
+            "COC(=O)N=S(C)(=O)Cl",
+            "methyl [chloro(methyl)(oxo)-\u03bb6-sulfanylidene]carbamate",
+            id="sulfonimidoyl_halide_nitrogen_under_a_carbamate",
+        ),
+        pytest.param(
             "CS(=O)(=N[N+](=O)[O-])C", "[dimethyl(oxo)-\u03bb6-sulfanylidene]nitramide", id="sulfoximide_under_a_nitramide"
         ),
         pytest.param(
