@@ -41,7 +41,13 @@ def name_diester_acyloxy(mol) -> str:
         raise UnsupportedStructure(
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
         )
-    matches = _find_ester_carbons(mol)
+    matches = [m for m in _find_ester_carbons(mol) if not _is_lactone(mol, m)]
     if len(matches) < 2:
         raise UnsupportedStructure("this module only handles two or more ester groups")
     return name_diester_ring_diyl(mol, matches)
+
+
+def _is_lactone(mol, match):
+    """A ring-closing ester is a heterocyclic pseudoketone, cited as 'oxo' on the ring beside the ester groups (P-65.6.3.5.1)."""
+    acyl, _, ester_oxygen, _ = match
+    return mol.GetRingInfo().NumAtomRings(acyl.GetIdx()) > 0 and mol.GetRingInfo().AreAtomsInSameRing(acyl.GetIdx(), ester_oxygen.GetIdx())

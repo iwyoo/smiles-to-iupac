@@ -1610,3 +1610,8 @@ def test_multiplied_ester_words(smiles, expected):
 )
 def test_halogen_derivatives_of_chalcogen_hydrides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_lactone_carbonyl_is_oxo_beside_two_ester_groups_of_one_alcohol_component():
+    # P-65.6.3.5.1, P-65.6.3.2.3: the ring carbonyl is a pseudoketone, so both acetates are esters or acyloxy prefixes
+    assert smiles_to_iupac("O=C1OC(COC(C)=O)C(OC(C)=O)C1") == "2-[(acetyloxy)methyl]-5-oxooxolan-3-yl acetate"
