@@ -673,11 +673,13 @@ def _unit_descriptors(mol, selected, unit):
         if mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1:
             raise UnsupportedStructure("stereodescriptors of a unit joined by a multiple bond are not supported yet")
         try:
-            elements = cip_labels(mol, u.atoms)
+            elements = cip_labels(mol, u.atoms, chain_double_bonds=True)
         except UnsupportedStructure:
             return None
         system = set(_system_of(mol, u.junction)[1])
-        on_system = [(e, c) for e, c in elements if set(e if isinstance(e, tuple) else (e,)) <= system]
+        on_system = [
+            (e, c) for e, c in elements if (any(a in system for a in e) if isinstance(e, tuple) else e in system)
+        ]
         if not on_system:
             labelled.append(())
             continue

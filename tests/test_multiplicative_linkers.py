@@ -1069,6 +1069,21 @@ def test_multiplicative_name_needs_identical_branches_on_the_linking_group(smile
             "4,4'-{[(1S)-1-chloroethyl]azanediyl}dibenzoic acid",
             id="centre_of_a_substituent_on_a_linker_between_rings",
         ),
+        pytest.param(
+            "O=C(NCCNC(=O)C/C=C/C)C/C=C/C",
+            "(3E,3'E)-N,N'-(ethane-1,2-diyl)di(pent-3-enamide)",
+            id="double_bonds_of_amide_units",
+        ),
+        pytest.param(
+            "O=C(CN1C(=O)/C(=C\\c2ccccc2)SC1=S)N1CCN(C(=O)CN2C(=O)/C(=C\\c3ccccc3)SC2=S)CC1",
+            "(5E,5'E)-3,3'-[piperazine-1,4-diylbis(2-oxoethane-2,1-diyl)]bis(5-benzylidene-2-sulfanylidene-1,3-thiazolidin-4-one)",
+            id="exocyclic_double_bonds_of_ring_units",
+        ),
+        pytest.param(
+            "O=C(NC(=O)[C@@H](N)C)CCC(=O)NC(=O)[C@@H](N)C",
+            "N1,N4-bis(L-alanyl)butanediamide",
+            id="configuration_prefix_of_multiplied_acyl_groups",
+        ),
     ],
 )
 def test_stereodescriptors_in_a_multiplicative_name(smiles, expected):

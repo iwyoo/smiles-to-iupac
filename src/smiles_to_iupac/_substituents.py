@@ -78,6 +78,7 @@ _CHALCOGEN_HYDRIDE_GROUP = re.compile(
     r"^(?:\d+)?(?:λ\d+-)?(?:di|tri|tetra|penta|hexa)?"
     r"(?:sulfanyl|selanyl|tellanyl|phosphanyl|arsanyl|stibanyl|bismuthanyl|boranyl|alumanyl|gallanyl|indiganyl|thallanyl)(?:idene)?$"
 )
+_LEADING_CONFIGURATION = re.compile(r"[DL]-")
 _LEADING_NUMERAL = re.compile(r"^(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec|undec)[a-z]*(?:yl|oyl)$")
 _PLAIN_CARBONYL = re.compile(r"^(?:cyclo)?[a-z]+(?:ane|an|e)?(?:-[\d,]+)?-?carbon(?:yl|othioyl)$")
 _HYDRIDE_ACYL = re.compile(r"^[a-z]{3,}(?:ane|ene)(?:sulfonyl|sulfinyl)$")
@@ -114,6 +115,8 @@ def prefix_multiplier(count: int, name: str, compound: bool):
         return multiplying_prefix(count), True
     if _ASSEMBLY_GROUP_PREFIX.match(name):
         return multiplying_prefix(count), True
+    if _LEADING_CONFIGURATION.match(name):
+        return multiplying_prefix(count, compound=True), True
     if name[:1] in "([{" and not name.startswith("(\u03b7") and _fully_enclosed(name):
         return multiplying_prefix(count, compound=True), False
     if (name[:1] in "([{" and not name.startswith("(\u03b7")) or _CHALCOGEN_HYDRIDE_GROUP.match(name):
