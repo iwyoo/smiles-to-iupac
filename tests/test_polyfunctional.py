@@ -1592,6 +1592,11 @@ def test_hydrazide_groups_beside_an_amide_class_parent_are_hydrazinecarbonyl_pre
             id="substituted_monocycle",
         ),
         pytest.param(
+            "CC(=O)NC(C)C(=O)N1CCC(N2CCCCC2)CC1",
+            "N-[1-([1,4'-bipiperidine]-1'-carbonyl)ethyl]acetamide",
+            id="ring_assembly_nitrogen",
+        ),
+        pytest.param(
             "C=CCC(CC(=O)N1Cc2ccccc2CC1CO)C(=O)NC(CO)c1ccccc1",
             "2-{[3-(hydroxymethyl)-3,4-dihydroisoquinoline-2(1H)-carbonyl]methyl}-N-(2-hydroxy-1-phenylethyl)pent-4-enamide",
             id="added_hydrogen_stays_after_the_locant",

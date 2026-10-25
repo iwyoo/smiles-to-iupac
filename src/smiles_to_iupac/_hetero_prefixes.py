@@ -604,10 +604,12 @@ def _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, infix):
     if infix == "sulfonyl":
         return (_enclose(name, compound) if compound else name) + "sulfonyl", True
     name = _without_enclosing_marks(name)
-    ending = re.search(r"-(\d+[a-z]?(?:\(\d*[A-Za-z]+\))?)-yl$", name)
+    ending = re.search(r"-(\d+[a-z]?[′']*(?:\(\d*[A-Za-z]+\))?)-yl$", name)
     if ending is None:
         raise UnsupportedStructure("this ring nitrogen acyl group is not supported yet")
-    return name[: ending.start()] + "e-" + ending.group(1) + "-" + infix, True
+    stem = name[: ending.start()]
+    stem = stem[:-1] + "e]" if stem.endswith("]") else stem + "e"
+    return stem + "-" + ending.group(1) + "-" + infix, True
 
 
 def _chain_carboxylate_oxygen(atom):
