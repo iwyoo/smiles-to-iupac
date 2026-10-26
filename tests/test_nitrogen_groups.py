@@ -516,6 +516,11 @@ def test_descriptor_beside_a_collapsed_azide_is_that_of_the_structure(smiles, ex
         pytest.param("CC=NN=Cc1ccccn1", "2-[N-(ethylideneamino)methanimidoyl]pyridine", id="azine_beside_a_nitrogen_ring_is_a_prefix_of_the_ring"),
         pytest.param("CC(=O)NC(C)=NN=CC", "N-[N-(ethylideneamino)ethanimidoyl]acetamide", id="amidrazone_azine_on_an_amide_nitrogen"),
         pytest.param(
+            "CS(=O)(=O)NC(C)=NN=C1CCCCC1",
+            "N-[N-(cyclohexylideneamino)ethanimidoyl]methanesulfonamide",
+            id="amidrazone_ring_azine_on_a_sulfonamide_nitrogen",
+        ),
+        pytest.param(
             "CC(=O)N=C(C)NN=CC", "N-[1-(ethylidenehydrazinyl)ethylidene]acetamide", id="amidrazone_azine_ylidene_on_an_amide_nitrogen"
         ),
         pytest.param("NC(=S)NN=C(C)C", "2-(propan-2-ylidene)hydrazine-1-carbothioamide", id="thiosemicarbazone"),
