@@ -607,6 +607,8 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
 def _chalcogen_ylidene_on(mol, atom, nitrogen):
     """The lambda4- or lambda6-chalcogen centre of an N-ylidene group on an amide nitrogen, carrying carbon groups, oxo
     and imino groups only (P-68.4.3.3, P-68.4.3.4)."""
+    from ._chalcogen_imide import _plain_amino
+
     if (
         atom.GetAtomicNum() not in (16, 34, 52)
         or atom.GetFormalCharge()
@@ -621,7 +623,9 @@ def _chalcogen_ylidene_on(mol, atom, nitrogen):
         if bond.GetBondTypeAsDouble() == 2.0:
             if not _oxo_or_imino(mol, atom.GetIdx(), other.GetIdx()):
                 return False
-        elif other.GetAtomicNum() != 6 or bond.GetBondTypeAsDouble() != 1.0 or is_functional_carbon(mol, other.GetIdx()):
+        elif bond.GetBondTypeAsDouble() != 1.0 or not (
+            (other.GetAtomicNum() == 6 and not is_functional_carbon(mol, other.GetIdx())) or _plain_amino(other, atom.GetIdx())
+        ):
             return False
     return True
 
