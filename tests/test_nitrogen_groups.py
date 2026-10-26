@@ -2544,6 +2544,7 @@ def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_group
         ("NC(=O)NC(=O)N", "2-imidodicarbonic diamide"),
         ("NC(=O)NC(=O)NC(=O)N", "2,4-diimidotricarbonic diamide"),
         ("CNC(=O)NC(=O)N", "N1-methyl-2-imidodicarbonic diamide"),
+        ("CC=NC(=O)NC(N)=O", "N1-ethylidene-2-imidodicarbonic diamide"),
         ("CN(C(=O)N)C(=O)NC", "N1,N2-dimethyl-2-imidodicarbonic diamide"),
         ("NC(=O)N(CCO)C(=O)NCC#N", "N1-(cyanomethyl)-N2-(2-hydroxyethyl)-2-imidodicarbonic diamide"),
         ("CN(C(N)=S)C(N)=S", "N2-methyl-2-imido-1,3-dithiodicarbonic diamide"),

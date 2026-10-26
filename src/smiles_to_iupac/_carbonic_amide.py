@@ -399,7 +399,10 @@ def _assemble(mol, graph, chain):
             linker_arms[index] = found[0]
             used |= found[1]
     for nitrogen in ends:
-        if any(b.GetBondTypeAsDouble() != 1.0 for b in nitrogen.GetBonds()):
+        if any(
+            b.GetBondTypeAsDouble() != 1.0 and not (b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(nitrogen).GetAtomicNum() == 6)
+            for b in nitrogen.GetBonds()
+        ):
             return None
         betas = [n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 7]
         hydrazide.append(bool(betas))
