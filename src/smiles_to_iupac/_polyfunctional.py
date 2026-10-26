@@ -925,10 +925,14 @@ def _acyloxy_amine_oxygen(mol, oxygen, carbon):
     if oxygen.GetAtomicNum() not in (8, 16, 34, 52):
         return False
     previous, far = mol.GetAtomWithIdx(carbon), oxygen
+    heavy_chalcogen = False
     while far.GetAtomicNum() in (8, 16, 34, 52):
         if far.GetDegree() != 2 or far.GetFormalCharge() or far.IsInRing():
             return False
+        heavy_chalcogen = heavy_chalcogen or far.GetAtomicNum() != 8
         previous, far = far, next(n for n in far.GetNeighbors() if n.GetIdx() != previous.GetIdx())
+    if heavy_chalcogen and _halogen_ligand(far):
+        return True
     if far.GetAtomicNum() != 7 or far.GetFormalCharge() or far.IsInRing() or far.GetIsAromatic():
         return False
     doubles = [b for b in far.GetBonds() if b.GetBondTypeAsDouble() != 1.0]
