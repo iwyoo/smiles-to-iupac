@@ -71,6 +71,14 @@ _SENIOR_SULFONYL = [
         "[#16X4,#16X3;!R](=O)[F,Cl,Br,I;X1]",
     )
 ]
+_SENIOR_PNICTOGEN_ACID = [
+    Chem.MolFromSmarts(smarts)
+    for smarts in (
+        "[#15,#33,#51;X4;!R](=O)[OX2H1]",
+        "[#15,#33,#51;X4;!R](=O)[#7]",
+        "[#15,#33,#51;X4;!R](=O)[F,Cl,Br,I;X1]",
+    )
+]
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
 _AMINO_ON_RING_NITROGEN = Chem.MolFromSmarts("[NX3H2;!R]-[#7X3;R;+0]")
 _PEROXOL = Chem.MolFromSmarts("[O,S,Se,Te;X2H1][O,S,Se,Te;X2H0][#6]")
@@ -110,6 +118,7 @@ def _has_senior_principal_group(mol):
         or BORON_ACID_PARENT.get()
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_SULFONYL)
+        or any(mol.HasSubstructMatch(query) for query in _SENIOR_PNICTOGEN_ACID)
         or any(mol.HasSubstructMatch(query) for query in _NONCARBON_ACID_ESTERS)
         or mol.HasSubstructMatch(_HEAVY_CHALCOGENOL)
         or mol.HasSubstructMatch(AMINE_PATTERN)

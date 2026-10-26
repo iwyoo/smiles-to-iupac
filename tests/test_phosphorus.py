@@ -356,6 +356,8 @@ def test_group_15_acids_halides_and_amides(smiles, expected):
     "smiles, expected",
     [
         ("CN(C)P(=O)(Cl)Cl", "N,N-dimethylphosphoramidic dichloride"),
+        ("ClP(=O)(Cl)N=S(C)(C)=O", "N-[dimethyl(oxo)-λ6-sulfanylidene]phosphoramidic dichloride"),
+        ("OP(=O)(O)N=S(C)C", "N-(dimethyl-λ4-sulfanylidene)phosphoramidic acid"),
         ("CCP(=O)(N(C)C)Cl", "P-ethyl-N,N-dimethylphosphonamidic chloride"),
     ],
 )
