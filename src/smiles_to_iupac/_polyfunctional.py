@@ -6420,6 +6420,12 @@ def _modified_unit_smiles(unit, atoms):
     return Chem.MolToSmiles(marked)
 
 
+def _junction_kind(atom):
+    """Where a unit joins the rest of the molecule: a ring atom, or the element of an acyclic linking atom. Units of one
+    multiplied parent all join alike (P-45.1.1)."""
+    return "ring" if atom.IsInRing() else atom.GetAtomicNum()
+
+
 def _identical_group_units(mol, graph, group_atoms):
     """True when two disjoint, identical, non-trivial fragments hanging off
     different acyclic bonds each carry a principal group -- the shape that
@@ -6440,19 +6446,22 @@ def _identical_group_units(mol, graph, group_atoms):
             if other in atoms or not atoms & group_atoms or not atoms - group_atoms:
                 continue
             canonical, _ = _unit_molecule(mol, atoms, root)
-            sides.append((bond.GetIdx(), atoms, _modified_unit_smiles(canonical, atoms), root))
+            sides.append((bond.GetIdx(), atoms, _modified_unit_smiles(canonical, atoms), root, neighbor))
     plain = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=False)
     chiral = Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=True)
-    for i, (bi, ai, si, ri) in enumerate(sides):
-        for bj, aj, sj, rj in sides[:i]:
+    for i, (bi, ai, si, ri, ni) in enumerate(sides):
+        for bj, aj, sj, rj, nj in sides[:i]:
             if bi != bj and si == sj and not ai & aj:
                 if _unsymmetric_chalcogen_linker(mol, graph, ai, aj):
                     continue
                 if plain[ri] == plain[rj] and chiral[ri] != chiral[rj]:
                     continue
                 # a multiplied parent must express every principal group (P-15.6.1.5)
-                extra = set().union(*(ak for bk, ak, sk, _ in sides if sk == si and not ak & (ai | aj)))
+                extra_sides = [side for side in sides if side[2] == si and not side[1] & (ai | aj)]
+                extra = set().union(*(side[1] for side in extra_sides))
                 units = ai | aj | extra
+                if extra and len({_junction_kind(n) for n in (ni, nj, *(side[4] for side in extra_sides))}) > 1:
+                    continue
                 if plain[ri] != plain[rj] and not extra and _unsymmetrical_branches(mol, set(range(mol.GetNumAtoms())) - units, ai, aj):
                     continue
                 if group_atoms <= units:
