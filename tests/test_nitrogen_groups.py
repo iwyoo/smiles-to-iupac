@@ -2789,6 +2789,7 @@ def test_thiourea_with_a_ring_nitrogen_is_the_carbothioamide_of_the_ring(smiles,
         pytest.param("CNC(=O)ONC", "N-[(methylcarbamoyl)oxy]methanamine", id="carbamate_of_a_secondary_amine"),
         pytest.param("CNC(=O)ON1C(=O)CCC1=O", "2,5-dioxopyrrolidin-1-yl methylcarbamate", id="cyclic_nitrogen_keeps_the_traditional_ester"),
         pytest.param("CN(N=O)OC(=O)C", "1-{[methyl(nitroso)amino]oxy}ethan-1-one", id="nitroso_on_the_amine_nitrogen"),
+        pytest.param("c1ccccc1C(=O)OSBr", "[(bromosulfanyl)oxy](phenyl)methanone", id="halogen_on_the_sulfur_of_the_ester_chain"),
     ],
 )
 def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, expected):
