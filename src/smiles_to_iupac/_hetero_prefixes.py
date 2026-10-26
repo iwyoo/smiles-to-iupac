@@ -112,7 +112,7 @@ _IMINE_NITROGEN_CHALCOGEN = Chem.MolFromSmarts("[CX3]=[NX2]-[S,Se,Te]")
 
 def _has_senior_principal_group(mol):
     """A principal group senior to the hetero-hetero connection (hydroxylamine, hydrazine, peroxide classes) is
-    present, so that connection is expressed as a prefix (P-41, P-29.4.1); a cationic parent outranks every group."""
+    present, so that connection is expressed as a prefix (P-41, P-29.4.1); an ionic parent outranks every group."""
     return (
         CATION_PARENT.get()
         or BORON_ACID_PARENT.get()
