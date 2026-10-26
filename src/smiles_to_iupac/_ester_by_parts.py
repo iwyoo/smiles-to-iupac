@@ -19,6 +19,7 @@ from ._substituents import BRANCH_STEREO, multiplied_prefix, name_branch
 
 _ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
 _PEROXY_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][OX2;!R][#6]")
+_SULFENYL_HALIDE_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][SX2;!R;$(S[F,Cl,Br,I]),$(S[SX2][F,Cl,Br,I])]")
 _CARBONIC_LINK = Chem.MolFromSmarts("[C;!R]O[C;!R]")
 _FREE_ACID = Chem.MolFromSmarts("[CX3](=O)[OX2H1]")
 _HYDROGEN_WORDS = {1: "hydrogen", 2: "dihydrogen", 3: "trihydrogen"}
@@ -77,10 +78,18 @@ def name_ester_by_parts(mol) -> str:
 
     split = split_isotopes(mol)
     if split is None:
-        return _name_ester_parts(mol, {})
+        return _flagged(mol, _name_ester_parts(mol, {}))
     clean, labels, index_map = split
     chiral = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms())
-    return _name_ester_parts(clean, labels, (mol, index_map) if chiral else None)
+    return _flagged(mol, _name_ester_parts(clean, labels, (mol, index_map) if chiral else None))
+
+
+def _flagged(mol, name):
+    from ._pin import mark
+
+    if mol.HasSubstructMatch(_SULFENYL_HALIDE_ESTER):
+        return mark(name, "the Blue Book gives no clause for an acid ester of a sulfenyl halide (P-65.6.3.1.2, P-65.7.4)")
+    return name
 
 
 def _acid_with_labels(original, index_map, removed, matches, group_labelled):
@@ -240,7 +249,7 @@ def _ester_matches(mol):
     is the one bonded to the alkyl carbon, so the peroxoic acid is what the split leaves."""
     peroxy = [(m[0], m[1], m[3], m[4]) for m in mol.GetSubstructMatches(_PEROXY_ESTER)]
     esters = [m for m in mol.GetSubstructMatches(_ESTER) if not _carbonic_link(mol, m[0], m[3])]
-    return (*esters, *peroxy)
+    return (*esters, *mol.GetSubstructMatches(_SULFENYL_HALIDE_ESTER), *peroxy)
 
 
 def _name_ester_parts(mol, labels, original=None) -> str:
