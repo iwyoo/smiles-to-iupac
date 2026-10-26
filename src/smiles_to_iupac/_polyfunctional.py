@@ -7677,7 +7677,11 @@ def _hydrazide_beta_fits(mol, alpha, beta, carbonyl):
                 continue
             if (nitrogen is beta and _carbamoyl_on(mol, n, nitrogen)) or _cyano_on(mol, n, nitrogen):
                 continue
-            if _heteroatom_on_nitrogen(mol, n, nitrogen) or (nitrogen is alpha and _amino_group_on(mol, n, nitrogen)):
+            if (
+                _heteroatom_on_nitrogen(mol, n, nitrogen)
+                or (n.GetAtomicNum() == 8 and _acyloxy_on_nitrogen(mol, n, nitrogen))
+                or (nitrogen is alpha and _amino_group_on(mol, n, nitrogen))
+            ):
                 continue
             if nitrogen is beta and _ring_nitrogen_ylidene_carbon(mol, n, nitrogen):
                 orders.append(2.0)
