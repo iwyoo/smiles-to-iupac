@@ -1143,6 +1143,8 @@ def test_ester_class_names(smiles, expected):
         ("OS(=O)(=O)CS(=O)(=O)O", "methanedisulfonic acid"),
         ("OS(=O)(=O)C(C)S(=O)(=O)O", "ethane-1,1-disulfonic acid"),
         ("CC(=O)OOOC(C)=O", "1,1'-trioxidanediyldi(ethan-1-one)"),
+        ("CN(OC(C)=O)OC(C)=O", "1,1'-[(methylazanediyl)bis(oxy)]di(ethan-1-one)"),
+        ("CC(C)N(OC(=O)c1ccccc1)OC(=O)c1ccccc1", "{[(propan-2-yl)azanediyl]bis(oxy)}bis(phenylmethanone)"),
         ("CC(=O)SSSSC(C)=O", "1,1'-tetrasulfanediyldi(ethan-1-one)"),
         ("CC(=O)SOSC(C)=O", "1,1'-dithioxanediyldi(ethan-1-one)"),
         ("CCC(=O)SSSSC(C)=O", "1-(acetyltetrasulfanyl)propan-1-one"),
