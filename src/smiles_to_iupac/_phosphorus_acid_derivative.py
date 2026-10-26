@@ -8,6 +8,7 @@ from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._carbonic_family import pseudohalide_at
+from ._chalcogen_imide import ylidene_group_atoms
 from ._oxoacid_acyl import is_senior_centre
 from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
 from ._substituents import (
@@ -81,7 +82,12 @@ def _halide_word(mol, atom, center):
 def _is_amino(nitrogen, center):
     if nitrogen.GetAtomicNum() != 7 or nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
         return False
-    return all(n.GetAtomicNum() == 6 for n in nitrogen.GetNeighbors() if n.GetIdx() != center.GetIdx())
+    mol = nitrogen.GetOwningMol()
+    return all(
+        n.GetAtomicNum() == 6 or ylidene_group_atoms(mol, n.GetIdx(), nitrogen.GetIdx())
+        for n in nitrogen.GetNeighbors()
+        if n.GetIdx() != center.GetIdx()
+    )
 
 
 def has_phosphorus_acid_derivative_shape(mol) -> bool:
