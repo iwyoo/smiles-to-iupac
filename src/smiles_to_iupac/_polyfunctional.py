@@ -935,7 +935,11 @@ def _acyloxy_amine_oxygen(mol, oxygen, carbon):
     if len(doubles) > 1 or any(b.GetBondTypeAsDouble() != 2.0 for b in doubles):
         return False
     return all(
-        n.GetIdx() == previous.GetIdx() or n.GetAtomicNum() == 6 or _sulfonyl_type_centre(mol, n) or _hydride_chain_group(mol, n, far)
+        n.GetIdx() == previous.GetIdx()
+        or n.GetAtomicNum() == 6
+        or _sulfonyl_type_centre(mol, n)
+        or _hydride_chain_group(mol, n, far)
+        or _nitro_or_nitroso(mol, n)
         for n in far.GetNeighbors()
     )
 
