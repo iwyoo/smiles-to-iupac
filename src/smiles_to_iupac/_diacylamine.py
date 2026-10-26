@@ -29,11 +29,23 @@ def _acyl_roots(mol, nitrogen, carbon_chalcogens=(8,)):
         if n.GetAtomicNum() == 6 and len(doubly) == 1:
             if (not rest and n.GetTotalNumHs() == 1) or (len(rest) == 1 and rest[0].GetAtomicNum() == 6):
                 roots.append(n.GetIdx())
-        elif n.GetAtomicNum() == 16 and len(doubly) in (1, 2) and len(rest) == 1 and (
-            rest[0].GetAtomicNum() == 6 or _ring_nitrogen_substituent(mol, rest[0], n)
-        ):
-            roots.append(n.GetIdx())
+        elif n.GetAtomicNum() == 16:
+            imino = [m for m in rest if _terminal_imine(mol, n, m)]
+            rest = [m for m in rest if m not in imino]
+            if len(doubly) + len(imino) in (1, 2) and len(rest) == 1 and (
+                rest[0].GetAtomicNum() == 6 or _ring_nitrogen_substituent(mol, rest[0], n)
+            ):
+                roots.append(n.GetIdx())
     return roots
+
+
+def _terminal_imine(mol, centre, atom):
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetDegree() == 1
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(centre.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() == 2.0
+    )
 
 
 def _side(graph, root, blocked):
