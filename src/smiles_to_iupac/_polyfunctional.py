@@ -524,8 +524,21 @@ def _carbamimidoyl_nitrogen_substituents(mol, nitrogen, origin):
         )
         or _carbamimidoyl_on(mol, n, nitrogen)
         or _plain_acyl_on(mol, n, nitrogen)
+        or _plain_ylidene_group(mol, nitrogen, n)
         for n in nitrogen.GetNeighbors()
         if n.GetIdx() != origin
+    )
+
+
+def _plain_ylidene_group(mol, nitrogen, carbon):
+    """The carbon of a hydrocarbon ylidene group =C< on `nitrogen`, which carries nothing else: the N-ylidene prefix of the
+    carbamimidoyl group (P-66.4.1.4)."""
+    return (
+        carbon.GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() == 2.0
+        and nitrogen.GetDegree() == 2
+        and not _double_oxygens(mol, carbon.GetIdx())
+        and not is_functional_carbon(mol, carbon.GetIdx())
     )
 
 
@@ -640,7 +653,11 @@ def _amidine_ylidene(mol, atom, nitrogen):
         and all(
             not n.GetFormalCharge()
             and not n.GetIsAromatic()
-            and (_plain_nitrogen_substituents(mol, n, atom.GetIdx()) or azine_nitrogen(mol, n, atom.GetIdx()))
+            and (
+                _plain_nitrogen_substituents(mol, n, atom.GetIdx())
+                or azine_nitrogen(mol, n, atom.GetIdx())
+                or any(_plain_ylidene_group(mol, n, c) for c in n.GetNeighbors() if c.GetIdx() != atom.GetIdx())
+            )
             for n in amino
         )
     )
