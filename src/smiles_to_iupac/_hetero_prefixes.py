@@ -1603,7 +1603,6 @@ def azine_nitrogen(mol, nitrogen, origin):
         and len(ends) == 1
         and mol.GetBondBetweenAtoms(far.GetIdx(), ends[0].GetIdx()).GetBondTypeAsDouble() == 2.0
         and ends[0].GetAtomicNum() == 6
-        and not ends[0].IsInRing()
         and _carbonyl_oxygen(mol, ends[0].GetIdx()) is None
         and not is_functional_carbon(mol, ends[0].GetIdx())
         and all(
