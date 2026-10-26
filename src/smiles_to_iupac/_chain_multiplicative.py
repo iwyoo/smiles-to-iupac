@@ -660,6 +660,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             text = _urea_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
         elif unit_kind == "semicarbazide":
             text = _semicarbazide_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
+        elif unit_kind == "carbonohydrazonic":
+            text = _carbonohydrazonic_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
         elif unit_stereo:
             cited = _cited_unit_stereo(units, unit_kind)
             text, stereo_text = cited if cited is not None else (None, "")
@@ -688,6 +690,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif unit_kind == "urea":
             lead = ",".join("N" + "'" * (2 * i) for i in range(count)) + "-"
+        elif unit_kind == "carbonohydrazonic":
+            lead = ",".join("N''" + "'" * i for i in range(count)) + "-"
         elif unit_kind == "semicarbazide":
             lead = ",".join("2" + "'" * i for i in range(count)) + "-"
             linker = _linker_text(branches, central, arm_parts)
@@ -1371,6 +1375,54 @@ def _urea_core(mol, nitrogen):
     return None
 
 
+def _carbonohydrazonic_core(mol, nitrogen):
+    """{imine nitrogen, carbon, two amide nitrogens} of a carbonohydrazonic diamide group C(=N-N<)(N)N whose hydrazone
+    nitrogen is `nitrogen`, or None."""
+    for imine in nitrogen.GetNeighbors():
+        if imine.GetAtomicNum() != 7 or imine.GetFormalCharge() or imine.IsInRing() or imine.GetDegree() != 2:
+            continue
+        if mol.GetBondBetweenAtoms(imine.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            continue
+        for carbon in imine.GetNeighbors():
+            if carbon.GetIdx() == nitrogen.GetIdx() or carbon.GetAtomicNum() != 6 or carbon.IsInRing() or carbon.GetDegree() != 3:
+                continue
+            if mol.GetBondBetweenAtoms(imine.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 2.0:
+                continue
+            amides = [n for n in carbon.GetNeighbors() if n.GetIdx() != imine.GetIdx()]
+            if len(amides) == 2 and all(
+                a.GetAtomicNum() == 7 and not a.GetFormalCharge() and not a.IsInRing() and not a.GetIsAromatic()
+                and mol.GetBondBetweenAtoms(carbon.GetIdx(), a.GetIdx()).GetBondTypeAsDouble() == 1.0
+                for a in amides
+            ):
+                return {imine.GetIdx(), carbon.GetIdx(), *(a.GetIdx() for a in amides)}
+    return None
+
+
+def _carbonohydrazonic_unit_text(mol, graph, attach, root, atoms):
+    """'carbonohydrazonic diamide' with the groups on its amide nitrogens, N and N', the hydrazone nitrogen `attach` being
+    N'' (P-66.4.2.2)."""
+    from ._common import group_substituents
+    from ._substituents import format_substituent_prefixes
+
+    core = _carbonohydrazonic_core(mol, mol.GetAtomWithIdx(attach))
+    if core is None:
+        return None
+    carbon = next(a for a in core if mol.GetAtomWithIdx(a).GetAtomicNum() == 6)
+    halogens = halogen_substituents(mol)
+    found = [
+        [name_branch(graph, n, amide, halogens, mol=mol, unsaturated=True) for n in graph[amide] if n != carbon]
+        for amide in core
+        if amide != carbon and mol.GetBondBetweenAtoms(amide, carbon).GetBondTypeAsDouble() == 1.0
+    ]
+    first, second = sorted(found, key=lambda names: (-len(names), sorted(name for name, _ in names)))
+    entries = {}
+    for locant, names in (("N", first), ("N'", second)):
+        for name, compound in names:
+            entries.setdefault(locant, []).append((name, compound))
+    prefix = format_substituent_prefixes(group_substituents(entries)) if entries else ""
+    return prefix + "carbonohydrazonic diamide"
+
+
 def _semicarbazide_core(mol, nitrogen):
     """{carbon, chalcogen, amide nitrogen, hydrazine nitrogen 1} of a hydrazinecarboxamide group (semicarbazide,
     semicarbazone) whose nitrogen 2 is `nitrogen`, or None."""
@@ -1505,6 +1557,7 @@ def _chain_multiplicative_name(mol, stereo):
         ("centre_acid", _acid_centre_candidates(mol, graph)),
         ("carbamic", _nitrogen_unit_candidates(mol, graph, _carbamic_core, _senior_to_carbamic)),
         ("semicarbazide", _nitrogen_unit_candidates(mol, graph, _semicarbazide_core, _senior_to_urea, (1.0, 2.0))),
+        ("carbonohydrazonic", _nitrogen_unit_candidates(mol, graph, _carbonohydrazonic_core, _senior_to_urea, (2.0,))),
         ("urea", _nitrogen_unit_candidates(mol, graph, _urea_core, _senior_to_urea)),
         ("inorganic_amide", _nitrogen_unit_candidates(mol, graph, _inorganic_amide_core, _senior_to_inorganic_amide)),
     ):

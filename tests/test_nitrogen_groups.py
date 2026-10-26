@@ -1649,6 +1649,12 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         pytest.param("CC(=O)NN=C(C)N", "N'-acetylethanehydrazonamide", id="acyl_group_on_the_hydrazone_nitrogen"),
         pytest.param("OC(=O)NN=C(C)N", "2-(1-aminoethylidene)hydrazine-1-carboxylic acid", id="acid_outranks_the_hydrazonamide"),
         pytest.param("CC(=O)NN=C(N)N", "N''-acetylcarbonohydrazonic diamide", id="acylated_carbonohydrazonic_diamide"),
+        pytest.param("NC(N)=NN=CC", "N''-ethylidenecarbonohydrazonic diamide", id="ylidene_on_the_hydrazone_nitrogen"),
+        pytest.param(
+            "NC(N)=NN=CC=NN=C(N)N",
+            "N'',N'''-(ethane-1,2-diylidene)bis(carbonohydrazonic diamide)",
+            id="two_carbonohydrazonic_diamide_units_by_multiplication",
+        ),
         pytest.param("NC(=NN)c1ccccc1", "benzenecarbohydrazonamide", id="carbohydrazonamide_on_a_ring"),
         pytest.param("C(=N)NN", "methanimidohydrazide", id="imidohydrazide_of_a_one_carbon_parent"),
         pytest.param("NNC=NN", "methanehydrazonohydrazide", id="hydrazonohydrazide_of_a_one_carbon_parent"),

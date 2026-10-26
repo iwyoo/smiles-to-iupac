@@ -179,12 +179,31 @@ def name_labelled_cyanamide(mol):
     return None if split is None else cyanamide_name(split[0], split[1])
 
 
+_AZINE_UNIT = Chem.MolFromSmarts("[CX3;!R]([NX3;!R])([NX3;!R])=[NX2;!R]-[NX2;!R]=[CX3]")
+
+
+def _hydrazone_ylidene(mol, ylidene, nitrogen):
+    """The carbon of an N''-ylidene group =CR2 on the terminal hydrazone nitrogen; carbon and amino groups only, since a
+    halogen, oxygen or sulfur group would make it an acid halide or ester carbon that outranks the diamide (P-41)."""
+    return (
+        ylidene.GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(ylidene.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() == 2.0
+        and all(n.GetAtomicNum() in (6, 7) for n in ylidene.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx())
+    )
+
+
 def carbonohydrazonic_diamide_name(mol):
     """C(=N-NH2)(NH2)2 with groups on its nitrogens (P-66.4.2.2): N and N' on the two amide nitrogens, N'' on the
     terminal hydrazone nitrogen, as the locants of an amidrazone follow the nitrogens in the order of the group; the
     configuration of the C=N bond is cited as (1E) or (1Z) when the two amide nitrogens differ (P-93.4.2.1.3)."""
     if not _plain(mol, stereo=True):
         return None
+    if len(mol.GetSubstructMatches(_AZINE_UNIT)) > 1:
+        from ._chain_multiplicative import chain_multiplicative_name
+
+        multiplied = chain_multiplicative_name(mol, [])
+        if multiplied is not None:
+            return multiplied
     graph = adjacency(mol)
     for carbon in mol.GetAtoms():
         if carbon.GetAtomicNum() != 6 or carbon.IsInRing() or carbon.GetDegree() != 3:
@@ -202,7 +221,12 @@ def carbonohydrazonic_diamide_name(mol):
             continue
         terminal = terminals[0]
         nitrogens = [mol.GetAtomWithIdx(i) for i in amides] + [terminal]
-        if any(b.GetBondTypeAsDouble() != 1.0 for n in nitrogens for b in n.GetBonds() if b.GetOtherAtomIdx(n.GetIdx()) != carbon.GetIdx()):
+        if any(
+            b.GetBondTypeAsDouble() != 1.0 and not (n is terminal and _hydrazone_ylidene(mol, b.GetOtherAtom(n), n))
+            for n in nitrogens
+            for b in n.GetBonds()
+            if b.GetOtherAtomIdx(n.GetIdx()) != carbon.GetIdx()
+        ):
             continue
         if any(n.GetAtomicNum() == 7 for amide in nitrogens[:2] for n in amide.GetNeighbors() if n.GetIdx() != carbon.GetIdx()):
             continue
