@@ -609,7 +609,6 @@ def _chalcogen_ylidene_on(mol, atom, nitrogen):
     and imino groups only (P-68.4.3.3, P-68.4.3.4)."""
     if (
         atom.GetAtomicNum() not in (16, 34, 52)
-        or atom.IsInRing()
         or atom.GetFormalCharge()
         or atom.GetTotalValence() not in (4, 6)
         or mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 2.0
@@ -766,7 +765,8 @@ def _sulfonyl_group(mol, s_idx, attached):
         and mol.GetBondBetweenAtoms(s_idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
         and all(
             m.GetIdx() == s_idx
-            or (m.GetAtomicNum() == 6 and (not is_functional_carbon(mol, m.GetIdx()) or _acyl_chalcogen(mol, m.GetIdx()) is not None))
+            or (m.GetAtomicNum() == 6 and (not is_functional_carbon(mol, m.GetIdx()) or _acyl_chalcogen(mol, m.GetIdx()) is not None or _cyano_carbon(mol, m)))
+            or (m.GetAtomicNum() in HALOGEN_PREFIXES and m.GetDegree() == 1)
             for m in n.GetNeighbors()
         )
     ]
@@ -7960,6 +7960,8 @@ def _amidine_nitrogens(mol, atom):
                 and n.GetAtomicNum() == 6
                 and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
             )
+            if nitrogen is amino and nitrogen.GetDegree() == 2 and _chalcogen_ylidene_on(mol, n, nitrogen):
+                continue
             if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 and not ylidene:
                 return None
             if _ring_nitrogen_substituent(mol, n, nitrogen):

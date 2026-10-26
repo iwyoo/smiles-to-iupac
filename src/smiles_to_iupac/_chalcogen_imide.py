@@ -51,9 +51,13 @@ def _imino_nitrogen(bond, center):
 
 
 def _imino_substituent_atom(atom):
-    """Carbon, or the oxygen or nitrogen of a hydroxyimino or aminoimino group (a ketone-like centre outranks alcohols
-    and amines, P-41)."""
-    return atom.GetAtomicNum() == 6 or _terminal_hydroxy_or_amino(atom)
+    """Carbon, a halogen, or the oxygen or nitrogen of a hydroxyimino or aminoimino group (a ketone-like centre outranks
+    alcohols and amines, P-41)."""
+    return atom.GetAtomicNum() == 6 or _terminal_hydroxy_or_amino(atom) or _terminal_halogen(atom)
+
+
+def _terminal_halogen(atom):
+    return atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1 and not atom.GetFormalCharge() and not atom.GetIsotope()
 
 
 def _terminal_hydroxy_or_amino(atom):
