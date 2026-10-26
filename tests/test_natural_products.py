@@ -269,3 +269,11 @@ def test_spiro_ring_on_a_parent_with_ene_endings(smiles, expected):
 def test_ordinary_ring_system_with_an_aromatic_ring_is_not_a_seco_or_bridged_natural_product(smiles, expected):
     # P-101.2.0: a structure that the systematic rules name is not given a semisystematic parent
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles, expected", [
+    ('N[C@@H]1CCc2c1ccc1c2CCCC1', '(3R)-2,3,6,7,8,9-hexahydro-1H-cyclopenta[a]naphthalen-3-amine'),
+])
+def test_small_ring_system_is_not_a_des_seco_or_nor_natural_product(smiles, expected):
+    # P-101.2.0, P-101.3.0: a skeleton left with fewer atoms than any such parent keeps is named by the systematic rules
+    assert smiles_to_iupac(smiles) == expected
