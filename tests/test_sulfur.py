@@ -134,6 +134,10 @@ def test_multiplicative_esters_of_sulfur_and_phosphorus_acids(smiles, expected):
     "smiles, expected",
     [
         pytest.param("CC[C@H](C)OS(=O)(=O)O", "(2S)-butan-2-yl hydrogen sulfate", id="sulfate_monoester"),
+        pytest.param("OC(=O)CCSS(=O)(=O)[O-]", "S-(2-carboxyethyl) sulfurothioate", id="anionic_s_ester_beside_a_carboxylic_acid"),
+        pytest.param(
+            "C[N+](C)(C)CCSS(=O)(=O)[O-]", "S-[2-(trimethylazaniumyl)ethyl] sulfurothioate", id="anionic_s_ester_beside_an_onium_group"
+        ),
         pytest.param("CC[C@H](C)OS(=O)(=O)OC", "(2S)-butan-2-yl methyl sulfate", id="sulfate_diester"),
         pytest.param("CC[C@H](C)OS(=O)(=O)[O-]", "(2S)-butan-2-yl sulfate", id="sulfate_anion"),
         pytest.param("CC[C@H](C)OS(=O)(=O)[O-].[Na+]", "sodium (2S)-butan-2-yl sulfate", id="sulfate_salt"),

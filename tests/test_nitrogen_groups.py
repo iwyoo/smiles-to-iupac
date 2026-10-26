@@ -2317,6 +2317,7 @@ def test_carbaldehyde_on_a_polyaza_chain(smiles, expected):
         ("NSSCC(=O)O", "(aminodisulfanyl)acetic acid"),
         ("CS(=O)ON", "O-(methanesulfinyl)hydroxylamine"),
         ("NOS(=O)(=O)O", "hydroxylamine-O-sulfonic acid"),
+        ("CC(=O)N(C)OS(=O)(=O)[O-]", "N-acetyl-N-methylhydroxylamine-O-sulfonate"),
         ("NOC(=O)O", "hydroxylamine-O-carboxylic acid"),
         ("NONC", "N-(aminooxy)methanamine"),
         ("NOC(=O)c1ccccc1", "aminooxy(phenyl)methanone"),

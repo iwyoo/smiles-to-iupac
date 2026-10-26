@@ -96,10 +96,11 @@ def _acyloxy_on_acyclic_nitrogen(atom):
     )
 
 
-def _plain_tree(mol, graph, root, behind):
+def _plain_tree(mol, graph, root, behind, anionic=False):
     """Whether the group starting at carbon `root` holds only carbon, halogen, nitrogen and sp3 oxygen atoms and no
     acid-type carbonyl, so that nothing in it outranks the acid derivative being named; other acid centres and their ligands are tolerated here and ranked
-    by `is_senior_centre` (P-67.1.5.2)."""
+    by `is_senior_centre` (P-67.1.5.2). An anionic acid derivative outranks every acid group (P-41), so with `anionic`
+    acid groups are tolerated."""
     seen, stack = {behind}, [root]
     tolerated = set()
     while stack:
@@ -109,7 +110,7 @@ def _plain_tree(mol, graph, root, behind):
         seen.add(index)
         atom = mol.GetAtomWithIdx(index)
         z = atom.GetAtomicNum()
-        if atom.GetIsotope() or atom.GetFormalCharge():
+        if atom.GetIsotope() or (atom.GetFormalCharge() and not (anionic and atom.GetFormalCharge() == 1 and z == 7)):
             return False
         if z in _LOCANT:
             tolerated.update(graph[index])
@@ -127,7 +128,7 @@ def _plain_tree(mol, graph, root, behind):
             pass
         elif z != 6 and z not in _HALIDE:
             return False
-        if z == 6 and _senior_carbonyl(atom) and not _acyloxy_on_acyclic_nitrogen(atom):
+        if z == 6 and _senior_carbonyl(atom) and not anionic and not _acyloxy_on_acyclic_nitrogen(atom):
             return False
         stack.extend(graph[index])
     return True
@@ -192,6 +193,16 @@ def _peroxo_name(first, last):
     return "".join(_CHALCOGEN_PREFIX[z] for z in elements) + "peroxo"
 
 
+def _onium_prefix_nitrogen(atom, centre):
+    """A positively charged nitrogen away from the acid centre: with an anionic acid group the whole is a zwitterion named
+    as the anion with a cationic prefix (P-41, P-73.1.2)."""
+    return atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1 and centre.GetIdx() not in {n.GetIdx() for n in atom.GetNeighbors()}
+
+
+def _anionic_oxygen_on(centre):
+    return any(n.GetAtomicNum() == 8 and n.GetFormalCharge() == -1 and n.GetDegree() == 1 for n in centre.GetNeighbors())
+
+
 def _classify(mol, graph, halogens, centre, neighbor):
     """The ligand description of `neighbor` bonded to the acid centre, or None when it is not an acid ligand."""
     found = _classify_ligand(mol, graph, halogens, centre, neighbor)
@@ -221,7 +232,7 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
         elif neighbor.GetDegree() == 2 and order == 1.0 and not neighbor.GetTotalNumHs():
             other = next(n for n in neighbor.GetNeighbors() if n.GetIdx() != centre.GetIdx())
             if other.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(neighbor.GetIdx(), other.GetIdx()).GetBondTypeAsDouble() == 1.0:
-                if not _plain_tree(mol, graph, other.GetIdx(), neighbor.GetIdx()):
+                if not _plain_tree(mol, graph, other.GetIdx(), neighbor.GetIdx(), _anionic_oxygen_on(centre)):
                     return None
                 return {"role": "single", "kind": "ester", "z": z, "H": False, "R": other.GetIdx()}
             if (
@@ -426,7 +437,11 @@ def _acid_candidates(mol):
         if junior_to_acyl_halide and mol.HasSubstructMatch(_CARBOXYLIC_ACYL_HALIDE):
             return []
         anions = [p["atom"] for p in part["singles"] if p.get("anion")]
-        charged = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() in anion_atoms]
+        charged = [
+            a.GetIdx()
+            for a in mol.GetAtoms()
+            if a.GetFormalCharge() and a.GetIdx() in anion_atoms and not (anions and _onium_prefix_nitrogen(a, centre))
+        ]
         free_anion = cation is None and bool(anions) and charged == anions
         if (bool(cation) != bool(anions) and not free_anion) or (anions and charged != anions) or (cation and len(anions) > 1):
             return []
