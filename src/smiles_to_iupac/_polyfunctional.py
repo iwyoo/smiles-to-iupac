@@ -6571,6 +6571,36 @@ def _chalcogen_run_word(elements, central):
     return "".join(words)
 
 
+def _nitrogen_centred_linker(mol, graph):
+    """([end, nitrogen, end], word, substituent atoms) of an acyclic -E-N(R)-E- group between two acyl carbons, E being
+    the same chalcogen, with at most one carbon group R on the nitrogen: '(methylazanediyl)bis(oxy)' (P-65.7.5.1,
+    P-62.2.5.1)."""
+    from ._substituents import format_mononuclear_prefixes
+
+    for nitrogen in mol.GetAtoms():
+        if nitrogen.GetAtomicNum() != 7 or nitrogen.IsInRing() or nitrogen.GetFormalCharge() or nitrogen.GetIsotope():
+            continue
+        if any(b.GetBondTypeAsDouble() != 1.0 for b in nitrogen.GetBonds()):
+            continue
+        ends = [n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in _CHALCOGEN_CHAIN_STEMS]
+        rest = [n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() not in _CHALCOGEN_CHAIN_STEMS]
+        if len(ends) != 2 or ends[0].GetAtomicNum() != ends[1].GetAtomicNum() or len(rest) + nitrogen.GetTotalNumHs() != 1:
+            continue
+        if any(e.GetDegree() != 2 or e.IsInRing() or e.GetFormalCharge() or e.GetTotalNumHs() for e in ends):
+            continue
+        if rest and (rest[0].GetAtomicNum() != 6 or is_functional_carbon(mol, rest[0].GetIdx())):
+            continue
+        substituent, owned = "", set()
+        if rest:
+            name, compound = name_branch(graph, rest[0].GetIdx(), nitrogen.GetIdx(), halogen_substituents(mol), frozenset(), mol=mol)
+            substituent = format_mononuclear_prefixes([(name, compound)])
+            owned = _arm_atoms(graph, rest[0].GetIdx(), nitrogen.GetIdx())
+        arm = _chalcogen_run_word([ends[0].GetAtomicNum()], False)
+        centre = enclose(f"{substituent}azanediyl") if substituent else "azanediyl"
+        return [ends[0].GetIdx(), nitrogen.GetIdx(), ends[1].GetIdx()], f"{centre}bis({arm})", owned
+    return None
+
+
 def _diacyl_chalcogen_chain_name(mol, graph, stereo):
     """P-65.7.5.1: two identical acyl groups joined by a symmetric chain of three or more chalcogen atoms are
     pseudoketones named multiplicatively (1,1'-trioxidanediyldi(ethan-1-one))."""
@@ -6584,19 +6614,25 @@ def _diacyl_chalcogen_chain_name(mol, graph, stereo):
         and not a.GetTotalNumHs()
     ]
     if len(chain) < 3:
-        return None
-    chain_set = set(chain)
-    ends = [a for a in chain if sum(1 for n in graph[a] if n in chain_set) == 1]
-    if len(ends) != 2 or any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a in chain for b in graph[a]):
-        return None
-    order, previous = [ends[0]], None
-    while len(order) < len(chain):
-        onward = [n for n in graph[order[-1]] if n in chain_set and n != previous]
-        if len(onward) != 1:
+        linked = _nitrogen_centred_linker(mol, graph)
+        if linked is None:
             return None
-        previous = order[-1]
-        order.append(onward[0])
-    word = _chalcogen_linker_word([mol.GetAtomWithIdx(a).GetAtomicNum() for a in order])
+        order, word, owned = linked
+        chain = list(set(order) | owned)
+        chain_set = set(chain)
+    else:
+        chain_set = set(chain)
+        ends = [a for a in chain if sum(1 for n in graph[a] if n in chain_set) == 1]
+        if len(ends) != 2 or any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a in chain for b in graph[a]):
+            return None
+        order, previous = [ends[0]], None
+        while len(order) < len(chain):
+            onward = [n for n in graph[order[-1]] if n in chain_set and n != previous]
+            if len(onward) != 1:
+                return None
+            previous = order[-1]
+            order.append(onward[0])
+        word = _chalcogen_linker_word([mol.GetAtomWithIdx(a).GetAtomicNum() for a in order])
     roots = [next(n for n in graph[end] if n not in chain_set) for end in (order[0], order[-1])]
     if word is None or any(
         mol.GetAtomWithIdx(r).GetAtomicNum() != 6 or not _double_oxygens(mol, r) for r in roots
@@ -6617,18 +6653,17 @@ def _diacyl_chalcogen_chain_name(mol, graph, stereo):
             return None
         parts, stereo_text = arms_named
     prefix, body, tail, locant = parts[:4]
-    if locant is None:
-        return None
     marked = _linker_descriptor(order)
     _consume_labels(order)
     if marked:
         word = enclose(marked + word)
     elif "bis(" in word:
-        word = f"[{word}]"
+        word = enclose(word)
     text = prefix + body
+    lead = f"{locant},{locant}'-" if locant is not None else ""
     if prefix:
-        return f"{stereo_text}{locant},{locant}'-{word}{_bis_unit(text, tail)}"
-    return f"{stereo_text}{locant},{locant}'-{word}di{unit_phrase(text, tail)}"
+        return f"{stereo_text}{lead}{word}{_bis_unit(text, tail)}"
+    return f"{stereo_text}{lead}{word}di{unit_phrase(text, tail)}"
 
 
 def _arm_atoms(graph, start, blocked):
