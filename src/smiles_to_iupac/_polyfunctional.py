@@ -404,10 +404,22 @@ def _hydride_chain_group(mol, atom, origin):
         _plain_ylidene_carbon(mol, atom, n) if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
         else (atom.GetAtomicNum() == 7 and _acyl_on_chain_nitrogen(mol, n, atom))
         or (atom.GetAtomicNum() in _CHALCOGEN_RANK and _halogen_ligand(n))
+        or (atom.GetAtomicNum() == 8 and _acyl_end(mol, n, atom))
         or _hydride_chain_group(mol, n, atom)
         for n in atom.GetNeighbors()
         if n.GetIdx() != origin.GetIdx()
     )
+
+
+def _acyl_end(mol, carbon, oxygen):
+    """The acyl carbon R-CO- ending an acyloxy group -O-CO-R on an oxygen of the chain, R being hydrogen or a plain carbon
+    group: the acyloxy prefix of a nitrogen, since an acyclic nitrogen gives no traditional ester (P-65.6.3.4.1)."""
+    if carbon.GetAtomicNum() != 6 or carbon.GetFormalCharge() or carbon.IsInRing() or carbon.GetDegree() > 3:
+        return False
+    if mol.GetBondBetweenAtoms(oxygen.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 1.0 or len(_double_oxygens(mol, carbon.GetIdx())) != 1:
+        return False
+    rest = [n for n in carbon.GetNeighbors() if n.GetIdx() != oxygen.GetIdx() and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0]
+    return all(n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx()) for n in rest)
 
 
 def _halogen_ligand(atom):

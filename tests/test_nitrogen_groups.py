@@ -750,6 +750,8 @@ def test_hydrazide_names(smiles, expected):
         pytest.param("CC(C)=NN(C)C(=S)CC", "N-methyl-N'-(propan-2-ylidene)propanethiohydrazide", id="ylidene_on_a_thiohydrazide"),
         pytest.param("CC(=O)NNOC", "N'-methoxyacetohydrazide", id="heteroatom_group_on_the_terminal_nitrogen"),
         pytest.param("CC(=O)N(OC(C)=O)NC", "N-(acetyloxy)-N'-methylacetohydrazide", id="acyloxy_group_on_the_acylated_nitrogen"),
+        pytest.param("CC(=O)N(OC(C)=O)OC(C)=O", "N,N-bis(acetyloxy)acetamide", id="two_acyloxy_groups_on_an_amide_nitrogen"),
+        pytest.param("CC(=O)N(OC(C)=O)NOC(C)=O", "N,N'-bis(acetyloxy)acetohydrazide", id="acyloxy_group_on_each_hydrazide_nitrogen"),
         pytest.param("CC(=O)N(O)S", "N-hydroxy-N-sulfanylacetamide", id="two_heteroatom_groups_on_the_amide_nitrogen"),
     ],
 )
