@@ -84,9 +84,11 @@ _AMINO_ON_RING_NITROGEN = Chem.MolFromSmarts("[NX3H2;!R]-[#7X3;R;+0]")
 _PEROXOL = Chem.MolFromSmarts("[O,S,Se,Te;X2H1][O,S,Se,Te;X2H0][#6]")
 
 
-def require_plain_chalcogen_kids(mol, z, kids):
+def require_plain_chalcogen_kids(mol, z, kids, parent=None):
     """Se/Te bonded to an acyl, carbamoyl, formyl or cyano carbon is a selenoate/selenocyanate-type group, not a
-    plain selanyl/tellanyl prefix."""
+    plain selanyl/tellanyl prefix, unless it hangs on an acyclic nitrogen (a pseudoketone, P-65.6.3.4)."""
+    if parent is not None and (nitrogen := mol.GetAtomWithIdx(parent)).GetAtomicNum() == 7 and not nitrogen.IsInRing():
+        return
     if z in (34, 52) and not EXTENDED_PREFIXES.get():
         for kid in kids:
             atom = mol.GetAtomWithIdx(kid)
@@ -956,7 +958,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return group
     if z in CHALCOGEN_PREFIXES:
         word = CHALCOGEN_PREFIXES[z]
-        require_plain_chalcogen_kids(mol, z, others)
+        require_plain_chalcogen_kids(mol, z, others, coming_from)
         if order == 2.0 and not others:
             return word[:-2] + "ylidene", False
         if order != 1.0 or len(others) > 1 or atom.GetDegree() > 2:

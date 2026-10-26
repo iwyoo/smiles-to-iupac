@@ -973,6 +973,17 @@ def _sulfonyl_type_centre(mol, atom):
     )
 
 
+def _cyano_carbon(mol, atom):
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetDegree() == 2
+        and any(
+            n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 3.0
+            for n in atom.GetNeighbors()
+        )
+    )
+
+
 def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
     """An acyloxy group -O-CO-R on `nitrogen`, cited as the prefix 'acyloxy' because an acyclic nitrogen gives no
     traditional ester (P-65.6.3.2.3, P-65.6.3.4.1)."""
@@ -984,7 +995,7 @@ def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
     return (
         acyl is not None
         and acyl.GetAtomicNum() in (6, 16)
-        and _acyl_chalcogen_of(mol, acyl) is not None
+        and (_acyl_chalcogen_of(mol, acyl) is not None or _cyano_carbon(mol, acyl))
         and _acyloxy_amine_oxygen(mol, near, acyl.GetIdx())
     )
 
