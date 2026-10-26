@@ -143,7 +143,7 @@ class PrefixNamer:
             return _oxy(*entries[0])
         if z in CHALCOGEN_PREFIXES:
             word = CHALCOGEN_PREFIXES[z]
-            require_plain_chalcogen_kids(mol, z, [q for q in self.graph[n] if q != parent])
+            require_plain_chalcogen_kids(mol, z, [q for q in self.graph[n] if q != parent], parent)
             if not entries:
                 return word, False
             return format_mononuclear_prefixes(entries) + word, True

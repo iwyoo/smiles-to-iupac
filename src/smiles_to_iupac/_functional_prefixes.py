@@ -541,7 +541,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol, unsaturated=True))
         elif z in CHALCOGEN_PREFIXES:
             word = CHALCOGEN_PREFIXES[z]
-            require_plain_chalcogen_kids(mol, z, kids)
+            require_plain_chalcogen_kids(mol, z, kids, parent)
             if not kids and _bond_order(mol, node, parent) == 2.0:
                 record(node, word[:-2] + "ylidene", False)
             elif not kids:
