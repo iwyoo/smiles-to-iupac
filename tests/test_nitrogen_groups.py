@@ -2972,6 +2972,7 @@ def test_ring_nitrogen_amidine_is_a_prefix_beside_a_senior_group(smiles, expecte
     "smiles, expected",
     [
         pytest.param("CC(=O)NNC(=O)NC(=O)NNC(C)=O", "N'-[(2-acetylhydrazine-1-carbonyl)carbamoyl]acetohydrazide", id="chain_through_an_imide_nitrogen"),
+        pytest.param("CS(=O)(=O)NNC(=O)NNS(=O)(=O)C", "N'-[2-(methanesulfonyl)hydrazine-1-carbonyl]methanesulfonohydrazide", id="sulfonyl_on_both_terminal_nitrogens"),
         pytest.param("CNC(=O)NNC(=O)NNC(=O)NC", "N',2-bis(methylcarbamoyl)hydrazine-1-carbohydrazide", id="semicarbazide_ends_on_a_carbonohydrazide"),
         pytest.param("CCOC(=O)NNC(=O)NNC(=O)OCC", "ethyl 2-[2-(ethoxycarbonyl)hydrazine-1-carbonyl]hydrazine-1-carboxylate", id="second_carbazate_as_a_prefix"),
     ],
