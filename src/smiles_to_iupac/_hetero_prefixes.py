@@ -1546,6 +1546,14 @@ def _nitrile_oxide_prefix(mol, nitrogen):
     return None
 
 
+def _sulfonyl_centre(mol, atom):
+    """A sulfur, selenium or tellurium atom with a terminal oxo group: the acyl-type centre of a sulfonyl-type group."""
+    return atom.GetAtomicNum() in (16, 34, 52) and any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
+    )
+
+
 def substituted_hydrazinecarbonyl(graph, carbon, alpha, alpha_subs, halogens, aromatic_atoms, mol, base):
     """'2-methylhydrazine-1-carbonyl': the acyl group of an N-substituted hydrazide, hydrazine numbered 1 at the nitrogen
     bonded to the carbonyl carbon (P-65.1.3.2); None unless a chain nitrogen follows. `base` is 'hydrazinecarbonyl' or its
@@ -1570,7 +1578,7 @@ def substituted_hydrazinecarbonyl(graph, carbon, alpha, alpha_subs, halogens, ar
                 continue
             substituent = mol.GetAtomWithIdx(n)
             if mol.GetBondBetweenAtoms(nitrogen, n).GetBondTypeAsDouble() != 1.0 or not (
-                substituent.GetAtomicNum() == 6 or _is_nitro_or_nitroso(substituent)
+                substituent.GetAtomicNum() == 6 or _is_nitro_or_nitroso(substituent) or _sulfonyl_centre(mol, substituent)
             ):
                 return None
             entries.setdefault(locant, []).append(name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol))

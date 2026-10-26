@@ -7639,11 +7639,24 @@ def _acyl_nitrogen_arm(mol, nitrogen, origin):
             partners += 1
             if partners > 1 or not _acyl_nitrogen_arm(mol, n, nitrogen.GetIdx()):
                 return False
+        elif _sulfonyl_type_centre(mol, n):
+            if not _plain_sulfonyl_arm(mol, n, nitrogen):
+                return False
         elif n.GetAtomicNum() != 6 or n.GetFormalCharge():
             return False
         elif is_functional_carbon(mol, n.GetIdx()) and not _acyl_carbon_arm(mol, n, nitrogen.GetIdx()):
             return False
     return True
+
+
+def _plain_sulfonyl_arm(mol, sulfur, nitrogen):
+    """A sulfonyl group R-SO2- on `nitrogen` whose R is a plain carbon group: the sulfonyl counterpart of an acyl arm."""
+    return not sulfur.GetFormalCharge() and all(
+        n.GetIdx() == nitrogen.GetIdx()
+        or (n.GetAtomicNum() == 8 and n.GetDegree() == 1)
+        or (n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx()))
+        for n in sulfur.GetNeighbors()
+    )
 
 
 def _acyl_carbon_arm(mol, carbon, origin):
