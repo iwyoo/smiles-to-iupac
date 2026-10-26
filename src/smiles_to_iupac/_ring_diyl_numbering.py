@@ -925,9 +925,14 @@ def _von_baeyer(mol, skeleton_atoms):
 
 
 def _is_bridged_bicycle(mol, skeleton_atoms):
-    """Two rings that share more than the two atoms of an ortho-fusion bond."""
-    rings = [set(ring) for ring in mol.GetRingInfo().AtomRings() if set(ring) <= set(skeleton_atoms)]
-    return len(rings) == 2 and len(rings[0] & rings[1]) > 2
+    """Two independent rings that share more than the two atoms of an ortho-fusion bond; the symmetrised ring set of a
+    para-bridged benzene lists both macrocycles, so the rings are counted from the cyclomatic number."""
+    atoms = set(skeleton_atoms)
+    bonds = sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms)
+    if bonds - len(atoms) + 1 != 2:
+        return False
+    rings = [set(ring) for ring in mol.GetRingInfo().AtomRings() if set(ring) <= atoms]
+    return any(len(a & b) > 2 for i, a in enumerate(rings) for b in rings[i + 1:])
 
 
 def _kekule_von_baeyer(mol, skeleton_atoms):

@@ -226,6 +226,10 @@ def test_substituted_metacyclophane_is_named():
     )
 
 
+def test_suffix_on_a_para_bridged_benzene_takes_the_von_baeyer_numbering():
+    assert smiles_to_iupac("OC1CCCCCc2ccc(cc2)CCC1") == "bicyclo[9.2.2]pentadeca-1(13),11,14-trien-5-ol"
+
+
 def test_oxo_group_on_an_aromatic_ring_component_is_the_ketone_suffix_with_hydro_prefixes():
     assert (
         smiles_to_iupac("Nc1nc2c(nc3n2C2OC(COP(=O)(O)OCC3)CC2)c(=O)[nH]1")
