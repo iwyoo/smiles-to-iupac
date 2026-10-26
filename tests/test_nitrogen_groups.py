@@ -1982,6 +1982,8 @@ def test_n_alkoxy_and_n_aryloxy_amides(smiles, expected):
         pytest.param("CC(=O)NC(=NC)SC", "methyl N-acetyl-N'-methylcarbamimidothioate", id="acyl_isothiourea_is_an_ester"),
         pytest.param("CC(=O)NC(=NC)NC", "N-(N,N'-dimethylcarbamimidoyl)acetamide", id="substituted_carbamimidoyl_on_amide_nitrogen"),
         pytest.param("CC(=O)NC(=N)NC(C)=O", "N-(N-acetylcarbamimidoyl)acetamide", id="second_acyl_group_on_the_carbamimidoyl_prefix"),
+        pytest.param("CC(=O)NC(=N)N=CC", "N-(N-ethylidenecarbamimidoyl)acetamide", id="ylidene_on_the_carbamimidoyl_prefix"),
+        pytest.param("CC(=O)N=C(N)N=C1CCCC1", "N-[amino(cyclopentylideneamino)methylidene]acetamide", id="ylideneamino_on_the_methylidene_prefix"),
         pytest.param("ClCC(=O)NC(=N)NC(=O)CCl", "2-chloro-N-[N-(chloroacetyl)carbamimidoyl]acetamide", id="second_acyl_group_with_a_substituent"),
         pytest.param("O=C(NC(=N)NC(=O)c1ccccc1)c1ccccc1", "N-(N-benzoylcarbamimidoyl)benzamide", id="identical_ring_amides_on_a_guanidine"),
         pytest.param("CC(=O)NC(=N)C", "N-(ethanimidoyl)acetamide", id="imidoyl_on_amide_nitrogen"),

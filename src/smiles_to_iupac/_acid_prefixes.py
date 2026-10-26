@@ -129,6 +129,11 @@ def _is_carboxy(mol, carbon, onward):
     return len(oxo) == 1 and len(hydroxy) == 1
 
 
+def _ylidene_carbon(mol, nitrogen, carbon, subs):
+    """The carbon doubly bonded to the only substituent-bearing position of a nitrogen: N-ylidene of the carbamimidoyl group."""
+    return len(subs) == 1 and _bond(mol, nitrogen, carbon) == 2.0 and mol.GetAtomWithIdx(carbon).GetAtomicNum() == 6
+
+
 def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, name_branch, enclose_mark=enclose):
     """(name, is_compound) of the acid-derived group on carbon `root`, or None."""
     atom = mol.GetAtomWithIdx(root)
@@ -171,7 +176,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         if (
             mol.GetAtomWithIdx(z_idx).GetFormalCharge()
             or mol.GetAtomWithIdx(z_idx).HasProp("_cationic_amine")
-            or any(_bond(mol, z_idx, n) != 1.0 for n in subs)
+            or any(_bond(mol, z_idx, n) != 1.0 for n in subs if not (x == "NH" and _ylidene_carbon(mol, z_idx, n, subs)))
         ):
             return None
         if mol.GetAtomWithIdx(z_idx).IsInRing() and not (subs and (x in ("O", "S") or (x == "NH" and not n_entries))):
