@@ -1100,7 +1100,10 @@ def _group_of(mol, carbon):
         if (
             len(others) == 1
             and others[0].GetAtomicNum() in (8, 16, 34, 52)
-            and any(n.GetAtomicNum() == 7 and n.GetIdx() != nitrogens[0] for n in others[0].GetNeighbors())
+            and (
+                any(n.GetAtomicNum() == 7 and n.GetIdx() != nitrogens[0] for n in others[0].GetNeighbors())
+                or _acyloxy_amine_oxygen(mol, others[0], carbon)
+            )
         ):
             return None
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
