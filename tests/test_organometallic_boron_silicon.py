@@ -310,7 +310,8 @@ def test_naphthyl_ligands(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CP(C)CCP(CC)CC", "[2-(dimethylphosphanyl)ethyl]di(ethyl)phosphane"),
+        ("CP(C)CCP(CC)CC", "[2-(diethylphosphanyl)ethyl]di(methyl)phosphane"),
+        ("C[P@@](CC)c1ccccc1P(C)C", "(S)-[2-(dimethylphosphanyl)phenyl](ethyl)(methyl)phosphane"),
     ],
 )
 def test_polyphosphane_and_chelates(smiles, expected):

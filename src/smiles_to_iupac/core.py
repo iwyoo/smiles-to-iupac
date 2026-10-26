@@ -272,7 +272,6 @@ from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane, name_nonpreferred_cyclophane
 from ._linear_phane import has_linear_phane_shape, linear_phane_pin, name_linear_phane
-from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
 from ._noncarbon_oxoacid import has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid
 from ._functional_replacement_oxoacid import (
     has_functional_replacement_oxoacid_shape,
@@ -2221,7 +2220,6 @@ def _name_mol(mol) -> str:
         if has_hetero_monocyclic_substituent_name(mol):
             return name_hetero_monocyclic_substituent(mol)
     for has_shape, namer in (
-        (has_polyphosphane_shape, name_polyphosphane),
         # A boronic acid (P-68.1.4.1's R-B(OH)2) has two hydroxyl oxygens on
         # boron that `_borane.py`'s own plain-borane shape doesn't expect --
         # `has_simple_borane_shape` matches any molecule with a boron atom at
