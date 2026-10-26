@@ -111,7 +111,7 @@ def has_group_senior_to_urea(mol, core_atoms, hydrazide_junior=False, junior_cor
             match[0] not in core_atoms
             and match[0] not in junior_cores
             and not (hydrazide_junior and match[-1] in core_atoms)
-            and not _acyloxy_amine_oxygen(mol, mol.GetAtomWithIdx(match[-1]), match[0])
+            and not any(_acyloxy_amine_oxygen(mol, n, match[0]) for n in mol.GetAtomWithIdx(match[0]).GetNeighbors())
             for match in mol.GetSubstructMatches(query)
         ):
             return True
