@@ -11,7 +11,7 @@ from rdkit import Chem
 
 from ._common import GROUP_13, UnsupportedStructure, adjacency, halogen_substituents
 from ._diester_ring_diyl import PARENT_START
-from ._hetero_prefixes import ANION_PARENT
+from ._hetero_prefixes import ANION_PARENT, CATION_PARENT
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 _PARENTS = {
@@ -95,10 +95,14 @@ def _mononuclear_name(mol, root):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    with cited_branch_stereo(mol, graph, {root}, graph[root]):
-        entries = [
-            name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in graph[root]
-        ]
+    parent_token = CATION_PARENT.set(True)
+    try:
+        with cited_branch_stereo(mol, graph, {root}, graph[root]):
+            entries = [
+                name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in graph[root]
+            ]
+    finally:
+        CATION_PARENT.reset(parent_token)
     prefixes = format_mononuclear_prefixes(entries) if entries else ""
     parent = f"{prefixes}{'-' if prefixes and lam else ''}{f'λ{lam}-' if lam else ''}{stem}"
     return parent + ("e" if charge > 1 else "") + _MULTIPLIED[charge] + word

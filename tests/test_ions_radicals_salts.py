@@ -826,6 +826,7 @@ _P72_ANIONS = [
     ("C[C-]=O", "1-oxoethan-1-ide"),
     ("O[NH-]", "hydroxyazanide"),
     ("C/C(=N/[O-])c1ccccc1", "{[(1Z)-1-phenylethylidene]amino}oxidanide"),
+    ("CC(=NO)C=N[O-]", "{[2-(hydroxyimino)propylidene]amino}oxidanide"),
     ("N/C(=N/[O-])c1ccc(NC(=O)O)cc1", "({(E)-amino[4-(carboxyamino)phenyl]methylidene}amino)oxidanide"),
     ("O[N-2]", "hydroxyazanediide"),
     ("C[SiH4-]", "methylsilanuide"),
