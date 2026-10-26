@@ -650,7 +650,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     parts_atoms = [a for _, _, a in arms]
     units = [_unit_molecule(mol, atoms_, root) for atoms_, root in zip(parts_atoms, roots)]
     if unit_kind != "chain":
-        if any(element[0] == "isotope" for element in stereo) or any(branch_stereo):
+        nuclides = any(element[0] == "isotope" for element in stereo)
+        if (nuclides and (unit_kind == "ester" or any(element[0] != "isotope" for element in stereo))) or any(branch_stereo):
             return None
         if unit_stereo and unit_kind not in _STEREO_UNIT_KINDS:
             return None
