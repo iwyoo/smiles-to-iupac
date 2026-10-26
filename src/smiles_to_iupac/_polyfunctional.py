@@ -980,7 +980,7 @@ def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
     return (
         acyl is not None
         and acyl.GetAtomicNum() in (6, 16)
-        and bool(_double_oxygens(mol, acyl.GetIdx()))
+        and _acyl_chalcogen_of(mol, acyl) is not None
         and _acyloxy_amine_oxygen(mol, oxygen, acyl.GetIdx())
     )
 
