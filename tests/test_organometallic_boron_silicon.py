@@ -312,6 +312,7 @@ def test_naphthyl_ligands(smiles, expected):
     [
         ("CP(C)CCP(CC)CC", "[2-(diethylphosphanyl)ethyl]di(methyl)phosphane"),
         ("C[P@@](CC)c1ccccc1P(C)C", "(S)-[2-(dimethylphosphanyl)phenyl](ethyl)(methyl)phosphane"),
+        ("C[P@@](c1ccccc1)CC[P@@](C)c1ccccc1", "(ethane-1,2-diyl)bis[(R)-methyl(phenyl)phosphane]"),
     ],
 )
 def test_polyphosphane_and_chelates(smiles, expected):

@@ -653,7 +653,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         nuclides = any(element[0] == "isotope" for element in stereo)
         if (nuclides and (unit_kind == "ester" or any(element[0] != "isotope" for element in stereo))) or any(branch_stereo):
             return None
-        if unit_stereo and unit_kind not in _STEREO_UNIT_KINDS:
+        if unit_stereo and unit_kind not in _STEREO_UNIT_KINDS and unit_kind != "hydride":
             return None
         chain_unit = _substituted_chain_unit(mol, graph, roots[0], parts_atoms[0]) if unit_kind == "hydride" else None
         stereo_text = ""
@@ -663,6 +663,10 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             text = _semicarbazide_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
         elif unit_kind == "carbonohydrazonic":
             text = _carbonohydrazonic_unit_text(mol, graph, roots[0], arms[0][1], parts_atoms[0])
+        elif unit_stereo and unit_kind == "hydride":
+            codes = {element[1]: element[2] for element in unit_stereo if element[0] == "atom"}
+            names = {_whole_molecule_descriptor(_unit_name_by_pipeline(unit, unit_kind), codes.get(root)) for (unit, _), root in zip(units, roots)}
+            text = names.pop() if len(names) == 1 else None
         elif unit_stereo:
             cited = _cited_unit_stereo(units, unit_kind)
             text, stereo_text = cited if cited is not None else (None, "")
@@ -833,6 +837,14 @@ def _without_stereo(unit):
     return editable.GetMol()
 
 
+def _whole_molecule_descriptor(name, code):
+    """The unit name with the descriptor of its own centre taken from the whole molecule, where the cut-off linker still
+    ranks as a substituent (P-92.1.2)."""
+    if name is None or code is None:
+        return name
+    return re.sub(r"^\([RS]\)-", f"({code})-", name)
+
+
 def _cited_unit_stereo(units, unit_kind):
     """(unit name, '(3E,3'E)-' text) of identical units whose descriptors are cited in front of the whole name, the locants
     of each further unit with one more prime (P-93.4.2.1.1, P-93.4.2.1.2); None when a unit has no such name."""
@@ -859,7 +871,7 @@ def _unit_name_by_pipeline(unit, unit_kind):
     for atom in editable.GetAtoms():
         if is_prefix_placeholder(atom):
             continue
-        if atom.GetAtomMapNum() and atom.GetNoImplicit():
+        if atom.GetAtomMapNum() and atom.GetNoImplicit() and atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED:
             atom.SetNumExplicitHs(atom.GetNumExplicitHs() + 1)
         atom.SetAtomMapNum(0)
     Chem.SanitizeMol(editable)
@@ -912,7 +924,7 @@ def _polyamine_lead(unit, count):
     for atom in editable.GetAtoms():
         if is_prefix_placeholder(atom):
             continue
-        if atom.GetAtomMapNum() and atom.GetNoImplicit():
+        if atom.GetAtomMapNum() and atom.GetNoImplicit() and atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED:
             atom.SetNumExplicitHs(atom.GetNumExplicitHs() + 1)
         atom.SetAtomMapNum(0)
     try:
