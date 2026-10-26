@@ -154,6 +154,7 @@ def _rank(cand, view):
 
 
 _MIN_PARENT_ATOMS_FOR_MODIFICATION = 14
+_MIN_ATOMS_AFTER_REMOVAL = 15
 
 
 def _admissible(cand, view):
@@ -161,6 +162,8 @@ def _admissible(cand, view):
     if modifications > view.limit:
         return False
     if modifications and len(cand.parent.adj) < _MIN_PARENT_ATOMS_FOR_MODIFICATION:
+        return False
+    if any(op[0] in ("des", "seco", "nor") for op in cand.skel.ops) and len(cand.mapping) < _MIN_ATOMS_AFTER_REMOVAL:
         return False
     facts = _parent_facts(cand.parent.name)
     cyc, fused = facts[0], facts[4]
