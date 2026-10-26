@@ -43,7 +43,15 @@ def _match(mol):
                 if hit[0] != acyl.GetIdx() or not {n.GetIdx() for n in acyl.GetNeighbors()} <= group | {oxygen.GetIdx()}:
                     continue
                 rest = {a.GetIdx() for a in mol.GetAtoms()} - group - {nitrogen.GetIdx(), oxygen.GetIdx()}
-                if all(mol.GetAtomWithIdx(i).GetAtomicNum() in (6, 9, 17, 35, 53) for i in rest):
+                acyl_oxo = {
+                    o.GetIdx()
+                    for n in others
+                    for o in n.GetNeighbors()
+                    if o.GetAtomicNum() == 8
+                    and o.GetDegree() == 1
+                    and mol.GetBondBetweenAtoms(n.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+                }
+                if all(mol.GetAtomWithIdx(i).GetAtomicNum() in (6, 9, 17, 35, 53) or i in acyl_oxo for i in rest):
                     return nitrogen, oxygen, acyl, suffix
     return None
 
