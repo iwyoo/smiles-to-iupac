@@ -1246,3 +1246,8 @@ def test_multiplied_unit_with_enclosing_marks_nests_them(smiles, expected):
 def test_ring_units_with_the_principal_oxo_group_are_multiplied_with_added_hydrogen_and_ring_substituents(smiles, expected):
     # P-15.3.1.1, P-14.7.2: the substituent ring of a unit is part of the unit
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_three_identical_units_joined_to_one_ring_through_different_atoms_are_not_multiplied():
+    # P-45.1.1: the linking bonds of a multiplied parent are identical; P-45.2: one unit is the parent
+    assert smiles_to_iupac("OCCNc1ccc(NCCO)n1CCO") == "2-{2,5-bis[(2-hydroxyethyl)amino]-1H-pyrrol-1-yl}ethan-1-ol"
