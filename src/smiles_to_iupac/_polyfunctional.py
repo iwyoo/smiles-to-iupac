@@ -976,12 +976,16 @@ def _sulfonyl_type_centre(mol, atom):
 def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
     """An acyloxy group -O-CO-R on `nitrogen`, cited as the prefix 'acyloxy' because an acyclic nitrogen gives no
     traditional ester (P-65.6.3.2.3, P-65.6.3.4.1)."""
-    acyl = next((n for n in oxygen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()), None)
+    previous, near = nitrogen, oxygen
+    acyl = next((n for n in near.GetNeighbors() if n.GetIdx() != previous.GetIdx()), None)
+    while acyl is not None and acyl.GetAtomicNum() in (16, 34, 52) and acyl.GetDegree() == 2 and not _acyl_chalcogen_of(mol, acyl):
+        previous, near = near, acyl
+        acyl = next((n for n in near.GetNeighbors() if n.GetIdx() != previous.GetIdx()), None)
     return (
         acyl is not None
         and acyl.GetAtomicNum() in (6, 16)
         and _acyl_chalcogen_of(mol, acyl) is not None
-        and _acyloxy_amine_oxygen(mol, oxygen, acyl.GetIdx())
+        and _acyloxy_amine_oxygen(mol, near, acyl.GetIdx())
     )
 
 

@@ -1971,6 +1971,7 @@ def test_acyl_group_on_nitroso_or_nitro_nitrogen_is_not_an_acyl_halide_or_aldehy
         pytest.param("CC(=O)NSN1CCCC1", "N-[(pyrrolidin-1-yl)sulfanyl]acetamide", id="ring_nitrogen_group_at_the_end_of_a_chalcogen_chain"),
         pytest.param("CC(=O)NSNC(C)=O", "N,N'-sulfanediyldiacetamide", id="two_amide_nitrogens_joined_through_sulfur"),
         pytest.param("CC(=O)NSC(=S)N(C)C", "N-[(dimethylcarbamothioyl)sulfanyl]acetamide", id="thioacyl_on_the_sulfur_of_an_n_sulfanyl_amide"),
+        pytest.param("CC(=O)NSSC(=O)C", "N-(acetyldisulfanyl)acetamide", id="acyl_on_the_far_end_of_a_chalcogen_chain_on_an_amide_nitrogen"),
     ],
 )
 def test_n_alkoxy_and_n_aryloxy_amides(smiles, expected):
