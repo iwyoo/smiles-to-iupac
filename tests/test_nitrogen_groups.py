@@ -749,6 +749,7 @@ def test_hydrazide_names(smiles, expected):
         pytest.param("O=CNN=CCC", "N'-propylideneformohydrazide", id="ylidene_on_the_terminal_nitrogen_of_formohydrazide"),
         pytest.param("CC(C)=NN(C)C(=S)CC", "N-methyl-N'-(propan-2-ylidene)propanethiohydrazide", id="ylidene_on_a_thiohydrazide"),
         pytest.param("CC(=O)NNOC", "N'-methoxyacetohydrazide", id="heteroatom_group_on_the_terminal_nitrogen"),
+        pytest.param("CC(=O)N(OC(C)=O)NC", "N-(acetyloxy)-N'-methylacetohydrazide", id="acyloxy_group_on_the_acylated_nitrogen"),
         pytest.param("CC(=O)N(O)S", "N-hydroxy-N-sulfanylacetamide", id="two_heteroatom_groups_on_the_amide_nitrogen"),
     ],
 )
