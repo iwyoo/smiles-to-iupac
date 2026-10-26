@@ -774,15 +774,19 @@ def ring_substituent_name(mol, graph, root, parent):
     suffix = suffix_of(order)
     if suffix is None:
         raise UnsupportedStructure("this ring substituent bond is not supported yet")
-    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
-    if found is None:
-        raise UnsupportedStructure("this ring substituent has no supported name yet")
     from ._substituents import BRANCH_STEREO
 
     context = BRANCH_STEREO.get()
+    own = context.setdefault("own_ylidene", set()) if context else set()
+    if context:
+        context["used"] -= {key for key in own if isinstance(key[1], tuple) and set(key[1]) & atoms}
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    if found is None:
+        raise UnsupportedStructure("this ring substituent has no supported name yet")
     if context:
         for element, _ in found[3]:
             context["used"].add(_used_key(element))
+            own.add(_used_key(element))
     name = re.sub(r"(cyclo[a-z]+?)an-1-(yl|ylidene|ylidyne)$", r"\1\2", found[1])
     return name, any(ch.isdigit() or ch in "(-" for ch in name)
 

@@ -2205,6 +2205,7 @@ def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):
         ("O=CNNCCC(=O)O", "3-formohydrazidopropanoic acid"),
         ("N(N)S(=O)C=1C(=CC2=CC=CC=C2C1)C(=O)O", "3-(hydrazinesulfinyl)naphthalene-2-carboxylic acid"),
         ("C(C1=CC=CC=C1)=NNC(C(=O)N)=O", "2-(benzylidenehydrazinyl)-2-oxoacetamide"),
+        ("CC1CCC/C(=N/NC(=O)C(N)=O)C1", "2-{[(1Z)-3-methylcyclohexylidene]hydrazinyl}-2-oxoacetamide"),
     ],
 )
 def test_hydrazide_variants(smiles, expected):
