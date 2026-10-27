@@ -249,15 +249,21 @@ def _isodiazene(mol):
         return None
     terminal = radicals[0]
     (root,) = terminal.GetNeighbors()
-    if root.GetAtomicNum() != 7 or root.GetFormalCharge() or terminal.GetFormalCharge() or root.IsInRing():
+    if root.GetAtomicNum() != 7 or root.GetFormalCharge() or terminal.GetFormalCharge() or len(Chem.GetMolFrags(mol)) > 1:
         return None
     graph = adjacency(mol)
     substituents = [n.GetIdx() for n in root.GetNeighbors() if n.GetIdx() != terminal.GetIdx()]
-    if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(root.GetIdx(), n).GetBondTypeAsDouble() != 1.0 for n in substituents):
+    if any(mol.GetBondBetweenAtoms(root.GetIdx(), n).GetBondTypeAsDouble() != 1.0 for n in substituents):
         return None
     if root.GetTotalNumHs() + len(substituents) != 2:
         return None
-    if any(a.GetAtomicNum() != 6 for a in mol.GetAtoms() if a.GetIdx() not in (terminal.GetIdx(), root.GetIdx())):
+    if root.IsInRing():
+        try:
+            name, _ = cited_group(mol, graph, root.GetIdx(), terminal.GetIdx())
+        except UnsupportedStructure:
+            return None
+        return f"({name})azanylidene"
+    if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in substituents):
         return None
     try:
         names = [cited_group(mol, graph, n, root.GetIdx()) for n in substituents]
