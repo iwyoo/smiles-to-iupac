@@ -209,15 +209,18 @@ def _azinic_centre(mol):
         oxygens = [n for n in centre.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
         oxide = [o for o in oxygens if o.GetFormalCharge() == -1]
         hydroxyl = [o for o in oxygens if not o.GetFormalCharge() and o.GetTotalNumHs() == 1]
-        if len(oxide) != 1 or len(hydroxyl) != 1:
+        if (len(oxide), len(hydroxyl)) not in ((1, 1), (2, 0)):
             continue
         rest = [n for n in centre.GetNeighbors() if n.GetAtomicNum() != 8 or n.GetDegree() != 1]
         orders = sorted(_bond(mol, centre.GetIdx(), n.GetIdx()) for n in rest)
-        if any(n.GetAtomicNum() != 6 for n in rest) or orders not in ([2.0], [1.0, 1.0]):
+        if any(n.GetAtomicNum() != 6 for n in rest) or orders not in ([2.0], [1.0], [1.0, 1.0]):
             continue
-        covered = {centre.GetIdx(), oxide[0].GetIdx(), hydroxyl[0].GetIdx()}
-        if all(a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()):
-            return centre, {oxide[0].GetIdx(), hydroxyl[0].GetIdx()}
+        if orders == [1.0] and centre.GetTotalNumHs() != 1:
+            continue
+        pair = {o.GetIdx() for o in oxide + hydroxyl}
+        covered = {centre.GetIdx()} | pair
+        if all(a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES or a.IsInRing() for a in mol.GetAtoms()):
+            return centre, pair
     return None
 
 
@@ -228,7 +231,8 @@ def _name_azinic(mol, found):
     prefix = format_mononuclear_prefixes(entries) if len(entries) > 1 else (entries[0][0] if entries else "")
     if len(entries) == 1 and entries[0][1]:
         prefix = f"({prefix})"
-    return f"{prefix}{centre_nuclides(centre.GetIdx(), oxygens=True)}azinic acid"
+    ending = "azinate" if all(mol.GetAtomWithIdx(i).GetFormalCharge() for i in excluded) else "azinic acid"
+    return f"{prefix}{centre_nuclides(centre.GetIdx(), oxygens=True)}{ending}"
 
 
 def has_inorganic_acid_derivative_shape(mol) -> bool:
