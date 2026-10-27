@@ -1354,6 +1354,7 @@ def test_radical_ions_named_through_the_filled_ion(smiles, expected):
         pytest.param("[O-]CC[NH3+]", "2-azaniumylethan-1-olate", id="ammonium_prefix_on_an_olate"),
         pytest.param("C[N+](C)(C)CC[O-]", "2-(N,N-dimethylmethanaminiumyl)ethan-1-olate", id="quaternary_cation_prefix_on_an_olate"),
         pytest.param("C[N+](C)(N)CC(=O)[O-]", "(1,1-dimethylhydrazin-1-ium-1-yl)acetate", id="hydrazinium_prefix_on_a_carboxylate"),
+        pytest.param("O=C([O-])C[NH+]1CC[NH2+]CC1", "(piperazine-1,4-diium-1-yl)acetate", id="ring_with_two_cations_as_a_prefix"),
         pytest.param("C[NH2+]CC[O-]", "2-(methanaminiumyl)ethan-1-olate", id="secondary_cation_prefix_on_an_olate"),
         pytest.param("C[N+](C)(C)c1ccc([O-])cc1", "4-(N,N-dimethylmethanaminiumyl)phenoxide", id="cation_prefix_on_a_phenoxide"),
         pytest.param("[S-]CC[N+](C)(C)C", "2-(N,N-dimethylmethanaminiumyl)ethane-1-thiolate", id="ammonium_prefix_on_a_thiolate"),

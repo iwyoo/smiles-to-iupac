@@ -182,7 +182,7 @@ def marked_neutral(mol):
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a)]
     prefix_cations = [a for a in cations if _is_ammonium_prefix(a)] if centers else []
     cations = [a for a in cations if a not in prefix_cations]
-    if any(not (a.IsInRing() and a.GetFormalCharge() == 1) for a in cations) or len(cations) > 1:
+    if any(not (a.IsInRing() and a.GetFormalCharge() == 1) for a in cations):
         raise UnsupportedStructure("cationic centers beside an anionic group are not supported here")
     others = [a for a in centers if not (_is_group_anion(a) or _is_carbanion(a)) or _demoted_peroxy(a, centers)]
     if not centers or not all(is_center_atom(a) for a in others):
