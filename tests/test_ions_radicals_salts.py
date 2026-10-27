@@ -1417,6 +1417,7 @@ def test_choice_of_parent_radical_with_ylo_prefixes(smiles, expected):
     "smiles,expected",
     [
         pytest.param("C[N+](C)=CC", "N,N-dimethylethaniminium", id="iminium_parent"),
+        pytest.param("[NH3+]N1CCN(C)CC1", "4-methylpiperazin-1-aminium", id="aminium_on_the_nitrogen_of_a_ring"),
         pytest.param("C/C=[NH+]\\O", "(1Z)-N-hydroxyethaniminium", id="hydroxyiminium_keeps_its_ez"),
         pytest.param("CC[NH+](O)C(C)=O", "N-ethyl-N-hydroxyacetamidium", id="amidium_nitrogen_carries_hydroxy"),
         pytest.param("C[N+](C)=C(Cl)C", "1-chloro-N,N-dimethylethan-1-iminium", id="halogen_on_the_iminium_carbon"),

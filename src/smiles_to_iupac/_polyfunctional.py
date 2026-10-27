@@ -2079,6 +2079,11 @@ def _chalcogen_centre(atom):
     )
 
 
+def _ring_amine_nitrogen(atom):
+    """A neutral saturated ring nitrogen: the ring parent of an N-amino amine such as pyrrolidin-1-amine."""
+    return atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetIsAromatic() and not atom.GetFormalCharge() and atom.GetTotalNumHs() == 0
+
+
 def _aminium_base(mol, ignore=frozenset()):
     """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
     (a cation outranks every acid, P-41), else None; the charges of an azoxy group are not ammonium charges."""
@@ -2092,12 +2097,12 @@ def _aminium_base(mol, ignore=frozenset()):
             or nitrogen.IsInRing()
             or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
             or any(
-                (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n) and not _hydride_centre(n) and not _chalcogen_centre(n))
+                (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n) and not _hydride_centre(n) and not _chalcogen_centre(n) and not _ring_amine_nitrogen(n))
                 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
                 or _double_oxygens(mol, n.GetIdx())
                 for n in nitrogen.GetNeighbors()
             )
-            or not any(n.GetAtomicNum() == 6 or _hydride_centre(n) for n in nitrogen.GetNeighbors())
+            or not any(n.GetAtomicNum() == 6 or _hydride_centre(n) or _ring_amine_nitrogen(n) for n in nitrogen.GetNeighbors())
             or (nitrogen.GetTotalNumHs() == 0 and any(n.GetAtomicNum() == 7 for n in nitrogen.GetNeighbors()))
         ):
             return None
