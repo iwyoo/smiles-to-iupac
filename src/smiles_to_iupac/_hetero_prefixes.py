@@ -1700,7 +1700,7 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0 and len(others) in (1, 2) and not atom.IsInRing():
         amines = [mol.GetAtomWithIdx(n) for n in others]
         if all(
-            a.GetAtomicNum() in (7, 8, 16)
+            (a.GetAtomicNum() in (7, 8, 16, 9, 17, 35, 53) or (a.GetAtomicNum() == 6 and is_functional_carbon(mol, a.GetIdx())))
             and (a.IsInRing() and a.GetAtomicNum() == 7 or not a.GetFormalCharge() and not a.IsInRing())
             and mol.GetBondBetweenAtoms(root, a.GetIdx()).GetBondTypeAsDouble() == 1.0
             for a in amines
