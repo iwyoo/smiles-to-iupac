@@ -152,7 +152,7 @@ def _diacyl_carbon(mol, carbon, linker):
 
 
 def _principal_atoms(mol):
-    from ._polyfunctional import AMINIUM, _SENIORITY, _group_of, _ring_occurrences, _substituted_amine_nitrogen
+    from ._polyfunctional import AMINIUM, _SENIORITY, _acid_rank, _group_of, _is_variant, _ring_occurrences, _substituted_amine_nitrogen
 
     groups = {}
     for atom in mol.GetAtoms():
@@ -169,6 +169,14 @@ def _principal_atoms(mol):
         }
         ring_groups = [g for g in ring_groups if g[2] & marked]
     classes = set(groups) | {c for c, _, _ in ring_groups}
+    variants = {c for c in classes if c not in _SENIORITY and _is_variant(c)}
+    if variants:
+        senior_variant = min(variants, key=_acid_rank)
+        groups.setdefault("acid", {}).update(groups.pop(senior_variant, {}))
+        for other in variants - {senior_variant}:
+            groups.pop(other, None)
+        ring_groups = [("acid" if c in variants else c, a, o) for c, a, o in ring_groups]
+        classes = set(groups) | {c for c, _, _ in ring_groups}
     principal = "amine" if AMINIUM.get() is True and "amine" in classes else next((name for name in _SENIORITY if name in classes), None)
     if principal is None:
         return None
