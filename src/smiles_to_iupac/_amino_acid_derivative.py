@@ -17,12 +17,14 @@ from ._proline import has_proline_shape, name_proline
 
 _TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
-_ESTER = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2;!R]([#6])")
+_ESTER = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2;!R]([#6,#14,$([#7;R])])")
 _ACYL_HALIDE = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[F,Cl,Br,I;X1]")
 _FREE_ACID = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2H1]")
 
 
 def _anion_stem(plain):
+    if plain.endswith("dopa"):
+        return f"3-hydroxy-{plain[:-4]}tyrosinate" if plain[:-4] else "3-hydroxytyrosinate"
     for ending, replacement in (("aspartic acid", "aspartate"), ("glutamic acid", "glutamate"), ("ine", "inate"), ("tryptophan", "tryptophanate")):
         if plain.endswith(ending):
             return plain[: -len(ending)] + replacement

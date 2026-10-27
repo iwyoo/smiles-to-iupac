@@ -668,6 +668,9 @@ def test_substituted_amino_acids(smiles, expected):
         pytest.param("CC(=O)N[C@@H]([C@H](C)O)C(=O)O", "N-acetyl-L-allothreonine", id="substituted_allo"),
         pytest.param("CC[C@H](C)C(N)C(=O)O", "(3S)-2-amino-3-methylpentanoic acid", id="beta_without_alpha_stays_systematic"),
         pytest.param("C[C@H](NC(C)=O)C(=O)OC", "methyl N-acetyl-L-alaninate", id="ester_of_substituted_acid"),
+        pytest.param("CC(=O)NCC(=O)ON1C(=O)CCC1=O", "2,5-dioxopyrrolidin-1-yl N-acetylglycinate", id="ester_group_bonded_through_nitrogen"),
+        pytest.param("N[C@@H](C)C(=O)O[Si](C)(C)C", "trimethylsilyl L-alaninate", id="ester_group_bonded_through_silicon"),
+        pytest.param("N[C@@H](Cc1ccc(O)c(O)c1)C(=O)OC", "methyl 3-hydroxy-L-tyrosinate", id="ester_of_dopa"),
         pytest.param("CC(C)[C@H](N)C(=O)OC[C@@H](N)C(C)C", "(2S)-2-amino-3-methylbutyl L-valinate", id="ester_group_with_stereo"),
         pytest.param(
             "CCOC(=O)CN(C)CCOC(C)=O", "ethyl N-[2-(acetyloxy)ethyl]-N-methylglycinate", id="second_ester_as_acyloxy_on_the_nitrogen_substituent"
