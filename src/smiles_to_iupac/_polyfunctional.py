@@ -2142,7 +2142,7 @@ def _iminium_base(mol, ignore=frozenset()):
         doubles = [b for b in nitrogen.GetBonds() if b.GetBondTypeAsDouble() == 2.0]
         if len(doubles) != 1 or doubles[0].GetOtherAtom(nitrogen).GetAtomicNum() != 6:
             return None
-        if any(n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors()):
+        if any(n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n) for n in nitrogen.GetNeighbors()):
             return None
     if not any(n.GetTotalNumHs() for n in charged):
         return mol
@@ -2311,7 +2311,8 @@ def _group_cation_base(mol, kind, ignore=frozenset(), neutral_groups=False):
                 or len(acyl) != 1
                 or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
                 or any(
-                    n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+                    (n.GetAtomicNum() != 6 and not _plain_oxy_group(mol, n))
+                    or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
                     for n in nitrogen.GetNeighbors()
                 )
             ):
