@@ -21,6 +21,7 @@ from ._substituents import FORCED_BRANCH_NAMES
 
 
 _CHALCOGEN_ACYL = (16, 34, 52)
+_SENIOR_TO_HYDRAZIDE = Chem.MolFromSmarts("[CX3;!$(C-[NX3])](=O)[OX2H1]")
 
 
 def _hydrazine_pair(mol):
@@ -85,6 +86,8 @@ def diacylhydrazine_name(mol):
     nitrogens = [n for _, _, roots, _ in pairs for n in roots]
     if not pairs or len(set(nitrogens)) != len(nitrogens):
         return None
+    if mol.HasSubstructMatch(_SENIOR_TO_HYDRAZIDE):
+        return None
     graph = adjacency(mol)
     parents, donors = set(), []
     for _, _, roots, chalcogen_roots in pairs:
@@ -138,7 +141,7 @@ def diacylhydrazine_name(mol):
         return None
     smiles, position = _smiles_with_order(stand_in)
     forced = forced_for_unlabelled(stand_in, position, {old_to_new[r]: names[r] for r, _ in donors})
-    from .core import smiles_to_iupac
+    from .core import _retained_polycycle_names, smiles_to_iupac
 
     token = FORCED_BRANCH_NAMES.set(forced)
     try:
@@ -147,6 +150,6 @@ def diacylhydrazine_name(mol):
         return None
     finally:
         FORCED_BRANCH_NAMES.reset(token)
-    if not name.endswith("hydrazide") or any(donor_name not in name for donor_name, _ in names.values()):
+    if not name.endswith("hydrazide") or any(_retained_polycycle_names(donor_name) not in name for donor_name, _ in names.values()):
         return None
     return name
