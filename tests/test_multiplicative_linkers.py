@@ -51,6 +51,7 @@ def test_identical_n_substituted_fused_units_joined_by_a_linker(smiles, expected
         ("CCC(=O)N1CCN(C(=O)CC)CC1", "1,1'-(piperazine-1,4-diyl)di(propan-1-one)"),
         ("CC(=O)c1ccc(Oc2ccc(C(C)=O)cc2)cc1", "1,1'-[oxybis(4,1-phenylene)]di(ethan-1-one)"),
         ("O=C(c1ccccc1)c1ccc(C(=O)c2ccccc2)cc1", "(1,4-phenylene)bis(phenylmethanone)"),
+        ("O=C(c1ccc(C(=O)N2CCCC2)cc1)N1CCCC1", "(1,4-phenylene)bis(pyrrolidin-1-ylmethanone)"),
         ("O=C(CC(=O)O)c1ccc(C(=O)CC(=O)O)cc1", "3,3'-(1,4-phenylene)bis(3-oxopropanoic acid)"),
         ("CC[C@H](C)C(=O)c1ccc(C(=O)[C@H](C)CC)cc1", "(2R,2'S)-1,1'-(1,4-phenylene)bis(2-methylbutan-1-one)"),
         ("CC(C)C(=O)OSSOC(=O)C(C)C", "1,1'-[disulfanediylbis(oxy)]bis(2-methylpropan-1-one)"),
