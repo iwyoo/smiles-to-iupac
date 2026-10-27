@@ -281,6 +281,7 @@ def test_amine_suffix_name_is_preferred_to_the_skeletal_replacement_name():
         pytest.param("OP(=S)(O)CCP(=S)(O)O", "(ethane-1,2-diyl)bis(phosphonothioic O,O-acid)", id="thio_replaced_phosphonic_acids"),
         pytest.param("OC(=O)N(C)CCN(C)C(=O)O", "(ethane-1,2-diyl)bis(methylcarbamic acid)", id="carbamic_acids_with_a_substituent"),
         pytest.param("OOC(=O)CCN(C)CCC(=O)OO", "3,3'-(methylazanediyl)dipropaneperoxoic acid", id="peroxoic_acids_on_a_substituted_linker"),
+        pytest.param("OCCOCCOCCOCCOc1ccc(OCCOCCOCCOCCO)cc1", "2,2'-[1,4-phenylenebis(oxyethane-2,1-diyloxyethane-2,1-diyloxyethane-2,1-diyloxy)]di(ethan-1-ol)", id="four_ether_oxygens_in_a_run_beside_a_ring"),
         pytest.param("NN(CCN(N)C(=O)O)C(=O)O", "1,1'-(ethane-1,2-diyl)di(hydrazine-1-carboxylic acid)", id="carbazic_acids_on_a_chain"),
         pytest.param("SC(=S)Nc1ccc(NC(=S)S)cc1", "(1,4-phenylene)bis(carbamodithioic acid)", id="carbamodithioic_acids"),
         pytest.param("NC(=O)NCCNC(N)=O", "N,N''-(ethane-1,2-diyl)diurea", id="ureas"),
