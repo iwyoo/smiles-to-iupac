@@ -1540,6 +1540,17 @@ def test_sulfonyl_and_sulfinyl_prefixes_on_a_carbamic_acid_nitrogen(smiles, expe
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=O)N[S@@](=O)C(C)(C)C", "N-[(S)-2-methylpropane-2-sulfinyl]acetamide", id="sulfinyl_on_an_amide_nitrogen"),
+        pytest.param("CC(=O)N=[S@@](C)(=O)c1ccccc1", "N-[(S)-methyl(oxo)(phenyl)-λ6-sulfanylidene]acetamide", id="sulfoximide_on_an_amide_nitrogen"),
+    ],
+)
+def test_sulfur_descriptor_in_a_group_on_an_amide_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_sulfoxide_descriptor_with_an_amide_on_the_second_chain():
     assert smiles_to_iupac("OC(=O)C[S@](=O)CC(N)=O") == "[(R)-2-amino-2-oxoethane-1-sulfinyl]acetic acid"
 
