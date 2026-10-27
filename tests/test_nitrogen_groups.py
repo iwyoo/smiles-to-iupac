@@ -2564,6 +2564,7 @@ def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_group
     "smiles,expected",
     [
         ("NC(=O)NC(=O)N", "2-imidodicarbonic diamide"),
+        ("O=C(OC(=O)N1CCCC1)N1CCCC1", "pyrrolidine-1-carboxylic anhydride"),
         ("NC(=O)NC(=O)NC(=O)N", "2,4-diimidotricarbonic diamide"),
         ("CNC(=O)NC(=O)N", "N1-methyl-2-imidodicarbonic diamide"),
         ("CC=NC(=O)NC(N)=O", "N1-ethylidene-2-imidodicarbonic diamide"),

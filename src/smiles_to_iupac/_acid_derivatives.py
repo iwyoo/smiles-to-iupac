@@ -313,7 +313,12 @@ def find_links(mol):
             if found[0] in ("acyl", "inorganic") and _nitrogen_oxoacid_centre(mol, far, mol.GetAtomWithIdx(chain[-1])):
                 links.append(Link("anhydride", idx, tuple(chain), far.GetIdx()))
             elif _center(mol, far.GetIdx()) is not None:
-                if found[0] == "carbonic" and _center(mol, far.GetIdx())[0] == "carbonic" and len(chain) == 1:
+                if (
+                    found[0] == "carbonic"
+                    and _center(mol, far.GetIdx())[0] == "carbonic"
+                    and len(chain) == 1
+                    and not any(n.GetAtomicNum() == 7 and n.IsInRing() for c in (atom, far) for n in c.GetNeighbors())
+                ):
                     continue
                 if found[0] == "inorganic" and _center(mol, far.GetIdx())[0] == "inorganic" and len(chain) == 1:
                     if not _inorganic_anhydride(found, _center(mol, far.GetIdx())):

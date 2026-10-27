@@ -8,6 +8,7 @@ from itertools import combinations
 from rdkit import Chem
 
 from ._anion import ANION_PROP
+from ._cited_group import cited_group
 from ._chalcogen_chain_heterone import chalcogen_chain_oxygen_count
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, is_prefix_placeholder
 from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
@@ -506,6 +507,24 @@ def _bare_groups_on_one_ring_atom(mol, kind, edges, arms):
     )
 
 
+def _ring_nitrogen_ketone_unit(unit, attach):
+    """The name parts of the unit R2N-C(=O)- whose nitrogen closes a ring: a pseudoketone 'pyrrolidin-1-ylmethanone'
+    (P-64.1.2, P-64.3.2)."""
+    atom = unit.GetAtomWithIdx(attach)
+    neighbors = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 1]
+    if atom.IsInRing() or len(neighbors) != 2 or atom.GetTotalNumHs() != 1:
+        return None
+    ring_nitrogen = [n for n in neighbors if n.GetAtomicNum() == 7 and n.IsInRing()]
+    oxo = [n for n in neighbors if n.GetAtomicNum() == 8 and unit.GetBondBetweenAtoms(attach, n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+    if len(ring_nitrogen) != 1 or len(oxo) != 1:
+        return None
+    try:
+        name, _ = cited_group(unit, adjacency(unit), ring_nitrogen[0].GetIdx(), attach)
+    except UnsupportedStructure:
+        return None
+    return name, "methanone", "", None
+
+
 def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene_unit=None):
     from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
@@ -727,11 +746,13 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     try:
         _, _, parts = _select(unit, attach)
     except UnsupportedStructure:
-        amine = None if stereo or unit_stereo else _amine_arm(unit, attach)
-        if amine is None:
-            return None
-        lead = ",".join(str(amine[1]) + "'" * i for i in range(count)) + "-"
-        return f"{lead}{linker}{multiplier_word(count, True)}{enclose(amine[0])}"
+        parts = None if stereo or unit_stereo else _ring_nitrogen_ketone_unit(unit, attach)
+        if parts is None:
+            amine = None if stereo or unit_stereo else _amine_arm(unit, attach)
+            if amine is None:
+                return None
+            lead = ",".join(str(amine[1]) + "'" * i for i in range(count)) + "-"
+            return f"{lead}{linker}{multiplier_word(count, True)}{enclose(amine[0])}"
     if unit_stereo:
         if any(element[0] == "isotope" for element in unit_stereo):
             return None
