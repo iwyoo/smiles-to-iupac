@@ -336,7 +336,14 @@ def name_carbonic_family(mol):
     centres = _centres(mol)
     if not centres or len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("no single carbonic or cyanic acid group")
-    if not any(a.GetFormalCharge() for a in mol.GetAtoms()) and any(
+    carboxylic = {match[0] for query in _CARBOXYLIC_ACID for match in mol.GetSubstructMatches(query)}
+    anion_on_centre = any(
+        a.GetFormalCharge() < 0 and any(n.GetIdx() in centres and n.GetIdx() not in carboxylic for n in a.GetNeighbors())
+        for a in mol.GetAtoms()
+    )
+    if anion_on_centre:
+        centres = [c for c in centres if c not in carboxylic]
+    if not anion_on_centre and not any(a.GetFormalCharge() for a in mol.GetAtoms()) and any(
         match[0] not in centres for query in _CARBOXYLIC_ACID for match in mol.GetSubstructMatches(query)
     ):
         raise UnsupportedStructure("a carboxylic acid outranks the carbonic acid group (P-41)")

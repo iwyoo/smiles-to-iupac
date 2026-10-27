@@ -990,6 +990,8 @@ def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, exp
         pytest.param("CNS(=O)[O-]", "N-methylsulfuramidite", id="n_methyl_anion"),
         pytest.param("CN(C)S(=O)[O-]", "N,N-dimethylsulfuramidite", id="two_groups_on_the_nitrogen"),
         pytest.param("CCNS(=O)[O-]", "N-ethylsulfuramidite", id="n_ethyl_anion"),
+        pytest.param("OC(=O)CCNS(=O)[O-]", "N-(2-carboxyethyl)sulfuramidite", id="anion_outranks_a_carboxylic_acid"),
+        pytest.param("OS(=O)(=O)CCNS(=O)[O-]", "N-(2-sulfoethyl)sulfuramidite", id="anion_outranks_a_sulfonic_acid"),
         pytest.param("c1ccccc1NS(=O)[O-]", "N-phenylsulfuramidite", id="n_phenyl_anion"),
         pytest.param("CNS(=O)[O-].[Na+]", "sodium N-methylsulfuramidite", id="anion_in_a_salt"),
     ],

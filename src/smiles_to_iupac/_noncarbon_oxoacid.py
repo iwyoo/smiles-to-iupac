@@ -122,7 +122,8 @@ def _plain_tree(mol, graph, root, behind, anionic=False):
             if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()) and atom.GetDegree() != 1:
                 return False
         elif z in (16, 34, 52):
-            if atom.GetDegree() != 2 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+            oxo = any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 for b in atom.GetBonds())
+            if not (anionic and oxo) and (atom.GetDegree() != 2 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())):
                 return False
         elif z == 7:
             pass
@@ -141,7 +142,7 @@ def _open_valence(mol, atom, skip):
     )
 
 
-def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False):
+def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False, anionic=False):
     """[(name, compound)] of the carbon groups (an ylidene group when `ylidene`), the hydroxy, sulfanyl or alkoxy groups
     and the halogen, nitro and nitroso groups on `atom` outside `skip`, or None when another atom is bonded."""
     found = []
@@ -171,7 +172,7 @@ def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False):
         carbon = neighbor.GetAtomicNum() == 6
         if not carbon and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()):
             return None
-        if not _plain_tree(mol, graph, n, atom.GetIdx()):
+        if not _plain_tree(mol, graph, n, atom.GetIdx(), anionic):
             return None
         found.append(name_branch(graph, n, atom.GetIdx(), halogens, mol=mol))
     return found
@@ -263,8 +264,8 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
         far = nitrogens[0]
         if far.GetFormalCharge() or mol.GetBondBetweenAtoms(neighbor.GetIdx(), far.GetIdx()).GetBondTypeAsDouble() != 1.0:
             return None
-        near = _carbon_substituents(mol, graph, halogens, neighbor, {centre.GetIdx(), far.GetIdx()})
-        beyond = _carbon_substituents(mol, graph, halogens, far, {neighbor.GetIdx()})
+        near = _carbon_substituents(mol, graph, halogens, neighbor, {centre.GetIdx(), far.GetIdx()}, anionic=_anionic_oxygen_on(centre))
+        beyond = _carbon_substituents(mol, graph, halogens, far, {neighbor.GetIdx()}, anionic=_anionic_oxygen_on(centre))
         if near is None or beyond is None or len(beyond) + far.GetTotalNumHs() != 2:
             return None
         if len(near) + neighbor.GetTotalNumHs() != (0 if order == 2.0 else 1):
@@ -272,7 +273,7 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
         hydrazone = order == 2.0
         return {"role": "ylidene" if hydrazone else "single", "kind": "hydrazone" if hydrazone else "hydrazide",
                 "infix": "hydrazon" if hydrazone else "hydrazid", "term": "hydrazide", "H": False, "subs": [near, beyond]}
-    subs = _carbon_substituents(mol, graph, halogens, neighbor, {centre.GetIdx()}, ylidene=True)
+    subs = _carbon_substituents(mol, graph, halogens, neighbor, {centre.GetIdx()}, ylidene=True, anionic=_anionic_oxygen_on(centre))
     if subs is None:
         return None
     valence = _open_valence(mol, neighbor, {centre.GetIdx()})
