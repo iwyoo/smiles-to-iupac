@@ -8044,6 +8044,7 @@ def _acyclic_imine_nitrogen(mol, atom):
         and not _nitro_or_nitroso(mol, n)
         and not _ring_nitrogen_acyl(mol, n, carbon)
         and not _acyl_diazene_nitrogen(mol, n, carbon)
+        and not (cationic and n.GetAtomicNum() in HALOGEN_PREFIXES)
         for n in atom.GetNeighbors()
         if n.GetIdx() != nitrogen.GetIdx()
     ):

@@ -11,7 +11,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, assign_cip_labels
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, assign_cip_labels, halogen_substituents
 from ._multiplicative_text import enclose
 from ._substituents import FORCED_BRANCH_NAMES, format_mononuclear_prefixes, name_branch
 
@@ -32,7 +32,7 @@ def _group(mol, graph, root, parent, halogens=None):
     atom.SetFormalCharge(0)
     standin = surrogate.GetMol()
     standin.UpdatePropertyCache(strict=False)
-    return name_branch(adjacency(standin), root, parent, {}, frozenset(), mol=standin, unsaturated=True)
+    return name_branch(adjacency(standin), root, parent, halogen_substituents(standin), frozenset(), mol=standin, unsaturated=True)
 
 
 def _side(graph, start, blocked):
