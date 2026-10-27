@@ -716,6 +716,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             lead = ",".join("N" + "'" * (2 * i) for i in range(count)) + "-"
         elif unit_kind == "carbonohydrazonic":
             lead = ",".join("N''" + "'" * i for i in range(count)) + "-"
+        elif unit_kind == "carbamic" and text == "hydrazinecarboxylic acid":
+            lead = ",".join("1" + "'" * i for i in range(count)) + "-"
+            return f"{lead}{_linker_text(branches, central, arm_parts)}{multiplier_word(count, False)}{unit_phrase('hydrazine-1-carboxylic acid', '')}"
         elif unit_kind == "semicarbazide":
             lead = ",".join("2" + "'" * i for i in range(count)) + "-"
             linker = _linker_text(branches, central, arm_parts)
@@ -914,7 +917,7 @@ def _unit_name_by_pipeline(unit, unit_kind):
     if unit_kind == "centre_acid":
         return name if _CENTRE_ACID.search(name) else None
     if unit_kind == "carbamic":
-        return name if _CARBAMIC_ACID.search(name) else None
+        return name if _CARBAMIC_ACID.search(name) or name == "hydrazinecarboxylic acid" else None
     if unit_kind == "inorganic_amide":
         return name if _INORGANIC_AMIDE.search(name) else None
     if unit_kind == "anion":
