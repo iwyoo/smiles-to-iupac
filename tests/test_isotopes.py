@@ -728,6 +728,9 @@ def test_nuclides_on_other_parent_hydrides(smiles, expected):
         pytest.param("C=[15N]C", "N-methyl(15N)methanimine", id="imine"),
         pytest.param("CC=N[2H]", "(N-2H)ethanimine", id="deuterated_imine"),
         pytest.param("CC=[15N]O", "N-hydroxy(15N)ethanimine", id="oxime"),
+        pytest.param("CCN=C=[15N]C", "N-ethyl-N'-methyl(N'-15N)methanediimine", id="methanediimine_nitrogen_of_the_second_substituent"),
+        pytest.param("CN=C=N[2H]", "N-methyl(N'-2H)methanediimine", id="methanediimine_deuterium_on_the_free_nitrogen"),
+        pytest.param("CN=[13C]=NC", "dimethyl(13C)methanediimine", id="methanediimine_central_carbon_needs_no_locant"),
     ],
 )
 def test_nuclides_on_nitrogens_of_double_bonded_groups(smiles, expected):
