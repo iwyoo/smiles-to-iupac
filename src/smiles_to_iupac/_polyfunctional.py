@@ -1740,10 +1740,26 @@ def _cation_inserted(name, base, center, placed_in_parent):
     name = _hydro_for_cationic_centre(name, stem, locant or placed[new_center])
     pattern = re.compile(re.escape(stem) + r"(?:e(?![a-z])|(?=-?\d*,?\d*-?yl)|(?=-\d+(?:,\d+)*-[a-z]))")
     found = list(pattern.finditer(name))
+    if len(found) > 1:
+        found = _own_stem_matches(found, base, center, system, placed_in_parent)
     if len(found) != 1:
         raise UnsupportedStructure("the ring parent of the cation is not delimited in the anionic name")
     match = found[0]
     return f"{name[:match.start()]}{stem}-{locant or placed[new_center]}-ium{name[match.end():]}"
+
+
+def _own_stem_matches(found, base, center, system, placed_in_parent):
+    """The anionic ring parent cites its stem after every prefix, so when it is the ring system of the cation the
+    cation is an earlier occurrence, or the last one when its centre is numbered in the parent (P-74, P-74.1.3)."""
+    from ._diester_ring_diyl import _system_of
+
+    if center in placed_in_parent:
+        return found[-1:]
+    skeleton = Chem.MolFragmentToSmiles(base, atomsToUse=sorted(system), isomericSmiles=False)
+    parents = {frozenset(_system_of(base, i)[1]) for i in placed_in_parent if base.GetAtomWithIdx(i).IsInRing()}
+    if any(Chem.MolFragmentToSmiles(base, atomsToUse=sorted(p), isomericSmiles=False) == skeleton for p in parents):
+        return found[:-1]
+    return found
 
 
 _HYDRO_WORDS = {2: "di", 3: "tri", 4: "tetra", 5: "penta", 6: "hexa", 7: "hepta", 8: "octa", 9: "nona", 10: "deca"}

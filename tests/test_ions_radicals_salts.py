@@ -686,6 +686,14 @@ def test_carbanide_salt_names():
         pytest.param(
             "[NH3+][C@@H](Cc1ccc[nH+]c1)C(=O)[O-]", "(2S)-2-azaniumyl-3-(pyridin-1-ium-3-yl)propanoate", id="ium_ring_beside_an_azaniumyl_prefix_on_a_carboxylate"
         ),
+        pytest.param(
+            "O=C([O-])C1CCCN1C(=O)C1CCC[NH2+]1", "1-(pyrrolidin-1-ium-2-carbonyl)pyrrolidine-2-carboxylate", id="ium_ring_of_the_same_system_as_the_carboxylate_ring"
+        ),
+        pytest.param(
+            "[NH3+]C1C(=O)N2C1SC(C)(C)C2C(=O)[O-]",
+            "6-azaniumyl-3,3-dimethyl-7-oxo-4-thia-1-azabicyclo[3.2.0]heptane-2-carboxylate",
+            id="charged_penam_without_a_retained_parent",
+        ),
         pytest.param("C[P+](C)(C)CC(=O)[O-]", "(trimethylphosphaniumyl)acetate", id="phosphonium_prefix_on_a_carboxylate"),
         pytest.param("C[S+](C)CCS(=O)(=O)[O-]", "2-(dimethylsulfaniumyl)ethane-1-sulfonate", id="sulfonium_prefix_on_a_sulfonate"),
         pytest.param("C[S+](C)CCCCCC[N+](C)(C)C", "6-(dimethylsulfaniumyl)-N,N,N-trimethylhexan-1-aminium", id="senior_nitrogen_cation_is_the_parent"),
