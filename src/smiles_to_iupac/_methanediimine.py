@@ -65,8 +65,8 @@ def has_methanediimine_shape(mol) -> bool:
     ) and not any(mol.HasSubstructMatch(query) for query in _SENIOR_GROUPS)
 
 
-def name_methanediimine(mol) -> str:
-    center, nitrogens = _nitrogens(mol)
+def nitrogen_prefixes(mol, center, nitrogens):
+    """The prefix entries cited on each of the two nitrogens, in the order of `nitrogens`."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
@@ -76,8 +76,17 @@ def name_methanediimine(mol) -> str:
         if any(mol.GetBondBetweenAtoms(nitrogen.GetIdx(), r).GetBondTypeAsDouble() != 1.0 for r in roots):
             raise UnsupportedStructure("a multiple bond on an imino nitrogen is not supported yet")
         cited.append([name_branch(graph, r, nitrogen.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for r in roots])
+    return cited
+
+
+def methanediimine_prefixes(cited) -> str:
     if cited[0] == cited[1]:
-        return format_mononuclear_prefixes(cited[0] + cited[1]) + "methanediimine"
+        return format_mononuclear_prefixes(cited[0] + cited[1])
     entries = sorted((entry for side in cited for entry in side), key=lambda entry: alphanumerical_name_key(entry[0]))
     grouped = group_substituents({locant: [entry] for locant, entry in zip(("N", "N'"), entries)})
-    return format_substituent_prefixes(grouped) + "methanediimine"
+    return format_substituent_prefixes(grouped)
+
+
+def name_methanediimine(mol) -> str:
+    center, nitrogens = _nitrogens(mol)
+    return methanediimine_prefixes(nitrogen_prefixes(mol, center, nitrogens)) + "methanediimine"

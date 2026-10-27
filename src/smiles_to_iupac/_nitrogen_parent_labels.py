@@ -1,4 +1,4 @@
-"""Nuclides on the nitrogen atoms of a diazene, azoxy or hydrazone parent hydride (P-82.2.1, P-82.5, P-82.6.1.1,
+"""Nuclides on the nitrogen atoms of a diazene, azoxy, hydrazone or methanediimine parent (P-82.2.1, P-82.5, P-82.6.1.1,
 P-82.6.3.3): the two nitrogens of the parent are told apart only by locants, so every locant of the name is cited and
 the descriptor stands in front of the parent name."""
 
@@ -8,6 +8,7 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     alpha_sort_key,
+    alphanumerical_name_key,
     find_hydrazone,
     group_substituents,
     halogen_substituents,
@@ -16,7 +17,8 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._diazene import _azo_pairs, check_diazene_scope, has_diazene_shape, pair_substituents
-from ._isotope_labels import descriptor, modification_key, split_isotopes
+from ._isotope_labels import descriptor, modification_key, nitrogen_hydrogen_descriptor, split_isotopes
+from ._methanediimine import _nitrogens, has_methanediimine_shape, methanediimine_prefixes, nitrogen_prefixes
 from ._multiplicative_text import enclose
 from ._substituents import ISOTOPE_LABELS, format_substituent_prefixes
 
@@ -42,6 +44,17 @@ def has_labelled_diazene(mol):
 
 def has_labelled_hydrazone(mol):
     return _shape_of_unlabelled(mol, has_hydrazone_shape)
+
+
+def has_labelled_methanediimine(mol):
+    try:
+        split = split_isotopes(mol)
+    except UnsupportedStructure:
+        return False
+    if split is None or not has_methanediimine_shape(split[0]):
+        return False
+    center, nitrogens = _nitrogens(split[0])
+    return any(a.GetIdx() in split[1] for a in (center, *nitrogens))
 
 
 def has_labelled_azoxy(mol):
@@ -115,6 +128,36 @@ def name_labelled_diazene(mol):
     if not found:
         raise UnsupportedStructure("no azo group of this molecule can be the diazene parent")
     return min(found, key=alpha_sort_key)
+
+
+def name_labelled_methanediimine(mol):
+    clean, labels = _split(mol)
+    center, nitrogens = _nitrogens(clean)
+    ids = [n.GetIdx() for n in nitrogens]
+    cited, parent_labels = _named_with_labels(
+        clean, labels, {center.GetIdx(), *ids}, lambda: nitrogen_prefixes(clean, center, nitrogens), require_parent_labels=False
+    )
+    carbon = {a: e for a, e in parent_labels.items() if a == center.GetIdx()}
+    if not any(a in parent_labels for a in ids):
+        return methanediimine_prefixes(cited) + descriptor(carbon, {center.GetIdx(): 1}, True) + "methanediimine"
+    entries = dict(zip(ids, cited))
+    best = None
+    for first, second in ((ids[0], ids[1]), (ids[1], ids[0])):
+        locant_of = {first: 1, second: 2}
+        ordered = sorted((locant_of[n], entry) for n, side in entries.items() for entry in side)
+        key = (
+            tuple(locant for locant, _ in ordered),
+            tuple(alphanumerical_name_key(entry[0]) for _, entry in ordered),
+            modification_key(parent_labels, locant_of),
+        )
+        if best is None or key < best[0]:
+            best = (key, locant_of)
+    locant_of = best[1]
+    letter_of = {n: ("N", "N'")[locant_of[n] - 1] for n in ids}
+    grouped = group_substituents({letter_of[n]: [entry] for n, side in entries.items() for entry in side})
+    cited_on_nitrogens = {n: (letter_of[n], parent_labels[n]) for n in ids if n in parent_labels}
+    text = nitrogen_hydrogen_descriptor(clean, cited_on_nitrogens, carbon or None)
+    return format_substituent_prefixes(grouped) + text + "methanediimine"
 
 
 def name_labelled_azoxy(mol):

@@ -718,15 +718,18 @@ def _name_isotope_label(mol) -> str | None:
         has_labelled_azoxy,
         has_labelled_diazene,
         has_labelled_hydrazone,
+        has_labelled_methanediimine,
         name_labelled_azoxy,
         name_labelled_diazene,
         name_labelled_hydrazone,
+        name_labelled_methanediimine,
     )
 
     for has_shape, namer in (
         (has_labelled_azoxy, name_labelled_azoxy),
         (has_labelled_diazene, name_labelled_diazene),
         (has_labelled_hydrazone, name_labelled_hydrazone),
+        (has_labelled_methanediimine, name_labelled_methanediimine),
         (has_isotope_diazonium_shape, name_isotope_diazonium),
         (has_isotope_acid_hydrogen_shape, name_isotope_acid_hydrogen),
         (has_isotope_hydride_shape, name_isotope_hydride),
