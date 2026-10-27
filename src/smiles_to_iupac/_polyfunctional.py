@@ -1439,7 +1439,7 @@ def _ring_center_base(mol, parent=None):
         return _chalcogenium_base(mol, chalcogen_centers[0])
     centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
     if len(centers) > 1:
-        return _ring_oxide_centres(mol, centers, charged)
+        return _ring_oxide_centres(mol, centers, charged) or (_ring_ium_centres(mol, centers, charged) if anionic_parent else None)
     if len(centers) != 1 or len(charged) - len(centers) > 1:
         return None
     center = centers[0]
@@ -1571,6 +1571,25 @@ def _ring_oxide_centres(mol, centers, charged):
     base = neutral.GetMol()
     Chem.SanitizeMol(base)
     return base, [c.GetIdx() - sum(1 for o in oxides if o < c.GetIdx()) for c in centers], "oxide", None
+
+
+def _ring_ium_centres(mol, centers, charged):
+    """(neutral analogue, centre atoms, 'ium', None) for several saturated ring nitrogen cations of one ring system that
+    an anionic parent cites as a prefix: 'piperazine-1,4-diium-1-yl' (P-73.5.1.2, P-74.1.3)."""
+    if len(charged) != len(centers) or mol.GetNumAtoms() > _MAX_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    if any(c.GetIsAromatic() for c in centers):
+        return None
+    neutral = Chem.RWMol(mol)
+    for center in centers:
+        atom = neutral.GetAtomWithIdx(center.GetIdx())
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(max(center.GetTotalNumHs() - 1, 0))
+    base = neutral.GetMol()
+    base.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(base)
+    return base, [c.GetIdx() for c in centers], "ium", None
 
 
 _CENTRE_MARKERS = ((35, "bromo"), (17, "chloro"), (9, "fluoro"), (53, "iodo"))
@@ -1767,6 +1786,40 @@ def _cation_inserted(name, base, center, placed_in_parent):
     return f"{name[:match.start()]}{stem}-{locant or placed[new_center]}-ium{name[match.end():]}"
 
 
+def _cations_inserted(name, base, centers, placed_in_parent):
+    """Cite several ring cations as 'diium', 'triium' on their ring parent hydride, ahead of any free valence (P-73.5.1.2)."""
+    from ._diester_ring_diyl import _system_of
+    from ._numerals import numerical_term
+
+    system = _system_of(base, centers[0])[1]
+    if any(c not in system for c in centers):
+        raise UnsupportedStructure("the cationic ring nitrogens are not in one ring system")
+    locants = [placed_in_parent.get(c) or _prefix_center_locant(base, c, placed_in_parent) for c in centers]
+    ring = Chem.RWMol(base)
+    for index in system:
+        lost = sum(
+            int(b.GetBondTypeAsDouble()) for b in base.GetAtomWithIdx(index).GetBonds() if b.GetOtherAtomIdx(index) not in system
+        )
+        if lost and index not in centers:
+            ring.GetAtomWithIdx(index).SetNumExplicitHs(base.GetAtomWithIdx(index).GetTotalNumHs() + lost)
+            ring.GetAtomWithIdx(index).SetNoImplicit(True)
+    for index in sorted((a.GetIdx() for a in base.GetAtoms() if a.GetIdx() not in system), reverse=True):
+        ring.RemoveAtom(index)
+    ring_mol = ring.GetMol()
+    ring_mol.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(ring_mol)
+    bare, _ = _bare_ring_name(ring_mol, sorted(system).index(centers[0]), hydro_ok=True)
+    if not bare.endswith("e"):
+        raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
+    pattern = re.compile(re.escape(bare[:-1]) + r"(?:e(?![a-z])|(?=-?\d*,?\d*-?yl)|(?=-\d+(?:,\d+)*-[a-z]))")
+    found = list(pattern.finditer(name))
+    if len(found) != 1:
+        raise UnsupportedStructure("the ring parent of the cations is not delimited in the anionic name")
+    text = ",".join(str(x) for x in sorted(locants, key=lambda x: (len(str(x)), str(x))))
+    match = found[0]
+    return f"{name[:match.start()]}{bare}-{text}-{numerical_term(len(centers))}ium{name[match.end():]}"
+
+
 def _own_stem_matches(found, base, center, system, placed_in_parent):
     """The anionic ring parent cites its stem after every prefix, so when it is the ring system of the cation the
     cation is an earlier occurrence, or the last one when its centre is numbered in the parent (P-74, P-74.1.3)."""
@@ -1891,6 +1944,11 @@ def _ylium_inserted(name, base, center, placed):
 def _name_ring_center(base, center, kind, probe=None, labels=None, oxide_labels=None):
     from ._diester_ring_diyl import _system_of
 
+    if isinstance(center, list) and kind == "ium":
+        marked = Chem.Mol(base)
+        for index in center:
+            marked.GetAtomWithIdx(index).SetBoolProp(CATION_INSERT_PROP, True)
+        return _name_labelled(marked, labels or {}, lambda name, placed: _cations_inserted(name, base, center, placed))
     if isinstance(center, list):
         token = RING_CENTER.set(True)
         cation_token = CATION_PARENT.set(True)
