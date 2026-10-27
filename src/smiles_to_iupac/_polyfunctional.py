@@ -514,8 +514,8 @@ def _amino_hydrazone_nitrogen(mol, nitrogen, origin):
 
 
 def _carbamimidoyl_nitrogen_substituents(mol, nitrogen, origin):
-    """Whether every neighbour of `nitrogen` other than `origin` is a plain carbon group or a further carbamimidoyl group
-    (the N'-carbamimidoylcarbamimidoyl prefix of a condensed guanidine)."""
+    """Whether every neighbour of `nitrogen` other than `origin` is a plain carbon group, a further carbamimidoyl group or
+    a diaminomethylidene-type ylidene (the prefixes of a condensed guanidine)."""
     return all(
         (
             n.GetAtomicNum() in (6, 7, 8, *HALOGEN_PREFIXES)
@@ -525,6 +525,11 @@ def _carbamimidoyl_nitrogen_substituents(mol, nitrogen, origin):
         or _carbamimidoyl_on(mol, n, nitrogen)
         or _plain_acyl_on(mol, n, nitrogen)
         or _plain_ylidene_group(mol, nitrogen, n)
+        or (
+            nitrogen.GetDegree() == 2
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            and _amidine_ylidene(mol, n, nitrogen)
+        )
         for n in nitrogen.GetNeighbors()
         if n.GetIdx() != origin
     )
