@@ -41,7 +41,11 @@ def imidoyl_prefix(mol, graph, root, coming_from):
         or mol.GetBondBetweenAtoms(root, rest[0]).GetBondTypeAsDouble() != 1.0
     ):
         return None
-    if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (1, 6, 7, 8) for n in graph[imino[0]] if n != root):
+    from ._polyfunctional import imino_nitrogen_group
+
+    if any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() not in (1, 6, 7, 8) for n in graph[imino[0]] if n != root
+    ) and not imino_nitrogen_group(mol, nitrogen, root):
         return None
     if mol.GetAtomWithIdx(coming_from).GetAtomicNum() != 7 and any(
         mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() > 1

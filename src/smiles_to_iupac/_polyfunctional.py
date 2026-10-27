@@ -466,6 +466,7 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
         or _amino_hydrazone_nitrogen(mol, imino[0], atom.GetIdx())
         or azine_nitrogen(mol, imino[0], atom.GetIdx())
         or _oximino_nitrogen(mol, imino[0], atom.GetIdx())
+        or imino_nitrogen_group(mol, imino[0], atom.GetIdx())
     ):
         return False
     return not rest or (
@@ -475,6 +476,24 @@ def _carbamimidoyl_on(mol, atom, nitrogen):
         rest[0].GetAtomicNum() == 7 and not rest[0].GetFormalCharge() and not rest[0].GetIsAromatic()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
         and _carbamimidoyl_nitrogen_substituents(mol, rest[0], atom.GetIdx())
+    )
+
+
+def imino_nitrogen_group(mol, nitrogen, origin):
+    """Whether the only other neighbour of `nitrogen`, the imino nitrogen of an amidine or imidic acid group, is a
+    halogen, cyano, sulfonyl or nitro group: the N-substituent of the imidoyl prefix (P-66.4.1.3, P-66.4.1.4)."""
+    from ._hetero_prefixes import _sulfonyl_centre
+    from ._hydride_chain import _is_nitro_or_nitroso
+
+    other = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != origin]
+    if len(other) != 1 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), other[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    group = other[0]
+    return (
+        group.GetAtomicNum() in HALOGEN_PREFIXES
+        or _cyano_on(mol, group, nitrogen)
+        or (group.GetAtomicNum() == 16 and _sulfonyl_centre(mol, group))
+        or (group.GetAtomicNum() == 7 and _is_nitro_or_nitroso(group))
     )
 
 

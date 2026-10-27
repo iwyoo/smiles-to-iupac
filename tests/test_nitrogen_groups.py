@@ -1530,6 +1530,12 @@ def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expe
             "CC(=O)NC(C)=NOC", "N-(N-methoxyethanimidoyl)acetamide", id="alkoxy_on_the_nitrogen_of_an_imidoyl_prefix_of_an_amide"
         ),
         pytest.param(
+            "CC(=NCl)NC(C)=O", "N-(N-chloroethanimidoyl)acetamide", id="halogen_on_the_nitrogen_of_an_imidoyl_prefix_of_an_amide"
+        ),
+        pytest.param(
+            "CC(=NS(C)(=O)=O)NC(=O)OC", "methyl [N-(methanesulfonyl)ethanimidoyl]carbamate", id="sulfonyl_on_the_nitrogen_of_an_imidoyl_prefix_of_a_carbamate"
+        ),
+        pytest.param(
             "CC(=NC)N=C(C)NC(C)=O",
             "N-[N-(N-methylethanimidoyl)ethanimidoyl]acetamide",
             id="imidoyl_group_on_the_nitrogen_of_an_imidoyl_prefix_of_an_amide",
