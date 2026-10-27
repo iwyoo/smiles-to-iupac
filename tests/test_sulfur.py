@@ -1555,6 +1555,10 @@ def test_sulfoxide_descriptor_with_an_amide_on_the_second_chain():
     assert smiles_to_iupac("OC(=O)C[S@](=O)CC(N)=O") == "[(R)-2-amino-2-oxoethane-1-sulfinyl]acetic acid"
 
 
+def test_sulfoxide_descriptor_with_a_carboxylic_acid_on_the_second_chain():
+    assert smiles_to_iupac("OC(=O)CC[S@](=O)CCCC(=O)O") == "4-[(R)-2-carboxyethane-1-sulfinyl]butanoic acid"
+
+
 def test_o_sulfonyl_hydroxylamine_is_a_prefix_beside_a_hydroxy_group():
     assert smiles_to_iupac("OCCS(=O)(=O)ON") == "2-[(aminooxy)sulfonyl]ethan-1-ol"
 

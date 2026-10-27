@@ -147,6 +147,9 @@ def _restore_cation(editable, index):
         atom.SetNumExplicitHs(atom.GetTotalNumHs() + 1)
 
 
+_OUTRANKED_ACYL = "a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group"
+
+
 def _acyl_prefix(mol, subtree, root, parent):
     """'-yl' name of the acyl group rooted at `root`, from its parent acid's name."""
     from .core import smiles_to_iupac
@@ -181,10 +184,11 @@ def _acyl_prefix(mol, subtree, root, parent):
 
     stereo = BRANCH_STEREO.get()
     cited_centre = bool(stereo) and root in stereo["atoms"]
-    if root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_ACID_SENIOR_TO_SULFUR_ACID if cited_centre else _CARBOXYLIC_CLASS):
+    outranked = root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_ACID_SENIOR_TO_SULFUR_ACID if cited_centre else _CARBOXYLIC_CLASS)
+    if outranked:
         own_acid = _imido_acid_class(sub, sorted(subtree).index(root))
-        if own_acid is None:
-            raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
+        if own_acid is None and not cited_centre:
+            raise UnsupportedStructure(_OUTRANKED_ACYL)
     from ._acid_derivatives import acyl_name
 
     from ._polyfunctional import RING_CENTER
@@ -199,11 +203,16 @@ def _acyl_prefix(mol, subtree, root, parent):
     if centre_cited:
         adjusted.discard(("atom", root))
     others = [match[0] for match in acid.GetSubstructMatches(_FREE_CARBOXY) if match[0] != sorted(subtree).index(root)]
+    if outranked and own_acid is None and not {match[0] for match in acid.GetSubstructMatches(_ACID_SENIOR_TO_SULFUR_ACID)} <= set(others):
+        raise UnsupportedStructure(_OUTRANKED_ACYL)
     try:
         if own_acid is not None:
             probe = _name_with_principal(acid, own_acid)
         elif others:
-            probe = _name_with_free_carboxy(acid, others) or smiles_to_iupac(Chem.MolToSmiles(acid))
+            probe = _name_with_free_carboxy(acid, others)
+            if probe is None and outranked:
+                raise UnsupportedStructure(_OUTRANKED_ACYL)
+            probe = probe or smiles_to_iupac(Chem.MolToSmiles(acid))
             if probe != "oxalic acid" and _MULTIPLIED_ACID.search(probe):
                 raise UnsupportedStructure("a further carboxylic acid group would become a second acyl group of the prefix")
         else:
