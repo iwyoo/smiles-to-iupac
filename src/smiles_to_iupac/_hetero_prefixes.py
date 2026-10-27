@@ -2266,7 +2266,7 @@ def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol
     ]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     ending = stem[:-2] + "ylidene" if ylidene else stem
-    return (prefix + "-" if prefix else "") + f"λ{bonding}-{ending}", True
+    return _with_centre_descriptor((prefix + "-" if prefix else "") + f"λ{bonding}-{ending}", True, root)
 
 
 def _lambda_multiple_bond(mol, centre, n, ylidene):

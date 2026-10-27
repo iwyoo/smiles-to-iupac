@@ -195,6 +195,9 @@ def _acyl_prefix(mol, subtree, root, parent):
     acid = Chem.Mol(sub)
     acid.GetAtomWithIdx(sorted(subtree).index(root)).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     adjusted = _match_whole_labels(mol, acid, sorted(subtree))
+    centre_cited = cited_centre and ("atom", root) in adjusted and root_atom.GetAtomicNum() != 6
+    if centre_cited:
+        adjusted.discard(("atom", root))
     others = [match[0] for match in acid.GetSubstructMatches(_FREE_CARBOXY) if match[0] != sorted(subtree).index(root)]
     try:
         if own_acid is not None:
@@ -213,6 +216,10 @@ def _acyl_prefix(mol, subtree, root, parent):
         probe = probe[: -len("ate")] + "ic acid"
     name = acyl_name(probe)
     _cite_stereo_of_acyl(mol, acid, sorted(subtree), adjusted, name)
+    if centre_cited:
+        from ._hetero_prefixes import _stereo_cited
+
+        name = _stereo_cited(name, root)
     if labelled:
         context["consumed"].update(labelled)
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
