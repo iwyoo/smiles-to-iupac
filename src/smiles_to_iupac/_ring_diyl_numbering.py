@@ -1380,8 +1380,11 @@ def _is_appendix3_system(mol, atoms):
 
     if SYSTEMATIC_FUSION.get() or (len(atoms) < _MIN_SIZE and mol.GetNumAtoms() < _MIN_SIZE):
         return False
+    # the retained-parent namers decline charged molecules, which are numbered systematically
+    if any(a.GetFormalCharge() or a.HasProp("_cationic_amine") or a.HasProp("_anion") for a in mol.GetAtoms()):
+        return False
     rings = sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms))
-    key = Chem.MolToSmiles(mol)
+    key = (Chem.MolToSmiles(mol), tuple(Chem.CanonicalRankAtoms(mol, breakTies=True)))
     if key not in _APPENDIX3_MAPPED:
         try:
             best = _best_skeleton(mol, False)
