@@ -1864,6 +1864,8 @@ def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
         pytest.param("CN(C)[N]", "2,2-dimethylhydrazin-1-ylidene", id="isodiazene_as_the_divalent_nitrogen"),
         pytest.param("C[N+](C)=[N-]", "dimethylhydrazinylidene", id="isodiazene_as_the_zwitterion"),
         pytest.param("CC[N+](C)=[N-]", "ethyl(methyl)hydrazinylidene", id="isodiazene_prefixes_alphabetized"),
+        pytest.param("[N-]=[N+](C)CC#N", "(cyanomethyl)(methyl)hydrazinylidene", id="isodiazene_with_a_heteroatom_substituent"),
+        pytest.param("[N-]=[N+]1CCCC1", "(pyrrolidin-1-yl)azanylidene", id="isodiazene_on_a_ring_nitrogen"),
         pytest.param("[NH2][NH]", "hydrazinyl", id="retained_hydrazine_root"),
         pytest.param("[NH][NH]", "hydrazine-1,2-diyl", id="two_radical_centres_on_a_chain"),
         pytest.param("[BH][BH]", "diborane(4)-1,2-diyl", id="two_radical_centres_on_a_polyborane"),
