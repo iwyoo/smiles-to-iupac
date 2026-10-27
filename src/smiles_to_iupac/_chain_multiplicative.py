@@ -548,7 +548,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     if unit_kind != "amine" and _longest_hetero_run(graph, comp_of, components) >= _SKELETAL_UNITS:
         if unit_kind != "chain" or count != 2 or stereo:
             return None
-        return _skeletal_linker_name(mol, graph, arms, span)
+        skeletal = _skeletal_linker_name(mol, graph, arms, span)
+        if skeletal is not None or not any(kind == "ring" for kind, _ in components.values()):
+            return skeletal
     edges = {cid: [] for cid in components}
     for a in span:
         for n in graph[a]:
