@@ -245,6 +245,45 @@ def _azoxy_unstereo_name(mol, graph, oxide_nitrogen, other_nitrogen, oxygen):
     return f"1-{left}-2-{right}diazene {oxide_locant}-oxide"
 
 
+def _azodioxide(mol, graph):
+    """(first nitrogen, second nitrogen) of R-N(O)=N(O)-R', each nitrogen the oxide-bearing end of the N=N bond."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() != 1 or atom.GetDegree() != 3:
+            continue
+        for partner in atom.GetNeighbors():
+            if (
+                partner.GetIdx() > atom.GetIdx()
+                and partner.GetAtomicNum() == 7
+                and partner.GetFormalCharge() == 1
+                and partner.GetDegree() == 3
+                and mol.GetBondBetweenAtoms(atom.GetIdx(), partner.GetIdx()).GetBondTypeAsDouble() == 2.0
+                and all(
+                    sum(o.GetAtomicNum() == 8 and o.GetFormalCharge() == -1 and o.GetDegree() == 1 for o in n.GetNeighbors()) == 1
+                    for n in (atom, partner)
+                )
+            ):
+                return atom, partner
+    return None
+
+
+def _azodioxide_name(mol, graph, pair):
+    if any(b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY) for b in mol.GetBonds()):
+        raise UnsupportedStructure("a stereo element of this diazene dioxide is not cited yet")
+    first, second = pair
+    groups = []
+    for nitrogen in pair:
+        (root,) = [
+            n
+            for n in graph[nitrogen.GetIdx()]
+            if mol.GetAtomWithIdx(n).GetAtomicNum() != 8 and n not in (first.GetIdx(), second.GetIdx())
+        ]
+        groups.append(_group(mol, graph, root, nitrogen.GetIdx()))
+    if groups[0] == groups[1]:
+        return f"1,2-{format_mononuclear_prefixes(groups)}diazene 1,2-dioxide"
+    left, right = (enclose(g[0]) if g[1] else g[0] for g in sorted(groups, key=lambda g: alpha_sort_key(g[0])))
+    return f"1-{left}-2-{right}diazene 1,2-dioxide"
+
+
 def azoxy_prefix_name(mol):
     """An azoxy group beside a senior anion or cation, which keeps the parent: the group is a lambda5-diazenyl prefix on
     the side that holds the ionic group (P-68.3.1.3.3.2, P-41)."""
@@ -368,6 +407,13 @@ def dipolar_name(mol):
     if isodiazene is not None:
         return isodiazene
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) == 4 and not any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        pair = _azodioxide(mol, adjacency(mol))
+        if pair is not None and {a.GetIdx() for a in charged} >= {pair[0].GetIdx(), pair[1].GetIdx()}:
+            try:
+                return _azodioxide_name(mol, adjacency(mol), pair)
+            except (UnsupportedStructure, ValueError, KeyError):
+                return None
     if len(charged) > 2 and not any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         try:
             return _alternating_chain_name(mol, adjacency(mol))

@@ -530,6 +530,8 @@ def test_heteroatom_chains_cite_nonstandard_bonding_numbers_and_alternate_by_sen
         ("C[N+](C)(O)[O-]", "dimethylazinic acid"),
         ("O[NH+]([O-])c1cccnc1", "(pyridin-3-yl)azinic acid"),
         ("[O-][NH+]([O-])C1CCCCC1", "cyclohexylazinate"),
+        ("Nc1ccc([NH+]([O-])O)cc1", "(4-aminophenyl)azinic acid"),
+        ("CC(=O)OCC[NH+]([O-])O", "[2-(acetyloxy)ethyl]azinic acid"),
     ],
 )
 def test_halides_of_phosphorus_iii_acids_and_azinic_acids(smiles, expected):
