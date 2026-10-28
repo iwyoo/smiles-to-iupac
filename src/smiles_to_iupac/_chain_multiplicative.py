@@ -1655,7 +1655,12 @@ def _chain_multiplicative_name(mol, stereo):
         a.GetIdx()
         for a in mol.GetAtoms()
         if _is_linker_atom(mol, a, acyl_prefixes)
-        and not (principal == "amine" and a.GetAtomicNum() == 7 and (AMINIUM.get() is not True or (a.GetIdx() in anchors and not a.GetFormalCharge())))
+        and not (
+            principal == "amine"
+            and a.GetAtomicNum() == 7
+            and (AMINIUM.get() is not True or (a.GetIdx() in anchors and not a.GetFormalCharge()))
+            and not any(n.GetAtomicNum() == 7 for n in a.GetNeighbors())
+        )
     }
     candidates, nitrogen, amine_nitrogen = {}, {}, {}
     for r in range(mol.GetNumAtoms()):
