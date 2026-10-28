@@ -1648,6 +1648,8 @@ def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
         pytest.param("c1cc[o+]cc1", "pyrylium", id="pyrylium"),
         pytest.param("Cc1cc(C)[o+]c(C)c1", "2,4,6-trimethylpyrylium", id="substituted_pyrylium"),
         pytest.param("c1cc[te+]cc1", "telluropyrylium", id="chalcogen_analogue_of_pyrylium"),
+        pytest.param("C/C=C/c1cc(C)[s+]c(C)c1", "2,6-dimethyl-4-[(1E)-prop-1-en-1-yl]thiopyrylium", id="double_bond_descriptor_of_a_ylium_ring_substituent"),
+        pytest.param("C[C@H](O)c1cccc[o+]1", "2-[(1S)-1-hydroxyethyl]pyrylium", id="stereocentre_descriptor_of_a_ylium_ring_substituent"),
         pytest.param("c1ccc2[s+]c3ccccc3cc2c1", "thioxanthylium", id="xanthylium_family"),
         pytest.param("c1ccc2[o+]cccc2c1", "1λ4-benzopyran-1-ylium", id="lambda_name_of_a_benzopyrylium"),
         pytest.param("c1ccc2c[o+]ccc2c1", "2λ4-benzopyran-2-ylium", id="isobenzopyrylium"),
