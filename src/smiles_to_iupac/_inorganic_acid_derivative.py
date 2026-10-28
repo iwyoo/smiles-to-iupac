@@ -9,7 +9,7 @@ from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_su
 from ._chalcogen_imide import ylidene_group_atoms
 from ._chalcogenourea import has_group_senior_to_urea
 from ._hydride_chain import _is_pseudohalide_nitrogen
-from ._phosphonic_acid import CENTER_STEMS
+from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
 from ._substituents import (
     centre_nuclides,
     cited_stereo_around,
@@ -219,7 +219,10 @@ def _azinic_centre(mol):
             continue
         pair = {o.GetIdx() for o in oxide + hydroxyl}
         covered = {centre.GetIdx()} | pair
-        if all(a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES or a.IsInRing() for a in mol.GetAtoms()):
+        if all(
+            a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in _PREFIX_ELEMENTS or a.IsInRing()
+            for a in mol.GetAtoms()
+        ) and not any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
             return centre, pair
     return None
 
@@ -228,9 +231,7 @@ def _name_azinic(mol, found):
     centre, excluded = found
     graph = adjacency(mol)
     entries = _prefix_entries(mol, centre, excluded, graph)
-    prefix = format_mononuclear_prefixes(entries) if len(entries) > 1 else (entries[0][0] if entries else "")
-    if len(entries) == 1 and entries[0][1]:
-        prefix = f"({prefix})"
+    prefix = format_mononuclear_prefixes(entries) if entries else ""
     ending = "azinate" if all(mol.GetAtomWithIdx(i).GetFormalCharge() for i in excluded) else "azinic acid"
     return f"{prefix}{centre_nuclides(centre.GetIdx(), oxygens=True)}{ending}"
 
