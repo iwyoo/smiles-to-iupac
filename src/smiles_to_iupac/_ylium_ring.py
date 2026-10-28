@@ -12,12 +12,13 @@ from ._fusion_name import fused_parent_data, marked_name
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    assign_cip_labels,
     group_substituents,
     halogen_substituents,
     substituent_locant_set_and_citation,
 )
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
 
 _INFIX = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
 _PYRAN = {8: "pyran", 16: "thiopyran", 34: "selenopyran", 52: "telluropyran"}
@@ -87,14 +88,33 @@ def has_ylium_ring_shape(mol) -> bool:
 
 
 def _prefixes(mol, graph, ring_atoms, locant_of, skip=frozenset()):
+    from ._cited_group import subtree
     from ._functional_prefixes import functional_names
 
     halogens = halogen_substituents(mol)
     seeds = [(a, n) for a in ring_atoms for n in graph[a] if n not in ring_atoms and n not in skip]
     named, shown, _ = functional_names(mol, graph, seeds, set(ring_atoms), halogens)
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    atom_codes = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")}
+    bond_codes = {(b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")}
     entries = {}
     for atom, root in seeds:
-        entry = named[root] if root in named else name_branch(graph, root, atom, shown, mol=mol)
+        side = subtree(graph, root, atom)
+        context = {
+            "atoms": {i: c for i, c in atom_codes.items() if i in side},
+            "bonds": {b: c for b, c in bond_codes.items() if b[0] in side and b[1] in side},
+            "used": set(),
+        }
+        token = BRANCH_STEREO.set(context)
+        try:
+            entry = named[root] if root in named else name_branch(graph, root, atom, shown, mol=mol)
+        finally:
+            BRANCH_STEREO.reset(token)
+        if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+            ("bond", b) not in context["used"] for b in context["bonds"]
+        ):
+            raise UnsupportedStructure("a stereo element of a substituent of this cationic ring is not cited by its name")
         entries.setdefault(locant_of[atom], []).append(entry)
     return group_substituents(entries)
 
