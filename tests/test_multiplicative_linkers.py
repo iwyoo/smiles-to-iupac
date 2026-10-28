@@ -1255,3 +1255,15 @@ def test_ring_units_with_the_principal_oxo_group_are_multiplied_with_added_hydro
 def test_three_identical_units_joined_to_one_ring_through_different_atoms_are_not_multiplied():
     # P-45.1.1: the linking bonds of a multiplied parent are identical; P-45.2: one unit is the parent
     assert smiles_to_iupac("OCCNc1ccc(NCCO)n1CCO") == "2-{2,5-bis[(2-hydroxyethyl)amino]-1H-pyrrol-1-yl}ethan-1-ol"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("NCCN(C)N(C)CCN", "2,2'-(1,2-dimethylhydrazine-1,2-diyl)di(ethan-1-amine)"),
+        ("NCCCN=NCCCN", "3,3'-diazenediyldi(propan-1-amine)"),
+    ],
+)
+def test_amine_arms_joined_through_a_nitrogen_nitrogen_linker_are_multiplied(smiles, expected):
+    # P-68.3.1.2.1, P-68.3.1.3.2.1: an N-N linker is not an amine, so the arms keep their amine suffix
+    assert smiles_to_iupac(smiles) == expected
