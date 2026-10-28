@@ -6,6 +6,7 @@ and the =NR groups are 'imino' prefixes; otherwise the =NH groups are the suffix
 
 from rdkit import Chem
 
+from ._acid_groups import acid_group_at
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -174,6 +175,28 @@ def ylidene_group_atoms(mol, center_idx, nitrogen_idx):
     ):
         return set()
     return atoms
+
+
+def is_hetero_ylidene(mol, center_idx, nitrogen_idx):
+    """Whether the phosphorus or chalcogen `center_idx` double-bonded to `nitrogen_idx` is an ylidene prefix of a senior
+    amide-type group: a plain sulfoximide-type group, or any such centre whose groups hold no acid and so are prefixes too
+    (P-67.1.5.1, P-68.4.3.4)."""
+    if ylidene_group_atoms(mol, center_idx, nitrogen_idx):
+        return True
+    center = mol.GetAtomWithIdx(center_idx)
+    if center.GetAtomicNum() not in (15, *_PARENT) or center.IsInRing() or center.GetFormalCharge() or center.GetIsotope():
+        return False
+    graph = adjacency(mol)
+    group, stack = {center_idx}, [center_idx]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != nitrogen_idx and n not in group:
+                group.add(n)
+                stack.append(n)
+    return not any(
+        acid_group_at(mol, i) is not None or mol.GetAtomWithIdx(i).GetFormalCharge() or mol.GetAtomWithIdx(i).GetIsotope()
+        for i in group
+    )
 
 
 def has_chalcogen_imide_shape(mol) -> bool:

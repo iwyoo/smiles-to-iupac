@@ -1492,6 +1492,19 @@ def test_sulfimides_sulfoximides_and_sulfur_imides_on_the_lambda_sulfane_parent(
         pytest.param(
             "CS(C)(=O)=NC(=O)OC", "methyl [dimethyl(oxo)-\u03bb6-sulfanylidene]carbamate", id="sulfoximide_on_a_carbamate_nitrogen"
         ),
+        pytest.param(
+            "COC(=O)N=S(C)(=O)CC#N",
+            "methyl [(cyanomethyl)(methyl)(oxo)-\u03bb6-sulfanylidene]carbamate",
+            id="sulfoximide_with_a_nitrile_under_a_carbamate",
+        ),
+        pytest.param(
+            "CN(C)C(=O)N=S(C)(=O)CCN",
+            "N'-[(2-aminoethyl)(methyl)(oxo)-\u03bb6-sulfanylidene]-N,N-dimethylurea",
+            id="sulfoximide_with_an_amine_under_a_urea",
+        ),
+        pytest.param(
+            "COC(=O)N=P(C)(C)C", "methyl (trimethyl-\u03bb5-phosphanylidene)carbamate", id="phosphanylidene_under_a_carbamate"
+        ),
     ],
 )
 def test_chalcogen_imide_cited_as_a_ylidene_prefix_beside_a_senior_group(smiles, expected):
