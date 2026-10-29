@@ -81,6 +81,7 @@ _SENIOR_PNICTOGEN_ACID = [
 ]
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
 _AMINO_ON_RING_NITROGEN = Chem.MolFromSmarts("[NX3H2;!R]-[#7X3;R;+0]")
+_AMINO_ON_RING_AMIDINE = Chem.MolFromSmarts("[NX3;!R;!$(N~[!#6;!#1;!#8;!#16])]-[#6;R;!a]=[#7;R]")
 _PEROXOL = Chem.MolFromSmarts("[O,S,Se,Te;X2H1][O,S,Se,Te;X2H0][#6]")
 
 
@@ -128,6 +129,7 @@ def _has_senior_principal_group(mol):
         or mol.HasSubstructMatch(_ARYLAMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
         or mol.HasSubstructMatch(_AMINO_ON_RING_NITROGEN)
+        or mol.HasSubstructMatch(_AMINO_ON_RING_AMIDINE)
         or mol.HasSubstructMatch(_IMINE_NITROGEN_CHALCOGEN)
         or mol.HasSubstructMatch(_PEROXOL)
     )
