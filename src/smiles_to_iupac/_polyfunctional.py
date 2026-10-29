@@ -2090,36 +2090,60 @@ def _numbered_monocycle(base, center):
     return (name, {center: best.position_of[center]}) if name.endswith("e") else None
 
 
-def _bridged_ring_name(base, center):
-    """(name, {center: locant}) of a saturated bicyclic von Baeyer ring whose atom `center` is the cationic centre: the
-    ring is named neutral by skeletal replacement, and the centre takes the lowest locant among the numberings that give
-    the heteroatoms their lowest locants (P-23.3.1, P-31.1.4.2.4, P-73.1.1.2)."""
-    from ._bicyclic import find_bicyclic_core, iter_bicyclic_numberings
-    from ._von_baeyer_heteroatom import _HETEROATOM_PREFIXES
-    from .core import smiles_to_iupac
+def _is_monospiro(mol):
+    from ._spiro import find_monospiro_atom
 
+    return find_monospiro_atom(mol) is not None
+
+
+def _neutral_ring_centre(base, center):
+    """`base` with the cationic ring nitrogen `center` made the neutral amine of the same ring bonds."""
     editable = Chem.RWMol(base)
     atom = editable.GetAtomWithIdx(center)
     atom.SetFormalCharge(0)
     atom.SetNumRadicalElectrons(0)
     atom.SetNoImplicit(True)
-    atom.SetNumExplicitHs(0)
+    atom.SetNumExplicitHs(max(3 - atom.GetDegree(), 0))
     neutral = editable.GetMol()
     Chem.SanitizeMol(neutral)
-    core = find_bicyclic_core(neutral)
-    if core is None:
-        raise UnsupportedStructure("this ring system has no supported parent name")
-    heteroatoms = [a.GetIdx() for a in neutral.GetAtoms() if a.GetAtomicNum() in _HETEROATOM_PREFIXES]
-    keys = [
-        (sorted(order.index(i) + 1 for i in heteroatoms), order.index(center) + 1) for order in iter_bicyclic_numberings(core)
-    ]
-    if not keys:
-        raise UnsupportedStructure("this ring system has no supported parent name")
+    return neutral
+
+
+def _bridged_ring_name(base, center):
+    """(name, {center: locant}) of a saturated spiro, bicyclic or polycyclic ring whose atom `center` is the cationic
+    centre: the ring is named neutral by skeletal replacement, and the centre takes the lowest locant among the
+    numberings that give the heteroatoms their lowest locants (P-24.2.4, P-23.3.1, P-31.1.4.2.4, P-73.1.1.2)."""
+    from ._bicyclic import find_bicyclic_core, iter_bicyclic_numberings
+    from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
+    from ._spiro import find_monospiro_atom, iter_monospiro_numberings
+    from ._von_baeyer_heteroatom import _HETEROATOM_PREFIXES
+    from .core import smiles_to_iupac
+
+    neutral = _neutral_ring_centre(base, center)
     try:
         name = smiles_to_iupac(Chem.MolToSmiles(neutral))
     except UnsupportedStructure:
         raise UnsupportedStructure("this ring system has no supported parent name") from None
-    return name, {center: min(keys)[1]}
+    heteroatoms = [a.GetIdx() for a in neutral.GetAtoms() if a.GetAtomicNum() in _HETEROATOM_PREFIXES]
+    retained = re.match(r"(\d+)-[a-z]+adamantane$", name)
+    if retained and heteroatoms == [center]:
+        return name, {center: int(retained.group(1))}
+    spiro = find_monospiro_atom(neutral)
+    ring_count = neutral.GetNumBonds() - neutral.GetNumAtoms() + 1
+    if spiro is not None:
+        candidates = [((), order) for _, order in iter_monospiro_numberings(neutral, spiro)]
+    elif ring_count == 2 and (core := find_bicyclic_core(neutral)) is not None:
+        candidates = [((), order) for order in iter_bicyclic_numberings(core)]
+    elif ring_count > 2 and (core := find_polycyclic_core(neutral, ring_count)) is not None:
+        candidates = [(outer_key, order) for order, _, outer_key in iter_polycyclic_candidates(core, ring_count)]
+    else:
+        raise UnsupportedStructure("this ring system has no supported parent name")
+    keys = [
+        (outer, sorted(order.index(i) + 1 for i in heteroatoms), order.index(center) + 1) for outer, order in candidates
+    ]
+    if not keys:
+        raise UnsupportedStructure("this ring system has no supported parent name")
+    return name, {center: min(keys)[2]}
 
 
 def _bare_ring_name(base, center, hydro_ok=False):
@@ -2154,7 +2178,7 @@ def _bare_ring_name(base, center, hydro_ok=False):
             raise
         except (UnsupportedStructure, ValueError, KeyError, RuntimeError):
             name = None
-    if name is None and _saturated_rings(base) and not _ortho_fused_only(base):
+    if name is None and _saturated_rings(base) and (not _ortho_fused_only(base) or _is_monospiro(base)):
         return _bridged_ring_name(base, center)
     if name is None:
         raise UnsupportedStructure("this ring system has no supported parent name")
