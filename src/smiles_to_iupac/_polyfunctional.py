@@ -3201,7 +3201,8 @@ def _group_atom_labels(mol, rest, parent_atoms=None):
     if principal is None or any(a not in owned for a in rest):
         return None
     elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in rest}
-    before_suffix = principal in _SUFFIX_WORD and elements == {_SUFFIX_ELEMENT.get(principal, 8)}
+    suffix_elements = {8, 16, 34, 52} if principal in _PEROXOL_ANALOGUES else {_SUFFIX_ELEMENT.get(principal, 8)}
+    before_suffix = principal in _SUFFIX_WORD and elements <= suffix_elements
     if not before_suffix and any(
         a.GetAtomicNum() in elements
         and a.GetIdx() not in owned

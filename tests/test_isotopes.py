@@ -442,6 +442,8 @@ def test_isotope_on_characteristic_group_atom(smiles, expected):
         pytest.param("OC(=O)CCc1c([2H])c([2H])c([2H])c([2H])c1[2H]", "3-(2H5)phenylpropanoic acid", id="fully_labelled_phenyl_group"),
         pytest.param("C[C@H]([15NH2])C(=O)O", "(2S)-2-(15N)aminopropanoic acid", id="labelled_amino_acid_leaves_the_retained_name"),
         pytest.param("COC(=O)C(C)[15NH2]", "methyl 2-(15N)aminopropanoate", id="labelled_amino_acid_ester"),
+        pytest.param("[15NH2]CC(=O)ON1C(=O)CCC1=O", "2,5-dioxopyrrolidin-1-yl (15N)aminoacetate", id="labelled_amino_acid_ester_of_an_n_hydroxy_ring"),
+        pytest.param("[3H]SOC", "methane(3H)OS-thioperoxol", id="nuclide_on_the_sulfur_of_a_peroxol_analogue"),
         pytest.param("c1cnccc1C1SCC[14CH2]1", "4-[(3-14C)thiolan-2-yl]pyridine", id="labelled_heterocyclic_group"),
         pytest.param("OC(=O)Cc1c(Cl)ccc2c1cccc2[2H]", "[2-chloro(5-2H)naphthalen-1-yl]acetic acid", id="labelled_fused_group_after_its_prefixes"),
         pytest.param("OC(=O)Cc1cc[15n]cc1[2H]", "[(3-2H,15N)pyridin-4-yl]acetic acid", id="sole_ring_heteroatom_takes_no_locant"),
