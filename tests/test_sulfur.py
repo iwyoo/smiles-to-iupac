@@ -1333,6 +1333,7 @@ def test_lambda_and_silicon_mancude_monocycles(smiles, expected):
         ("FS(=N)N=C=O", "sulfurimidisocyanatidous fluoride"),
         ("CNS(=O)(Br)=NC", "N,N'-dimethylsulfuramidimidic bromide"),
         ("CNS(=O)(=O)Cl", "N-methylsulfamoyl chloride"),
+        ("CN(S(=O)(=O)F)S(=O)(=O)F", "N-(fluorosulfonyl)-N-methylsulfamoyl fluoride"),
         ("O=S(=O)(Cl)N1CCOCC1", "morpholine-4-sulfonyl chloride"),
         ("COS(=O)(=O)N1CCCCC1", "methyl piperidine-1-sulfonate"),
         ("CN=S(Cl)Cl", "N-methylsulfurimidous dichloride"),
