@@ -9,7 +9,7 @@ from collections import Counter
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, specified_stereo_elements
 from ._acid_lexicon import _peroxo_word
 from ._borinic_acid import boron_acid_scope_problem
 from ._hetero_prefixes import ESTERS_SENIOR_TO_BORON
@@ -203,7 +203,11 @@ def name_phosphorus_thioester(mol) -> str:
         anion = f"{prefix}{stem}{'' if stem.endswith('o') else 'o'}{infix}ate"
     if hydrogens:
         cited.append(f"{_MULTIPLIER[hydrogens]}hydrogen")
-    return " ".join([*cited, anion])
+    name = " ".join([*cited, anion])
+    code = next(
+        (c for kind, idx, c in specified_stereo_elements(mol) or () if kind == "atom" and idx == phosphorus.GetIdx()), None
+    )
+    return f"({code})-({name})" if code else name
 
 
 def name_boron_peroxy_ester(mol) -> str:

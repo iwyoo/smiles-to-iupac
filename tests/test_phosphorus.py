@@ -1001,6 +1001,7 @@ def test_unsubstituted_dinuclear_acids_keep_their_retained_names(smiles, expecte
     "smiles, expected",
     [
         pytest.param("CP(=S)(O)OCCOP(=S)(O)C", "ethane-1,2-diyl bis(hydrogen methylphosphonothioate)", id="diyl_of_phosphonothioic_units"),
+        pytest.param("CCO[P@@](C)(=S)OC(=O)C", "(R)-(O-acetyl O-ethyl methylphosphonothioate)", id="stereogenic_phosphorus_of_an_acylated_phosphonothioate"),
         pytest.param("COP(=O)(O)CCP(=O)(O)OC", "O,O′-dimethyl dihydrogen P,P′-(ethane-1,2-diyl)bis(phosphonate)", id="one_ester_on_each_unit"),
         pytest.param("COP(=O)(OC)CCP(=O)(O)O", "O,O-dimethyl dihydrogen P,P′-(ethane-1,2-diyl)bis(phosphonate)", id="both_esters_on_one_unit"),
     ],

@@ -949,6 +949,7 @@ def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
         pytest.param("CS(=O)(=N)NN", "methanesulfonimidohydrazide", id="sulfonimidohydrazide"),
         pytest.param("CS(=O)(=NC(=O)NC)N(C)C", "N,N-dimethyl-N'-(methylcarbamoyl)methanesulfonimidamide", id="carbamoyl_on_the_imido_nitrogen"),
         pytest.param("CS(=O)(=NC(C)=O)N", "N-[amino(methyl)(oxo)-\u03bb6-sulfanylidene]acetamide", id="carboxamide_outranks_a_sulfonimidamide_on_its_imido_nitrogen"),
+        pytest.param("CC(C)/S(C)=N/C(C)=O", "N-[(E)-methyl(propan-2-yl)-\u03bb4-sulfanylidene]acetamide", id="configuration_of_a_sulfilimine_double_bond_on_an_amide_nitrogen"),
         pytest.param("CS(=O)(=NS(C)(=O)=O)N", "N-[amino(methyl)(oxo)-\u03bb6-sulfanylidene]methanesulfonamide", id="sulfonamide_outranks_a_sulfonimidamide_on_its_imido_nitrogen"),
         pytest.param("CS(=[Se])(=NC)NNC", "N',N''-dimethylmethanesulfonimidoselenohydrazide", id="primes_continue_over_the_hydrazide_and_imido_nitrogens"),
     ],
