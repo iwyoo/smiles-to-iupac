@@ -648,7 +648,20 @@ def _sulfonyl_acyl_on(mol, atom, nitrogen):
     the senior amide (P-66.1.2)."""
     if not _sulfonyl_type_centre(mol, atom) or atom.GetFormalCharge() or mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
         return False
-    rest = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx() and n.GetIdx() not in _double_oxygens(mol, atom.GetIdx())]
+    imino = [
+        n.GetIdx()
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() == 7
+        and n.GetDegree() == 2
+        and not n.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        and all(m.GetAtomicNum() in (6, 14) for m in n.GetNeighbors() if m.GetIdx() != atom.GetIdx())
+    ]
+    rest = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetIdx() != nitrogen.GetIdx() and n.GetIdx() not in _double_oxygens(mol, atom.GetIdx()) and n.GetIdx() not in imino
+    ]
     return (
         len(rest) == 1
         and rest[0].GetAtomicNum() == 6

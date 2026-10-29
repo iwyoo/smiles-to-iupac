@@ -2019,7 +2019,7 @@ def _terminal_double_atom(mol, center, idx):
         if atom.GetAtomicNum() != 7 or end is None:
             return False
         if (
-            end.GetAtomicNum() in (6, 16, 34, 52)
+            end.GetAtomicNum() in (6, 14, 16, 34, 52)
             and not end.GetFormalCharge()
             and mol.GetBondBetweenAtoms(atom.GetIdx(), end.GetIdx()).GetBondTypeAsDouble() == 1.0
         ):
