@@ -3008,3 +3008,8 @@ def test_chain_of_three_carbonyl_units_joined_through_nitrogen(smiles, expected)
 def test_mancude_ring_imine_beside_an_amino_group_on_the_ring_nitrogen():
     # P-41: the amine outranks the imine, so the ring nitrogen with the amino group takes the suffix
     assert smiles_to_iupac("NN1C=CSC1=NC") == "2-(methylimino)-1,3-thiazol-3(2H)-amine"
+
+
+def test_ring_amine_beside_exocyclic_imino_group_on_a_hydro_ring():
+    # P-41: the amine outranks the imine, so the =NR group is the prefix 'imino' beside 'hydro' prefixes
+    assert smiles_to_iupac("CN=C1NC(N)=NC(C)N1") == "4-methyl-6-(methylimino)-1,4,5,6-tetrahydro-1,3,5-triazin-2-amine"
