@@ -374,6 +374,16 @@ def _imide_parent(mol, carbon, partner):
     return mine > theirs or (mine == theirs and carbon < partner)
 
 
+def _sulfonyl_imide_parent(mol, centre, partner):
+    """Whether sulfonyl-type `centre` rather than `partner` is the parent amide of a nitrogen carrying both: the acid with
+    more oxo groups, then the more senior chalcogen, then the lower atom index (P-66.1.2, P-41)."""
+    def key(idx):
+        atom = mol.GetAtomWithIdx(idx)
+        return (-len(_double_oxygens(mol, idx)), _CHALCOGEN_RANK[atom.GetAtomicNum()], idx)
+
+    return key(centre) < key(partner)
+
+
 def _organyloxy(mol, chalcogen, nitrogen):
     """A group on nitrogen that starts at a chalcogen atom (-O-, -S-, -Se-, -Te-) or a plain carbon group and continues
     through single bonds to hydride groups, chalcogens and plain carbon groups: an alkoxy, silyloxy, aminooxy,
@@ -607,6 +617,10 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         acyl = [n for n in others if _acyl_chalcogen(mol, n.GetIdx()) is not None]
         if len(acyl) > 1 or (acyl and not _imide_parent(mol, carbonyl, acyl[0].GetIdx())):
             return False
+    if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() in (16, 34, 52) and any(
+        _sulfonyl_type_centre(mol, n) and not _sulfonyl_imide_parent(mol, carbonyl, n.GetIdx()) for n in others
+    ):
+        return False
     return bool(others) and all(
         n in hydroxy
         or n in oxy
@@ -624,7 +638,22 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         or _hydride_group_on_nitrogen(mol, n, nitrogen, len(others))
         or _ring_nitrogen_substituent(mol, n, nitrogen)
         or _chalcogen_ylidene_on(mol, n, nitrogen)
+        or _sulfonyl_acyl_on(mol, n, nitrogen)
         for n in others
+    )
+
+
+def _sulfonyl_acyl_on(mol, atom, nitrogen):
+    """A sulfinyl or sulfonyl group R-S(=O)- or R-SO2- (R a plain carbon group) bonded to `nitrogen`: an acyl N-prefix of
+    the senior amide (P-66.1.2)."""
+    if not _sulfonyl_type_centre(mol, atom) or atom.GetFormalCharge() or mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    rest = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx() and n.GetIdx() not in _double_oxygens(mol, atom.GetIdx())]
+    return (
+        len(rest) == 1
+        and rest[0].GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not is_functional_carbon(mol, rest[0].GetIdx())
     )
 
 
