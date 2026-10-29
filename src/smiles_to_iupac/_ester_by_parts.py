@@ -17,7 +17,7 @@ from ._isotope_labels import restore_labels
 from ._polycarbonic import chain_numbering
 from ._substituents import BRANCH_STEREO, multiplied_prefix, name_branch
 
-_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
+_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6,$([#7;R])]")
 _PEROXY_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][OX2;!R][#6]")
 _SULFENYL_HALIDE_ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][SX2;!R;$(S[F,Cl,Br,I]),$(S[SX2][F,Cl,Br,I])]")
 _CARBONIC_LINK = Chem.MolFromSmarts("[C;!R]O[C;!R]")
