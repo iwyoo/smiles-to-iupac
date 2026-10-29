@@ -1877,6 +1877,8 @@ def _halocarbonic_amide(mol, graph):
             for root in substituents:
                 name, compound = name_branch(graph, root, nitrogen.GetIdx(), halogens, mol=mol, unsaturated=True)
                 grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
+        except UnsupportedStructure:
+            continue
         finally:
             BRANCH_STEREO.reset(token)
         if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(

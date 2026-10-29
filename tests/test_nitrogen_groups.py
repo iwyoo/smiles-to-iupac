@@ -1815,6 +1815,7 @@ def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
         pytest.param("NC(=O)NC(=O)O", "carbamoylcarbamic acid", id="carbamoyl_on_the_nitrogen_of_carbamic_acid"),
         pytest.param("NC(=O)NC(=O)OC", "methyl carbamoylcarbamate", id="ester_of_carbamoylcarbamic_acid"),
         pytest.param("NC(=O)NC(=O)Cl", "carbamoylcarbamoyl chloride", id="acyl_halide_of_carbamoylcarbamic_acid"),
+        pytest.param("CN(S(=O)(=O)F)C(=O)Cl", "(fluorosulfonyl)(methyl)carbamoyl chloride", id="halosulfonyl_on_the_nitrogen_of_a_carbamoyl_halide"),
         pytest.param("CNC(=O)NC(=O)O", "(methylcarbamoyl)carbamic acid", id="substituted_carbamoyl_on_carbamic_acid"),
     ],
 )
