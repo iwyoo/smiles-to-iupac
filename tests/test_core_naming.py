@@ -326,6 +326,7 @@ def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
         ("Cc1cnccn1", "methylpyrazine"),  # CID 7976
         ("Cc1c(C)coc1", "3,4-dimethylfuran"),  # CID 34338
         ("C/C=C/c1ccc(/C=C/C)o1", "2,5-bis[(1E)-prop-1-en-1-yl]furan"),
+        ("C/C=C\\c1ccc(/C=C/C)s1", "2-[(1Z)-prop-1-en-1-yl]-5-[(1E)-prop-1-en-1-yl]thiophene"),
     ],
 )
 def test_smiles_to_iupac_hetero_monocyclic_substituent(smiles, expected):

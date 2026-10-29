@@ -1496,7 +1496,11 @@ def _same_enclosing_marks(text):
     """Dropping a descriptor group from a bracketed prefix lowers its enclosing marks and, when the prefix then starts
     with a locant, its multiplier (P-16.5.4.1.1, P-16.3.6)."""
     text = text.translate(str.maketrans("[]{}", "()()"))
-    return _COMPOUND_MULTIPLIER.sub(lambda m: _SIMPLE_MULTIPLIER[m.group(1)], text)
+    text = _COMPOUND_MULTIPLIER.sub(lambda m: _SIMPLE_MULTIPLIER[m.group(1)], text)
+    return _MERGED_PAIR.sub(lambda m: ",".join(sorted((m.group(1), m.group(3)), key=int)) + f"-di{m.group(2)}", text)
+
+
+_MERGED_PAIR = re.compile(r"(?<![\w,])(\d+)-(\([^()]*(?:\([^()]*\))*[^()]*\))-(\d+)-\2(?=[a-z\d-])")
 
 
 _FACE_DESCRIPTOR = re.compile(r"(?<=\d)[\u03b1\u03b2\u03be](?=[,\-)]|yl)")
