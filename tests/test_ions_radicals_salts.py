@@ -708,6 +708,7 @@ def test_carbanide_salt_names():
         pytest.param("C[N+](C)(C)CCOP([O-])OC", "methyl 2-(trimethylazaniumyl)ethyl phosphite", id="phosphite_ester"),
         pytest.param("CP(=O)([O-])OCC[N+](C)(C)C", "2-(trimethylazaniumyl)ethyl methylphosphonate", id="methylphosphonate_ester"),
         pytest.param("O=S(=O)([O-])OCC[n+]1cccc(C)c1", "2-(3-methylpyridin-1-ium-1-yl)ethyl sulfate", id="ring_cation_prefix_on_a_sulfate"),
+        pytest.param("O=C([O-])CC[N+]12CCN(CC1)CC2", "3-(1,4-diazabicyclo[2.2.2]octan-1-ium-1-yl)propanoate", id="bridged_bicyclic_cation_prefix_on_a_carboxylate"),
         pytest.param("O=P([O-])(OC)OCC[n+]1ccccc1", "methyl 2-(pyridin-1-ium-1-yl)ethyl phosphate", id="ring_cation_prefix_on_a_phosphate"),
         pytest.param("C[n+]1ccccc1C[P-]C", "methyl[(1-methylpyridin-1-ium-2-yl)methyl]phosphanide", id="ring_cation_prefix_on_a_phosphanide"),
         pytest.param("O=S(=O)([O-])OCC[P+](C)(C)C", "2-(trimethylphosphaniumyl)ethyl sulfate", id="phosphonium_prefix_on_a_sulfate"),

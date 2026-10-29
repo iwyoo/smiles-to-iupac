@@ -2090,6 +2090,38 @@ def _numbered_monocycle(base, center):
     return (name, {center: best.position_of[center]}) if name.endswith("e") else None
 
 
+def _bridged_ring_name(base, center):
+    """(name, {center: locant}) of a saturated bicyclic von Baeyer ring whose atom `center` is the cationic centre: the
+    ring is named neutral by skeletal replacement, and the centre takes the lowest locant among the numberings that give
+    the heteroatoms their lowest locants (P-23.3.1, P-31.1.4.2.4, P-73.1.1.2)."""
+    from ._bicyclic import find_bicyclic_core, iter_bicyclic_numberings
+    from ._von_baeyer_heteroatom import _HETEROATOM_PREFIXES
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(base)
+    atom = editable.GetAtomWithIdx(center)
+    atom.SetFormalCharge(0)
+    atom.SetNumRadicalElectrons(0)
+    atom.SetNoImplicit(True)
+    atom.SetNumExplicitHs(0)
+    neutral = editable.GetMol()
+    Chem.SanitizeMol(neutral)
+    core = find_bicyclic_core(neutral)
+    if core is None:
+        raise UnsupportedStructure("this ring system has no supported parent name")
+    heteroatoms = [a.GetIdx() for a in neutral.GetAtoms() if a.GetAtomicNum() in _HETEROATOM_PREFIXES]
+    keys = [
+        (sorted(order.index(i) + 1 for i in heteroatoms), order.index(center) + 1) for order in iter_bicyclic_numberings(core)
+    ]
+    if not keys:
+        raise UnsupportedStructure("this ring system has no supported parent name")
+    try:
+        name = smiles_to_iupac(Chem.MolToSmiles(neutral))
+    except UnsupportedStructure:
+        raise UnsupportedStructure("this ring system has no supported parent name") from None
+    return name, {center: min(keys)[1]}
+
+
 def _bare_ring_name(base, center, hydro_ok=False):
     """(name, {center: locant}) of an unsubstituted single-heteroatom ring system; with `hydro_ok` a hydrogenated fused
     system gives the name of its mancude skeleton, the stem of a name that cites the hydro prefixes itself."""
@@ -2122,6 +2154,8 @@ def _bare_ring_name(base, center, hydro_ok=False):
             raise
         except (UnsupportedStructure, ValueError, KeyError, RuntimeError):
             name = None
+    if name is None and _saturated_rings(base) and not _ortho_fused_only(base):
+        return _bridged_ring_name(base, center)
     if name is None:
         raise UnsupportedStructure("this ring system has no supported parent name")
     ctx = Context(base)
