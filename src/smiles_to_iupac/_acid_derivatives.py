@@ -1178,7 +1178,9 @@ def name_ester(mol, links):
                         multiplicative = ester_multiplicative_name(mol, [l.chain[-1] for l in esters])
                         if multiplicative is not None:
                             return multiplicative
-                    if len({_piece_key(mol, frags[i]) for i in acid_pieces}) == 1:
+                    if len({_piece_key(mol, frags[i]) for i in acid_pieces}) == 1 and len(
+                        {mol.GetAtomWithIdx(l.far).GetAtomicNum() for l in esters}
+                    ) == 1:
                         raise
     principal = max(acid_pieces, key=lambda i: _acid_piece_rank(mol, frags, acid_pieces, r_pieces, i))
     chosen = acid_pieces[principal]
