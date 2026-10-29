@@ -1005,3 +1005,8 @@ def test_unsubstituted_dinuclear_acids_keep_their_retained_names(smiles, expecte
 )
 def test_organyl_acid_units_of_phosphorus_on_one_component(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_nitrogen_with_two_phosphinoyl_groups_is_an_n_acyl_phosphinic_amide():
+    # P-66.1.2: the two equal acid centres are joined through nitrogen, not through an organyl group
+    assert smiles_to_iupac("CP(=O)(C)N(C)P(=O)(C)C") == "N-(dimethylphosphinoyl)-N,P,P-trimethylphosphinic amide"

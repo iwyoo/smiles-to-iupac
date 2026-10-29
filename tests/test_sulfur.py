@@ -1586,3 +1586,15 @@ def test_o_sulfonyl_hydroxylamine_is_a_prefix_beside_a_hydroxy_group():
 def test_acyloxy_on_the_nitrogen_of_a_sulfur_acid_amide_is_a_prefix(smiles, expected):
     # P-65.6.3.4: acyl-O-N on an acyclic nitrogen is a pseudoketone, junior to the amide
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CS(=O)N(C)S(C)=O", "N-(methanesulfinyl)-N-methylmethanesulfinamide"),
+        ("c1ccccc1S(=O)N(C)S(=O)c1ccccc1", "N-(benzenesulfinyl)-N-methylbenzenesulfinamide"),
+    ],
+)
+def test_nitrogen_with_two_sulfinyl_groups_is_an_n_acyl_sulfinamide(smiles, expected):
+    # P-66.1.2: (R-SO-)2NR' is named as an N-acyl derivative of the senior amide, never multiplicatively
+    assert smiles_to_iupac(smiles) == expected

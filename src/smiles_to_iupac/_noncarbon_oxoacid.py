@@ -170,7 +170,12 @@ def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False, anioni
             found.append((_CHALCOGENYL[neighbor.GetAtomicNum()], False))
             continue
         carbon = neighbor.GetAtomicNum() == 6
-        if not carbon and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()):
+        if not carbon and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()) and not (
+            neighbor.GetAtomicNum() in _LOCANT
+            and atom.GetAtomicNum() == 7
+            and not neighbor.IsInRing()
+            and any(m.GetAtomicNum() == 6 for m in neighbor.GetNeighbors())
+        ):
             return None
         if not _plain_tree(mol, graph, n, atom.GetIdx(), anionic):
             return None
@@ -459,19 +464,19 @@ def _joined_through_organyl(parts):
     centres = {part["centre"].GetIdx() for part in parts}
     for part in parts:
         graph = part["graph"]
-        if part.get("family") == "prefix":
-            arms = [(e["R"], {e["atom"]}) for e in part["singles"] if e["kind"] == "ester"]
-        else:
-            arms = [(root.GetIdx(), set()) for root in part["organyl"]]
+        arms = [(e["R"], {e["atom"]}) for e in part["singles"] if e["kind"] == "ester"]
+        if part.get("family") != "prefix":
+            arms += [(root.GetIdx(), set()) for root in part["organyl"]]
         for root, bridge in arms:
             seen, stack = {part["centre"].GetIdx(), root, *bridge}, [root]
             while stack:
                 for n in graph[stack.pop()]:
+                    if n in seen:
+                        continue
                     if n in centres:
                         return True
-                    if n not in seen:
-                        seen.add(n)
-                        stack.append(n)
+                    seen.add(n)
+                    stack.append(n)
     return False
 
 
