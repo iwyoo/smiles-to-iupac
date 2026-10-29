@@ -1066,7 +1066,7 @@ def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
         acyl = next((n for n in near.GetNeighbors() if n.GetIdx() != previous.GetIdx()), None)
     return (
         acyl is not None
-        and acyl.GetAtomicNum() in (6, 16)
+        and acyl.GetAtomicNum() in (6, 15, 16)
         and (_acyl_chalcogen_of(mol, acyl) is not None or _cyano_carbon(mol, acyl))
         and _acyloxy_amine_oxygen(mol, near, acyl.GetIdx())
     )

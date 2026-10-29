@@ -2837,6 +2837,7 @@ def test_acyl_derivative_of_an_oxime_or_amine_oxygen_is_a_pseudoketone(smiles, e
         pytest.param("CCC(=O)ONC(=O)c1ccco1", "N-(propanoyloxy)furan-2-carboxamide", id="acyloxy_on_the_nitrogen_of_a_ring_carboxamide"),
         pytest.param("COC(=O)ONC(C)=O", "N-[(methoxycarbonyl)oxy]acetamide", id="alkoxycarbonyloxy_on_an_amide_nitrogen"),
         pytest.param("CS(=O)(=O)ONC(C)=O", "N-[(methanesulfonyl)oxy]acetamide", id="sulfonyloxy_on_an_amide_nitrogen"),
+        pytest.param("CC(=O)NOP(=O)(O)c1ccccc1", "N-{[hydroxy(phenylphosphonoyl)]oxy}acetamide", id="phosphonoyloxy_on_an_amide_nitrogen"),
     ],
 )
 def test_acyloxy_group_on_an_amide_nitrogen_is_a_prefix_of_the_amide(smiles, expected):
