@@ -7,7 +7,7 @@ import re
 from rdkit import Chem
 
 from ._common import KEEP_ASSEMBLY_ENDING
-from ._common import UnsupportedStructure, assembly_join
+from ._common import UnsupportedStructure, alpha_sort_key, assembly_join
 from ._multiplicative_ring import _SUFFIX_WORDS
 from ._common import multiplied_word
 from ._multiplicative_text import PrimedLocant
@@ -355,7 +355,7 @@ def system_assembly(
                     hydro_key,
                     tuple(sorted((_order(loc), _order(extra)) for loc, extra in added.items())),
                     tuple(sorted(_order(locants[r]) for r, _, _ in entries)),
-                    tuple(loc for loc, _ in sorted(((_order(locants[r]), name) for r, name, _ in entries), key=lambda e: (e[1], e[0]))),
+                    tuple(loc for loc, _ in sorted(((_order(locants[r]), name) for r, name, _ in entries), key=lambda e: (alpha_sort_key(e[1]), e[0]))),
                     _isotope_key({a: _order(loc) for a, loc in locants.items()}, locants),
                 )
                 if best is None or key < best[0]:

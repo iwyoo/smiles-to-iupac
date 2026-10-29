@@ -170,6 +170,8 @@ def test_double_bond_junction_between_fused_systems(smiles, expected):
         pytest.param("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1", "2⁵-phenyl-1¹,2¹:2³,3¹-terphenyl", id="branched_three_ring_assembly_is_named_on_its_longest_chain"),
         pytest.param("C1C(Cl)C1C1CC1C1CC1", "1²-chloro-1¹,2¹:2²,3¹-tercyclopropane", id="halogen_substituent"),
         pytest.param("C1CCNC(C1)c1ccccn1", "1,2,3,4,5,6-hexahydro-2,2'-bipyridine", id="two_rings_mancude_and_saturated_take_hydro_prefixes"),
+        pytest.param("C/C=C/c1ccc(-c2ccc(OC)cn2)nc1", "5-methoxy-5'-[(1E)-prop-1-en-1-yl]-2,2'-bipyridine", id="descriptor_of_a_prefix_does_not_change_the_alphanumerical_choice_of_unprimed_ring"),
+        pytest.param("C/C=C/c1ccc(-c2ccc(C)s2)s1", "5-methyl-5'-[(1E)-prop-1-en-1-yl]-2,2'-bithiophene", id="alkenyl_descriptor_with_a_methyl_on_the_other_ring"),
         pytest.param("C1CCOC1c1ccco1", "2,3,4,5-tetrahydro-2,2'-bifuran", id="five_membered_saturated_ring_leaves_the_chalcogen_unhydrogenated"),
         pytest.param("c1ccc([C@@H]2CCCNC2)nc1", "(3'R)-1',2',3',4',5',6'-hexahydro-2,3'-bipyridine", id="stereocentre_on_the_primed_component"),
         pytest.param(
