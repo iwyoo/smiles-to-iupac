@@ -750,6 +750,8 @@ def _hydride_group_on_nitrogen(mol, atom, nitrogen, sibling_count):
         return False
     order = mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble()
     if atom.IsInRing():
+        if order == 1.0 and atom.GetAtomicNum() in (14, 15, 32, 33, 50, 51):
+            return True
         return order == 2.0 and sibling_count == 1 and atom.GetAtomicNum() == 6
     if order == 1.0:
         return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and atom.GetAtomicNum() != 7
@@ -3937,6 +3939,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 and atom.GetIdx() in groups.get(principal, {})
             )
             and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE) and atom.GetIdx() in groups.get("hydrazide", {}))
+            and not (principal in ("amidine", *_AMIDRAZONE) and _hydrazine_acyl(mol, atom.GetIdx()))
             and not (
                 principal in _AMIDRAZONE
                 and not any(
@@ -7666,6 +7669,17 @@ def _acyloxy_lambda_centre_oxygen(oxygen, carbon):
 _AMIDE_FAMILY = frozenset(
     {"amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values(), *_CHALCOGEN_IMIDAMIDE.values()}
 )
+
+
+def _hydrazine_acyl(mol, carbon):
+    """A carbonyl carbon bonded to a hydrazine nitrogen: the acyl group of a hydrazide, junior to an amidine (P-41)."""
+    atom = mol.GetAtomWithIdx(carbon)
+    return any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 for b in atom.GetBonds()
+    ) and any(
+        n.GetAtomicNum() == 7 and any(m.GetAtomicNum() == 7 and m.GetIdx() != n.GetIdx() for m in n.GetNeighbors())
+        for n in atom.GetNeighbors()
+    )
 
 
 def _nitrogen_acyl(mol, carbon):

@@ -341,6 +341,7 @@ def test_free_mononuclear_oxoacids(smiles, expected):
         ("CCP(=S)(CC)Cl", "diethylphosphinothioic chloride"),
         ("CN(C)P(=O)(N(C)C)N(C)C", "hexamethylphosphoric triamide"),
         ("CN(C)P(=O)(C)C", "N,N,P,P-tetramethylphosphinic amide"),
+        ("CC(=O)N(C)P1(=O)OCCO1", "N-methyl-N-(2-oxo-1,3,2λ5-dioxaphospholan-2-yl)acetamide"),
         ("CNP(=O)(NC)c1ccccc1", "N,N'-dimethyl-P-phenylphosphonic diamide"),
         ("CN(C)P(=S)(N(C)C)c1ccccc1", "N,N,N',N'-tetramethyl-P-phenylphosphonothioic diamide"),
         ("C[N](=O)(Cl)Cl", "methylazonic dichloride"),
