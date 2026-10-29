@@ -33,10 +33,15 @@ from ._numerals import multiplying_prefix
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _NITROGEN = 7
-_CLASSES = ("acid", "amide", "amidine", "nitrile", "aldehyde")
+_CLASSES = ("acid", "amide", "thioamide", "selenoamide", "telluroamide", "amidine", "nitrile", "aldehyde")
+_AMIDES = frozenset(("amide", "thioamide", "selenoamide", "telluroamide"))
+_AMIDE_CLASS = {8: "amide", 16: "thioamide", 34: "selenoamide", 52: "telluroamide"}
 _SUFFIX = {
     "acid": "carboxylic acid",
     "amide": "carboxamide",
+    "thioamide": "carbothioamide",
+    "selenoamide": "carboselenoamide",
+    "telluroamide": "carbotelluroamide",
     "amidine": "carboximidamide",
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
@@ -65,12 +70,13 @@ def _group_class(mol, carbon):
             and n.GetDegree() == 1 and n.GetTotalNumHs() == 2
         ]
         return "amidine" if len(amino) == 1 and len(neighbors) == 3 else None
-    doubled = [n for n in neighbors if order[n.GetIdx()] == 2.0 and n.GetAtomicNum() == 8 and n.GetDegree() == 1]
+    doubled = [n for n in neighbors if order[n.GetIdx()] == 2.0 and n.GetAtomicNum() in _AMIDE_CLASS and n.GetDegree() == 1]
     if len(doubled) != 1:
         return None
+    chalcogen = doubled[0].GetAtomicNum()
     others = [n for n in neighbors if n.GetIdx() != doubled[0].GetIdx()]
     if len(others) == 1 and atom.GetTotalNumHs() == 1:
-        return "aldehyde"
+        return "aldehyde" if chalcogen == 8 else None
     if len(others) != 2:
         return None
     hetero = [
@@ -84,7 +90,9 @@ def _group_class(mol, carbon):
     ]
     if len(hetero) != 1:
         return None
-    return "acid" if hetero[0].GetAtomicNum() == 8 else "amide"
+    if hetero[0].GetAtomicNum() == 8:
+        return "acid" if chalcogen == 8 else None
+    return _AMIDE_CLASS[chalcogen]
 
 
 def _substituted_amide_nitrogen(nitrogen, carbon):
@@ -260,7 +268,7 @@ def name_hydride_carbo_suffix(mol) -> str:
 
     entries = []
     nitrogen_entries = {}
-    nitrogens = {c: _amide_nitrogen(mol, c, host) for c, host in principal_carbons.items()} if principal == "amide" else {}
+    nitrogens = {c: _amide_nitrogen(mol, c, host) for c, host in principal_carbons.items()} if principal in _AMIDES else {}
     group_atoms = set(principal_carbons) | {n for n in nitrogens.values() if n is not None}
     roots = [n for atom in skeleton for n in graph[atom] if n not in skeleton_set and n not in principal_carbons]
     roots += [m for n in nitrogens.values() if n is not None for m in graph[n] if m not in group_atoms]
