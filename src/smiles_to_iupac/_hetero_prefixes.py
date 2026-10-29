@@ -2275,7 +2275,22 @@ def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol
     ]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     ending = stem[:-2] + "ylidene" if ylidene else stem
-    return _with_centre_descriptor((prefix + "-" if prefix else "") + f"λ{bonding}-{ending}", True, root)
+    name, compound = _with_centre_descriptor((prefix + "-" if prefix else "") + f"λ{bonding}-{ending}", True, root)
+    if ylidene:
+        name = _with_ylidene_bond_descriptor(name, root, coming_from)
+    return name, compound
+
+
+def _with_ylidene_bond_descriptor(name, centre, parent):
+    """`name` of an ylidene prefix led by the E/Z descriptor of its double bond to `parent` (P-93.5.1.4.2.1)."""
+    from ._substituents import BRANCH_STEREO
+
+    stereo = BRANCH_STEREO.get()
+    key = next((k for k in ((centre, parent), (parent, centre)) if stereo and k in stereo["bonds"]), None)
+    if key is None:
+        return name
+    stereo["used"].add(("bond", key))
+    return f"({stereo['bonds'][key]})-{name}"
 
 
 def _lambda_multiple_bond(mol, centre, n, ylidene):
