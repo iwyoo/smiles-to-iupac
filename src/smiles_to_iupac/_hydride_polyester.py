@@ -9,7 +9,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._diester_anions import acid_anions, cite_anions
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
 _HOSTS = (13, 14, 31, 32, 49, 50, 81, 82)
 _BRIDGES = (8, 16, 34, 52)
@@ -147,11 +147,9 @@ def name_hydride_polyester(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     acyloxy = {m[2].GetIdx() for m in matches}
-    entries = [
-        name_branch(graph, n, host.GetIdx(), halogens, mol=mol, unsaturated=True)
-        for n in graph[host.GetIdx()]
-        if n not in acyloxy
-    ]
+    roots = [n for n in graph[host.GetIdx()] if n not in acyloxy]
+    with cited_branch_stereo(mol, graph, {host.GetIdx(), *acyloxy}, roots):
+        entries = [name_branch(graph, n, host.GetIdx(), halogens, mol=mol, unsaturated=True) for n in roots]
     stem = MONONUCLEAR_HYDRIDES[host.GetAtomicNum()][0]
     group = (format_mononuclear_prefixes(entries) if entries else "") + stem + _VALENCE_WORD[len(matches)]
     anions = cite_anions(acid_anions(mol, matches), [1] * len(matches), False)
