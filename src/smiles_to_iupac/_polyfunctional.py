@@ -1898,11 +1898,24 @@ def _prefix_center_locant(base, center, placed_in_parent):
     from ._free_valence import suffix_of
 
     rings, atoms = _system_of(base, center)
+
+    def leads_to_parent(start):
+        seen, stack = {start}, [start]
+        while stack:
+            current = stack.pop()
+            if current in placed_in_parent:
+                return True
+            for n in base.GetAtomWithIdx(current).GetNeighbors():
+                if n.GetIdx() not in seen and n.GetIdx() not in atoms:
+                    seen.add(n.GetIdx())
+                    stack.append(n.GetIdx())
+        return False
+
     joins = [
         (a, n.GetIdx())
         for a in atoms
         for n in base.GetAtomWithIdx(a).GetNeighbors()
-        if n.GetIdx() in placed_in_parent
+        if n.GetIdx() not in atoms and leads_to_parent(n.GetIdx())
     ]
     if len(joins) != 1:
         raise UnsupportedStructure("the ring cation is not joined to the parent hydride by a single bond")
@@ -2167,8 +2180,9 @@ def _chalcogen_centre(atom):
 
 
 def _ring_amine_nitrogen(atom):
-    """A neutral saturated ring nitrogen: the ring parent of an N-amino amine such as pyrrolidin-1-amine."""
-    return atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetIsAromatic() and not atom.GetFormalCharge() and atom.GetTotalNumHs() == 0
+    """A neutral ring nitrogen without hydrogen: the ring parent of an N-amino amine such as pyrrolidin-1-amine or
+    1H-pyrrol-1-amine."""
+    return atom.GetAtomicNum() == 7 and atom.IsInRing() and not atom.GetFormalCharge() and atom.GetTotalNumHs() == 0
 
 
 def _aminium_base(mol, ignore=frozenset()):
@@ -2190,7 +2204,10 @@ def _aminium_base(mol, ignore=frozenset()):
                 for n in nitrogen.GetNeighbors()
             )
             or not any(n.GetAtomicNum() == 6 or _hydride_centre(n) or _ring_amine_nitrogen(n) for n in nitrogen.GetNeighbors())
-            or (nitrogen.GetTotalNumHs() == 0 and any(n.GetAtomicNum() == 7 for n in nitrogen.GetNeighbors()))
+            or (
+                nitrogen.GetTotalNumHs() == 0
+                and any(n.GetAtomicNum() == 7 and not _ring_amine_nitrogen(n) for n in nitrogen.GetNeighbors())
+            )
         ):
             return None
     if all(n.GetTotalNumHs() == 0 for n in charged):
