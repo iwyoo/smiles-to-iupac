@@ -9,7 +9,7 @@ from rdkit import Chem
 
 from ._acid_lexicon import _INFIX, _MULTIPLIER, _peroxo_word
 from ._chalcogen_imide import is_hetero_ylidene
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, is_halide_ligand, specified_stereo_elements
 from ._hetero_prefixes import EXTENDED_PREFIXES
 from ._parent_choice import identical_parent_groups, senior_parent_choice, senior_parent_name
 from ._retained_acids import single_site_prefixes
@@ -461,7 +461,16 @@ def _name_at(mol, center, cite_nuclides=False):
         if hydrogens:
             name = f"{'hydrogen' if hydrogens == 1 else 'dihydrogen'} {name}"
     count, prefixes = _nitrogen_prefixes(mol, graph, center, amino, imine_n, x)
-    return count, prefixes + name
+    return count, _imine_descriptor(mol, center, amino, imine_n) + prefixes + name
+
+
+def _imine_descriptor(mol, center, amino, imine_n):
+    """'(Z)-' or '(E)-' of the C=N bond of a carbamimidic acid group, '' when it is not specified (P-93.4.2.1.1)."""
+    if imine_n is None or amino is None:
+        return ""
+    bond = mol.GetBondBetweenAtoms(center, imine_n).GetIdx()
+    code = next((c for kind, idx, c in specified_stereo_elements(mol) or () if kind == "bond" and idx == bond), None)
+    return f"({code})-" if code else ""
 
 
 def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
