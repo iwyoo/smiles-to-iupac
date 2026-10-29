@@ -137,7 +137,7 @@ def _plain_tree(mol, graph, root, behind, anionic=False):
                 return False
         elif z in (16, 34, 52):
             oxo = any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 for b in atom.GetBonds())
-            if not (anionic and oxo) and not _sulfonyloxy_on_nitrogen(atom) and (
+            if not (anionic and oxo) and not _sulfonyloxy_on_nitrogen(atom) and not _halosulfonyl(atom) and (
                 atom.GetDegree() != 2 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
             ):
                 return False
@@ -156,6 +156,16 @@ def _open_valence(mol, atom, skip):
     return atom.GetTotalNumHs() + sum(
         b.GetBondTypeAsDouble() for b in atom.GetBonds() if b.GetOtherAtomIdx(atom.GetIdx()) not in skip
     )
+
+
+def _halosulfonyl(atom):
+    """The sulfur of a halosulfonyl group -SO2-X, cited as the acyl prefix 'fluorosulfonyl' on a nitrogen (P-65.3.2.2)."""
+    if atom.GetAtomicNum() != 16 or atom.GetFormalCharge():
+        return False
+    bonds = list(atom.GetBonds())
+    oxo = sum(1 for b in bonds if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8)
+    halide = sum(1 for b in bonds if b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() in _HALIDE)
+    return oxo == 2 and halide == 1 and atom.GetDegree() == 4
 
 
 def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False, anionic=False):
@@ -186,7 +196,7 @@ def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False, anioni
             found.append((_CHALCOGENYL[neighbor.GetAtomicNum()], False))
             continue
         carbon = neighbor.GetAtomicNum() == 6
-        if not carbon and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()) and not (
+        if not carbon and not (_halosulfonyl(neighbor) and atom.GetTotalNumHs() == 0) and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()) and not (
             neighbor.GetAtomicNum() in _LOCANT
             and atom.GetAtomicNum() == 7
             and not neighbor.IsInRing()
@@ -195,6 +205,15 @@ def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False, anioni
             return None
         if not _plain_tree(mol, graph, n, atom.GetIdx(), anionic):
             return None
+        if _halosulfonyl(neighbor):
+            from ._hetero_prefixes import EXTENDED_PREFIXES
+
+            token = EXTENDED_PREFIXES.set(True)
+            try:
+                found.append(name_branch(graph, n, atom.GetIdx(), halogens, mol=mol))
+            finally:
+                EXTENDED_PREFIXES.reset(token)
+            continue
         found.append(name_branch(graph, n, atom.GetIdx(), halogens, mol=mol))
     return found
 
