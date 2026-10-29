@@ -780,6 +780,7 @@ def test_phenyl_chain_hydrazide_ring_halogen():
     "smiles,expected",
     [
         ("CC(=O)NNC(=O)C", "N'-acetylacetohydrazide"),
+        ("CN(C)S(=O)(=O)NNC(=O)c1ccccc1", "N'-(dimethylsulfamoyl)benzohydrazide"),
         ("CCC(=O)NNC(=O)CC", "N'-propanoylpropanehydrazide"),
         ("CC(=S)NNC(=O)C", "N'-(ethanethioyl)acetohydrazide"),
     ],

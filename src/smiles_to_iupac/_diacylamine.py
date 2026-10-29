@@ -33,10 +33,26 @@ def _acyl_roots(mol, nitrogen, carbon_chalcogens=(8,)):
             imino = [m for m in rest if _terminal_imine(mol, n, m)]
             rest = [m for m in rest if m not in imino]
             if len(doubly) + len(imino) in (1, 2) and len(rest) == 1 and (
-                rest[0].GetAtomicNum() == 6 or _ring_nitrogen_substituent(mol, rest[0], n)
+                rest[0].GetAtomicNum() == 6
+                or _ring_nitrogen_substituent(mol, rest[0], n)
+                or _amino_group(mol, rest[0], n)
             ):
                 roots.append(n.GetIdx())
     return roots
+
+
+def _amino_group(mol, atom, centre):
+    """A neutral acyclic amino nitrogen on `centre` whose other substituents are hydrogen or plain carbon groups: the
+    nitrogen of a sulfamoyl group (P-65.3.2.2)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and not atom.IsInRing()
+        and not atom.GetFormalCharge()
+        and all(
+            m.GetIdx() == centre.GetIdx() or (m.GetAtomicNum() == 6 and not any(b.GetBondTypeAsDouble() != 1.0 for b in m.GetBonds()))
+            for m in atom.GetNeighbors()
+        )
+    )
 
 
 def _terminal_imine(mol, centre, atom):
