@@ -1806,7 +1806,9 @@ def _cation_inserted(name, base, center, placed_in_parent):
     if not bare.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
     stem = bare[:-1]
-    name = _hydro_for_cationic_centre(name, stem, locant or placed[new_center])
+    centre_locant = locant or placed[new_center]
+    name = name.replace(f"{centre_locant}\u03bb4-", f"{centre_locant}-", 1)
+    name = _hydro_for_cationic_centre(name, stem, centre_locant)
     pattern = re.compile(re.escape(stem) + r"(?:e(?![a-z])|(?=-?\d*,?\d*-?yl)|(?=-\d+(?:,\d+)*-[a-z]))")
     found = list(pattern.finditer(name))
     if len(found) > 1:
@@ -2125,9 +2127,9 @@ def _bridged_ring_name(base, center):
     except UnsupportedStructure:
         raise UnsupportedStructure("this ring system has no supported parent name") from None
     heteroatoms = [a.GetIdx() for a in neutral.GetAtoms() if a.GetAtomicNum() in _HETEROATOM_PREFIXES]
-    retained = re.match(r"(\d+)-[a-z]+adamantane$", name)
+    retained = re.match(r"(\d+)-([a-z]+)adamantane$", name)
     if retained and heteroatoms == [center]:
-        return name, {center: int(retained.group(1))}
+        return f"{retained.group(1)}-{retained.group(2)}tricyclo[3.3.1.1^3,7]decane", {center: int(retained.group(1))}
     spiro = find_monospiro_atom(neutral)
     ring_count = neutral.GetNumBonds() - neutral.GetNumAtoms() + 1
     if spiro is not None:

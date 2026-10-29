@@ -711,6 +711,7 @@ def test_carbanide_salt_names():
         pytest.param("O=C([O-])CC[N+]12CCN(CC1)CC2", "3-(1,4-diazabicyclo[2.2.2]octan-1-ium-1-yl)propanoate", id="bridged_bicyclic_cation_prefix_on_a_carboxylate"),
         pytest.param("CC(C)(C[NH+]1CCC2(CC1)OCCO2)C(=O)[O-]", "3-(1,4-dioxa-8-azaspiro[4.5]decan-8-ium-8-yl)-2,2-dimethylpropanoate", id="spiro_cation_prefix_on_a_carboxylate"),
         pytest.param("[O-]C(=O)CC[NH+]1CC2CCC1C2", "3-(2-azabicyclo[2.2.1]heptan-2-ium-2-yl)propanoate", id="bridged_cation_with_a_hydrogen_on_the_centre"),
+        pytest.param("[O-]C(=O)CC[N+]12CC3CC(CC(C3)C1)C2", "3-(1-azaadamantan-1-ium-1-yl)propanoate", id="retained_cage_cation_prefix_on_a_carboxylate"),
         pytest.param("O=P([O-])(OC)OCC[n+]1ccccc1", "methyl 2-(pyridin-1-ium-1-yl)ethyl phosphate", id="ring_cation_prefix_on_a_phosphate"),
         pytest.param("C[n+]1ccccc1C[P-]C", "methyl[(1-methylpyridin-1-ium-2-yl)methyl]phosphanide", id="ring_cation_prefix_on_a_phosphanide"),
         pytest.param("O=S(=O)([O-])OCC[P+](C)(C)C", "2-(trimethylphosphaniumyl)ethyl sulfate", id="phosphonium_prefix_on_a_sulfate"),
