@@ -3013,3 +3013,15 @@ def test_mancude_ring_imine_beside_an_amino_group_on_the_ring_nitrogen():
 def test_ring_amine_beside_exocyclic_imino_group_on_a_hydro_ring():
     # P-41: the amine outranks the imine, so the =NR group is the prefix 'imino' beside 'hydro' prefixes
     assert smiles_to_iupac("CN=C1NC(N)=NC(C)N1") == "4-methyl-6-(methylimino)-1,4,5,6-tetrahydro-1,3,5-triazin-2-amine"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CS/C(=N\\C)NC", "methyl (Z)-N,N'-dimethylcarbamimidothioate"),
+        ("CCO/C(=N/S(=O)(=O)C)NC", "ethyl (E)-N'-(methanesulfonyl)-N-methylcarbamimidate"),
+    ],
+)
+def test_configuration_of_the_c_n_bond_of_a_carbamimidic_ester(smiles, expected):
+    # P-93.4.2.1.1: Z/E of the C=N bond in front of the ester, N' being the imine nitrogen (P-66.1.6.1.2.1)
+    assert smiles_to_iupac(smiles) == expected

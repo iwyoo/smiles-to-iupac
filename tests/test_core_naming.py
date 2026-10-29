@@ -966,9 +966,8 @@ def test_stereo_of_acyl_groups_and_proline_substituents_is_cited(smiles, expecte
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_a_stereocentre_left_uncited_by_the_substituent_is_not_dropped():
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac("C[C@H](Cl)C[S@](=O)N[S@](=O)C")
+def test_every_stereocentre_of_an_n_sulfinyl_sulfinamide_is_cited_and_none_dropped():
+    assert smiles_to_iupac("C[C@H](Cl)C[S@](=O)N[S@](=O)C") == "(2S,S)-2-chloro-N-[(R)-methanesulfinyl]propane-1-sulfinamide"
 
 
 def test_different_alkyl_groups_on_one_polyacid_are_cited_with_the_locants_of_their_esters():
