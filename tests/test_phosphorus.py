@@ -722,6 +722,7 @@ def test_branched_polyacid_substituent_is_flagged_as_not_preferred():
         ("OC(=O)CCP(=S)(S)S", "3-trithiophosphonopropanoic acid"),
         ("COP(=S)(OC)ON1CCCC1", "1-[(dimethoxyphosphorothioyl)oxy]pyrrolidine"),
         ("COP(=N)(OC)ON1CCCC1", "1-[(dimethoxyphosphorimidoyl)oxy]pyrrolidine"),
+        ("CP(=O)(NOS(C)(=O)=O)C", "N-[(methanesulfonyl)oxy]-P,P-dimethylphosphinic amide"),
     ],
 )
 def test_infix_acyl_prefixes_and_senior_acid_derivative_among_centres(smiles, expected):

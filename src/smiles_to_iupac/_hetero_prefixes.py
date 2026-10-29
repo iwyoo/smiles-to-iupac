@@ -2018,7 +2018,11 @@ def _terminal_double_atom(mol, center, idx):
         end = next((m for m in atom.GetNeighbors() if m.GetIdx() != center), None)
         if atom.GetAtomicNum() != 7 or end is None:
             return False
-        if end.GetAtomicNum() == 6 and not end.GetFormalCharge() and mol.GetBondBetweenAtoms(atom.GetIdx(), end.GetIdx()).GetBondTypeAsDouble() == 1.0:
+        if (
+            end.GetAtomicNum() in (6, 16, 34, 52)
+            and not end.GetFormalCharge()
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), end.GetIdx()).GetBondTypeAsDouble() == 1.0
+        ):
             return mol.GetAtomWithIdx(center).GetAtomicNum() in (16, 34, 52)
         return end.GetAtomicNum() == 7 and end.GetDegree() == 1 and end.GetTotalNumHs() == 2
     return atom.GetDegree() == 1 and (atom.GetAtomicNum() in (8, 16, 34, 52) or (atom.GetAtomicNum() == 7 and atom.GetTotalNumHs() == 1))

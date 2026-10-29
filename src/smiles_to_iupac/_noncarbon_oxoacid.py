@@ -96,6 +96,20 @@ def _acyloxy_on_acyclic_nitrogen(atom):
     )
 
 
+def _sulfonyloxy_on_nitrogen(atom):
+    """The sulfur of a sulfonyl-O-N group on an acyclic nitrogen: cited as the prefix 'sulfonyloxy' on the amide nitrogen
+    (P-66.1.1.4.3)."""
+    return atom.GetAtomicNum() in (16, 34, 52) and any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 for b in atom.GetBonds()
+    ) and any(
+        b.GetBondTypeAsDouble() == 1.0
+        and (oxygen := b.GetOtherAtom(atom)).GetAtomicNum() == 8
+        and oxygen.GetDegree() == 2
+        and any(n.GetAtomicNum() == 7 and not n.IsInRing() and not n.GetIsAromatic() for n in oxygen.GetNeighbors())
+        for b in atom.GetBonds()
+    )
+
+
 def _plain_tree(mol, graph, root, behind, anionic=False):
     """Whether the group starting at carbon `root` holds only carbon, halogen, nitrogen and sp3 oxygen atoms and no
     acid-type carbonyl, so that nothing in it outranks the acid derivative being named; other acid centres and their ligands are tolerated here and ranked
@@ -123,7 +137,9 @@ def _plain_tree(mol, graph, root, behind, anionic=False):
                 return False
         elif z in (16, 34, 52):
             oxo = any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 for b in atom.GetBonds())
-            if not (anionic and oxo) and (atom.GetDegree() != 2 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())):
+            if not (anionic and oxo) and not _sulfonyloxy_on_nitrogen(atom) and (
+                atom.GetDegree() != 2 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
+            ):
                 return False
         elif z == 7:
             pass
