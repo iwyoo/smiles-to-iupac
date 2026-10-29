@@ -184,7 +184,7 @@ def is_hetero_ylidene(mol, center_idx, nitrogen_idx):
     if ylidene_group_atoms(mol, center_idx, nitrogen_idx):
         return True
     center = mol.GetAtomWithIdx(center_idx)
-    if center.GetAtomicNum() not in (15, *_PARENT) or center.IsInRing() or center.GetFormalCharge() or center.GetIsotope():
+    if center.GetAtomicNum() not in (15, *_PARENT) or center.GetFormalCharge() or center.GetIsotope():
         return False
     graph = adjacency(mol)
     group, stack = {center_idx}, [center_idx]

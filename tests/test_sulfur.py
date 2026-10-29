@@ -668,6 +668,7 @@ def test_imino_prefixes_of_a_ring_sulfoximide(smiles, expected):
         pytest.param("CS(=O)(=NC1COC1)C", "3-{[dimethyl(oxo)-\u03bb6-sulfanylidene]amino}oxetane", id="oxygen_ring_on_an_acyclic_sulfoximide"),
         pytest.param("CS(=O)(=NC1CCSCC1)C", "4-{[dimethyl(oxo)-\u03bb6-sulfanylidene]amino}thiane", id="sulfur_ring_on_an_acyclic_sulfoximide"),
         pytest.param("C1CCS(=O)(=NC2COC2)CC1", "3-[(1-oxo-1\u03bb6-thian-1-ylidene)amino]oxetane", id="oxygen_ring_beside_a_ring_sulfoximide"),
+        pytest.param("CCOC(=O)N=S1(=O)CCCC1", "ethyl (1-oxo-1\u03bb6-thiolan-1-ylidene)carbamate", id="ring_sulfoximide_as_the_ylidene_of_a_carbamate"),
     ],
 )
 def test_ring_in_the_imino_substituent_is_the_parent_of_a_sulfoximide(smiles, expected):

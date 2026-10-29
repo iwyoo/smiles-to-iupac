@@ -1642,7 +1642,10 @@ def _chain_amidine_ylidene(mol, graph, root, coming_from):
         and not is_functional_carbon(mol, carbons[0].GetIdx())
         and all(
             not a.GetFormalCharge() and mol.GetBondBetweenAtoms(root, a.GetIdx()).GetBondTypeAsDouble() == 1.0
-            and (all(n.GetAtomicNum() == 6 for n in a.GetNeighbors() if n.GetIdx() != root) or azine_nitrogen(mol, a, root))
+            and (
+                all(n.GetAtomicNum() in (6, 7, 8) and not n.GetFormalCharge() for n in a.GetNeighbors() if n.GetIdx() != root)
+                or azine_nitrogen(mol, a, root)
+            )
             for a in amino
         )
         and all(
