@@ -1573,6 +1573,7 @@ def test_sulfonyl_group_beside_an_ester_type_parent(smiles, expected):
         pytest.param("CNC(=O)OCCCCOC(=O)NC", "butane-1,4-diyl bis(methylcarbamate)", id="n_substituted_carbamates_are_esters_not_a_skeletal_chain"),
         pytest.param("CC(=O)OCCP(=S)(C)CCOC(C)=O", "(methylphosphonothioyl)di(ethane-2,1-diyl) diacetate", id="thio_analogue_of_phosphonoyl"),
         pytest.param("CCC(=O)O[Sn](C)(C)O[Sn](C)(C)OC(=O)CC", "1,1,3,3-tetramethyldistannoxane-1,3-diyl dipropanoate", id="metal_bonded_ester_oxygen_keeps_the_skeletal_name"),
+        pytest.param("C/C=C/[Si](C)(OC(C)=O)OC(C)=O", "methyl[(1E)-prop-1-en-1-yl]silanediyl diacetate", id="hydride_polyester_cites_the_descriptor_of_a_prefix"),
     ],
 )
 def test_identical_esters_joined_through_a_metalloid_or_heteroatom_group(smiles, expected):
