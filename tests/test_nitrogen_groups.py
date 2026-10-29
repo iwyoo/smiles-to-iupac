@@ -2387,6 +2387,7 @@ def test_hydroxylamine_functional_parent_and_chalcogen_analogues(smiles, expecte
         ("NC(=O)N=N", "diazenecarboxamide"),
         ("CNC(=O)N=NC", "N,2-dimethyldiazenecarboxamide"),
         ("NC(=S)N=NC", "methyldiazenecarbothioamide"),
+        ("CN=NC(=O)N(C)C(N)=O", "N-carbamoyl-N,2-dimethyldiazenecarboxamide"),
         ("N=NC(=O)NN", "diazenecarbohydrazide"),
         ("S=C(NNc1ccccc1)N=Nc1ccccc1", "N',2-diphenyldiazenecarbothiohydrazide"),
         ("O=C(NNc1ccccc1)N=Nc1ccccc1", "N',2-diphenyldiazenecarbohydrazide"),

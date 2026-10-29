@@ -102,10 +102,30 @@ def _substituted_amide_nitrogen(nitrogen, carbon):
         return False
     return all(
         n.GetAtomicNum() == 6
-        and not any(b.GetBondTypeAsDouble() != 1.0 and b.GetOtherAtom(n).GetAtomicNum() in (7, 8, 16, 34, 52) for b in n.GetBonds())
+        and (
+            not any(b.GetBondTypeAsDouble() != 1.0 and b.GetOtherAtom(n).GetAtomicNum() in (7, 8, 16, 34, 52) for b in n.GetBonds())
+            or _carbamoyl_group(n, nitrogen)
+        )
         for n in nitrogen.GetNeighbors()
         if n.GetIdx() != carbon.GetIdx()
     ) and all(b.GetBondTypeAsDouble() == 1.0 for b in nitrogen.GetBonds())
+
+
+def _carbamoyl_group(carbon, nitrogen):
+    """A carbamoyl or carbamothioyl carbon: a urea-type carbonyl, junior to a carboxamide of a hydride, cited as a prefix
+    on the amide nitrogen (P-66.1.1.4.1, P-66.1.4.1)."""
+    bonds = {n.GetIdx(): carbon.GetOwningMol().GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()) for n in carbon.GetNeighbors()}
+    chalcogens = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() in (8, 16) and n.GetDegree() == 1 and bonds[n.GetIdx()].GetBondTypeAsDouble() == 2.0]
+    taken = {nitrogen.GetIdx(), *(n.GetIdx() for n in chalcogens)}
+    others = [n for n in carbon.GetNeighbors() if n.GetIdx() not in taken]
+    return (
+        len(chalcogens) == 1
+        and len(others) == 1
+        and others[0].GetAtomicNum() == 7
+        and not others[0].GetFormalCharge()
+        and bonds[others[0].GetIdx()].GetBondTypeAsDouble() == 1.0
+        and all(m.GetAtomicNum() == 6 and m.GetDegree() >= 1 for m in others[0].GetNeighbors() if m.GetIdx() != carbon.GetIdx())
+    )
 
 
 def _siloxane_skeleton(mol, graph):
@@ -139,7 +159,16 @@ def _group_nitrogens(mol):
     return frozenset(
         a.GetIdx()
         for a in mol.GetAtoms()
-        if a.GetAtomicNum() == _NITROGEN and a.GetDegree() == 1 and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
+        if a.GetAtomicNum() == _NITROGEN
+        and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
+        and (a.GetDegree() == 1 or any(_carbamoyl_group(n, a) or _is_carbonyl(n) for n in a.GetNeighbors()))
+    )
+
+
+def _is_carbonyl(carbon):
+    return any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(carbon).GetAtomicNum() in (8, 16)
+        for b in carbon.GetBonds()
     )
 
 
@@ -212,10 +241,23 @@ def _match_parent(mol, graph, parent):
         return None
     principal = next(c for c in _CLASSES if any(cls == c for _, cls in attached.values()))
     attached_principal = {c: host for c, (host, cls) in attached.items() if cls == principal}
+    carbamoyl_prefixes = set()
+    if principal in _AMIDES:
+        for carbon, host in attached_principal.items():
+            amide_nitrogen = _amide_nitrogen(mol, carbon, host)
+            if amide_nitrogen is not None:
+                carbamoyl_prefixes |= {
+                    n.GetIdx()
+                    for n in mol.GetAtomWithIdx(amide_nitrogen).GetNeighbors()
+                    if n.GetAtomicNum() == 6 and n.GetIdx() != carbon and _carbamoyl_group(n, mol.GetAtomWithIdx(amide_nitrogen))
+                }
     elsewhere = [
         a.GetIdx()
         for a in mol.GetAtoms()
-        if a.GetAtomicNum() == 6 and a.GetIdx() not in attached and _group_class(mol, a.GetIdx()) is not None
+        if a.GetAtomicNum() == 6
+        and a.GetIdx() not in attached
+        and a.GetIdx() not in carbamoyl_prefixes
+        and _group_class(mol, a.GetIdx()) is not None
     ]
     senior = [i for i in elsewhere if _CLASSES.index(_group_class(mol, i)) <= _CLASSES.index(principal)]
     if senior and not _outnumbered_by_skeleton(mol, skeleton_set, senior, len(attached_principal)):
