@@ -666,7 +666,7 @@ def _match_hetero_monocyclic_substituents(mol):
         exo = [n for n in graph[atom] if n not in ring_set]
         if not exo:
             continue
-        if len(exo) != 1:
+        if len(exo) != 1 or mol.GetBondBetweenAtoms(atom, exo[0]).GetBondTypeAsDouble() != 1.0:
             return None
         exo_by_atom[atom] = exo[0]
     if not exo_by_atom:

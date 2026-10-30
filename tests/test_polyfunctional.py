@@ -456,6 +456,11 @@ def test_chalcogen_chain_prefixes_beside_a_principal_group(smiles, expected):
         pytest.param("CSSOCC", "[(methyldisulfanyl)oxy]ethane", id="identical_atoms_grouped_inside_a_mixed_prefix"),
         pytest.param("CSSc1cccnc1", "3-(methyldisulfanyl)pyridine", id="disulfanyl_on_an_azine"),
         pytest.param("CSSc1nccs1", "2-(methyldisulfanyl)-1,3-thiazole", id="disulfanyl_on_an_azole"),
+        pytest.param(
+            "C/C=C1\\SC(C)=NC1=C",
+            "(5Z)-5-ethylidene-2-methyl-4-methylidene-4,5-dihydro-1,3-thiazole",
+            id="two_ylidene_groups_on_an_azole_take_hydro_prefixes_and_a_descriptor",
+        ),
         pytest.param("CSSSc1cccnc1", "3-(methyltrisulfanyl)pyridine", id="trisulfanyl_on_an_azine_is_a_prefix_of_the_nitrogen_ring"),
         pytest.param("COS[Se]c1ccccc1", "[(methoxysulfanyl)selanyl]benzene", id="ring_parent_outranks_the_chain"),
         pytest.param("C[Se]OSC", "{[(methylselanyl)oxy]sulfanyl}methane", id="oxygen_inside_a_selanyl_prefix"),
