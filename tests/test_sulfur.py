@@ -970,6 +970,8 @@ def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):
         pytest.param("C/C=C/CNS(=O)O", "N-[(2E)-but-2-en-1-yl]sulfuramidous acid", id="double_bond_in_an_n_substituent"),
         pytest.param("CN(C)S(=O)(=O)N", "N,N-dimethylsulfuric diamide", id="substituents_on_one_nitrogen"),
         pytest.param("CNS(=O)(=O)N(C)C", "N,N,N'-trimethylsulfuric diamide", id="substituents_on_both_nitrogens"),
+        pytest.param("CN(C)S(=O)(=O)NC(N)=S", "N'-carbamothioyl-N,N-dimethylsulfuric diamide", id="thiocarbamoyl_prefix_on_a_diamide"),
+        pytest.param("CN(C)S(=O)(=O)NNC", "1-(dimethylsulfamoyl)-2-methylhydrazine", id="disubstituted_sulfamoyl_on_a_hydrazine"),
         pytest.param("CNS(N)=O", "N-methylsulfurous diamide", id="sulfurous_diamide"),
         pytest.param("CN(Cl)S(=O)(=O)O", "N-chloro-N-methylsulfamic acid", id="halogen_on_the_nitrogen"),
         pytest.param("CN(N=O)S(=O)(=O)NC", "N,N'-dimethyl-N-nitrososulfuric diamide", id="nitroso_on_one_nitrogen_of_a_diamide"),
