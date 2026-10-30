@@ -343,7 +343,7 @@ def _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
         and order == 1.0
         and not atom.IsInRing()
         and atom.GetTotalValence() == _ONIUM_PREFIX_STEMS[z][1]
-        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 or _terminal_anion(mol, n) for n in others)
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 or (z not in _HALONIUM and _terminal_anion(mol, n)) for n in others)
         and all(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0 for n in others)
     ):
         return None
@@ -1834,7 +1834,11 @@ _ONIUM_PREFIX_STEMS = {
     15: ("phosphanium", 4),
     33: ("arsanium", 4),
     51: ("stibanium", 4),
+    17: ("chloranium", 2),
+    35: ("bromanium", 2),
+    53: ("iodanium", 2),
 }
+_HALONIUM = frozenset({17, 35, 53})
 
 
 def _in_anionic_chain(mol, root, coming_from):
