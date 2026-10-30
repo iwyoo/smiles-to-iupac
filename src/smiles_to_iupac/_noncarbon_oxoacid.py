@@ -137,7 +137,8 @@ def _plain_tree(mol, graph, root, behind, anionic=False):
                 return False
         elif z in (16, 34, 52):
             oxo = any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 for b in atom.GetBonds())
-            if not (anionic and oxo) and not _sulfonyloxy_on_nitrogen(atom) and not _halosulfonyl(atom) and (
+            thiocarbonyl = atom.GetDegree() == 1 and atom.GetBonds()[0].GetBondTypeAsDouble() == 2.0 and atom.GetBonds()[0].GetOtherAtom(atom).GetAtomicNum() == 6
+            if not (anionic and oxo) and not thiocarbonyl and not _sulfonyloxy_on_nitrogen(atom) and not _halosulfonyl(atom) and (
                 atom.GetDegree() != 2 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
             ):
                 return False

@@ -7835,6 +7835,8 @@ def _substituted_amine_nitrogen(mol, atom):
         return False
     if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
         return False
+    if any(_sulfonyl_type_centre(mol, n) for n in atom.GetNeighbors()):
+        return False
     parents = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6 or _ring_nitrogen_parent(n)]
     parent_ids = {n.GetIdx() for n in parents}
     if any(_ring_nitrogen_parent(n) for n in parents) and any(
@@ -7911,6 +7913,8 @@ def _acyl_nitrogen_arm(mol, nitrogen, origin):
         elif _sulfonyl_type_centre(mol, n):
             if not _plain_sulfonyl_arm(mol, n, nitrogen):
                 return False
+        elif _heteroatom_on_nitrogen(mol, n, nitrogen):
+            continue
         elif n.GetAtomicNum() != 6 or n.GetFormalCharge():
             return False
         elif is_functional_carbon(mol, n.GetIdx()) and not _acyl_carbon_arm(mol, n, nitrogen.GetIdx()):
