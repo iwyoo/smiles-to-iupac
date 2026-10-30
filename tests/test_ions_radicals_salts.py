@@ -283,6 +283,7 @@ def test_nitrile_imide_still_and_related_raise(smiles):
             "trimethyl{2-[methyldi(phenyl)phosphaniumyl]ethen-1-yl}boranuide",
             id="onium_prefix_on_a_remote_boranuide",
         ),
+        pytest.param("O=C([O-])c1ccccc1[I+]C", "2-(methyliodaniumyl)benzoate", id="halonium_prefix_on_a_carboxylate"),
         pytest.param(
             "C[BH2-][NH2+][BH2-][NH2+]C",
             "{[(methanaminiumyl)boranuidyl]azaniumyl}(methyl)boranuide",
