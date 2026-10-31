@@ -7990,10 +7990,16 @@ def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
 def _amino_group_on(mol, atom, nitrogen):
     """A neutral amino-type nitrogen, plain carbon groups or hydrogen only, single-bonded to `nitrogen`: an amino, dialkylamino
     or ring-nitrogen group cited as a prefix of the acylated nitrogen (P-66.1.1.4)."""
+    if atom.GetIsAromatic():
+        return (
+            atom.GetAtomicNum() == 7
+            and not atom.GetFormalCharge()
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and all(n.GetIdx() == nitrogen.GetIdx() or n.IsInRing() for n in atom.GetNeighbors())
+        )
     return (
         atom.GetAtomicNum() == 7
         and not atom.GetFormalCharge()
-        and not atom.GetIsAromatic()
         and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble() == 1.0
         and all(
             n.GetIdx() == nitrogen.GetIdx()
