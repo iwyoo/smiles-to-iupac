@@ -9,6 +9,10 @@ from smiles_to_iupac import smiles_to_iupac
             "OC(=O)CC[Si](C)(C)[Si](C)(C)CCC(O)=O",
             "3,3'-(1,1,2,2-tetramethyldisilane-1,2-diyl)dipropanoic acid",
         ),
+        (
+            "O=C(O)CCSCCC(=O)SCCC(=O)O",
+            "3,3'-[(1-oxopropane-1,3-diyl)bis(sulfanediyl)]dipropanoic acid",
+        ),
     ],
 )
 def test_heteroatom_and_concatenated_linkers_between_chain_parents(smiles, expected):
