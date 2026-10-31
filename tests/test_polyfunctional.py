@@ -1668,6 +1668,7 @@ def test_esters_keep_the_descriptors_of_substituents_in_the_part_they_belong_to(
         pytest.param("CC(=O)Oc1ccccc1/C=N/O", "2-[(E)-N-hydroxymethanimidoyl]phenyl acetate", id="imidoyl_on_the_alcohol_ring"),
         pytest.param("CC(=O)Oc1ccccc1/N=C/C", "2-{[(1E)-ethylidene]amino}phenyl acetate", id="ylideneamino_on_the_alcohol_ring"),
         pytest.param("CC(=O)Oc1ccccc1CC/C=N/O", "2-[(3E)-3-(hydroxyimino)propyl]phenyl acetate", id="oxime_on_a_chain_of_the_alcohol_ring"),
+        pytest.param("CO/N=C(/CC(O)CO)c1ccc(O)cc1", "(4Z)-4-(4-hydroxyphenyl)-4-(methoxyimino)butane-1,2-diol", id="imine_on_a_diol_chain_beside_a_phenol_ring"),
         pytest.param("CC(=O)Oc1ccccc1/N=N/c1ccccc1", "2-[(E)-phenyldiazenyl]phenyl acetate", id="diazenyl_on_the_alcohol_ring"),
         pytest.param("COC(=O)CC/N=N/CC", "methyl 3-[(E)-ethyldiazenyl]propanoate", id="diazenyl_on_the_acid_chain"),
     ],
