@@ -1076,6 +1076,8 @@ def test_heteroaromatic_ring_cation(smiles, expected):
     [
         pytest.param("CC(C)(c1ccc[n-]1)c1ccc[n-]1", "2,2'-(propane-2,2-diyl)bis(1H-pyrrol-1-ide)", id="branched_linker"),
         pytest.param("C(c1ccc[n-]1)c1ccc[n-]1", "2,2'-methylenebis(1H-pyrrol-1-ide)", id="methylene_linker"),
+        pytest.param("CS(=O)(=O)[N-]CC[N-]S(C)(=O)=O", "(ethane-1,2-diyl)bis[(methanesulfonyl)azanide]", id="sulfonylazanide_units_on_a_linker"),
+        pytest.param("C[n+]1ccccc1-c1c[n-]cc1", "3-(1-methylpyridin-1-ium-2-yl)-1H-pyrrol-1-ide", id="azolide_with_a_pyridinium_ring_substituent"),
         pytest.param("CCC(CC)(c1ccc[n-]1)c1ccc[n-]1", "2,2'-(pentane-3,3-diyl)bis(1H-pyrrol-1-ide)", id="longer_linker"),
         pytest.param("c1ccc(C(c2ccc[n-]2)c2ccc[n-]2)cc1", "2,2'-(phenylmethylene)bis(1H-pyrrol-1-ide)", id="ring_substituent_on_the_linker"),
         pytest.param("c1cc[n-]c1-c1ccc[n-]1", "2,2'-bi(1H-pyrrol-1-ide)", id="direct_bond_between_the_rings"),

@@ -61,7 +61,9 @@ def name_center_anion(mol):
     ring_cations = [a for a in cations if not _is_ammonium_prefix(a)]
     if ring_cations:
         if len(ring_cations) == 1 and ring_cations[0].IsInRing() and ring_cations[0].GetFormalCharge() == 1 and all(a.IsInRing() for a in centers):
-            return _name_ring_zwitterion(mol, centers, ring_cations[0])
+            zwitterion = _name_ring_zwitterion(mol, centers, ring_cations[0])
+            if zwitterion is not None:
+                return zwitterion
     if any(a.IsInRing() for a in centers):
         if len(centers) > 1 and not all(a.IsInRing() for a in centers):
             raise UnsupportedStructure("ring and chain anionic centers together are not supported yet")
@@ -339,7 +341,7 @@ def _name_ring_zwitterion(mol, centers, cation):
     rings, atoms = _system_of(base, cation.GetIdx())
     indices = [a.GetIdx() for a in centers]
     if any(i not in atoms for i in indices):
-        raise UnsupportedStructure("the ionic centers lie in different ring systems")
+        return None
     key_centers = [(cation.GetIdx(), "ium")] + [(i, "ide") for i in indices]
     found = evaluate_skeleton(
         base, adjacency(base), "ring", rings, atoms, [cation.GetIdx()], set(), "ium", key_centers=key_centers
