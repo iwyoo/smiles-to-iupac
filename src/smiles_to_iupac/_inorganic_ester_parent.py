@@ -2,6 +2,8 @@
 (P-41, P-67.1.3.2): acid halides, amides, nitriles, aldehydes, ketones, alcohols and their chalcogen analogues, amines and
 imines are prefixes of the organyl group."""
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure
 from ._halogen_acid_ester import _ester_halogens, name_halogen_acid_ester
 from ._nitrate_ester import has_nitrate_ester_shape, name_nitrate_ester
@@ -18,9 +20,22 @@ def _has_halogen_ester_parent(mol):
     return not any(a.GetFormalCharge() and a.GetIdx() not in group for a in mol.GetAtoms())
 
 
+def _cation_outranks_ester(mol):
+    """A cationic centre in the same fragment, with no anion beside it, outranks the ester of a sulfur oxoacid (P-41)."""
+    for fragment in Chem.GetMolFrags(mol):
+        charges = [mol.GetAtomWithIdx(i).GetFormalCharge() for i in fragment]
+        if any(c > 0 for c in charges) and not any(c < 0 for c in charges):
+            return True
+    return False
+
+
+def _without_cation(has_shape):
+    return lambda mol: has_shape(mol) and not _cation_outranks_ester(mol)
+
+
 _ESTERS = (
-    (has_sulfate_shape, name_sulfate),
-    (has_sulfite_shape, name_sulfite),
+    (_without_cation(has_sulfate_shape), name_sulfate),
+    (_without_cation(has_sulfite_shape), name_sulfite),
     (has_nitrate_ester_shape, name_nitrate_ester),
     (has_nitrite_ester_shape, name_nitrite_ester),
     (_has_halogen_ester_parent, name_halogen_acid_ester),
