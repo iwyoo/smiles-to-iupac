@@ -108,7 +108,7 @@ def _is_linker_atom(mol, atom, acyl_prefixes=frozenset()):
         if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen and not sulfonyl_oxygen:
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()) and not imine_nitrogen:
-            acyl_prefix = (atom.GetAtomicNum() == 7 or (atom.GetAtomicNum() == 8 and AMINIUM.get() is True)) and other.GetIdx() in acyl_prefixes
+            acyl_prefix = atom.GetAtomicNum() in (7, 8, 16, 34, 52) and other.GetIdx() in acyl_prefixes
             if not acyl_prefix and not _diacyl_carbon(mol, other, atom) and not is_sulfone_like(mol, atom):
                 return False
     return True
