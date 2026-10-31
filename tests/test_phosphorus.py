@@ -197,6 +197,7 @@ def test_phosphinine_and_related(smiles, expected):
     [
         ("COP(OC)OC", "trimethyl phosphite"),
         ("COP(OC)O", "dimethyl hydrogen phosphite"),
+        ("CC(=O)OCc1ccccc1OP(O)O", "{2-[(dihydroxyphosphanyl)oxy]phenyl}methyl acetate"),
     ],
 )
 def test_phosphite_ester_name(smiles, expected):
