@@ -511,7 +511,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 phosphoryl_nodes.add(node)
                 record(node, *replaced)
                 continue
-            if any(mol.GetAtomWithIdx(k).GetAtomicNum() == 6 for k in kids):
+            if any(mol.GetAtomWithIdx(k).GetAtomicNum() == 6 for k in kids) or (atom.GetDegree() == 3 and not atom.GetFormalCharge()):
                 record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol, unsaturated=True))
                 phosphoryl_nodes.add(node)
                 continue
