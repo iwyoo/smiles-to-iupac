@@ -19,6 +19,9 @@ _SUFFIXES = (
 )
 
 
+_CARBOXYLIC_ESTER = Chem.MolFromSmarts("[#6][CX3](=O)[OX2][#6]")
+
+
 def _match(mol):
     """(nitrogen, oxygen, acyl atom, suffix) of an H2N-O-acyl or RHN-O-acyl group with nothing else in the molecule."""
     anions = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
@@ -51,7 +54,8 @@ def _match(mol):
                     and o.GetDegree() == 1
                     and mol.GetBondBetweenAtoms(n.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
                 }
-                if all(mol.GetAtomWithIdx(i).GetAtomicNum() in (6, 9, 17, 35, 53) or i in acyl_oxo for i in rest):
+                ester_oxygens = {i for match in mol.GetSubstructMatches(_CARBOXYLIC_ESTER) for i in match[1:]} & rest
+                if all(mol.GetAtomWithIdx(i).GetAtomicNum() in (6, 9, 17, 35, 53) or i in acyl_oxo or i in ester_oxygens for i in rest):
                     return nitrogen, oxygen, acyl, suffix
     return None
 
