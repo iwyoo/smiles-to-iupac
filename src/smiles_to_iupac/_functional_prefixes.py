@@ -637,6 +637,16 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 and all(_bond_order(mol, node, k) == 1.0 for k in kids)
             ):
                 continue
+            if (
+                bond == 1.0
+                and not atom.IsInRing()
+                and mol.GetAtomWithIdx(parent).GetAtomicNum() == 6
+                and len(kids) == 1
+                and (mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES or mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in (16, 34, 52))
+                and _bond_order(mol, node, kids[0]) == 2.0
+            ):
+                record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
+                continue
             if bond != 1.0 or any(_bond_order(mol, node, k) != 1.0 for k in kids):
                 raise UnsupportedStructure("an imine/azo/nitroso-type substituent is not supported yet")
             if not atom.IsInRing() and any(

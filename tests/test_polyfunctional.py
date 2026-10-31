@@ -403,6 +403,8 @@ def test_peroxol_ranks_after_the_chalcogenols_and_before_their_peroxol_analogues
         pytest.param("O=CC(=O)N1CCOCC1", "(morpholin-4-yl)(oxo)acetaldehyde", id="aldehyde_outranks_the_hidden_amide_pseudoketone"),
         pytest.param("O=C(P)N1CCCC1", "phosphanyl(pyrrolidin-1-yl)methanone", id="group_15_hydride_and_ring_nitrogen_on_the_carbonyl"),
         pytest.param("PC(=O)CCC", "1-phosphanylbutan-1-one", id="acyl_on_group_15_hydride_is_a_pseudoketone"),
+        pytest.param("O=C(P)c1ccc(C(=O)P)cc1", "(1,4-phenylene)bis(phosphanylmethanone)", id="two_group_15_acyl_pseudoketones_on_a_ring"),
+        pytest.param("CC(=O)Oc1ccccc1C(=O)N=P(Cl)(Cl)OC", "2-{[dichloro(methoxy)-λ5-phosphanylidene]carbamoyl}phenyl acetate", id="ester_parent_with_a_carbamoyl_ylidene_prefix"),
         pytest.param("CC(=O)[Si](C)(C)C", "1-(trimethylsilyl)ethan-1-one", id="acyl_on_group_14_atom_is_a_pseudoketone"),
         pytest.param("[SiH3]C(=O)CC(=O)O", "3-oxo-3-silylpropanoic acid", id="senior_acid_keeps_the_pseudoketone_as_a_prefix"),
         pytest.param("O=C(CC)[SiH2]C(=O)CC", "dipropanoylsilane", id="two_acyl_groups_on_one_heteroatom_keep_the_acyl_name"),
