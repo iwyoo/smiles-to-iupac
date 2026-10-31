@@ -112,9 +112,21 @@ def cip_labels(mol, side, chain_double_bonds=False):
         else:
             bond = mol.GetBondWithIdx(element.centeredOn)
             if not bond.HasProp("_CIPCode"):
+                if _has_identical_ligands(mol, bond):
+                    continue
                 raise UnsupportedStructure("could not determine a CIP label for a ring double bond")
             labels.append(((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), bond.GetProp("_CIPCode")))
     return labels + [entry for entry in centres if entry[0] not in dict(labels)]
+
+
+def _has_identical_ligands(mol, bond):
+    """An end of the double bond whose two ligands are alike, configuration included, makes the bond non-stereogenic."""
+    ranks = list(Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=True))
+    for atom, partner in ((bond.GetBeginAtom(), bond.GetEndAtom()), (bond.GetEndAtom(), bond.GetBeginAtom())):
+        ligands = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() != partner.GetIdx()]
+        if len(ligands) == 2 and ranks[ligands[0]] == ranks[ligands[1]]:
+            return True
+    return False
 
 
 def _has_bare_cumulated_end(bond):
