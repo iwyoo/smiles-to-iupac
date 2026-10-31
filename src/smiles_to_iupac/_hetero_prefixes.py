@@ -112,6 +112,7 @@ RADICAL_CENTRE = contextvars.ContextVar("radical_centre", default=None)
 
 
 _IMINE_NITROGEN_CHALCOGEN = Chem.MolFromSmarts("[CX3]=[NX2]-[S,Se,Te]")
+_ACYLOXY_IMINE = Chem.MolFromSmarts("[CX3;!R](=O)[OX2][NX2]=[#6]")
 
 
 def _has_senior_principal_group(mol):
@@ -132,6 +133,7 @@ def _has_senior_principal_group(mol):
         or mol.HasSubstructMatch(_AMINO_ON_RING_NITROGEN)
         or mol.HasSubstructMatch(_AMINO_ON_RING_AMIDINE)
         or mol.HasSubstructMatch(_IMINE_NITROGEN_CHALCOGEN)
+        or mol.HasSubstructMatch(_ACYLOXY_IMINE)
         or mol.HasSubstructMatch(_PEROXOL)
     )
 
