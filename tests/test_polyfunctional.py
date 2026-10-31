@@ -1778,6 +1778,7 @@ def test_ring_carbon_double_bonded_to_ring_nitrogen_is_named_as_part_of_the_ring
         pytest.param("CC(=O)OCSC(=S)N1CCCCC1", "[(piperidine-1-carbothioyl)sulfanyl]methyl acetate", id="carbothioyl_in_an_ester"),
         pytest.param("OC(=O)CSC(=O)N1CCOCC1", "[(morpholine-4-carbonyl)sulfanyl]acetic acid", id="carbonyl_on_sulfur"),
         pytest.param("OC(=O)COC(=O)N1CCCC1", "[(pyrrolidine-1-carbonyl)oxy]acetic acid", id="carbonyl_on_oxygen"),
+        pytest.param("CCOC(=O)CC(C)C(=[Se])N1CCCC1", "ethyl 3-methyl-4-(pyrrolidin-1-yl)-4-selanylidenebutanoate", id="selenoamide_of_a_ring_nitrogen_beside_an_ester"),
         pytest.param(
             "COc1ccc(NC(=O)COC(=O)CSC(=S)N2CCC(C)CC2)cc1",
             "2-(4-methoxyanilino)-2-oxoethyl [(4-methylpiperidine-1-carbothioyl)sulfanyl]acetate",

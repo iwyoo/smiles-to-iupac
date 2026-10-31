@@ -179,7 +179,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
             or any(_bond(mol, z_idx, n) != 1.0 for n in subs if not (x == "NH" and _ylidene_carbon(mol, z_idx, n, subs)))
         ):
             return None
-        if mol.GetAtomWithIdx(z_idx).IsInRing() and not (subs and (x in ("O", "S") or (x == "NH" and not n_entries))):
+        if mol.GetAtomWithIdx(z_idx).IsInRing() and not (subs and (x in ("O", "S", "Se", "Te") or (x == "NH" and not n_entries))):
             return None
         from ._hetero_prefixes import _amino, _amino_stem, _group_names, _is_amino_nitrogen
 
@@ -196,10 +196,10 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
             if substituted is not None:
                 return substituted, True
         stem = _CARBAM[x]
-        if subs and mol.GetAtomWithIdx(z_idx).IsInRing() and x in ("O", "S", "NH"):
+        if subs and mol.GetAtomWithIdx(z_idx).IsInRing() and x in ("O", "S", "Se", "Te", "NH"):
             from ._hetero_prefixes import _ring_nitrogen_acyl
 
-            infix = {"O": "carbonyl", "S": "carbothioyl", "NH": "carboximidoyl"}[x]
+            infix = {"O": "carbonyl", "S": "carbothioyl", "Se": "carboselenoyl", "Te": "carbotelluroyl", "NH": "carboximidoyl"}[x]
             return _ring_nitrogen_acyl(graph, z_idx, root, halogens, aromatic_atoms, mol, infix)
         amino = _amino(_group_names(graph, mol, subs, z_idx, halogens, aromatic_atoms, label_acyl=True)) if subs else "amino"
         if n_entries or (subs and x == "NH"):
