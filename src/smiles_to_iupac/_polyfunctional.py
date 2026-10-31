@@ -4199,6 +4199,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     if chain_best is None:
         raise UnsupportedStructure("no parent carries the principal group")
     if stereo_context:
+        stereo_context["used"] &= used_before
         stereo_context["used"] |= chain_used
     if isotope_context:
         isotope_context["consumed"] |= chain_consumed
