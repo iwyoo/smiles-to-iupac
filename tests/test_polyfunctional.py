@@ -927,6 +927,7 @@ def test_ylidene_double_bond_is_cited_for_the_chosen_parent_only(smiles, expecte
         pytest.param("O/N=C1/CC[C@@H](C)CC1", "(1seqCis,4R)-N-hydroxy-4-methylcyclohexan-1-imine", id="seqcis"),
         pytest.param("O/N=C1/CC[C@H](C)CC1", "(1seqTrans,4S)-N-hydroxy-4-methylcyclohexan-1-imine", id="seqtrans"),
         pytest.param("C/C=C1/C[C@H](C)C[C@@H](C)C1", "(3R,5R)-1-ethylidene-3,5-dimethylcyclohexane", id="ring_paths_alike"),
+        pytest.param("CO/N=C1/C[C@@H](C(=O)O)C[C@H](C(=O)O)C1", "(1S,3S)-5-(methoxyimino)cyclohexane-1,3-dicarboxylic acid", id="ring_paths_alike_beside_acid_groups"),
     ],
 )
 def test_exocyclic_double_bond_with_ring_paths_differing_by_configuration(smiles, expected):
