@@ -1294,7 +1294,7 @@ def _group_of(mol, carbon):
                 if sulfonyls:
                     senior = min((cls for cls, _ in sulfonyls), key=lambda cls: _group_rank(cls))
                     return senior, set().union(*(owned for cls, owned in sulfonyls if cls == senior))
-            if carbon_neighbors and (
+            if (carbon_neighbors or atom.HasProp(ACYL_ROOT)) and (
                 _is_pseudoketone_heteroatom(mol, other, carbon)
                 or _diacyl_chalcogen_chain(mol, carbon, other)
                 or _acyloxy_amine_oxygen(mol, other, carbon)
