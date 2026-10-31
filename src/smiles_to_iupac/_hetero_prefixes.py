@@ -69,6 +69,7 @@ _SENIOR_SULFONYL = [
         "[#16X4,#16X3;!R](=O)[OX2][#6]",
         "[#16X4,#16X3;!R](=O)[#7]",
         "[#16X4,#16X3;!R](=O)[F,Cl,Br,I;X1]",
+        "[#16X4;R](=O)=O",
     )
 ]
 _SENIOR_PNICTOGEN_ACID = [
