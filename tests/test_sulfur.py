@@ -496,6 +496,7 @@ def test_sulfone(smiles, expected):
     "smiles, expected",
     [
         pytest.param("O=S1(=O)CCCCC1", "1λ6-thiane-1,1-dione", id="ring_sulfone_is_a_lambda6_heterone"),
+        pytest.param("CN=C1NS(=O)(=O)c2ccccc12", "3-(methylimino)-2,3-dihydro-1H-1λ6,2-benzothiazole-1,1-dione", id="imino_prefix_on_a_fused_ring_heterone"),
         pytest.param("OS(=O)(=O)C1CCCC=C1C", "2-methylcyclohex-2-ene-1-sulfonic acid", id="unsaturated_ring_sulfonic_acid_with_substituent"),
     ],
 )
