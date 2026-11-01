@@ -1840,7 +1840,8 @@ def _cations_inserted(name, base, centers, placed_in_parent):
     system = _system_of(base, centers[0])[1]
     if any(c not in system for c in centers):
         raise UnsupportedStructure("the cationic ring nitrogens are not in one ring system")
-    locants = [placed_in_parent.get(c) or _prefix_center_locant(base, c, placed_in_parent) for c in centers]
+    numbered = {}
+    locants = [placed_in_parent.get(c) or _prefix_center_locant(base, c, placed_in_parent, numbered) for c in centers]
     ring = Chem.RWMol(base)
     for index in system:
         lost = sum(
@@ -1908,13 +1909,16 @@ def _hydro_for_cationic_centre(name, stem, locant):
     return f"{name[:match.start()]}{','.join(locants)}-{word}hydro{stem}-{match.group('centre')}-yl{name[match.end():]}"
 
 
-def _prefix_center_locant(base, center, placed_in_parent):
+def _prefix_center_locant(base, center, placed_in_parent, numbered=None):
     """The locant of the cationic centre in the ring group cited as a prefix: the group's own numbering gives the free
-    valence and the heteroatoms their lowest locants, so a second ring nitrogen fixes it (P-31.1.4, P-73.1.1.2)."""
+    valence and the heteroatoms their lowest locants, so a second ring nitrogen fixes it (P-31.1.4, P-73.1.1.2).
+    `numbered` keeps one numbering per ring system, so that tied numberings give all centres of a ring one numbering."""
     from ._diester_ring_diyl import _system_of, evaluate_skeleton
     from ._free_valence import suffix_of
 
     rings, atoms = _system_of(base, center)
+    if numbered is not None and frozenset(atoms) in numbered:
+        return numbered[frozenset(atoms)][center]
 
     def leads_to_parent(start):
         seen, stack = {start}, [start]
@@ -1932,15 +1936,22 @@ def _prefix_center_locant(base, center, placed_in_parent):
         (a, n.GetIdx())
         for a in atoms
         for n in base.GetAtomWithIdx(a).GetNeighbors()
-        if n.GetIdx() not in atoms and leads_to_parent(n.GetIdx())
+        if n.GetIdx() not in atoms and (not placed_in_parent or leads_to_parent(n.GetIdx()))
     ]
-    if len(joins) != 1:
-        raise UnsupportedStructure("the ring cation is not joined to the parent hydride by a single bond")
-    root, parent = joins[0]
-    suffix = suffix_of(base.GetBondBetweenAtoms(root, parent).GetBondTypeAsDouble())
-    named = None if suffix is None else evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, [root], {parent}, suffix)
+    orders = {base.GetBondBetweenAtoms(root, parent).GetBondTypeAsDouble() for root, parent in joins}
+    if not joins or len(orders) != 1 or len({root for root, _ in joins}) != len(joins):
+        raise UnsupportedStructure("the ring cation is not joined to the parent hydride by bonds of one order")
+    suffix = suffix_of(orders.pop())
+    roots = [root for root, _ in joins]
+    named = (
+        None
+        if suffix is None
+        else evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, roots, {parent for _, parent in joins}, suffix)
+    )
     if named is None or center not in named[2]:
         raise UnsupportedStructure("the cationic centre is not numbered in the ring group")
+    if numbered is not None:
+        numbered[frozenset(atoms)] = named[2]
     return named[2][center]
 
 
