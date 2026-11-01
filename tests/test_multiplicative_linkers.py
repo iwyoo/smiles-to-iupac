@@ -858,7 +858,7 @@ def test_units_joined_to_the_linker_by_different_bonds_are_named_substitutively(
     "smiles,expected",
     [
         ("NCCCS(=O)CCCN", "3,3'-sulfinyldi(propan-1-amine)"),
-        ("N(S(=O)CCCN)S(=O)CCCN", "3,3'-[azanediylbis(sulfinyl)]di(propan-1-amine)"),
+        ("N(S(=O)CCCN)S(=O)CCCN", "3-amino-N-(3-aminopropane-1-sulfinyl)propane-1-sulfinamide"),
     ],
 )
 def test_sulfinyl_linkers_of_multiplicative_names(smiles, expected):
