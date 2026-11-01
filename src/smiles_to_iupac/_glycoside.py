@@ -300,7 +300,13 @@ def _name_tree(mol, graph, units):
         functional = [u for u in tops if u.exo_kind != "oxygen"]
         if len(functional) > 1:
             raise UnsupportedStructure("more than one glycosyl halide or amine")
-        root = functional[0] if functional else min(tops, key=_parent_key)
+        hosted = {id(u): [] for u in units}
+        for parent, carbon, _, _ in parent_of.values():
+            hosted[id(parent)].append(parent.locant(carbon))
+        for _, u, c, v, n in ethers:
+            hosted[id(u)].append(u.locant(c))
+            hosted[id(v)].append(v.locant(n))
+        root = functional[0] if functional else min(tops, key=lambda u: (_parent_key(u), sorted(hosted[id(u)])))
     else:
         raise UnsupportedStructure("no unique reducing unit")
     if id(root) in parent_of:

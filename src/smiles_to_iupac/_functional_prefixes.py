@@ -309,7 +309,12 @@ def _match_whole_labels(mol, acid, kept):
             adjusted.add(("atom", atom))
     for (a, b), code in context["bonds"].items():
         bond = acid.GetBondBetweenAtoms(in_acyl[a], in_acyl[b]) if a in in_acyl and b in in_acyl else None
-        if bond is not None and code in ("E", "Z") and not bond.HasProp("_CIPCode"):
+        if (
+            bond is not None
+            and code in ("E", "Z")
+            and bond.GetStereo() != Chem.BondStereo.STEREONONE
+            and not bond.HasProp("_CIPCode")
+        ):
             bond.SetProp(BOND_STEREO_OVERRIDE, code)
             adjusted.add(("bond", (a, b)))
     return adjusted
