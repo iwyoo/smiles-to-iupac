@@ -2093,6 +2093,8 @@ def _name_mol(mol) -> str:
         # single-carbon/three-H shape ammonium requires), so it needs its own
         # explicit routing here.
         (has_amine_oxide_shape, name_amine_oxide),
+        # An imine oxide is a zwitterion senior to every acid (P-62.5, P-41), which then becomes a prefix.
+        (has_nitrone_shape, name_nitrone),
         # A diazonium cation (R-N#N+, P-73) has a charged nitrogen too, for the
         # same reason as ammonium above -- routed here, unconditionally,
         # before every other branch.
@@ -2394,13 +2396,6 @@ def _name_mol(mol) -> str:
         # A telluroxide (-Te(=O)-, P-63.6) is the tellurium analogue of a
         # sulfoxide/selenoxide.
         (has_telluroxide_shape, name_telluroxide),
-        # A nitrone (imine N-oxide, P-74.2.1.2) has its own N+/O- dipole
-        # pair the plain imine/oxime checks below don't expect, and it's
-        # C=N-bonded (like an ordinary imine) so it would otherwise be
-        # swallowed by the oxime-gated `has_simple_imine_shape` branch further
-        # down and misrouted into `_imine.py`'s own rejection there -- must be
-        # routed before it.
-        (has_nitrone_shape, name_nitrone),
         # A nitrile oxide (P-74.2.2.2.1.2) has the same dipole-pair issue as
         # nitrone above, checked here for the same reason (before it would
         # otherwise fall through to a general heteroatom-allowlist rejection
