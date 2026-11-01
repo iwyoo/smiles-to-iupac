@@ -422,6 +422,9 @@ def test_substituted_units_and_locants(smiles, expected):
         ("CCN(C)c1ccc(Oc2ccc(N(C)CC)c(Cl)c2)cc1Cl", "4,4'-oxybis(2-chloro-N-ethyl-N-methylaniline)"),
         ("CNC1CCC(CC1)CC1CCC(CC1)NC", "4,4'-methylenebis(N-methylcyclohexan-1-amine)"),
         ("CNc1cc(NC)ccc1Cc1ccc(NC)cc1NC", "4,4'-methylenebis(N1,N3-dimethylbenzene-1,3-diamine)"),
+        ("CNC(=O)c1ccccc1Oc1ccccc1C(=O)NC", "2,2'-oxybis(N-methylbenzamide)"),
+        ("CNS(=O)(=O)C1CCC(OC2CCC(S(=O)(=O)NC)CC2)CC1", "4,4'-oxybis(N-methylcyclohexane-1-sulfonamide)"),
+        ("OS(=O)c1ccc(Oc2ccc(S(O)=O)cc2)cc1", "4,4'-oxydi(benzene-1-sulfinic acid)"),
         (
             "OC(=O)c1ccc(Cc2ccc(C(=O)O)c(C(=O)O)c2)cc1C(=O)O",
             "4,4'-methylenedi(benzene-1,2-dicarboxylic acid)",
