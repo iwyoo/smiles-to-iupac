@@ -329,6 +329,8 @@ def test_nitrile_imide_still_and_related_raise(smiles):
         pytest.param("C[N+](C)([O-])c1ccc(O)cc1", "4-hydroxy-N,N-dimethylaniline N-oxide", id="aniline_oxide_outranks_a_hydroxy_group"),
         pytest.param("C[N+]([O-])=CCO", "2-hydroxy-N-methylethan-1-imine N-oxide", id="nitrone_outranks_a_hydroxy_group"),
         pytest.param("C[N+]([O-])=CCC#N", "2-cyano-N-methylethan-1-imine N-oxide", id="nitrone_outranks_a_nitrile"),
+        pytest.param("CC[N+]([O-])=CCS(=O)(=O)O", "N-ethyl-2-sulfoethan-1-imine N-oxide", id="nitrone_outranks_a_sulfonic_acid"),
+        pytest.param("CC[N+]([O-])=CCP(=O)(O)O", "N-ethyl-2-phosphonoethan-1-imine N-oxide", id="nitrone_outranks_a_phosphonic_acid"),
         pytest.param("O=C(O)c1ccc(C=[N+](C)[O-])cc1", "1-(4-carboxyphenyl)-N-methylmethanimine N-oxide", id="nitrone_outranks_a_carboxylic_acid"),
         pytest.param("C/C=[N+](\\C)[O-]", "(1E)-N-methylethanimine N-oxide", id="nitrone_descriptor_ranks_the_oxide_ligand"),
         pytest.param("C/C=[N+](/[O-])C", "(1E)-N-methylethanimine N-oxide", id="nitrone_oxide_written_before_the_substituent"),
