@@ -373,6 +373,38 @@ def _arm_chain(mol, center, edges, comp_of, first_edge, junction_atoms):
     return chain
 
 
+def _substitutive_ring_unit(mol, unit, groups):
+    """The multiplied ring parent named by the substitutive engine when its principal group carries substituents of its
+    own (N-methylbenzamide) or has no suffix word of the ring namer (benzene-1-sulfinic acid) (P-15.3.2, P-16.3.6)."""
+    from ._multiplicative_ring import UnitText
+    from ._polyfunctional import _name_labelled, _unit_molecule
+    from ._substituents import ISOTOPE_LABELS
+
+    rank = principal_rank_of(groups, unit.atoms)
+    principal = [g for g in groups if g.anchor in unit.atoms and g.rank == rank]
+    group_atoms = set().union(*(g.atoms for g in principal))
+    ring_roots = {r for r in unit.ring_atoms for n in mol.GetAtomWithIdx(r).GetNeighbors() if n.GetIdx() not in unit.ring_atoms}
+    carbocycle = all(mol.GetAtomWithIdx(r).GetAtomicNum() == 6 for r in unit.ring_atoms)
+    # one principal group and the linker are the only ring substituents, so the linker takes the lower of the two ring directions
+    if ISOTOPE_LABELS.get() or len(principal) != 1 or not carbocycle or len(ring_roots) != 2:
+        return None
+    placed = []
+    try:
+        molecule, attach = _unit_molecule(mol, unit.atoms, unit.junction)
+        for atom in molecule.GetAtoms():
+            atom.SetAtomMapNum(0)
+        name = _name_labelled(molecule, {}, lambda text, positions: (placed.append(dict(positions)), text)[1])
+    except UnsupportedStructure:
+        return None
+    locant = placed[0].get(attach) if placed else None
+    if name is None or locant is None:
+        return None
+    text = re.sub(r"(benzene|cyclo[a-z]+ane)(?=carb|sulf|selen|tellur)", r"\1-1-", name)
+    size = len(unit.ring_atoms)
+    locant = min(locant, size + 2 - locant) if locant > 1 else locant
+    return UnitText(text, locant, bool(unit.atoms - unit.ring_atoms - group_atoms), any(ch.isdigit() for ch in text))
+
+
 def _unit_text(mol, unit, groups, name_function):
     ring_count = sum(1 for ring in mol.GetRingInfo().AtomRings() if set(ring) <= unit.ring_atoms)
     oxygens = ring_pseudoketone_oxygens(mol, unit.ring_atoms)
@@ -386,7 +418,10 @@ def _unit_text(mol, unit, groups, name_function):
             return bare_polycyclic_unit(mol, unit.ring_atoms, unit.junction, name_function)
         return substituted_polycyclic_unit(mol, unit.ring_atoms, unit.atoms, unit.junction, name_function)
     if ring_count == 1:
-        return name_monocyclic_unit(mol, unit.ring_atoms, unit.junction, unit.linker_atom, groups, unit.atoms, name_function)
+        named = name_monocyclic_unit(mol, unit.ring_atoms, unit.junction, unit.linker_atom, groups, unit.atoms, name_function)
+        if named is None and principal_rank_of(groups, unit.atoms) is not None:
+            return _substitutive_ring_unit(mol, unit, groups)
+        return named
     if unit.atoms != unit.ring_atoms:
         return substituted_polycyclic_unit(mol, unit.ring_atoms, unit.atoms, unit.junction, name_function)
     return bare_polycyclic_unit(mol, unit.ring_atoms, unit.junction, name_function)

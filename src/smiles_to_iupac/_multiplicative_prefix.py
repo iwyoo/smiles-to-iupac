@@ -17,6 +17,8 @@ SUFFIX_CARRIERS = {
     "hydrazide": ("C(=O)NN", "benzohydrazide"),
     "amidine": ("C(N)=N", "benzene-1-carboximidamide"),
     "sulfonamide": ("S(N)(=O)=O", "benzenesulfonamide"),
+    "sulfinic_acid": ("S(=O)O", "benzene-1-sulfinic acid"),
+    "sulfinamide": ("S(N)=O", "benzene-1-sulfinamide"),
     "nitrile": ("C#N", "benzonitrile"),
     "aldehyde": ("C=O", "benzaldehyde"),
     "alcohol": ("O", "phenol"),
