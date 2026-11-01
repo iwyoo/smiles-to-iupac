@@ -57,11 +57,12 @@ def name_lambda_ring(mol) -> str:
     return numbered_lambda_ring(mol)[0]
 
 
-def numbered_lambda_ring(mol):
-    """(name, {ring atom: locant}) of a ring that `has_lambda_ring_shape`."""
+def lambda_ring_numberings(mol):
+    """(name of the λ ring for each numbering that ties for the lowest heteroatom and λ locants, {ring atom: locant})."""
     order, hetero, lam = _match(mol)
     size = len(order)
-    best = None
+    stem = _stem([hetero[a] for a in order if a in hetero], size, True)
+    keyed = []
     for base in (order, order[::-1]):
         for start in range(size):
             candidate = base[start:] + base[:start]
@@ -71,13 +72,20 @@ def numbered_lambda_ring(mol):
                 position[a] for element in _SENIORITY for a in sorted((x for x, e in hetero.items() if e == element), key=position.get)
             )
             lam_locants = sorted(position[a] for a in lam)
-            key = (locants, seniority, lam_locants, [-lam[a] for a in sorted(lam, key=position.get)])
-            if best is None or key < best[0]:
-                best = (key, position)
-    position = best[1]
-    cited = []
-    for element in _SENIORITY:
-        for a in sorted((x for x, e in hetero.items() if e == element), key=position.get):
-            cited.append(f"{position[a]}λ{lam[a]}" if a in lam else str(position[a]))
-    stem = _stem([hetero[a] for a in order if a in hetero], size, True)
-    return f"{','.join(cited)}-{stem}", position
+            keyed.append(((locants, seniority, lam_locants, [-lam[a] for a in sorted(lam, key=position.get)]), position))
+    lowest = min(key for key, _ in keyed)
+    numberings = []
+    for key, position in keyed:
+        if key != lowest:
+            continue
+        cited = []
+        for element in _SENIORITY:
+            for a in sorted((x for x, e in hetero.items() if e == element), key=position.get):
+                cited.append(f"{position[a]}λ{lam[a]}" if a in lam else str(position[a]))
+        numberings.append((f"{','.join(cited)}-{stem}", position))
+    return numberings
+
+
+def numbered_lambda_ring(mol):
+    """(name, {ring atom: locant}) of a ring that `has_lambda_ring_shape`."""
+    return lambda_ring_numberings(mol)[0]

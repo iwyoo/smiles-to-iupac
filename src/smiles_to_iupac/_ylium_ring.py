@@ -207,7 +207,33 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None, group=None):
     return grouped, name, {a: numbering[index[a]] for a in group}
 
 
-def name_ylium_ring(mol, group=None, word="") -> str:
+def _name_monocyclic_ylium(mol, graph, system, centres, anions, group):
+    """A cationic Hantzsch-Widman ring is named from its neutral λ hydride, the centre counted from the lowest heteroatom
+    locants (P-73.3.1): 2,4,6-trimethyl-1λ4,3-oxazin-1-ylium."""
+    from ._lambda_ring import _match, lambda_ring_numberings
+
+    if anions:
+        raise UnsupportedStructure("an anionic centre on a cationic monocycle is not supported yet")
+    parent, order = _hydride_parent(mol, system, centres)
+    if _match(parent) is None:
+        raise UnsupportedStructure("the neutral λ hydride of this cationic monocycle is not a mancude Hantzsch-Widman ring")
+    index = {a: i for i, a in enumerate(order)}
+    best = None
+    for core, position in lambda_ring_numberings(parent):
+        locant_of = {a: position[index[a]] for a in order}
+        grouped = _prefixes(mol, graph, system, locant_of, set(group.values()))
+        locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        key = (sorted(locant_of[a] for a in centres), sorted(locant_of[a] for a in group), locant_set, citation)
+        if best is None or key < best[0]:
+            best = (key, core, grouped, locant_of)
+    _, core, grouped, locant_of = best
+    locants = sorted(str(locant_of[a]) for a in centres)
+    multiplier = _MULTIPLIER[len(locants)]
+    stem = core if multiplier or not core.endswith("e") else core[:-1]
+    return grouped, f"{stem}-{','.join(locants)}-{multiplier}ylium", {a: str(locant_of[a]) for a in group}
+
+
+def name_ylium_ring(mol, group=None, word="", monocycle=False) -> str:
     """`group`: {ring atom: root atom of its cationic suffix group} when such groups are the suffix of the name, which
     cites the ring centre first and the suffix after it (P-73.5.3.1); `word` is the suffix, e.g. 'aminium'."""
     from ._multiplicative import _ring_systems
@@ -239,7 +265,11 @@ def name_ylium_ring(mol, group=None, word="") -> str:
         _, grouped, core, group_locants = best
     else:
         try:
-            grouped, core, group_locants = _name_fused_ylium(mol, graph, system, set(centres), anions, group)
+            ring_bonds = sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in system and b.GetEndAtomIdx() in system)
+            if ring_bonds == len(system) and not monocycle:
+                raise UnsupportedStructure("a cationic monocycle is named by the λ ring route only")
+            name_system = _name_monocyclic_ylium if ring_bonds == len(system) else _name_fused_ylium
+            grouped, core, group_locants = name_system(mol, graph, system, set(centres), anions, group)
         except UnsupportedStructure as error:
             raise UnsupportedStructure("this cationic ring is not one of the ylium rings with a retained or lambda name") from error
     if group:
@@ -249,6 +279,10 @@ def name_ylium_ring(mol, group=None, word="") -> str:
         core += f"-{','.join(locants)}-{suffix}"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     return f"{prefix}-{core}" if prefix and core[0].isdigit() else prefix + core
+
+
+def name_monocyclic_ylium_ring(mol):
+    return name_ylium_ring(mol, monocycle=True) if has_ylium_ring_shape(mol) else None
 
 
 def _group_atoms(mol, roots):

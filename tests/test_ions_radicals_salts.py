@@ -1661,6 +1661,8 @@ def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
         pytest.param("C/C=C/c1cc(C)[s+]c(C)c1", "2,6-dimethyl-4-[(1E)-prop-1-en-1-yl]thiopyrylium", id="double_bond_descriptor_of_a_ylium_ring_substituent"),
         pytest.param("C[C@H](O)c1cccc[o+]1", "2-[(1S)-1-hydroxyethyl]pyrylium", id="stereocentre_descriptor_of_a_ylium_ring_substituent"),
         pytest.param("c1ccc2[s+]c3ccccc3cc2c1", "thioxanthylium", id="xanthylium_family"),
+        pytest.param("Cc1cc(C)[o+]c(C)n1", "2,4,6-trimethyl-1λ4,3-oxazin-1-ylium", id="cationic_monocycle_with_two_heteroatoms"),
+        pytest.param("CC(=O)Cc1cc(C)[s+]c(C)n1", "2,6-dimethyl-4-(2-oxopropyl)-1λ4,3-thiazin-1-ylium", id="cationic_monocycle_with_a_substituted_chain"),
         pytest.param("c1ccc2[o+]cccc2c1", "1λ4-benzopyran-1-ylium", id="lambda_name_of_a_benzopyrylium"),
         pytest.param("c1ccc2c[o+]ccc2c1", "2λ4-benzopyran-2-ylium", id="isobenzopyrylium"),
         pytest.param("c1ccc(cc1)-c1cc2ccccc2[o+]c1-c1ccccc1", "2,3-diphenyl-1λ4-benzopyran-1-ylium", id="substituted_lambda_name"),

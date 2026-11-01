@@ -120,7 +120,7 @@ from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium
 from ._uronium import has_uronium_shape, name_uronium
 from ._polycation import has_polycation_shape, has_ring_nitrenium_shape, name_polycation
 from ._polyspiro_union import has_spiro_union_shape, name_spiro_union
-from ._ylium_ring import has_ylium_ring_shape, name_ylium_ring
+from ._ylium_ring import has_ylium_ring_shape, name_monocyclic_ylium_ring, name_ylium_ring
 from ._anisole import has_anisole_shape, name_anisole
 from ._polynuclear_oxoacid import name_polynuclear_oxoacid
 from ._common_hydride import has_common_hydride_shape, name_common_hydride
@@ -1659,6 +1659,7 @@ _FALLBACK_NAMERS = (
     name_carbonic_ester_anion,
     name_ester_by_parts,
     name_chalcogen_chain_heterone,
+    name_monocyclic_ylium_ring,
 )
 
 
