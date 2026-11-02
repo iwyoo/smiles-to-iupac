@@ -437,12 +437,15 @@ def _labelled_anilino_ring(name, graph, root, coming_from, labelled, halogens, m
     from ._anilino import anilino_numbering
     from ._isotope_labels import descriptor
 
-    if mol is None or not name.endswith("anilino") or mol.GetAtomWithIdx(root).GetAtomicNum() != 7:
+    opening, closing = ("(", ")") if name[:1] == "(" and name[-1:] == ")" else ("[", "]") if name[:1] == "[" and name[-1:] == "]" else ("", "")
+    bare = name[len(opening) : len(name) - len(closing)]
+    if mol is None or not bare.endswith("anilino") or mol.GetAtomWithIdx(root).GetAtomicNum() != 7:
         return None
     found = anilino_numbering(graph, mol, root, [n for n in graph[root] if n != coming_from], halogens, aromatic_atoms)
-    if found is None or found[0] != name or not set(labelled) <= set(found[1]):
+    if found is None or found[0] != bare or not set(labelled) <= set(found[1]):
         return None
-    return name[: -len("anilino")] + descriptor(labelled, found[1], False, capacity=capacity) + "anilino"
+    cited = bare[: -len("anilino")] + descriptor(labelled, found[1], False, capacity=capacity) + "anilino"
+    return cited
 
 
 def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated):
@@ -516,7 +519,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
                 atoms.add(n)
                 stack.append(n)
     labelled = {a: context["labels"][a] for a in atoms if a in context["labels"] and a not in context["consumed"]}
-    if not labelled and mol is not None and result[0].endswith("anilino"):
+    if not labelled and mol is not None and result[0].rstrip(")]").endswith("anilino"):
         everything = {a: context["labels"][a] for a in atoms if a in context["labels"]}
         found = _labelled_anilino_ring(result[0], graph, root, coming_from, everything, halogens, mol, aromatic_atoms, _hydrogen_capacity(context, everything)) if everything else None
         if found is not None and found != result[0]:
