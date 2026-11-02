@@ -214,7 +214,11 @@ def _organic_cation(frag):
     substitutive engine (an '-ium' name, P-73.1, P-73.5)."""
     from .core import smiles_to_iupac
 
-    charges = [a.GetFormalCharge() for a in frag.GetAtoms() if a.GetFormalCharge()]
+    charges = [
+        a.GetFormalCharge()
+        for a in frag.GetAtoms()
+        if a.GetFormalCharge() and not any(n.GetFormalCharge() == -a.GetFormalCharge() for n in a.GetNeighbors())
+    ]
     if not charges or set(charges) != {1}:
         return None
     try:
