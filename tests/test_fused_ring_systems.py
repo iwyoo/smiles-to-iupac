@@ -1205,3 +1205,16 @@ def test_ring_substituents_of_a_fused_system_do_not_enter_its_von_baeyer_numberi
     # P-25.3.1.3, P-14.3: a substituent ring joined to the fused system by a single bond is not part of the attached component
     smiles = "C(Oc1ccccc1)c1nc2c3c(ncn2n1)OC1=C(CCCC1)C3c1ccccc1"
     assert smiles_to_iupac(smiles) == "2-(phenoxymethyl)-12-phenyl-8,10,11,12-tetrahydro-9H-[1]benzopyrano[3,2-e][1,2,4]triazolo[1,5-c]pyrimidine"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("Cc1sc2ccccc2cnc2ccccc2c1", "12-methyldibenzo[b,f][1,5]thiazonine"),
+        ("c1sc2ccccc2cnc2ccccc2c1Cl", "13-chlorodibenzo[b,f][1,5]thiazonine"),
+        ("Cc1oc2ccccc2c(C)nc2ccccc2c1C", "6,12,13-trimethyldibenzo[b,f][1,5]oxazonine"),
+    ],
+)
+def test_nine_membered_ring_between_two_benzo_rings_is_drawn_in_a_row(smiles, expected):
+    # P-25.3.2.3.2, P-25.3.3.1.2 (a): heteroatom locants 5,11 beat 5,12 once the three rings stand in a horizontal row
+    assert smiles_to_iupac(smiles) == expected
