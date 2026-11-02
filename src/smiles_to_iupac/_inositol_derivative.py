@@ -9,6 +9,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, multiplied_word, numerical_term
+from ._multiplicative_text import enclose
 
 _CW, _CCW = Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW
 _REPLACEMENT = {7: ("amino", 2), 16: ("sulfanyl", 1), 34: ("selanyl", 1), 9: ("fluoro", 0), 17: ("chloro", 0), 35: ("bromo", 0), 53: ("iodo", 0)}
@@ -303,11 +304,11 @@ def ester_words(esters):
     for anion, locants in sorted(esters, key=lambda item: alpha_sort_key(item[0])):
         count = len(locants)
         joined = ",".join(map(str, locants))
-        compound = " " in anion
+        compound = " " in anion or bool(re.match(r"[\d(\[{]", anion))
         if count == 1:
-            words.append(f"{joined}-({anion})" if compound else f"{joined}-{anion}")
+            words.append(f"{joined}-{enclose(anion)}" if compound else f"{joined}-{anion}")
         elif compound or anion == "phosphate":
-            words.append(f"{joined}-{_COMPLEX[count]}({anion})")
+            words.append(f"{joined}-{_COMPLEX[count]}{enclose(anion)}")
         else:
             words.append(f"{joined}-{numerical_term(count)}{anion}")
     return " ".join(words)
