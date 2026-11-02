@@ -526,6 +526,9 @@ def test_heteroatom_chains_cite_nonstandard_bonding_numbers_and_alternate_by_sen
     [
         ("CPCl", "methylphosphinous chloride"),
         ("CN(C)[PH]P", "N,N-dimethyl-P-phosphanylphosphinous amide"),
+        ("CP(C)NN1CCCCC1", "P,P-dimethyl-N-(piperidin-1-yl)phosphinous amide"),
+        ("c1ccc(P(NN2CCOCC2)c2ccccc2)cc1", "N-(morpholin-4-yl)-P,P-diphenylphosphinous amide"),
+        ("CP(=O)(NN1CCCCC1)C", "P,P-dimethyl-N-(piperidin-1-yl)phosphinic amide"),
         ("c1ccccc1P(c1ccccc1)Cl", "diphenylphosphinous chloride"),
         ("CP(Cl)Cl", "methylphosphonous dichloride"),
         ("C(C)=[N+](O)[O-]", "ethylideneazinic acid"),

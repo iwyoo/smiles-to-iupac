@@ -197,7 +197,8 @@ def _carbon_substituents(mol, graph, halogens, atom, skip, ylidene=False, anioni
             found.append((_CHALCOGENYL[neighbor.GetAtomicNum()], False))
             continue
         carbon = neighbor.GetAtomicNum() == 6
-        if not carbon and not (_halosulfonyl(neighbor) and atom.GetTotalNumHs() == 0) and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()) and not (
+        ring_nitrogen = atom.GetAtomicNum() == 7 and _ring_nitrogen(neighbor)
+        if not carbon and not ring_nitrogen and not (_halosulfonyl(neighbor) and atom.GetTotalNumHs() == 0) and not (neighbor.GetAtomicNum() in _CHALCOGEN and neighbor.GetDegree() == 2 and not neighbor.IsInRing()) and not (
             neighbor.GetAtomicNum() in _LOCANT
             and atom.GetAtomicNum() == 7
             and not neighbor.IsInRing()
@@ -298,7 +299,7 @@ def _classify_ligand(mol, graph, halogens, centre, neighbor):
     if order == 3.0 and neighbor.GetDegree() == 1 and not neighbor.GetTotalNumHs():
         return {"role": "ylidene", "kind": "nitride", "H": False}
     others = [n for n in neighbor.GetNeighbors() if n.GetIdx() != centre.GetIdx()]
-    nitrogens = [n for n in others if n.GetAtomicNum() == 7 and nitro_or_nitroso_group(mol, n) is None]
+    nitrogens = [n for n in others if n.GetAtomicNum() == 7 and not _ring_nitrogen(n) and nitro_or_nitroso_group(mol, n) is None]
     if len(nitrogens) > 1:
         return None
     if nitrogens:
