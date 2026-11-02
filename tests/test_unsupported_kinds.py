@@ -89,3 +89,9 @@ def test_fused_ring_with_an_element_that_has_no_replacement_prefix_is_refused(sm
 def test_pyridine_bridged_tetraaza_macrocycle_lactam_is_refused_not_an_internal_error():
     with pytest.raises(UnsupportedStructure):
         name("O=C(c1ccccc1)N1CCCCc2cccc(n2)NCCNC(=O)C1")
+
+
+@pytest.mark.parametrize("smiles", ["COC(=O)N.COC(=O)N", "COC(=O)NN.COC(=O)NN", "CNC(=O)OC.CNC(=O)OC"])
+def test_identical_carbamate_components_are_refused_not_an_internal_error(smiles):
+    with pytest.raises(UnsupportedStructure, match="identical components"):
+        name(smiles)
