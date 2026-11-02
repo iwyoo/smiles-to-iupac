@@ -295,6 +295,7 @@ def test_generalized_acyl_groups(smiles, expected):
     "smiles,expected",
     [
         ("CC(=O)OC1CCC(COC(C)=O)CC1", "4-[(acetyloxy)methyl]cyclohexyl acetate"),
+        ("CC(=O)OC1CCC(OI)CC1", "4-(iodooxy)cyclohexyl acetate"),
     ],
 )
 def test_ring_and_chain_polyol_uses_acyloxy_prefix(smiles, expected):
@@ -1007,6 +1008,8 @@ def test_heteroatom_chain_parent_hydrides(smiles, expected):
         ("CNC(=O)[SiH2][SiH2]C(=O)NCC", "N'-ethyl-N-methyldisilane-1,2-dicarboxamide"),
         ("N#C[SiH3]", "silanecarbonitrile"),
         ("O=C[SiH3]", "silanecarbaldehyde"),
+        ("CI(C)C=O", "dimethyl-λ3-iodanecarbaldehyde"),
+        ("CI(C)C(=O)OC", "methyl dimethyl-λ3-iodanecarboxylate"),
         ("NC(=N)N=NNC(=N)NN", "3-(hydrazinecarboximidoyl)triaz-1-ene-1-carboximidamide"),
         ("N(=O)NNC(=N)N=NNNC(N)=N", "4-(2-nitrosohydrazine-1-carboximidoyl)tetraaz-3-ene-1-carboximidamide"),
         ("NC(=O)N=NNC(=N)NN", "3-(hydrazinecarboximidoyl)triaz-1-ene-1-carboxamide"),

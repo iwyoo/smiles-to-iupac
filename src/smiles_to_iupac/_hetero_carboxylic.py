@@ -13,7 +13,7 @@ from ._acid_lexicon import carbo_suffix
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._nitro_group import nitro_or_nitroso_group
 
-_PARENT_ELEMENTS = {5, 7, 13, 14, 15, 32, 33, 50, 51, 82, 83}
+_PARENT_ELEMENTS = {5, 7, 13, 14, 15, 17, 32, 33, 35, 50, 51, 53, 82, 83}
 _ACID_CENTERS = {6, 16, 34, 52}
 
 
@@ -188,7 +188,7 @@ def name_hetero_parent_acid(mol):
     hydride = editable.GetMol()
     Chem.SanitizeMol(hydride)
     parent = smiles_to_iupac(Chem.MolToSmiles(hydride))
-    if len(hosts) == 1 and not (any(ch.isdigit() for ch in parent) or " " in parent):
+    if len(hosts) == 1 and not (_has_locant(parent) or " " in parent):
         host = next(iter(hosts))
         new_host = host - sum(1 for r in removed if r < host)
         if _single_site_kind(hydride, new_host) or _mononuclear(hydride):
@@ -196,10 +196,15 @@ def name_hetero_parent_acid(mol):
     elif len(hosts) == 1 and _mononuclear(hydride):
         raise UnsupportedStructure("the heteroatom parent has several possible attachment positions")
     elif len(found) > 1 and sum(a.GetTotalNumHs() for a in hydride.GetAtoms()) == len(found) and not (
-        any(ch.isdigit() for ch in parent) or " " in parent
+        _has_locant(parent) or " " in parent
     ):
         return parent + carbo_suffix(spec, len(found))
     return _located_parent_acid(mol, found, spec)
+
+
+def _has_locant(name):
+    """Whether a parent hydride name cites locants; the digit of a bonding-number symbol such as λ3 is not one."""
+    return any(ch.isdigit() for ch in re.sub(r"λ\d+", "", name))
 
 
 def _is_acylated(mol, host, acid_carbon):
