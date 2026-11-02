@@ -1609,3 +1609,16 @@ def test_acyloxy_on_the_nitrogen_of_a_sulfur_acid_amide_is_a_prefix(smiles, expe
 def test_nitrogen_with_two_sulfinyl_groups_is_an_n_acyl_sulfinamide(smiles, expected):
     # P-66.1.2: (R-SO-)2NR' is named as an N-acyl derivative of the senior amide, never multiplicatively
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[C@H](OS(C)(=O)=O)[C@H](C)OS(C)(=O)=O", "(2S,3S)-butane-2,3-diyl dimethanesulfonate"),
+        ("C[C@H](OS(C)(=O)=O)[C@@H](C)OS(C)(=O)=O", "(2R,3S)-butane-2,3-diyl dimethanesulfonate"),
+        ("C[C@H](OS(C)(=O)=O)C[C@@H](C)OS(C)(=O)=O", "(2R,4S)-pentane-2,4-diyl dimethanesulfonate"),
+    ],
+)
+def test_multiplied_sulfonate_keeps_the_configuration_of_the_diyl_group(smiles, expected):
+    # P-65.6.3.2.2, P-92.1.2: the descriptors of the organyl group follow from the whole structure
+    assert smiles_to_iupac(smiles) == expected

@@ -652,6 +652,20 @@ def _piece_key(mol, atoms):
 _DIYL = re.compile(r"^(?P<prefix>.*?)benzene-(?P<locants>[\d,]+)-(?P<count>di|tri)ol$")
 
 
+def _flip_for_appended_neighbor(mol, editable, idx, inside):
+    """A new neighbour appended to the bond list of a stereocentre takes the place of its one neighbour outside the
+    piece; the chiral tag follows the bond order, so an odd number of bonds after that neighbour inverts it."""
+    atom = mol.GetAtomWithIdx(idx)
+    tag = atom.GetChiralTag()
+    if tag not in (Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW):
+        return
+    order = [bond.GetOtherAtomIdx(idx) for bond in atom.GetBonds()]
+    outside = [i for i, n in enumerate(order) if n not in inside]
+    if len(outside) == 1 and (len(order) - 1 - outside[0]) % 2:
+        flipped = Chem.ChiralType.CHI_TETRAHEDRAL_CCW if tag == Chem.ChiralType.CHI_TETRAHEDRAL_CW else Chem.ChiralType.CHI_TETRAHEDRAL_CW
+        editable.GetAtomWithIdx(idx).SetChiralTag(flipped)
+
+
 def _diyl_name(mol, atoms, attachments):
     """The multivalent organyl name of the piece `atoms` joined through the `attachments` atoms, from its polyol name."""
     from .core import smiles_to_iupac
@@ -668,6 +682,7 @@ def _diyl_name(mol, atoms, attachments):
         placeholder.SetNumExplicitHs(0)
         placeholder.SetNoImplicit(True)
     for idx in attachments:
+        _flip_for_appended_neighbor(mol, editable, idx, set(atoms))
         oxygen = editable.AddAtom(Chem.Atom(8))
         editable.AddBond(idx, oxygen, Chem.BondType.SINGLE)
     for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
