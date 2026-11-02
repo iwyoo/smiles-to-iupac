@@ -50,6 +50,11 @@ def test_terminal_segment_acid_is_an_oic_acid(smiles, expected):
         ("C[C@]12CC[C@H]3[C@@H](CC=C4C[C@@H](NC(C)=O)CC[C@]34C)[C@@H]1CC[C@@H]2O", "N-(17\u03b2-hydroxyandrost-5-en-3\u03b2-yl)acetamide"),
         # P-101.7.3, P-15.3: one acid on two alcohol groups of the steroid.
         ("C[C@]12CC[C@H]3[C@@H](CC=C4C[C@@H](OC(C)=O)CC[C@]34C)[C@@H]1CC[C@@H]2OC(C)=O", "androst-5-ene-3\u03b2,17\u03b2-diyl diacetate"),
+        # P-65.1.1.1, P-101.2.6: a ring acid is the parent and the steroid with non-parent configurations is its ether prefix.
+        (
+            "C[C@]12CCC(=O)C=C1CC[C@H]1[C@H]2CC[C@@]2(C)[C@@H]1CC[C@@]2(O)C(=O)COC1OC(C(=O)O)CCC1",
+            "6-[(17-hydroxy-3,20-dioxo-8\u03b1,9\u03b2,14\u03b2,17\u03b1-pregn-4-en-21-yl)oxy]oxane-2-carboxylic acid",
+        ),
     ],
 )
 def test_steroid_as_substituent_group_of_esters_and_amides(smiles, expected):

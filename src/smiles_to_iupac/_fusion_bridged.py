@@ -641,6 +641,8 @@ def _bridge_numberings(mol, atoms, fused, part, position, counter):
 def _higher_number(numbering):
     best = 0
     for loc in numbering.values():
+        if not str(loc)[:1].isdigit():
+            raise UnsupportedStructure("bridge atoms cannot be numbered on from a locant that does not begin with a number")
         best = max(best, _locant_key(str(loc))[0])
     return best
 
