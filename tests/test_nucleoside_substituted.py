@@ -459,3 +459,20 @@ def test_nucleoside_base_acyl_group_on_an_amino_acid():
         smiles_to_iupac("Nc1nc(C(=O)NC(C)C(=O)O)nc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O")
         == "N-(6-amino-9-β-D-ribofuranosyl-9H-purine-2-carbonyl)alanine"
     )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "Nc1ncnc2c1nc1n2[C@H]2C[C@H](O)[C@H](O2)[C@H]1O",
+            "(6S,7S,8S,10R)-4-amino-7,8,9,10-tetrahydro-6H-7,10-epoxyazepino[1,2-e]purine-6,8-diol",
+        ),
+        (
+            "O=c1[nH]c(=O)n2c(c1)O[C@@H]1[C@H](O)[C@@H](CO)O[C@H]12",
+            "(2R,3R,3aR,9aR)-3-hydroxy-2-(hydroxymethyl)-2,3,3a,9a-tetrahydro-6H-furo[2',3':4,5][1,3]oxazolo[3,2-c]pyrimidine-6,8(7H)-dione",
+        ),
+    ],
+)
+def test_bridge_between_base_and_sugar_is_not_a_retained_nucleoside(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
