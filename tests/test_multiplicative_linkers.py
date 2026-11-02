@@ -1295,3 +1295,15 @@ def test_amine_arms_joined_through_a_nitrogen_nitrogen_linker_are_multiplied(smi
 def test_functionalised_parents_joined_through_ring_nitrogens_are_multiplied_on_the_suffix_parent(smiles, expected):
     # P-15.3.1.1 (c), P-15.3.1.2.2.4: a ring with a fixed numbering is cited as its diyl in the multiplicative group
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(O)CN(CC(=O)O)C1CCCCC1N(CC(=O)O)CC(=O)O", "2,2',2'',2'''-(cyclohexane-1,2-diyldinitrilo)tetraacetic acid"),
+        ("O=C(O)CN(CC(=O)O)c1ccccc1N(CC(=O)O)CC(=O)O", "2,2',2'',2'''-(1,2-phenylenedinitrilo)tetraacetic acid"),
+    ],
+)
+def test_ring_diyl_dinitrilo_tetraacetic_acids_are_multiplied(smiles, expected):
+    # P-15.3.2.1, P-15.3.4.1.1: the junction kinds of the identical acetic acid units compare ring and element neighbours
+    assert smiles_to_iupac(smiles) == expected
