@@ -2951,7 +2951,7 @@ def _label_parent(mol, name, parts, labels, front, capacity, bare):
     hydro_text = ""
     if match is not None:
         rest = rest[match.end() :]
-        labels, capacity, hydro_text = _split_hydro_labels(mol, parts[4], labels, capacity, match)
+        labels, capacity, hydro_text = _split_hydro_labels(mol, parts[4], labels, capacity, match, rest)
     text = (
         descriptor(labels, parts[4], bare, front, capacity, _sole_heteroatoms(mol, labels, parts[4]), bare and len(parts[4]) > 1)
         if labels or front
@@ -2960,11 +2960,36 @@ def _label_parent(mol, name, parts, labels, front, capacity, bare):
     return head + hydro_text + text + ("-" if text and rest[:1].isdigit() else "") + rest
 
 
-def _split_hydro_labels(mol, position_of, labels, capacity, match):
+def _omitted_hydro_locants(mol, position_of, following):
+    """The locants of the hydro prefixes of a fully hydrogenated parent whose name omits them (P-14.3.4.5): every
+    position but the one of the indicated hydrogen that follows the prefixes and the hydrogen-free heteroatoms of the
+    ring fusion, in locant order."""
+    from ._fused_numbering import _locant_key
+
+    indicated = re.match(r"-?(\d+[a-z]?)H-", following)
+    positions = [
+        str(locant)
+        for atom, locant in position_of.items()
+        if mol.GetAtomWithIdx(atom).GetAtomicNum() == 6 or mol.GetAtomWithIdx(atom).GetTotalNumHs()
+    ]
+    if indicated is not None:
+        if indicated.group(1) not in positions:
+            return None
+        positions.remove(indicated.group(1))
+    return sorted(positions, key=_locant_key)
+
+
+def _split_hydro_labels(mol, position_of, labels, capacity, match, following=""):
     """(descriptor labels, capacities, hydro prefix text) once the hydrogens that the hydro prefixes added are taken
     out of the labels."""
-    lead, locant_text, _ = match.groups()
+    lead, locant_text, hydro_word = match.groups()
     locants = locant_text.split(",") if locant_text else None
+    if locants is None and any(
+        atom in labels and mol.GetAtomWithIdx(atom).GetTotalNumHs() for atom in position_of
+    ):
+        restored = _omitted_hydro_locants(mol, position_of, following)
+        if restored is not None and hydro_word == multiplying_prefix(len(restored)) + "hydro":
+            locants = restored
     atom_of = {str(locant): atom for atom, locant in position_of.items()}
     if locants is not None and any(x not in atom_of for x in locants):
         raise UnsupportedStructure("a hydro prefix locant is not a position of the parent hydride")

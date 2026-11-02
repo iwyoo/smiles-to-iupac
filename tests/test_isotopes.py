@@ -1321,3 +1321,15 @@ def test_nuclides_of_a_chain_between_two_different_amide_groups_are_cited_in_the
 )
 def test_nuclides_of_a_substituent_with_a_disubstituted_nitrogen_are_cited(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[2H]C1([2H])CCC2CCCCC12", "octahydro(1,1-2H2)-1H-indene"),
+        ("[2H]C1([2H])CCCC2CCCCC12", "decahydro(1,1-2H2)naphthalene"),
+        ("[2H]C1([2H])CCC2CCCN12", "hexahydro(3,3-2H2)-1H-pyrrolizine"),
+    ],
+)
+def test_nuclide_on_a_ring_atom_of_a_fully_saturated_fused_hydride(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
