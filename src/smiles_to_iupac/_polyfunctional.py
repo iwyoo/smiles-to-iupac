@@ -6713,10 +6713,16 @@ def _modified_unit_smiles(unit, atoms):
     return Chem.MolToSmiles(marked)
 
 
-def _junction_kind(atom):
-    """Where a unit joins the rest of the molecule: a ring atom, or the element of an acyclic linking atom. Units of one
-    multiplied parent all join alike (P-45.1.1)."""
-    return "ring" if atom.IsInRing() else atom.GetAtomicNum()
+def _junction_kind(atom, unit_atoms=frozenset()):
+    """Where a unit joins the rest of the molecule: a ring atom, or an acyclic linking atom with the kinds of the atoms it
+    reaches on the other side. Units of one multiplied parent all join alike (P-45.1.1, P-15.3.4.1.1)."""
+    if atom.IsInRing():
+        return "ring"
+    if atom.GetAtomicNum() == 6:
+        return 6
+    return atom.GetAtomicNum(), tuple(
+        sorted(("ring" if n.IsInRing() else n.GetAtomicNum()) for n in atom.GetNeighbors() if n.GetIdx() not in unit_atoms)
+    )
 
 
 def _identical_group_units(mol, graph, group_atoms):
@@ -6753,7 +6759,7 @@ def _identical_group_units(mol, graph, group_atoms):
                 extra_sides = [side for side in sides if side[2] == si and not side[1] & (ai | aj)]
                 extra = set().union(*(side[1] for side in extra_sides))
                 units = ai | aj | extra
-                if extra and len({_junction_kind(n) for n in (ni, nj, *(side[4] for side in extra_sides))}) > 1:
+                if extra and len({_junction_kind(n, unit) for n, unit in ((ni, ai), (nj, aj), *((s[4], s[1]) for s in extra_sides))}) > 1:
                     continue
                 if plain[ri] != plain[rj] and not extra and _unsymmetrical_branches(mol, set(range(mol.GetNumAtoms())) - units, ai, aj):
                     continue

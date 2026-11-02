@@ -296,6 +296,8 @@ def test_generalized_acyl_groups(smiles, expected):
     [
         ("CC(=O)OC1CCC(COC(C)=O)CC1", "4-[(acetyloxy)methyl]cyclohexyl acetate"),
         ("CC(=O)OC1CCC(OI)CC1", "4-(iodooxy)cyclohexyl acetate"),
+        # P-15.3.4.1.1: acid units joined through O and through CH2-O are not multiplied; one is the parent
+        ("C1CC(COCC(=O)O)C(OCC(=O)O)C(OCC(=O)O)C1", "{[2,3-bis(carboxymethoxy)cyclohexyl]methoxy}acetic acid"),
     ],
 )
 def test_ring_and_chain_polyol_uses_acyloxy_prefix(smiles, expected):
