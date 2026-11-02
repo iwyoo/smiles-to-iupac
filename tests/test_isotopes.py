@@ -1333,3 +1333,17 @@ def test_nuclides_of_a_substituent_with_a_disubstituted_nitrogen_are_cited(smile
 )
 def test_nuclide_on_a_ring_atom_of_a_fully_saturated_fused_hydride(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[2H]C([2H])([2H])C1CC2C3CCC4=CC(=O)CCC4(C)C3CCC2(C)C1", "16-(2H3)methylandrost-4-en-3-one"),
+        (
+            "[2H]C([2H])([2H])C1CC2C3CCC4=CC(=O)CCC4(C)C3CCC2(C)C1(O)C(C)=O",
+            "17-hydroxy-16-(2H3)methylpregn-4-ene-3,20-dione",
+        ),
+    ],
+)
+def test_nuclides_on_a_substituent_of_a_steroid_skeleton_are_cited_in_the_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
