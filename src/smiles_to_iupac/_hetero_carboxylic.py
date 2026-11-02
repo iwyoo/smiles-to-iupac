@@ -142,6 +142,24 @@ def _oxo_bearing(atom):
     return any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in atom.GetNeighbors())
 
 
+def _whole_molecule_descriptor(mol, hosts, name):
+    """The hydride was named with a hydrogen atom where the acid group stands; the descriptor of its stereogenic atom
+    follows from the whole molecule, where that carbon ranks as a ligand (P-92.1.2)."""
+    import re
+
+    from ._common import assign_cip_labels
+
+    found = re.match(r"\(([RS])\)-", name)
+    if found is None or len(hosts) != 1:
+        return name
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    atom = probe.GetAtomWithIdx(next(iter(hosts)))
+    if not atom.HasProp("_CIPCode"):
+        return name
+    return f"({atom.GetProp('_CIPCode')})-" + name[found.end():]
+
+
 def name_hetero_parent_acid(mol):
     from .core import smiles_to_iupac
 
@@ -187,7 +205,7 @@ def name_hetero_parent_acid(mol):
         editable.RemoveAtom(idx)
     hydride = editable.GetMol()
     Chem.SanitizeMol(hydride)
-    parent = smiles_to_iupac(Chem.MolToSmiles(hydride))
+    parent = _whole_molecule_descriptor(mol, hosts, smiles_to_iupac(Chem.MolToSmiles(hydride)))
     if len(hosts) == 1 and not (_has_locant(parent) or " " in parent):
         host = next(iter(hosts))
         new_host = host - sum(1 for r in removed if r < host)
