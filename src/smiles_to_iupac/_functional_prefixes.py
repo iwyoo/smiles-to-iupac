@@ -445,8 +445,11 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
     def child_name(child, via):
         if child in named:
             return named[child]
-        if mol.GetAtomWithIdx(child).GetAtomicNum() == 6:
+        z = mol.GetAtomWithIdx(child).GetAtomicNum()
+        if z == 6:
             return name_branch(graph, child, via, shown, aromatic_atoms, mol=mol)
+        if z in HALOGEN_PREFIXES:
+            return HALOGEN_PREFIXES[z], False
         raise UnsupportedStructure("this substituent group is not supported yet")
 
     def record(node, name, compound):

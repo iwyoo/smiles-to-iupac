@@ -33,6 +33,7 @@ from ._numerals import multiplying_prefix
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _NITROGEN = 7
+_HALOGEN_HYDRIDES = {17: "chlorane", 35: "bromane", 53: "iodane"}
 _CLASSES = ("acid", "amide", "thioamide", "selenoamide", "telluroamide", "amidine", "nitrile", "aldehyde")
 _AMIDES = frozenset(("amide", "thioamide", "selenoamide", "telluroamide"))
 _AMIDE_CLASS = {8: "amide", 16: "thioamide", 34: "selenoamide", 52: "telluroamide"}
@@ -211,10 +212,16 @@ def _parent(mol, graph):
     siloxane = _siloxane_skeleton(mol, graph)
     if siloxane is not None:
         return "chain", siloxane, f"{multiplying_prefix((len(siloxane) + 1) // 2)}siloxane"
-    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES]
+    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES or _hypervalent_halogen(a)]
     if len(centers) == 1 and not centers[0].GetFormalCharge() and not centers[0].IsInRing():
-        return "mononuclear", [centers[0].GetIdx()], MONONUCLEAR_HYDRIDES[centers[0].GetAtomicNum()][0]
+        z = centers[0].GetAtomicNum()
+        return "mononuclear", [centers[0].GetIdx()], MONONUCLEAR_HYDRIDES[z][0] if z in MONONUCLEAR_HYDRIDES else _HALOGEN_HYDRIDES[z]
     return None
+
+
+def _hypervalent_halogen(atom):
+    """A chlorine, bromine or iodine atom with several substituents, the centre of a λ3-/λ5-halane (P-21.1.2, P-68.5.1)."""
+    return atom.GetAtomicNum() in _HALOGEN_HYDRIDES and atom.GetDegree() > 1
 
 
 def _match(mol):
