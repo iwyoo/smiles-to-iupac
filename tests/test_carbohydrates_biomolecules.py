@@ -964,3 +964,16 @@ def test_carbon_double_bond_in_the_skeleton_is_named_by_substitutive_nomenclatur
 def test_ester_of_the_acyl_chain_on_nitrogen_is_not_counted_with_the_amino_acid_esters(smiles, expected):
     # P-103.2.3, P-65.6.3.3: the ester group of the N-acyl chain stays on that chain
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[C@H](N)C(=O)N(C)[C@@H](C)C(=O)N", "L-alanyl-N2-methyl-L-alaninamide"),
+        ("CCC(=O)N[C@@H](C)C(=O)N(C)[C@@H](CC(C)C)C(=O)NC", "N-propanoyl-L-alanyl-N1,N2-dimethyl-L-leucinamide"),
+        ("C[C@H](N)C(=O)N[C@@H](C)C(=O)NC", "L-alanyl-N-methyl-L-alaninamide"),
+    ],
+)
+def test_amide_terminated_residue_with_a_substituted_alpha_nitrogen_cites_n1_and_n2(smiles, expected):
+    # P-103.2.1: the alpha nitrogen is N2 and the amide nitrogen N1 once both are present
+    assert smiles_to_iupac(smiles) == expected
