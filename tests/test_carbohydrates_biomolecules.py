@@ -945,3 +945,22 @@ def test_dianhydride_check_skips_fragments_that_are_not_monosaccharides(monkeypa
 )
 def test_carbon_double_bond_in_the_skeleton_is_named_by_substitutive_nomenclature(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "COC(=O)CCCC(=O)NC(CCC(=O)O)C(=O)OC",
+            "5-methoxy-4-{[4-(methoxycarbonyl)butanoyl]amino}-5-oxopentanoic acid",
+        ),
+        (
+            "COC(=O)CCCC(=O)NC(CC(=O)O)C(=O)OC",
+            "4-methoxy-3-{[4-(methoxycarbonyl)butanoyl]amino}-4-oxobutanoic acid",
+        ),
+        ("COC(=O)C(CCC(=O)OC)NC(C)=O", "dimethyl N-acetylglutamate"),
+    ],
+)
+def test_ester_of_the_acyl_chain_on_nitrogen_is_not_counted_with_the_amino_acid_esters(smiles, expected):
+    # P-103.2.3, P-65.6.3.3: the ester group of the N-acyl chain stays on that chain
+    assert smiles_to_iupac(smiles) == expected

@@ -129,6 +129,15 @@ def _acid_and_esters(mol):
     return acid, groups
 
 
+def _ester_on_nitrogen_substituent(mol, alpha, groups):
+    """An ester group of the acyl chain on the nitrogen belongs to that chain (P-103.2.3), not to the amino acid."""
+    graph = adjacency(mol)
+    carbons = {carbon for carbon, _ in groups}
+    return any(
+        carbons & subtree(graph, n, alpha) for n in graph[alpha] if mol.GetAtomWithIdx(n).GetAtomicNum() == 7
+    )
+
+
 def _ester_words(groups, locants, anion):
     if locants is None:
         return f"{groups[0][1][0]} {anion}"
@@ -195,6 +204,9 @@ def _derivative_name(mol):
     base = found[0]
     plain = _name_plain(acid)
     diacid = base in _DIACID_SIDE_LOCANT
+    alpha_atom = next((a.GetIntProp("_orig") for a in acid.GetAtoms() if a.GetIdx() == found[1] and a.HasProp("_orig")), None)
+    if groups and alpha_atom is not None and _ester_on_nitrogen_substituent(neutral, alpha_atom, groups):
+        return None
     if carboxylates:
         if diacid and carboxylates == 1:
             stem = _anion_stem(plain)
