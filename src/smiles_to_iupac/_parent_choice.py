@@ -22,6 +22,17 @@ def _reach(mol, start, blocked):
     return seen
 
 
+def _branch_smiles(mol, branch, root):
+    """RDKit roots a SMILES only in a molecule of one fragment, so a branch of a several-component molecule is cut out first."""
+    if len(Chem.GetMolFrags(mol)) == 1:
+        return Chem.MolFragmentToSmiles(mol, sorted(branch), rootedAtAtom=root)
+    editable = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(branch), reverse=True):
+        editable.RemoveAtom(idx)
+    kept = sorted(branch)
+    return Chem.MolToSmiles(editable, rootedAtAtom=kept.index(root))
+
+
 def _unit(mol, centre, centres):
     """Per atom of the group, its branches leading to the other centres and its own substituents."""
     group = _group_atoms(mol, centre)
@@ -36,7 +47,7 @@ def _unit(mol, centre, centres):
             if branch & others:
                 links += 1
             else:
-                own.append(Chem.MolFragmentToSmiles(mol, sorted(branch), rootedAtAtom=n.GetIdx()))
+                own.append(_branch_smiles(mol, branch, n.GetIdx()))
         if links or own:
             unit.append((links, tuple(sorted(own))))
     return tuple(sorted(unit))
