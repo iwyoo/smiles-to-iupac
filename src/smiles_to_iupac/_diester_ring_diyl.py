@@ -157,9 +157,12 @@ def _senior_by_acid(mol, graph, matches, units):
 
     def length(unit):
         return max(
-            len(longest_chains(component_subgraph(carbon_graph, m[0].GetIdx()))[0])
-            for m in matches
-            if m[3].GetIdx() in unit[3] and m[0].GetAtomicNum() == 6
+            (
+                len(longest_chains(component_subgraph(carbon_graph, m[0].GetIdx()))[0])
+                for m in matches
+                if m[3].GetIdx() in unit[3] and m[0].GetAtomicNum() == 6
+            ),
+            default=0,
         )
 
     ranked = sorted(units, key=lambda u: -length(u))

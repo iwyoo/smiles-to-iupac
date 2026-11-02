@@ -5,7 +5,8 @@ groups, each left with its remaining acid hydroxyl groups (P-65.6.3.2.2, P-67.1.
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
-from ._diester_anions import _INORGANIC_ANIONS
+from ._chain_multiplicative import ester_multiplicative_name
+from ._diester_anions import _INORGANIC_ANIONS, acid_anions
 from ._diester_ring_diyl import name_diester_ring_diyl
 
 _CENTRES = (15, 16, 33)
@@ -83,4 +84,13 @@ def name_inorganic_polyester(mol) -> str:
     matches = inorganic_ester_matches(mol)
     if not matches:
         raise UnsupportedStructure("several singly esterified sulfate, sulfite, phosphate or phosphite groups are required")
-    return name_diester_ring_diyl(mol, matches)
+    try:
+        return name_diester_ring_diyl(mol, matches)
+    except UnsupportedStructure:
+        anions = set(acid_anions(mol, matches))
+        if len(anions) != 1:
+            raise
+        name = ester_multiplicative_name(mol, [m[2].GetIdx() for m in matches], anions.pop())
+        if name is None:
+            raise
+        return name
