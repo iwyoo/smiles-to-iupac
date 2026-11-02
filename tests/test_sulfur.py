@@ -750,6 +750,8 @@ def test_phenyl_directly_attached_and_related(smiles, expected):
         pytest.param("N#CSCCSC#N", "ethane-1,2-diyl dithiocyanate", id="chain"),
         pytest.param("N#C[Se]Cc1ccc(C[Se]C#N)cc1", "1,4-phenylenebis(methylene) diselenocyanate", id="polyol_group_named_as_in_an_acetate"),
         pytest.param("N#COC[C@H](C)OC#N", "(2S)-propane-1,2-diyl dicyanate", id="stereocentre_of_the_organyl_group"),
+        pytest.param("CC(OCCOC#N)C(CCCCOC#N)OC#N", "6-(2-cyanatoethoxy)heptane-1,5-diyl dicyanate", id="third_cyanate_is_a_prefix"),
+        pytest.param("C=C(OCCOC#N)C(CCOC#N)OC#N", "4-(2-cyanatoethoxy)pent-4-ene-1,3-diyl dicyanate", id="third_cyanate_beside_an_ene"),
     ],
 )
 def test_cyanic_esters_of_a_polyol(smiles, expected):
