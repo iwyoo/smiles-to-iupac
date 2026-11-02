@@ -2100,9 +2100,13 @@ def _acylated_ester_links(mol, links):
     """The links of a noncarbon oxoacid whose esterified acid component is joined by an anhydride bridge to an acyl
     group, with each bridge turned into an ester link whose organyl group is the acyl group (P-67.1.3.3): the bridge
     oxygen is not an acid hydrogen of the component. None when no component is esterified."""
-    esterified = {l.center for l in links if l.kind == "ester" and _center(mol, l.center)[0] in ("inorganic", "carbonic")}
+    def kind(idx):
+        center = _center(mol, idx)
+        return center[0] if center else None
+
+    esterified = {l.center for l in links if l.kind == "ester" and kind(l.center) in ("inorganic", "carbonic")}
     bridges = [l for l in links if l.kind == "anhydride"]
-    acylated = [l for l in bridges if l.center in esterified and _center(mol, l.far)[0] == "acyl" and len(l.chain) == 1]
+    acylated = [l for l in bridges if l.center in esterified and kind(l.far) == "acyl" and len(l.chain) == 1]
     reverse = {(l.far, l.center) for l in acylated}
     if not acylated or any(l not in acylated and (l.center, l.far) not in reverse for l in bridges):
         return None
