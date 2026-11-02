@@ -9,6 +9,7 @@ from ._common import alpha_sort_key
 from ._multiplicative_text import enclose
 from ._substituents import prefix_multiplier
 
+_HETERO_LOCANT = re.compile(r"[NOS]['′]*(?:,[NOS]['′]*)*-")
 _SUBSTITUTED_RETAINED_ACYL = re.compile(r"(?<=.)(?:acetyl|formyl)$")
 _HYDRIDE_ACYL = re.compile(r"(?<=.)(?:thioyl|selenoyl|telluroyl|imidoyl|hydrazonoyl|carbonyl|sulfonyl|sulfinyl|selenonyl|seleninyl|telluronyl|tellurinyl)$")
 _ENDINGS = {"acid": "ic acid", "anion": "ate", "acyl": "yl", "acylium": "ylium"}
@@ -78,6 +79,7 @@ def is_compound_acyl(name):
         any(ch.isdigit() for ch in name)
         or "(" in name
         or "[" in name
+        or bool(_HETERO_LOCANT.match(name))
         or bool(_SUBSTITUTED_RETAINED_ACYL.search(name))
         or bool(_HYDRIDE_ACYL.search(name))
     )

@@ -999,3 +999,16 @@ def test_amide_terminated_residue_with_a_substituted_alpha_nitrogen_cites_n1_and
 def test_aryl_of_a_residue_acyl_group_on_a_ring_cation_keeps_its_own_locants(smiles, expected):
     # P-29.2: the substituent ring is numbered from its own free valence, not from the parent's cation centre
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(C)[C@H](NC(C)=O)C(=O)c1ccc(C(=O)O)cc1", "4-(N-acetyl-L-valyl)benzoic acid"),
+        ("CC(=O)N[C@@H](C)C(=O)C1CCC(C(=O)O)CC1", "4-(N-acetyl-L-alanyl)cyclohexane-1-carboxylic acid"),
+        ("CCCCC(=O)N[C@@H](C)C(=O)c1cc(N)ccc1C(=O)O", "4-amino-2-(N-pentanoyl-L-alanyl)benzoic acid"),
+    ],
+)
+def test_n_acyl_amino_acid_acyl_prefix_on_a_ring_parent_is_enclosed(smiles, expected):
+    # P-16.5.1.1: a prefix that carries its own N locant is a compound prefix
+    assert smiles_to_iupac(smiles) == expected
