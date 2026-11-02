@@ -500,16 +500,27 @@ def name_ring_component(
     return name, bool(prefix_text)
 
 
+def _swappable(mol, atoms, directed):
+    """Whether a symmetry of the ring system exchanges the two attachment atoms, so that the numbering is a choice."""
+    from rdkit import Chem
+
+    bonds = [b.GetIdx() for b in mol.GetBonds() if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms]
+    atom_map = {}
+    sub = Chem.PathToSubmol(mol, bonds, atomMap=atom_map)
+    unit_side, centre_side = atom_map[directed[0]], atom_map[directed[1]]
+    return any(m[unit_side] == centre_side and m[centre_side] == unit_side for m in sub.GetSubstructMatches(sub, uniquify=False))
+
+
 def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
     """Diyl group of any ring system (P-29.3.3, P-29.3.4) with its substituents, numbered by the general ring
     namer; an arm needs the unit-side valence at the lowest locant, which that namer does not rank."""
-    if directed is not None:
-        return None
     from ._common import adjacency
     from ._diester_ring_diyl import _system_of, evaluate_skeleton
 
     rings, atoms = _system_of(mol, next(iter(ring_atoms)))
     free_atoms = [a for a, _ in attachments]
+    if directed is not None and (len(free_atoms) != 2 or _swappable(mol, atoms, directed)):
+        return None
     blocked = {external for _, external in attachments}
     if len(free_atoms) not in _VALENCE_COUNTS:
         return None
@@ -525,6 +536,13 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
     cited = labels_in(atoms)
     if cited and all(n in name for e in cited.values() for n in ([e["skeleton"]] if e["skeleton"] else []) + list(e["H"])):
         consume_labels(cited)
+    if directed is not None:
+        unit_side, centre_side = directed
+        tail = re.search(r"-(\d+[a-z]?),(\d+[a-z]?)-(?:di)yl$", name)
+        if not tail or found[2].get(unit_side) is None or found[2].get(centre_side) is None:
+            return None
+        order = [str(found[2][centre_side]), str(found[2][unit_side])] if found[2][unit_side] < found[2][centre_side] else sorted(tail.groups(), key=lambda x: (int(re.sub(r'\D', '', x)), x))
+        name = name[: tail.start(1)] + ",".join(order) + name[tail.end(2) :]
     if first is not None and first in found[2]:
         tail = re.search(r"-(\d+[a-z]?(?:,\d+[a-z]?)+)-(?:di|tri|tetra)yl$", name)
         locants = tail.group(1).split(",") if tail else []
