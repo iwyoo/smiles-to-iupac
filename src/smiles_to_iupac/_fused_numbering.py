@@ -25,6 +25,9 @@ _HOUSE = {
     7: [Fraction(0), Fraction(5, 6), Fraction(2, 3), Fraction(1, 2), Fraction(3, 8), Fraction(1, 4), Fraction(1, 8)],
 }
 
+# P-25.3.2.3.2: a nine-membered ring has no permitted shape; this distortion keeps vertical edges on both sides of bonds b and f
+_NONAGON_ROW = [Fraction(0), Fraction(7, 8), Fraction(3, 4), Fraction(5, 8), Fraction(1, 2), Fraction(2, 5), Fraction(3, 10), Fraction(1, 5), Fraction(1, 10)]
+
 
 # P-25.3.2.3.1: besides the regular octagon, an octagon drawn on the hexagon grid with flat top and bottom edges
 _WIDE_OCTAGON = [Fraction(0), Fraction(5, 6), Fraction(3, 4), Fraction(2, 3), Fraction(1, 2), Fraction(1, 3), Fraction(1, 4), Fraction(1, 6)]
@@ -34,6 +37,8 @@ _WIDE_OCTAGON = [Fraction(0), Fraction(5, 6), Fraction(3, 4), Fraction(2, 3), Fr
 def _shape_tables(n):
     if n == 8:
         return ([Fraction(-k, 8) % 1 for k in range(8)], _WIDE_OCTAGON)
+    if n == 9:
+        return ([Fraction(-k, 9) % 1 for k in range(9)], _NONAGON_ROW, [(-_NONAGON_ROW[(-k) % 9]) % 1 for k in range(9)])
     if n in _HOUSE:
         up = _HOUSE[n]
         down = [(-up[(-k) % n]) % 1 for k in range(n)]
@@ -217,7 +222,7 @@ def _tree_layouts(system, tree, consistent_only):
     choices = []
     for r in order:
         size = len(rings[r])
-        if size in _HOUSE or size == 8 or (size == 4 and r == root):
+        if size in _HOUSE or size in (8, 9) or (size == 4 and r == root):
             tables = _shape_tables(size)
             choices.append([(t, j) for t in range(len(tables)) for j in range(size)])
         else:
