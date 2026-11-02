@@ -926,6 +926,8 @@ def test_phosphate_beside_an_ester_and_a_junior_group(smiles, expected):
         pytest.param("OP(=O)(O)Oc1ccc(cc1)-c1ccc(OP(=O)(O)O)cc1", "[1,1'-biphenyl]-4,4'-diyl bis(dihydrogen phosphate)", id="ring_assembly"),
         pytest.param("OS(=O)(=O)Oc1ccc(cc1)-c1ccc(OS(=O)(=O)O)cc1", "[1,1'-biphenyl]-4,4'-diyl bis(hydrogen sulfate)", id="assembly_sulfate"),
         pytest.param("OP(=O)(O)Oc1ccc(cc1)-c1ccc(cc1)-c1ccc(OP(=O)(O)O)cc1", "[1¹,2¹:2⁴,3¹-terphenyl]-1⁴,3⁴-diyl bis(dihydrogen phosphate)", id="terphenyl_end_rings"),
+        pytest.param("O=P(O)(O)OCCOCCOP(=O)(O)O", "oxydi(ethane-2,1-diyl) bis(dihydrogen phosphate)", id="ether_linker_phosphate"),
+        pytest.param("OS(=O)(=O)OCCOCCOS(=O)(=O)O", "oxydi(ethane-2,1-diyl) bis(hydrogen sulfate)", id="ether_linker_sulfate"),
     ],
 )
 def test_phosphate_and_sulfate_esters_on_a_ring_or_assembly_are_multiplied(smiles, expected):

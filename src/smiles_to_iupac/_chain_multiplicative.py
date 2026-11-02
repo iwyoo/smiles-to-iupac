@@ -533,7 +533,7 @@ def _ring_nitrogen_ketone_unit(unit, attach):
     return name, "methanone", "", None
 
 
-def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene_unit=None):
+def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene_unit=None, anion=None):
     from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
     count = len(arms)
@@ -699,6 +699,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         elif unit_stereo:
             cited = _cited_unit_stereo(units, unit_kind)
             text, stereo_text = cited if cited is not None else (None, "")
+        elif anion is not None:
+            text = anion[0]
         else:
             text = chain_unit or _unit_name_by_pipeline(units[0][0], unit_kind)
         if text is None:
@@ -713,7 +715,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             linker = _without_enclosing_marks(_linker_text(branches, central, arm_parts))
             from ._diester_anions import multiplied_anion
 
-            return f"{linker} {multiplied_anion(text, not text.isalpha() or not _unsubstituted_anion(units[0][0]), count)}"
+            substituted = anion[1] if anion is not None else not text.isalpha() or not _unsubstituted_anion(units[0][0])
+            return f"{linker} {multiplied_anion(text, substituted, count)}"
         if unit_kind == "polyamine":
             numbered = _polyamine_lead(units[0][0], count)
             if numbered is None:
@@ -999,7 +1002,7 @@ def anion_multiplicative_name(mol, centers):
     return None
 
 
-def ester_multiplicative_name(mol, ester_oxygens):
+def ester_multiplicative_name(mol, ester_oxygens, anion=None):
     """Identical ester groups joined by a linker that contains heteroatoms: 'oxydi(ethane-2,1-diyl) diacetate'
     (P-65.6.3.2.2)."""
     if len(Chem.GetMolFrags(mol)) != 1 or len(ester_oxygens) < 2:
@@ -1018,7 +1021,7 @@ def ester_multiplicative_name(mol, ester_oxygens):
     for arms in _rank_candidates(candidates, None):
         if len(arms) != len(ester_oxygens):
             continue
-        name = _attempt(mol, graph, stereo, arms, "ester")
+        name = _attempt(mol, graph, stereo, arms, "ester", anion=anion)
         if name is not None:
             return name
     return None
