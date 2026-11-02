@@ -1261,9 +1261,12 @@ def _chalcogen_amido(graph, root, others, mol, retained=True):
     if not rest and retained:
         from ._amino_acyl_group import amino_acyl_group
 
-        amino = amino_acyl_group(mol, graph, acyl[0], root)
-        if amino is not None:
-            return amino[0] + "amino", True
+        aminos = [amino_acyl_group(mol, graph, n, root) for n in acyl]
+        if all(found is not None for found in aminos) and len({found[0] for found in aminos}) == 1:
+            text = aminos[0][0]
+            if len(aminos) == 1:
+                return text + "amino", True
+            return ("di" + text if text.isalpha() else f"di({text})") + "amino", True
     keep = {root}.union(*(_side(graph, n, root) for n in acyl))
     if rest:
         keep |= _side(graph, rest[0], root)
