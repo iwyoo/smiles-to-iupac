@@ -1662,6 +1662,16 @@ def test_esters_keep_the_descriptors_of_substituents_in_the_part_they_belong_to(
     [
         pytest.param("COC(=O)c1ccccc1/C=N/O", "methyl 2-[(E)-N-hydroxymethanimidoyl]benzoate", id="imidoyl_on_the_acid_ring"),
         pytest.param("COC(=O)c1ccccc1/C(C)=N/O", "methyl 2-[(1E)-N-hydroxyethanimidoyl]benzoate", id="ethanimidoyl_on_the_acid_ring"),
+        pytest.param(
+            "CC1=[N+]([O-])C(C)(/C(C)=N/O)N(O)C1(C)C",
+            "1-hydroxy-2-[(E)-N-hydroxyethanimidoyl]-2,4,5,5-tetramethyl-2,5-dihydro-1H-imidazole 3-oxide",
+            id="oxime_on_an_n_oxide_ring",
+        ),
+        pytest.param(
+            "CC(=O)N(C([2H])([2H])[2H])c1cccc(C(=O)/C=C/N(C)C)c1",
+            "N-{3-[(2E)-3-(dimethylamino)prop-2-enoyl]phenyl}-N-(2H3)methylacetamide",
+            id="labelled_amide_arm_beside_an_enaminone",
+        ),
         pytest.param("COC(=O)c1ccccc1N/N=C/c1ccccc1", "methyl 2-{[(E)-benzylidene]hydrazinyl}benzoate", id="hydrazone_on_the_acid_ring"),
         pytest.param("COC(=O)c1ccccc1/N=N\\c1ccccc1", "methyl 2-[(Z)-phenyldiazenyl]benzoate", id="diazenyl_on_the_acid_ring"),
         pytest.param("OC(=O)c1ccccc1N/N=C/c1ccccc1", "2-{[(E)-benzylidene]hydrazinyl}benzoic acid", id="hydrazone_on_a_free_acid_ring"),

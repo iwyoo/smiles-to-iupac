@@ -1812,11 +1812,12 @@ def _ylidene_to_heteroatom(a, b, positions, parent=None):
     """A double bond from the chain to a nitrogen or to a carbon group of the substituent itself (not to the parent
     the substituent hangs from, whose own locant cites that bond)."""
     mol = BRANCH_STEREO_MOL.get()
-    if mol is None:
+    bond = None if mol is None else mol.GetBondBetweenAtoms(a, b)
+    if bond is None:
         return False
     outside = mol.GetAtomWithIdx(b if a in positions else a)
     ylidene = outside.GetAtomicNum() == 7 or (outside.GetAtomicNum() == 6 and outside.GetIdx() != parent)
-    return ylidene and not mol.GetBondBetweenAtoms(a, b).IsInRing()
+    return ylidene and not bond.IsInRing()
 
 
 def _branch_stereo_rank(entries):

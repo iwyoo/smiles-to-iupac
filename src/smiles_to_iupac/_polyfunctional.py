@@ -3109,9 +3109,25 @@ def _substituted_azanediyl_linker_name(mol, labels):
             for index in sorted(group, reverse=True):
                 editable.RemoveAtom(index)
             reduced = editable.GetMol()
+            located = STEREO_OF_ISOTOPOLOGUE.get()
+            token = None
+            if located is not None:
+                token = STEREO_OF_ISOTOPOLOGUE.set(
+                    [
+                        (kind, new_index[where] if kind == "atom" else tuple(new_index[w] for w in where), code)
+                        for kind, where, code in located
+                        if all(w in new_index for w in ((where,) if kind == "atom" else where))
+                    ]
+                )
             try:
                 Chem.SanitizeMol(reduced)
                 name = _name_labelled(reduced, {new_index[a]: e for a, e in labels.items()})
+            except (UnsupportedStructure, ValueError, Chem.rdchem.MolSanitizeException):
+                continue
+            finally:
+                if token is not None:
+                    STEREO_OF_ISOTOPOLOGUE.reset(token)
+            try:
                 cited, compound = name_branch(graph, root, n_idx, halogen_substituents(mol), mol=mol)
             except (UnsupportedStructure, ValueError, Chem.rdchem.MolSanitizeException):
                 continue
@@ -3556,13 +3572,25 @@ def _before_suffix(name, text, word, count=1):
     return name[: -len(word)] + text + word
 
 
+def _fits_molecule(mol, elements):
+    """Whether carried stereo elements refer to atoms and bonds that exist in `mol`, so that they are in its numbering."""
+    count = mol.GetNumAtoms()
+    for kind, where, _ in elements:
+        if kind == "atom" and not 0 <= where < count:
+            return False
+        if kind == "bond" and (not all(0 <= w < count for w in where) or mol.GetBondBetweenAtoms(*where) is None):
+            return False
+    return True
+
+
 def _check_scope(mol):
     """The specified stereo elements as ("atom", idx, code) or
     ("bond", (a, b), code); [] when the molecule has none."""
     if mol.GetNumAtoms() > _MAX_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("this molecule is out of scope for the polyfunctional chain engine")
-    if STEREO_OF_ISOTOPOLOGUE.get() is not None:
-        return list(STEREO_OF_ISOTOPOLOGUE.get())
+    carried = STEREO_OF_ISOTOPOLOGUE.get()
+    if carried is not None and _fits_molecule(mol, carried):
+        return list(carried)
     elements = specified_stereo_elements(mol) or []
     located = []
     for kind, idx, code in elements:
