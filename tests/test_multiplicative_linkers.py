@@ -1336,3 +1336,19 @@ def test_geminal_linker_cites_the_descriptor_of_its_double_bond(smiles, expected
 def test_multiplied_ring_cites_the_descriptors_of_its_alkenyl_substituents(smiles, expected):
     # P-93.4.2.1.1, P-15.3.2.1: identical units cite the E/Z of their substituents, unlike units are named substitutively
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "Cc1ccc(/C=C\\c2ccc(/C=C/c3ccc(C)cc3)cc2)cc1",
+            "1-methyl-4-[(E)-2-{4-[(Z)-2-(4-methylphenyl)ethen-1-yl]phenyl}ethen-1-yl]benzene",
+        ),
+        ("Cc1ccc(/C=C\\c2ccc(/C=C\\c3ccc(C)cc3)cc2)cc1", "1,1'-{1,4-phenylenedi[(1Z)-ethene-2,1-diyl]}bis(4-methylbenzene)"),
+        ("Cc1ccc(/C=C/c2ccc(/C=C/c3ccc(C)cc3)cc2)cc1", "1,1'-{1,4-phenylenedi[(1E)-ethene-2,1-diyl]}bis(4-methylbenzene)"),
+    ],
+)
+def test_multiplied_linker_arms_must_agree_in_configuration(smiles, expected):
+    # P-15.3.2.1, P-93.4.2.1.1: a double bond that differs between the arms makes the units unlike, so no multiplication
+    assert smiles_to_iupac(smiles) == expected

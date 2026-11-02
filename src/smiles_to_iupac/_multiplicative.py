@@ -640,6 +640,19 @@ def _attempt_units(mol, groups, selected, tree, core, name_function, merge_assem
                         mol, akind, aatoms, [toward_center, toward_unit], ctx, directed=(toward_unit[0], toward_center[0])
                     )
                 )
+            for other_edge in center_edges[1:]:
+                other_chain = _arm_chain(mol, center, edges, comp_of, other_edge, junction_atoms)
+                if other_chain is None or len(other_chain) != len(arm_chain):
+                    return None
+                other_parts = [
+                    name_component(
+                        mol, components[cid][0], components[cid][1], [toward_center, toward_unit], ctx,
+                        directed=(toward_unit[0], toward_center[0]),
+                    )
+                    for cid, toward_center, toward_unit in other_chain
+                ]
+                if other_parts != arm_parts:
+                    return None
     except DecompositionRejected:
         return None
     except UnsupportedStructure:
