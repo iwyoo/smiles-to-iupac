@@ -96,7 +96,8 @@ def multiplier_word(count, use_bis):
 
 
 def primed_locants(locant, count, step=1):
-    return ",".join(str(locant) + "'" * (i * step) for i in range(count))
+    mark = "′" if "′" in str(locant) else "'"
+    return ",".join(str(locant) + mark * (i * step) for i in range(count))
 
 
 _NUMERIC_STEMS = (

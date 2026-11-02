@@ -27,7 +27,7 @@ from ._multiplicative_ring import (
     spec_of,
     substituted_polycyclic_unit,
 )
-from ._multiplicative_text import PrimedLocant, enclose, join_parts, multiplier_word, primed_locants
+from ._multiplicative_text import enclose, join_parts, multiplier_word, primed_locants
 from ._pin import mark
 
 _MAX_GROUP = 8
@@ -774,13 +774,15 @@ def _assemble(count, unit, central, arm_parts):
 
 
 def _prime_levels(unit):
-    """The copies of a ring-assembly unit are primed one level beyond the highest prime of the unit itself (P-28.2):
-    the second [1,1'-biphenyl] carries 1'' and 1'''."""
-    if not isinstance(unit.junction_locant, PrimedLocant):
-        return 1
-    assembly = re.search(r"\[([^\[\]]+)\]", unit.text)
-    primes = re.findall(r"(?<=\d)('+)", assembly.group(1)) if assembly else []
-    return 1 + max((len(p) for p in primes), default=0)
+    """The copies of a ring-assembly or spiro unit are primed one level beyond the highest prime among the unit's own
+    locants (P-28.2); primes inside parenthesised substituent prefixes do not count."""
+    text = unit.text
+    while True:
+        stripped = re.sub(r"\([^()]*\)", "", text)
+        if stripped == text:
+            break
+        text = stripped
+    return 1 + max((len(run) for run in re.findall(r"(?<=\d)['′]+", text)), default=0)
 
 
 def _is_linear_phane(core):

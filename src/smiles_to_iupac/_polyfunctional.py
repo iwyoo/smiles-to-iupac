@@ -4834,7 +4834,7 @@ def _configuration_senior_system(mol, graph, tied):
     candidates, starts = [candidates[i] for i in keep], [starts[i] for i in keep]
     if len(candidates) == 1:
         return candidates[0]
-    if len({_ALL_DESCRIPTORS.sub("", c[1]) for c in candidates}) > 1 or len({c[0] for c in candidates}) == 1:
+    if len({_ALL_DESCRIPTORS.sub("", c[1]) for c in candidates}) > 1 or len({repr(c[0]) for c in candidates}) == 1:
         return _by_substituents(mol, graph, [t for i, t in enumerate(tied) if i in keep], candidates, starts)
     return min(candidates, key=lambda c: c[0])
 
