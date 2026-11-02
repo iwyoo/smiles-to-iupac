@@ -2581,6 +2581,7 @@ def _name_ring_group_cation(base, centre, kind, original=None):
     """A ring cation together with a cationic suffix: the skeletal centre is cited as 'ium' after the parent hydride and
     takes the lowest locant before the suffix (P-73.5.3.1, P-73.5.3.2); the suffix names the group."""
     from ._diester_ring_diyl import CATION_CENTRES
+    from ._polycation import _CATION_VALENCE
 
     ylium = _ylium_ring_group_cation(original, centre, kind) if original is not None and kind in ("amine", "amidine") else None
     if ylium is not None:
@@ -2595,6 +2596,9 @@ def _name_ring_group_cation(base, centre, kind, original=None):
     atom.SetNumExplicitHs(max(hydrogens - 1, 0))
     if atom.GetIsAromatic():
         atom.SetBoolProp("_ring_cation_centre", True)
+    elif not nitrenium and atom.GetDegree() + hydrogens == _CATION_VALENCE.get(atom.GetAtomicNum()):
+        atom.SetBoolProp("_ring_cation_centre", True)
+        atom.SetBoolProp("_saturated_onium_centre", True)
     ring_base = editable.GetMol()
     ring_base.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(ring_base)
