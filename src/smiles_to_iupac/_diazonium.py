@@ -367,6 +367,8 @@ def _name_phenyl_chain_diazonium(mol, ring_atoms):
 
 
 def name_diazonium(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("a diazonium ion with other components is named as a salt or an adduct, not as the ion alone")
     try:
         return _name_diazonium_skeleton(mol)
     except UnsupportedStructure:
