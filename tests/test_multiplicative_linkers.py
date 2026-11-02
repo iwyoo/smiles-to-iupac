@@ -1282,3 +1282,16 @@ def test_three_identical_units_joined_to_one_ring_through_different_atoms_are_no
 def test_amine_arms_joined_through_a_nitrogen_nitrogen_linker_are_multiplied(smiles, expected):
     # P-68.3.1.2.1, P-68.3.1.3.2.1: an N-N linker is not an amine, so the arms keep their amine suffix
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OCC1CCN(CCCN2CCC(CO)CC2)CC1", "[propane-1,3-diyldi(piperidine-1,4-diyl)]dimethanol"),
+        ("NCC1CCN(CCN2CCC(CN)CC2)CC1", "[ethane-1,2-diyldi(piperidine-1,4-diyl)]dimethanamine"),
+        ("OCCC1CCN(CCN2CCC(CCO)CC2)CC1", "2,2'-[ethane-1,2-diyldi(piperidine-1,4-diyl)]di(ethan-1-ol)"),
+    ],
+)
+def test_functionalised_parents_joined_through_ring_nitrogens_are_multiplied_on_the_suffix_parent(smiles, expected):
+    # P-15.3.1.1 (c), P-15.3.1.2.2.4: a ring with a fixed numbering is cited as its diyl in the multiplicative group
+    assert smiles_to_iupac(smiles) == expected
