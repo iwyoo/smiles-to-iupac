@@ -1131,6 +1131,7 @@ def test_ester_class_names(smiles, expected):
         ("CC(=O)OP(=O)(O)N1CCCCC1", "acetic (piperidin-1-yl)phosphonic monoanhydride"),
         ("CC(=O)O[N+](=O)[O-]", "acetic nitric anhydride"),
         ("O=[N+]([O-])OS(=O)(=O)O", "nitric sulfuric monoanhydride"),
+        ("CC(=O)OC(=O)[C@@H](O)[C@H](O)CO", "acetic (2S,3R)-2,3,4-trihydroxybutanoic anhydride"),
         ("O=[N+]([O-])OP(=O)(O)OCC", "(ethyl dihydrogen phosphate) nitric monoanhydride"),
         ("O=[N+]([O-])OS(=O)(=O)OC", "(methyl hydrogen sulfate) nitric anhydride"),
         ("CC(=O)OP(=O)(OC(C)=O)CP(=O)(OC(C)=O)OC(C)=O", "tetraacetic methylenebis(phosphonic) tetraanhydride"),

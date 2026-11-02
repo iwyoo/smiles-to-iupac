@@ -10,6 +10,7 @@ import re
 
 from rdkit import Chem
 
+from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._carbohydrate import has_open_chain_aldose_shape, name_open_chain_aldose
 from ._common import InternalInvariantError, UnsupportedStructure, adjacency, alphanumerical_name_key
 
@@ -131,6 +132,8 @@ def _resolved(mol):
 
 
 def sugar_alcohol_acid_name(mol):
+    if SYSTEMATIC_ACID_PROBE.get():
+        return None
     resolved = _resolved(mol)
     return resolved[1] if resolved else None
 
