@@ -691,7 +691,8 @@ def test_substituted_amino_acids(smiles, expected):
             "3-[(2-methoxy-2-oxoethyl)amino]propanoic acid",
             id="free_acid_on_the_other_arm_outranks_the_ester_of_the_amino_acid",
         ),
-        pytest.param("OC(=O)C[C@H](N)C(=O)OC", "1-methyl L-aspartate", id="diacid_monoester_locant"),
+        pytest.param("OC(=O)C[C@H](N)C(=O)OC", "1-methyl hydrogen L-aspartate", id="diacid_monoester_locant"),
+        pytest.param("COC(=O)CC[C@H](NC(C)=O)C(=O)O", "5-methyl hydrogen N-acetyl-L-glutamate", id="diacid_monoester_side_chain_keeps_the_free_acid"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OCC", "1-ethyl 4-methyl L-aspartate", id="diacid_mixed_esters"),
         pytest.param("COC(=O)C[C@H](N)C(=O)OC", "dimethyl L-aspartate", id="diacid_identical_esters"),
         pytest.param("CN(C)C(CCC(=O)OCc1ccccc1)C(=O)OCC", "5-benzyl 1-ethyl N,N-dimethylglutamate", id="diacid_esters_alphanumerical_not_locant_order"),
@@ -894,7 +895,7 @@ def test_rings_with_ketones_are_not_cited_as_sugar_groups(smiles, expected):
     [
         pytest.param(
             "OC(=O)CC[C@H](NC(=O)OCc1ccccc1)C(=O)OCc1ccccc1",
-            "1-benzyl N-[(benzyloxy)carbonyl]-L-glutamate",
+            "1-benzyl hydrogen N-[(benzyloxy)carbonyl]-L-glutamate",
             id="carbamate_of_the_amino_group_is_a_substituent_not_an_ester_of_the_acid",
         ),
         pytest.param("CC(C)(C)OC(=O)N[C@@H](C)C(=O)OC", "methyl N-(tert-butoxycarbonyl)-L-alaninate", id="boc_and_methyl_ester"),

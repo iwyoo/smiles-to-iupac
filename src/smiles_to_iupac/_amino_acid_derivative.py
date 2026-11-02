@@ -12,6 +12,7 @@ from ._histidine import has_histidine_shape, name_histidine
 from ._cited_group import cited_group, subtree
 from ._common import HALIDE_WORDS, UnsupportedStructure, adjacency, alpha_sort_key
 from ._multiplicative_text import enclose
+from ._pin import mark
 from ._peptide import acyl_word
 from ._proline import has_proline_shape, name_proline
 
@@ -220,6 +221,11 @@ def _derivative_name(mol):
         locants[carbon] = "1" if alpha in graph[carbon] else _DIACID_SIDE_LOCANT[base]
     if len(groups) > 2 or len(set(locants.values())) != len(groups):
         return None
+    if len(groups) == 1:
+        return mark(
+            _ester_words(groups, locants, f"hydrogen {anion}"),
+            "the preferred name of a partial ester of a polybasic acid cites the free acid and the ester as prefixes (P-65.6.3.3.5)",
+        )
     return _ester_words(groups, locants, anion)
 
 
