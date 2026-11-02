@@ -431,6 +431,20 @@ def _labelled_substituted_amino(name, root, labelled, mol, capacity):
     return name[: -len("amino")] + descriptor(labelled, {root: 1}, True, capacity=capacity) + "amino"
 
 
+def _labelled_anilino_ring(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, capacity):
+    """'(4-2H)anilino': the descriptor of the nuclides on the ring of an anilino prefix stands in front of 'anilino', with
+    the ring locants of the prefix (P-82.2.1, P-82.6)."""
+    from ._anilino import anilino_numbering
+    from ._isotope_labels import descriptor
+
+    if mol is None or not name.endswith("anilino") or mol.GetAtomWithIdx(root).GetAtomicNum() != 7:
+        return None
+    found = anilino_numbering(graph, mol, root, [n for n in graph[root] if n != coming_from], halogens, aromatic_atoms)
+    if found is None or found[0] != name or not set(labelled) <= set(found[1]):
+        return None
+    return name[: -len("anilino")] + descriptor(labelled, found[1], False, capacity=capacity) + "anilino"
+
+
 def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated):
     """`name`, the prefix of an acylamino or acyloxy group, with the descriptor of the nuclides of its acyl group in front,
     cited as for the acyl group itself and in front of the name that group has without nuclides: '(2H3)acetamido',
@@ -502,6 +516,12 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
                 atoms.add(n)
                 stack.append(n)
     labelled = {a: context["labels"][a] for a in atoms if a in context["labels"] and a not in context["consumed"]}
+    if not labelled and mol is not None and result[0].endswith("anilino"):
+        everything = {a: context["labels"][a] for a in atoms if a in context["labels"]}
+        found = _labelled_anilino_ring(result[0], graph, root, coming_from, everything, halogens, mol, aromatic_atoms, _hydrogen_capacity(context, everything)) if everything else None
+        if found is not None and found != result[0]:
+            context["consumed"].update(everything)
+            return found, True
     if not labelled:
         return result
     name, compound = result
@@ -520,6 +540,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if secondary is not None:
         context["consumed"].update(labelled)
         return secondary, True
+    anilino = _labelled_anilino_ring(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, capacity)
+    if anilino is not None:
+        context["consumed"].update(labelled)
+        return anilino, True
     amido = _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated)
     if amido is not None:
         return amido, compound
