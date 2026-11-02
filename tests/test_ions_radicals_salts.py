@@ -1208,6 +1208,8 @@ def test_ionic_centres_in_a_different_parent_than_the_radical(smiles, expected):
         pytest.param("Cc1ccnc[n+]1[O-]", "6-methylpyrimidine 1-oxide", id="oxide_nitrogen_numbered_lowest"),
         pytest.param("[O-][n+]1ccnc2ccccc12", "quinoxaline 1-oxide", id="fused_diazine_n_oxide"),
         pytest.param("Cc1c[n+]([O-])c2ccccc2[n+]1[O-]", "2-methylquinoxaline 1,4-dioxide", id="two_n_oxides_on_a_fused_diazine"),
+        pytest.param("Cc1c(C)[n+](=O)c2ccccc2n1[O-]", "2,3-dimethylquinoxaline 1,4-dioxide", id="resonance_form_of_two_n_oxides"),
+        pytest.param("C1CC12CCc1ncc[n+]([O-])c12", "6,7-dihydrospiro[cyclopenta[b]pyrazine-5,1\u2032-cyclopropane] 4-oxide", id="n_oxide_of_a_diazine_in_a_spiro_union"),
         pytest.param("Nc1n[n+]([O-])c2ccccc2[n+]1[O-]", "3-amino-1,2,4-benzotriazine 1,4-dioxide", id="two_n_oxides_beside_an_unoxidized_nitrogen"),
         pytest.param("Cc1cc[n+]([O-])cc1-c1cccc[n+]1[O-]", "4'-methyl-2,3'-bipyridine 1,1'-dioxide", id="two_n_oxides_in_a_ring_assembly"),
         pytest.param("Cc1cnc[nH+]c1", "5-methylpyrimidin-1-ium", id="protonated_diazine"),
