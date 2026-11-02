@@ -82,7 +82,7 @@ def name_isotope_steroid(mol) -> str:
     if name is not None:
         if set(labels) - context["consumed"]:
             raise UnsupportedStructure("an isotopically modified atom of this steroid is not cited by its name")
-        position_of = context["positions"]
+        position_of = context.get("positions", {})
     else:
         name = plain
         parent = _PARENT.search(name)
