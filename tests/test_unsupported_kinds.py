@@ -95,3 +95,9 @@ def test_pyridine_bridged_tetraaza_macrocycle_lactam_is_refused_not_an_internal_
 def test_identical_carbamate_components_are_refused_not_an_internal_error(smiles):
     with pytest.raises(UnsupportedStructure, match="identical components"):
         name(smiles)
+
+
+@pytest.mark.parametrize("smiles", ["CN=C(N)/N=C(\\N)Nc1ccccc1", "CN/C(N)=N/C(=N)N", "CC/N=C(N)/N=C(\\N)NC"])
+def test_biguanide_stereo_on_the_bridging_nitrogen_is_refused_not_cited_on_a_bond_the_name_lacks(smiles):
+    with pytest.raises(UnsupportedStructure):
+        name(smiles)
