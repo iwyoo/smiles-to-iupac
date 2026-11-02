@@ -3037,3 +3037,16 @@ def test_ring_amine_beside_exocyclic_imino_group_on_a_hydro_ring():
 def test_configuration_of_the_c_n_bond_of_a_carbamimidic_ester(smiles, expected):
     # P-93.4.2.1.1: Z/E of the C=N bond in front of the ester, N' being the imine nitrogen (P-66.1.6.1.2.1)
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CN(c1ccccc1)C(=O)[O-]", "N-methyl-N-phenylcarbamate"),
+        ("CN(CC)C(=O)[O-]", "N-ethyl-N-methylcarbamate"),
+        ("CN(C)C(=O)[O-]", "dimethylcarbamate"),
+    ],
+)
+def test_carbamate_anion_with_two_different_substituents_cites_n_locants(smiles, expected):
+    # P-14.3.4.4, P-65.6.3.2.1: bare prefixes before 'carbamate' would read as the organyl group of an ester
+    assert smiles_to_iupac(smiles) == expected

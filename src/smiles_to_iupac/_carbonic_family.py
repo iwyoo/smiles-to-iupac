@@ -464,7 +464,7 @@ def _name_at(mol, center, cite_nuclides=False):
         name = _anionic(name)
         if hydrogens:
             name = f"{'hydrogen' if hydrogens == 1 else 'dihydrogen'} {name}"
-    count, prefixes = _nitrogen_prefixes(mol, graph, center, amino, imine_n, x)
+    count, prefixes = _nitrogen_prefixes(mol, graph, center, amino, imine_n, x, bool(anions))
     return count, _imine_descriptor(mol, center, amino, imine_n) + prefixes + name
 
 
@@ -477,7 +477,7 @@ def _imine_descriptor(mol, center, amino, imine_n):
     return f"({code})-" if code else ""
 
 
-def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
+def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x, anionic=False):
     halogens = halogen_substituents(mol)
     entries = {}
     roots = [m for root in (amino, imine_n) if root is not None for m in graph[root] if m != center]
@@ -496,6 +496,6 @@ def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
     count = sum(len(entry["locants"]) for entry in entries.values())
     if not entries:
         return count, ""
-    if amino is not None and imine_n is None and x in ("O", "S", "Se", "Te"):
+    if amino is not None and imine_n is None and x in ("O", "S", "Se", "Te") and not (anionic and len(entries) > 1):
         return count, single_site_prefixes(entries)
     return count, format_substituent_prefixes(entries)
