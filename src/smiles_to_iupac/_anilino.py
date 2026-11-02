@@ -34,6 +34,12 @@ def _benzene_ring_of(mol, carbon):
 def anilino_prefix(graph, mol, nitrogen, others, halogens, aromatic_atoms):
     """(name, True) for -N(R)-Ar with Ar a lone benzene ring, else None; the ring with the most substituents is the anilino
     ring (P-45.1) and any other nitrogen substituent is an N-prefix."""
+    found = anilino_numbering(graph, mol, nitrogen, others, halogens, aromatic_atoms)
+    return None if found is None else (found[0], True)
+
+
+def anilino_numbering(graph, mol, nitrogen, others, halogens, aromatic_atoms):
+    """(name, {ring atom: locant}) of the anilino prefix chosen by `anilino_prefix`, else None."""
     best = None
     for carbon in others:
         ring = _benzene_ring_of(mol, carbon)
@@ -48,9 +54,9 @@ def anilino_prefix(graph, mol, nitrogen, others, halogens, aromatic_atoms):
                 substituents = substituents_for_ring(graph, candidate, halogens, {nitrogen}, mol=mol)
                 count = sum(len(v) for v in substituents.values())
                 key = (-count, *_aniline_candidate_key(position_of[carbon], substituents, n_names))
-                if best is None or key < best:
-                    best = key
+                if best is None or key < best[0]:
+                    best = (key, position_of)
     if best is None:
         return None
-    name = best[-1]
-    return name[: -len("aniline")] + "anilino", True
+    name = best[0][-1]
+    return name[: -len("aniline")] + "anilino", best[1]

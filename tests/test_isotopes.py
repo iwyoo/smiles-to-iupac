@@ -1347,3 +1347,16 @@ def test_nuclide_on_a_ring_atom_of_a_fully_saturated_fused_hydride(smiles, expec
 )
 def test_nuclides_on_a_substituent_of_a_steroid_skeleton_are_cited_in_the_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[2H]c1ccc(Nc2ccccc2CC(=O)O)cc1", "{2-[(4-2H)anilino]phenyl}acetic acid"),
+        ("[2H]c1ccc(Nc2ccccc2C(=O)O)cc1", "2-[(4-2H)anilino]benzoic acid"),
+        ("[3H]c1cc(Cl)c(Nc2ccccc2CC(=O)O)c(Cl)c1", "{2-[2,6-dichloro(4-3H)anilino]phenyl}acetic acid"),
+    ],
+)
+def test_nuclide_of_a_labelled_ring_in_an_anilino_prefix_is_cited_before_anilino(smiles, expected):
+    # P-82.2.1, P-82.6: the descriptor stands in front of 'anilino' with the ring locants of the prefix
+    assert smiles_to_iupac(smiles) == expected
