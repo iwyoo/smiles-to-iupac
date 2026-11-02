@@ -1196,7 +1196,7 @@ def name_ester(mol, links):
 
                         multiplicative = ester_multiplicative_name(mol, [l.chain[-1] for l in esters])
                         if multiplicative is not None:
-                            return multiplicative
+                            return _hydrogen_carbonates_cited(mol, esters, multiplicative)
                     if len({_piece_key(mol, frags[i]) for i in acid_pieces}) == 1 and len(
                         {mol.GetAtomWithIdx(l.far).GetAtomicNum() for l in esters}
                     ) == 1:
@@ -1315,6 +1315,27 @@ def _other_inorganic_group_is_prefix(mol, acid_atoms, chosen, acid_name):
         return False
     named = {l.center for l in chosen}
     return sum(_acid_kind_rank(mol, a) == kind and (a in named or bool(_free_groups(mol, a))) for a in acid_atoms) > 1
+
+
+_MULTIPLIED_CARBONATE = re.compile(r"(?:bis|tris|tetrakis)\(carbonate\)$|(?:di|tri|tetra)carbonate$")
+
+
+def _hydrogen_carbonates_cited(mol, esters, name):
+    """P-65.6.2.3.2: a carbonic acid residue that keeps its hydroxy group is cited as 'hydrogen carbonate', also when
+    the residues are multiplied on a diyl group."""
+    centres = [mol.GetAtomWithIdx(l.center) for l in esters]
+    if not all(
+        c.GetAtomicNum() == 6
+        and any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1 for n in c.GetNeighbors())
+        and sum(n.GetAtomicNum() == 8 for n in c.GetNeighbors()) == 3
+        for c in centres
+    ):
+        return name
+    found = _MULTIPLIED_CARBONATE.search(name)
+    if found is None:
+        return name
+    word = {2: "bis", 3: "tris", 4: "tetrakis"}.get(len(esters))
+    return name[: found.start()] + f"{word}(hydrogen carbonate)" if word else name
 
 
 def _ester_locants(mol, acid_atoms, per_link, free_centers):

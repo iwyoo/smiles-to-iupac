@@ -1624,3 +1624,16 @@ def test_halogen_derivatives_of_chalcogen_hydrides(smiles, expected):
 def test_lactone_carbonyl_is_oxo_beside_two_ester_groups_of_one_alcohol_component():
     # P-65.6.3.5.1, P-65.6.3.2.3: the ring carbonyl is a pseudoketone, so both acetates are esters or acyloxy prefixes
     assert smiles_to_iupac("O=C1OC(COC(C)=O)C(OC(C)=O)C1") == "2-[(acetyloxy)methyl]-5-oxooxolan-3-yl acetate"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(O)Oc1cc2ccccc2n1OC(=O)O", "1H-indole-1,2-diyl bis(hydrogen carbonate)"),
+        ("O=C(O)OC1CCCN1OC(=O)O", "pyrrolidine-1,2-diyl bis(hydrogen carbonate)"),
+        ("O=C(O)Oc1ccc(OC(=O)O)cc1", "1,4-phenylene bis(hydrogen carbonate)"),
+    ],
+)
+def test_multiplied_half_esters_of_carbonic_acid_keep_the_hydrogen(smiles, expected):
+    # P-65.6.2.3.2: a carbonic acid residue that keeps its hydroxy group is a hydrogen carbonate
+    assert smiles_to_iupac(smiles) == expected
