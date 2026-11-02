@@ -87,7 +87,7 @@ from ._acid_lexicon import SULFONYL_CENTRES, SULFONYL_GROUP_NAMES, carbo_suffix,
 from ._retained_acids import retained_chain_acid, single_site_prefixes, split_retained_prefix
 from ._hydroperoxide import peroxol_suffix
 from ._locant_omission import has_single_arrangement, omits_all_locants, omits_group_locants
-from ._substituents import BRANCH_STEREO, _branch_stereo_rank, format_substituent_prefixes, name_branch
+from ._substituents import BRANCH_STEREO, _branch_stereo_rank, _locant_sort_key, format_substituent_prefixes, name_branch
 
 _AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
 _CHALCOGEN_AMIDE = {16: "thioamide", 34: "selenoamide", 52: "telluroamide"}
@@ -3697,11 +3697,14 @@ def _suffix_position(carried, position_of, atoms):
 def _stereo_rank(stereo, position_of, ring_parent=False):
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
     marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
+    preferred = ("R", "Z", "r", "seqCis", "M", "m")
     return (
         _isotope_counts(stereo, marked),
         *_isotope_locant_rank(stereo, position_of),
         _substituent_isotope_locants(position_of),
-        tuple(0 if code in ("R", "Z", "r", "seqCis", "M", "m") else 1 for _, code in entries),
+        tuple(0 if code in preferred else 1 for _, code in entries),
+        tuple(sorted(_locant_sort_key(locant) for locant, code in entries if code in preferred and locant != "")),
+        tuple(sorted(_locant_sort_key(locant) for locant, code in entries if code not in preferred and locant != "")),
     )
 
 
