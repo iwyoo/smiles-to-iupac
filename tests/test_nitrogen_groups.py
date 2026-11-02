@@ -3050,3 +3050,16 @@ def test_configuration_of_the_c_n_bond_of_a_carbamimidic_ester(smiles, expected)
 def test_carbamate_anion_with_two_different_substituents_cites_n_locants(smiles, expected):
     # P-14.3.4.4, P-65.6.3.2.1: bare prefixes before 'carbamate' would read as the organyl group of an ester
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("NCC(=O)N(C(=O)CN)c1cccc(OC(C)=O)c1", "3-(diglycylamino)phenyl acetate"),
+        ("NCC(=O)N(C(=O)CN)c1cccc(C(=O)OC)c1", "methyl 3-(diglycylamino)benzoate"),
+        ("CC(=O)N(C(=O)CN)c1cccc(OC(C)=O)c1", "3-(N-glycylacetamido)phenyl acetate"),
+    ],
+)
+def test_two_identical_amino_acyl_groups_on_a_prefix_nitrogen_are_both_cited(smiles, expected):
+    # P-103.2.2.2, P-16.3.1: the second glycyl group is not dropped from the prefix
+    assert smiles_to_iupac(smiles) == expected
