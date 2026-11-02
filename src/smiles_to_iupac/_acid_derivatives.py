@@ -804,6 +804,10 @@ def _cyanic_polyester(mol, esters, acid_pieces):
     tail = _ACETATE_TAIL.search(name)
     if tail is None:
         return None
+    prefix = {8: "cyanato", 16: "thiocyanato", 34: "selenocyanato", 52: "tellurocyanato"}[mol.GetAtomWithIdx(esters[0].chain[0]).GetAtomicNum()]
+    name = re.sub(r"\(acetyloxy\)|acetyloxy", prefix, name)
+    name = re.sub(rf"\[([^\[\]()]*{prefix}[^\[\]()]*)\]", r"(\1)", name)
+    tail = _ACETATE_TAIL.search(name)
     link = esters[0]
     pieces, owner = _fragments(mol, [(link.chain[-1], link.far)])
     acid = _acid_name(mol, pieces[owner[link.center]], [link.chain[-1]])
