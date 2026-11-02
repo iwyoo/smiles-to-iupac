@@ -49,6 +49,9 @@ def _last_forms(base):
 
 
 _C_TERMINAL_AMIDE = Chem.MolFromSmarts("[CX4]-[CX3;!R](=O)-[NX3;!R]")
+_LEADING_LOCANT = re.compile(r"[A-Z]\d*(?:,[A-Z]\d*)*-")
+_ALPHA_N_SEGMENT = re.compile(r"(?P<locants>N(?:,N)*)-(?:di|tri)?(?P<name>[a-z]+)-")
+_ALPHA_N_PREFIX = re.compile(r"^(?P<prefix>(?:N(?:,N)*-(?:di|tri)?[a-z]+-)+)(?=[LD]-|[a-z])")
 
 
 def _amide_residue(piece):
@@ -93,6 +96,13 @@ def _amide_residue(piece):
         return None
     if not residue.endswith("ine") or " " in residue:
         return None
+    alpha = _ALPHA_N_PREFIX.match(residue)
+    if alpha is not None:
+        # P-103.2.1: with the amide nitrogen present, the alpha nitrogen is N2 and the amide nitrogen N1
+        names = [("N1", name) for _, name in names]
+        for found in _ALPHA_N_SEGMENT.finditer(alpha.group("prefix")):
+            names += [("N2", found.group("name"))] * (found.group("locants").count("N"))
+        residue = residue[alpha.end("prefix") :]
     prefix = format_n_prefix(names)
     return (f"{prefix}-" if prefix else "") + residue[:-1] + "amide"
 
@@ -195,7 +205,7 @@ def _name(smiles):
         if word is None:
             return None
         words.append(word)
-    text = words[0] + "".join(("-" if w[1:2] == "-" else "") + w for w in words[1:])
+    text = words[0] + "".join(("-" if _LEADING_LOCANT.match(w) else "") + w for w in words[1:])
     return f"{ester} {text}" if ester else text
 
 
