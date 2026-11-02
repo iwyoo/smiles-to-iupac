@@ -36,6 +36,10 @@ def test_heteroatom_and_concatenated_linkers_between_chain_parents(smiles, expec
             "O=Cc1ccc(-c2ccc(Oc3ccc(-c4ccc(C=O)cc4)cc3)cc2)cc1",
             "4',4'''-oxybis([1,1'-biphenyl]-4-carbaldehyde)",
         ),
+        (
+            "C(CN1CCC2(CC1)OCc1ccccc12)N1CCC2(CC1)OCc1ccccc12",
+            "1′,1′′′-(ethane-1,2-diyl)bis[3H-spiro[[2]benzofuran-1,4′-piperidine]]",
+        ),
     ],
 )
 def test_ring_and_assembly_components_inside_a_linker(smiles, expected):

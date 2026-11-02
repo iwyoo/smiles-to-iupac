@@ -580,7 +580,7 @@ def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=
     Chem.RemoveStereochemistry(probe)
     name = probe_name(Chem.MolToSmiles(probe), name_function)
     consume_labels(atoms)
-    matches = list(re.finditer(r"(?<![\w,])(\d+[a-z]?)-iodo(-?)", name))
+    matches = list(re.finditer(r"(?<![\w,])(\d+[a-z]?['′]*)-iodo(-?)", name))
     if len(matches) != 1:
         raise UnsupportedStructure(f"could not read the junction locant from {name!r}")
     match = matches[0]
@@ -619,7 +619,7 @@ def bare_polycyclic_unit(mol, atoms, junction, name_function=None):
     Chem.RemoveStereochemistry(probe)
     name = probe_name(Chem.MolToSmiles(probe), name_function)
     consume_labels(atoms)
-    match = re.fullmatch(r"(\d+[a-z]?)-iodo-?(.+)", name)
+    match = re.fullmatch(r"(\d+[a-z]?['′]*)-iodo-?(.+)", name)
     if match is None:
         raise UnsupportedStructure(f"could not read the junction locant from {name!r}")
     locant, parent = match.groups()
