@@ -27,7 +27,7 @@ from ._multiplicative_ring import (
     spec_of,
     substituted_polycyclic_unit,
 )
-from ._multiplicative_text import enclose, join_parts, multiplier_word, primed_locants
+from ._multiplicative_text import PrimedLocant, enclose, join_parts, multiplier_word, primed_locants
 from ._pin import mark
 
 _MAX_GROUP = 8
@@ -401,7 +401,7 @@ def _substitutive_ring_unit(mol, unit, groups):
         return None
     text = re.sub(r"(benzene|cyclo[a-z]+ane)(?=carb|sulf|selen|tellur)", r"\1-1-", name)
     size = len(unit.ring_atoms)
-    locant = min(locant, size + 2 - locant) if locant > 1 else locant
+    locant = min(locant, size + 2 - locant) if isinstance(locant, int) and locant > 1 else locant
     return UnitText(text, locant, bool(unit.atoms - unit.ring_atoms - group_atoms), any(ch.isdigit() for ch in text))
 
 
@@ -770,7 +770,17 @@ def _assemble(count, unit, central, arm_parts):
         unit_text = multiplier_word(count, False) + enclose(unit.text)
     else:
         unit_text = multiplier_word(count, False) + unit.text
-    return f"{primed_locants(unit.junction_locant, count)}-{linker}{unit_text}"
+    return f"{primed_locants(unit.junction_locant, count, _prime_levels(unit))}-{linker}{unit_text}"
+
+
+def _prime_levels(unit):
+    """The copies of a ring-assembly unit are primed one level beyond the highest prime of the unit itself (P-28.2):
+    the second [1,1'-biphenyl] carries 1'' and 1'''."""
+    if not isinstance(unit.junction_locant, PrimedLocant):
+        return 1
+    assembly = re.search(r"\[([^\[\]]+)\]", unit.text)
+    primes = re.findall(r"(?<=\d)('+)", assembly.group(1)) if assembly else []
+    return 1 + max((len(p) for p in primes), default=0)
 
 
 def _is_linear_phane(core):
