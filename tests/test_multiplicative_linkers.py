@@ -1307,3 +1307,16 @@ def test_functionalised_parents_joined_through_ring_nitrogens_are_multiplied_on_
 def test_ring_diyl_dinitrilo_tetraacetic_acids_are_multiplied(smiles, expected):
     # P-15.3.2.1, P-15.3.4.1.1: the junction kinds of the identical acetic acid units compare ring and element neighbours
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OCCOC(/C=C/C)OCCO", "2,2'-[(2E)-but-2-ene-1,1-diylbis(oxy)]di(ethan-1-ol)"),
+        ("OCCOC(/C=C\\C)OCCO", "2,2'-[(2Z)-but-2-ene-1,1-diylbis(oxy)]di(ethan-1-ol)"),
+        ("OCCNC(/C=C/C)NCCO", "2,2'-[(2E)-but-2-ene-1,1-diylbis(azanediyl)]di(ethan-1-ol)"),
+    ],
+)
+def test_geminal_linker_cites_the_descriptor_of_its_double_bond(smiles, expected):
+    # P-93.4.2.1.1, P-93.4.2.1.2: the E/Z descriptor stays in front of the central unit when both arms sit on one atom
+    assert smiles_to_iupac(smiles) == expected

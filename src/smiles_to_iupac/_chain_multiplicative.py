@@ -599,6 +599,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             chain_stereo.append(element)
             continue
         if touched <= centre_side:
+            if kind == "carbon" and element[0] == "bond":
+                chain_stereo.append(element)
             continue
         holders = [i for i, atoms_ in enumerate(branch_atoms) if touched <= atoms_]
         if len(holders) != 1:
