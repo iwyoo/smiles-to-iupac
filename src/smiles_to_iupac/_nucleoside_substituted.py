@@ -1700,7 +1700,9 @@ def _best_found(mol):
     if key not in _CACHE:
         _CACHE[key] = (
             _compute(mol)
-            if len(Chem.GetMolFrags(mol)) == 1 and mol.HasSubstructMatch(_SCAFFOLD)
+            if len(Chem.GetMolFrags(mol)) == 1
+            and mol.HasSubstructMatch(_SCAFFOLD)
+            and not any(a.GetIsotope() for a in mol.GetAtoms())
             else None
         )
     return _CACHE[key]

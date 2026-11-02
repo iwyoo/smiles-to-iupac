@@ -476,3 +476,20 @@ def test_nucleoside_base_acyl_group_on_an_amino_acid():
 )
 def test_bridge_between_base_and_sugar_is_not_a_retained_nucleoside(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "O=c1[nH]c(=O)n([C@H]2C[C@H](O)[C@@H](CO)O2)cc1[123I]",
+            "1-[(2R,4S,5R)-4-hydroxy-5-(hydroxymethyl)oxolan-2-yl]-5-(123I)iodopyrimidine-2,4(1H,3H)-dione",
+        ),
+        (
+            "Nc1ncnc2c1ncn2[C@H]1C[C@H](O)[C@@H](CO[11CH3])O1",
+            "(2R,3S,5R)-5-(6-amino-9H-purin-9-yl)-2-[(11C)methoxymethyl]oxolan-3-ol",
+        ),
+    ],
+)
+def test_labelled_nucleoside_is_named_systematically_with_its_nuclides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
