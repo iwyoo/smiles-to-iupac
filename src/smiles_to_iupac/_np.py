@@ -334,6 +334,8 @@ def _name_once(mol, limit=MAX_MODIFICATIONS):
                 continue
             if len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) > 1 and not configured:
                 continue
+            if _ene_only_configuration(cand, view):
+                continue
             if not configured and any(op[0] == "des" for op in cand.skel.ops):
                 continue
             if _branch_homo_outside_ring(cand, view):
@@ -355,6 +357,15 @@ def _name_once(mol, limit=MAX_MODIFICATIONS):
         if best is None and view.outranked:
             break
     return best
+
+
+def _ene_only_configuration(cand, view):
+    """P-101.2.0, P-101.2.1.3: the geometry of a double bond alone does not make a neolignane stereoparent of a structure
+    that needs several skeletal operations; a structure without a stereocentre in the skeleton is named systematically."""
+    if not cand.parent.name.endswith("neolignane") or len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) < 2:
+        return False
+    mapped = set(cand.mapping.values())
+    return not any(view.mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in mapped)
 
 
 def _mirror(mol):

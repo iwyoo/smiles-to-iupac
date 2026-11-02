@@ -277,3 +277,16 @@ def test_ordinary_ring_system_with_an_aromatic_ring_is_not_a_seco_or_bridged_nat
 def test_small_ring_system_is_not_a_des_seco_or_nor_natural_product(smiles, expected):
     # P-101.2.0, P-101.3.0: a skeleton left with fewer atoms than any such parent keeps is named by the systematic rules
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C=Cc1ccc(/C=C\\c2ccc3ccccc3c2)cc1", "2-[(Z)-2-(4-ethenylphenyl)ethen-1-yl]naphthalene"),
+        ("C=Cc1ccc(/C=C/c2ccc3[nH]c4ccccc4c3c2)cc1", "3-[(E)-2-(4-ethenylphenyl)ethen-1-yl]-9H-carbazole"),
+        ("C=Cc1ccc(/C=C\\c2ccc3sc4ccccc4c3c2)cc1", "2-[(Z)-2-(4-ethenylphenyl)ethen-1-yl]dibenzo[b,d]thiophene"),
+    ],
+)
+def test_double_bond_geometry_alone_does_not_make_a_neolignane_of_a_styryl_arene(smiles, expected):
+    # P-101.2.0, P-101.2.1.3: no stereocentre in the skeleton, so the systematic name applies
+    assert smiles_to_iupac(smiles) == expected
