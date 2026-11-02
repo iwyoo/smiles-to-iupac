@@ -977,3 +977,25 @@ def test_ester_of_the_acyl_chain_on_nitrogen_is_not_counted_with_the_amino_acid_
 def test_amide_terminated_residue_with_a_substituted_alpha_nitrogen_cites_n1_and_n2(smiles, expected):
     # P-103.2.1: the alpha nitrogen is N2 and the amide nitrogen N1 once both are present
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "C[NH+]1CCC(NC(=O)[C@H](C)NC(=O)Nc2ccc(C)cc2)C1",
+            "1-methyl-3-{N-[(4-methylphenyl)carbamoyl]-L-alanylamino}pyrrolidin-1-ium",
+        ),
+        (
+            "C[NH+]1CCC(NC(=O)[C@H](C)NC(=O)OCc2ccc(C)cc2)C1",
+            "1-methyl-3-(N-{[(4-methylphenyl)methoxy]carbonyl}-L-alanylamino)pyrrolidin-1-ium",
+        ),
+        (
+            "C[NH+]1CCC(NC(=O)[C@H](C)NC(=O)Nc2ccc(C)cc2)CC1",
+            "1-methyl-4-{N-[(4-methylphenyl)carbamoyl]-L-alanylamino}piperidin-1-ium",
+        ),
+    ],
+)
+def test_aryl_of_a_residue_acyl_group_on_a_ring_cation_keeps_its_own_locants(smiles, expected):
+    # P-29.2: the substituent ring is numbered from its own free valence, not from the parent's cation centre
+    assert smiles_to_iupac(smiles) == expected

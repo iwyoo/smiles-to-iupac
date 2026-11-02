@@ -760,6 +760,15 @@ def _assembly_group(mol, graph, root, parent, atoms):
     return assembly_substituent(mol, graph, root, parent, halogen_substituents(mol), aromatic)
 
 
+def _uncharged_skeleton(mol, graph, rings, atoms, root, parent, suffix):
+    # The parent's cation centre is an atom index of another structure; here it would mislabel a ring atom.
+    token = CATION_CENTRES.set(())
+    try:
+        return evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    finally:
+        CATION_CENTRES.reset(token)
+
+
 def ring_substituent_name(mol, graph, root, parent):
     """(name, is_compound) of the ring system entered at `root` from `parent`, as a substituent prefix."""
     from ._glycosyl import glycosyl_branch
@@ -783,7 +792,7 @@ def ring_substituent_name(mol, graph, root, parent):
     own = context.setdefault("own_ylidene", set()) if context else set()
     if context:
         context["used"] -= {key for key in own if isinstance(key[1], tuple) and set(key[1]) & atoms}
-    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    found = _uncharged_skeleton(mol, graph, rings, atoms, root, parent, suffix)
     if found is None:
         raise UnsupportedStructure("this ring substituent has no supported name yet")
     if context:
@@ -801,7 +810,7 @@ def ring_substituent_numbering(mol, graph, root, parent):
     suffix = suffix_of(mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble())
     if suffix is None or any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
         return None
-    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    found = _uncharged_skeleton(mol, graph, rings, atoms, root, parent, suffix)
     if found is None:
         return None
     lead = re.match(r"\([^()]*\)-", found[1]) if found[3] else None
