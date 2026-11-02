@@ -1958,3 +1958,16 @@ def test_no_conjunctive_name_where_p_15_6_2_excludes_it(smiles):
 def test_single_specified_centre_of_a_symmetric_parent_takes_the_lowest_locant(smiles, expected):
     # P-31.1.4.3.4: the lowest locant goes to the only stereodescriptor, whatever the order of the input atoms
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[Si@@](C(=O)O)(CC)c1ccccc1", "(R)-ethyl(methyl)(phenyl)silanecarboxylic acid"),
+        ("CCCC[Ge@@](C(=O)O)(c1ccccc1)C(C)(C)C", "(S)-butyl(tert-butyl)(phenyl)germanecarboxylic acid"),
+        ("CCCC[Si@@](C(=O)OCC)(c1ccccc1)C(C)(C)C", "ethyl (S)-butyl(tert-butyl)(phenyl)silanecarboxylate"),
+    ],
+)
+def test_stereogenic_hydride_atom_with_a_carboxylic_acid_suffix_takes_the_descriptor_of_the_whole_structure(smiles, expected):
+    # P-92.1.2: the carbon of the suffix group ranks as a ligand of the stereogenic atom
+    assert smiles_to_iupac(smiles) == expected
