@@ -16,7 +16,10 @@ from ._substituents import format_substituent_prefixes, name_branch
 
 
 def _order(locant):
-    return float(locant[1]), locant[0]
+    from ._spiro_union import SpiroLocant
+
+    position = locant[1]
+    return float(position) + (locant[0] * 0.01 if isinstance(position, SpiroLocant) else 0), locant[0]
 
 
 class _FusedAssemblyLocant(PrimedLocant):
@@ -24,13 +27,49 @@ class _FusedAssemblyLocant(PrimedLocant):
         return _primed(self.number, self.primes)
 
 
+_PRIME_MARKS = {1: "′", 2: "″", 3: "‴"}
+
+
 def _primed(position, primes):
-    """P-16.9.4: primes follow the number, not the letter of a fusion locant (4'a, 3'a)."""
-    return re.sub(r"^(\d+)", lambda m: m.group(1) + chr(39) * primes, str(position))
+    """P-16.9.4: primes follow the number, not the letter of a fusion locant (4'a, 3'a); the primes of a spiro unit's
+    own locant add to those of the assembly (6′ of the second unit is 6‴)."""
+    from ._spiro_union import SpiroLocant
+
+    match = re.match(r"(\d+)(′*)", str(position))
+    if match is None:
+        return str(position)
+    total = len(match.group(2)) + primes
+    spiro = bool(match.group(2)) or isinstance(position, SpiroLocant)
+    marks = _PRIME_MARKS.get(total, "′" * total) if spiro else chr(39) * total
+    return match.group(1) + marks + str(position)[match.end():]
+
+
+def _prime_weight(text):
+    return text.count(chr(39)) + text.count("′") + 2 * text.count("″") + 3 * text.count("‴")
+
+
+def _own_primes(numbering):
+    from ._spiro_union import SpiroLocant
+
+    return max((p.key[1] for p in numbering.position_of.values() if isinstance(p, SpiroLocant)), default=0)
 
 
 def _cite(locant):
     return _primed(locant[1], locant[0])
+
+
+def _spiro_only(rings):
+    """Two or more rings that meet only at spiro atoms (P-24.1): spiro[4.4]nonane, 1-oxaspiro[4.4]non-3-ene."""
+    return len(rings) >= 2 and all(len(set(a) & set(b)) <= 1 for i, a in enumerate(rings) for b in rings[i + 1 :])
+
+
+def _admissible(rings, numberings):
+    """P-24.2.2, P-31.1.4.2.4: the spiro atoms and heteroatoms of a spiro unit take their lowest locants before the
+    junction does."""
+    if not _spiro_only(rings) or len(numberings) < 2:
+        return numberings
+    lowest = min(n.pre_key for n in numberings)
+    return [n for n in numberings if n.pre_key == lowest]
 
 
 def _hetero_mancude_ring(mol, atoms):
@@ -267,7 +306,8 @@ def system_assembly(
         any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms)
         or is_hydro_fusion_system(mol, atoms)
         or _hetero_mancude_ring(mol, atoms)
-        for _, atoms in systems
+        or _spiro_only(rings)
+        for rings, atoms in systems
     ):
         return None
     from ._polyfunctional import _require_mancude_system
@@ -281,7 +321,9 @@ def system_assembly(
     links = LINK_ATOMS.set(frozenset(join))
     try:
         numbered = [
-            _monocycle_numberings(mol, graph, atoms) if len(rings) == 1 else system_numberings(mol, graph, rings, atoms)
+            _monocycle_numberings(mol, graph, atoms)
+            if len(rings) == 1
+            else _admissible(rings, system_numberings(mol, graph, rings, atoms))
             for rings, atoms in systems
         ]
     finally:
@@ -323,12 +365,13 @@ def system_assembly(
                     )
                 if stem_first is None or stem_first != stem_second:
                     continue
+                mark = 1 + _own_primes(first)
                 locants = {a: (0, p) for a, p in first.position_of.items()}
-                locants.update({a: (1, p) for a, p in second.position_of.items()})
+                locants.update({a: (mark, p) for a, p in second.position_of.items()})
                 if any(a not in locants for a in marked + [r for r, _, _ in entries] + list(join)):
                     continue
                 ih, added = [], {}
-                for n, numbering, extra in ((0, first, added_first), (1, second, added_second)):
+                for n, numbering, extra in ((0, first, added_first), (mark, second, added_second)):
                     found = (
                         _ylidene_hydrogens(mol, numbering, next(a for a in join if a in numbering.position_of), suffix_atoms)
                         if monocycles and ylidene
@@ -340,14 +383,14 @@ def system_assembly(
                     added.update({(n, p): (n, q) for p, q in found[1].items()})
                 ih.sort(key=_order)
                 suffix_added = sorted(
-                    ((n, p) for n, numbering in ((0, first), (1, second)) if carries_suffix(numbering) for p in numbering.added_positions),
+                    ((n, p) for n, numbering in ((0, first), (mark, second)) if carries_suffix(numbering) for p in numbering.added_positions),
                     key=_order,
                 )
                 members = (atoms_a, atoms_b)
                 junction = (locants[join[0 if join[0] in members[unprimed] else 1]][1], locants[join[1 if join[0] in members[unprimed] else 0]][1])
                 ih_key = tuple(_order(x) for x in ih)
                 marked_key = tuple(sorted(_order(locants[a]) for a in marked))
-                hydro_key = tuple(sorted(_order(loc) for loc in [(0, p) for p in hydro_first] + [(1, p) for p in hydro_second]))
+                hydro_key = tuple(sorted(_order(loc) for loc in [(0, p) for p in hydro_first] + [(mark, p) for p in hydro_second]))
                 key = (
                     junction,
                     (marked_key, ih_key) if frees and free_ylidene else (ih_key, marked_key),
@@ -361,16 +404,16 @@ def system_assembly(
                 if best is None or key < best[0]:
                     best = (
                         key, locants, stem_first, ih, unprimed, (hydro_first, hydro_second), _fully_hydro(first) and _fully_hydro(second), added,
-                        suffix_added,
+                        suffix_added, mark,
                     )
     if best is None:
         raise UnsupportedStructure("this ring assembly of fused systems needs hydro or added hydrogen, not supported yet")
-    _, locants, stem, ih, unprimed, hydro, fully_hydro, added, suffix_added = best
+    _, locants, stem, ih, unprimed, hydro, fully_hydro, added, suffix_added, mark = best
     grouped = {}
     for r, name, compound in entries:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(_cite(locants[r]))
     for info in grouped.values():
-        info["locants"].sort(key=lambda text: (int(re.match(r"\d+", text).group()), text.count(chr(39))))
+        info["locants"].sort(key=lambda text: (int(re.match(r"\d+", text).group()), _prime_weight(text)))
     if n_names:
         from ._polyfunctional import assembly_n_names
 
@@ -379,14 +422,14 @@ def system_assembly(
     ih_text = (",".join(f"{_primed(p, n)}H" for n, p in ih) + "-") if ih else ""
     hydro_prefix = ""
     if any(hydro):
-        cited = sorted([(0, p) for p in hydro[0]] + [(1, p) for p in hydro[1]], key=_order)
+        cited = sorted([(0, p) for p in hydro[0]] + [(mark, p) for p in hydro[1]], key=_order)
         hydro_word = multiplied_word(len(cited), "hydro")
         hydro_text = hydro_word if fully_hydro else f"{','.join(_primed(p, n) for n, p in cited)}-{hydro_word}"
         ih_text = hydro_text + "-" + ih_text
         hydro_prefix = hydro_text + "-"
     unprimed_join = join[0] if join[0] in (atoms_a, atoms_b)[unprimed] else join[1]
     primed_join = join[1] if unprimed_join == join[0] else join[0]
-    spots = f"{locants[unprimed_join][1]},{_primed(locants[primed_join][1], 1)}"
+    spots = f"{_cite(locants[unprimed_join])},{_cite(locants[primed_join])}"
     def base(elide):
         text = stem[:-1] if (elide or ylidene) and not KEEP_ASSEMBLY_ENDING.get() and stem.endswith("e") else stem
         if ylidene:

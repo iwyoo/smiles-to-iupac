@@ -63,6 +63,10 @@ class SpiroLocant:
     def __hash__(self):
         return hash(self.key)
 
+    def __float__(self):
+        number, primes, letters, tail = self.key
+        return number + primes * 0.01 + (ord(letters[0]) - 96 if letters else 0) * 0.0001 + tail * 1e-6
+
     def __str__(self):
         return self.text
 
