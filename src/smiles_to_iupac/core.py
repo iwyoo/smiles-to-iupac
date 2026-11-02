@@ -531,10 +531,58 @@ def _has_free_anion(mol) -> bool:
     )
 
 
+def _n_oxide_charge_separated(smiles: str) -> str:
+    """P-62.5, P-74.2.1.2: the drawing `[n+](=O)` of one aromatic N-oxide beside `n[O-]` of another is a resonance form of the
+    charge-separated `[n+][O-]` pair; the shared electrons are moved so that every oxide is written the same way."""
+    if "[n+]" not in smiles or "=O" not in smiles:
+        return smiles
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return smiles
+    donors = [
+        a
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 7
+        and a.GetIsAromatic()
+        and a.GetFormalCharge() == 1
+        and any(
+            b.GetBondTypeAsDouble() == 2.0
+            and b.GetOtherAtom(a).GetAtomicNum() == 8
+            and b.GetOtherAtom(a).GetDegree() == 1
+            and not b.GetOtherAtom(a).GetFormalCharge()
+            for b in a.GetBonds()
+        )
+    ]
+    acceptors = [
+        a
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 7
+        and a.GetIsAromatic()
+        and not a.GetFormalCharge()
+        and any(n.GetAtomicNum() == 8 and n.GetFormalCharge() == -1 and n.GetDegree() == 1 for n in a.GetNeighbors())
+    ]
+    if not donors or len(donors) != len(acceptors):
+        return smiles
+    editable = Chem.RWMol(mol)
+    for donor, acceptor in zip(donors, acceptors):
+        for bond in donor.GetBonds():
+            oxygen = bond.GetOtherAtom(donor)
+            if bond.GetBondTypeAsDouble() == 2.0 and oxygen.GetAtomicNum() == 8:
+                editable.GetBondWithIdx(bond.GetIdx()).SetBondType(Chem.BondType.SINGLE)
+                editable.GetAtomWithIdx(oxygen.GetIdx()).SetFormalCharge(-1)
+        editable.GetAtomWithIdx(acceptor.GetIdx()).SetFormalCharge(1)
+    try:
+        converted = editable.GetMol()
+        Chem.SanitizeMol(converted)
+    except Exception:
+        return smiles
+    return Chem.MolToSmiles(converted)
+
+
 def smiles_to_iupac(smiles: str) -> str:
     if isinstance(smiles, str) and not _NAMING.get():
         with rdBase.BlockLogs():
-            smiles = spec_chirality_as_parsed(smiles)
+            smiles = spec_chirality_as_parsed(_n_oxide_charge_separated(smiles))
     return smiles_to_iupac_as_parsed(smiles)
 
 

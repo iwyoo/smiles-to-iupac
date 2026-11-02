@@ -153,12 +153,21 @@ def _bracket_locants(name):
     return f"[{match.group(1)}]{match.group(2)}" if match else name
 
 
+def kekulized(mol):
+    """A Kekule copy of `mol`; a ring centre whose charge was moved onto its cation word is charged again for the copy."""
+    kekule = Chem.Mol(mol)
+    for atom in kekule.GetAtoms():
+        if atom.HasProp("_ring_cation_centre") and not atom.GetFormalCharge():
+            atom.SetFormalCharge(1)
+    Chem.Kekulize(kekule, clearAromaticFlags=True)
+    return kekule
+
+
 def _multiple_bonds(mol, sub, atoms):
     """(atom, atom, order) of the double and triple bonds of the skeleton `sub`, read from the Kekule structure of `mol`."""
     kekule = mol
     if any(b.GetIsAromatic() for b in mol.GetBonds()):
-        kekule = Chem.Mol(mol)
-        Chem.Kekulize(kekule, clearAromaticFlags=True)
+        kekule = kekulized(mol)
     return [
         (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order)
         for bond in sub.GetBonds()
@@ -368,8 +377,7 @@ def _capable(mol, comp, spiro_atoms, nonstandard=None):
 
 
 def _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds):
-    kekule = Chem.Mol(mol)
-    Chem.Kekulize(kekule, clearAromaticFlags=True)
+    kekule = kekulized(mol)
     doubled = set()
     for bond in kekule.GetBonds():
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()

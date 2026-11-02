@@ -20,6 +20,7 @@ from ._numerals import alkane_name, multiplying_prefix, numerical_term
 from ._pin import mark
 from ._polyspiro import _arc_choice_options, _build_sequence, _chain_direction_candidates
 from ._spiro_union import (
+    kekulized,
     _GROUP_13,
     _HALOGENS,
     SpiroLocant,
@@ -781,9 +782,7 @@ def _compose(ctx, mol, sol, indicated, hydro, prefixes, ending):
 
 
 def _kekule(mol):
-    kekule = Chem.Mol(mol)
-    Chem.Kekulize(kekule, clearAromaticFlags=True)
-    return kekule
+    return kekulized(mol)
 
 
 def _dehydro_locants(ctx, locant_of):
@@ -961,8 +960,7 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
     mol = _without_aromaticity_outside(mol, atoms)
     ctx = _analyse(mol, atoms)
     _mark_ambiguous(ctx, "")
-    kekule = Chem.Mol(mol)
-    Chem.Kekulize(kekule, clearAromaticFlags=True)
+    kekule = kekulized(mol)
     doubled = set()
     for bond in kekule.GetBonds():
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
