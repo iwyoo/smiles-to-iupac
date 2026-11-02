@@ -1945,3 +1945,16 @@ def test_conjunctive_names(smiles, expected):
 )
 def test_no_conjunctive_name_where_p_15_6_2_excludes_it(smiles):
     assert [a for a in smiles_to_alternative_names(smiles) if a.kind == "conjunctive"] == []
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(O)C1CCC[C@H]1C(=O)O", "(1R)-cyclopentane-1,2-dicarboxylic acid"),
+        ("OC(=O)[C@H]1CCCC1C(=O)O", "(1S)-cyclopentane-1,2-dicarboxylic acid"),
+        ("COC(=O)C1CCC[C@H]1C(=O)OC(C)(C)C", "1-tert-butyl 2-methyl (1R)-cyclopentane-1,2-dicarboxylate"),
+    ],
+)
+def test_single_specified_centre_of_a_symmetric_parent_takes_the_lowest_locant(smiles, expected):
+    # P-31.1.4.3.4: the lowest locant goes to the only stereodescriptor, whatever the order of the input atoms
+    assert smiles_to_iupac(smiles) == expected
