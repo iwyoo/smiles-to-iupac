@@ -466,6 +466,11 @@ def _labelled_acylamino_prefix(name, graph, root, coming_from, labelled, halogen
         return amido[0][:cut] + descriptor_text + amido[0][cut:]
     base = amido[0] if amido is not None and amido[0].startswith(bare[:-2]) else name
     if base != bare + "amino" and not (base.endswith("amido") and base.startswith(bare[:-2])):
+        if name.endswith(")amino") and name.count(bare) == 1:
+            if f"({bare})" in name:
+                return name.replace(f"({bare})", f"[{acyl_name}]")
+            if name.startswith(bare):
+                return acyl_name + name[len(bare):]
         return None
     if base == "carbamoylamino":
         return f"[{descriptor_text}{bare}]amino"
