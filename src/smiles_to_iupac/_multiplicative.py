@@ -405,6 +405,45 @@ def _substitutive_ring_unit(mol, unit, groups):
     return UnitText(text, locant, bool(unit.atoms - unit.ring_atoms - group_atoms), any(ch.isdigit() for ch in text))
 
 
+def _stereo_citing_unit_text(mol, selected, groups, name_function):
+    """The unit text of identical units whose substituents cite their own stereo descriptors (P-93.4.2.1.1); None when a
+    stereo element is left uncited or the units differ in configuration, so that a substitutive name is required."""
+    from ._common import assign_cip_labels
+    from ._substituents import BRANCH_STEREO
+
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    found = []
+    for u in selected:
+        inside = set(u.atoms) - set(u.ring_atoms) - {u.linker_atom}
+        context = {
+            "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")},
+            "bonds": {
+                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+                for b in probe.GetBonds()
+                if b.GetBeginAtomIdx() in inside and b.GetEndAtomIdx() in inside and b.HasProp("_CIPCode")
+            },
+            "used": set(),
+        }
+        token = BRANCH_STEREO.set(context) if context["atoms"] or context["bonds"] else None
+        try:
+            text = _unit_text(mol, u, groups, name_function)
+        finally:
+            if token is not None:
+                BRANCH_STEREO.reset(token)
+        if text is None:
+            return None
+        if token is not None and (
+            any(("atom", a) not in context["used"] for a in context["atoms"])
+            or any(("bond", b) not in context["used"] for b in context["bonds"])
+        ):
+            return None
+        found.append(text)
+    if any(text != found[0] for text in found[1:]):
+        return None
+    return found[0]
+
+
 def _unit_text(mol, unit, groups, name_function):
     ring_count = sum(1 for ring in mol.GetRingInfo().AtomRings() if set(ring) <= unit.ring_atoms)
     oxygens = ring_pseudoketone_oxygens(mol, unit.ring_atoms)
@@ -553,7 +592,7 @@ def _attempt_units(mol, groups, selected, tree, core, name_function, merge_assem
     )
     stereo = ctx.stereo
 
-    unit = _unit_text(mol, selected[0], groups, name_function)
+    unit = _stereo_citing_unit_text(mol, selected, groups, name_function)
     if unit is None:
         return None
 

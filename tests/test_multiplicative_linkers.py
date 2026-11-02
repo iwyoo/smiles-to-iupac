@@ -1320,3 +1320,19 @@ def test_ring_diyl_dinitrilo_tetraacetic_acids_are_multiplied(smiles, expected):
 def test_geminal_linker_cites_the_descriptor_of_its_double_bond(smiles, expected):
     # P-93.4.2.1.1, P-93.4.2.1.2: the E/Z descriptor stays in front of the central unit when both arms sit on one atom
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C/C=C/c1ccc(/C=C/c2ccc(/C=C/C)cc2)cc1", "1,1'-[(1E)-ethene-1,2-diyl]bis{4-[(1E)-prop-1-en-1-yl]benzene}"),
+        ("C/C=C\\c1ccc(/C=C/c2ccc(/C=C\\C)cc2)cc1", "1,1'-[(1E)-ethene-1,2-diyl]bis{4-[(1Z)-prop-1-en-1-yl]benzene}"),
+        (
+            "C/C=C/c1ccc(/C=C/c2ccc(/C=C\\C)cc2)cc1",
+            "1-[(1E)-prop-1-en-1-yl]-4-[(E)-2-{4-[(1Z)-prop-1-en-1-yl]phenyl}ethen-1-yl]benzene",
+        ),
+    ],
+)
+def test_multiplied_ring_cites_the_descriptors_of_its_alkenyl_substituents(smiles, expected):
+    # P-93.4.2.1.1, P-15.3.2.1: identical units cite the E/Z of their substituents, unlike units are named substitutively
+    assert smiles_to_iupac(smiles) == expected
