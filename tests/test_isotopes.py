@@ -1360,3 +1360,21 @@ def test_nuclides_on_a_substituent_of_a_steroid_skeleton_are_cited_in_the_prefix
 def test_nuclide_of_a_labelled_ring_in_an_anilino_prefix_is_cited_before_anilino(smiles, expected):
     # P-82.2.1, P-82.6: the descriptor stands in front of 'anilino' with the ring locants of the prefix
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "CC(=O)c1ccc2c(c1)nc(CN[13c]1[13cH][13cH][13c](C)[13cH][13cH]1)n2C",
+            "1-(1-methyl-2-{[4-methyl(1,2,3,4,5,6-13C6)anilino]methyl}-1H-1,3-benzimidazol-5-yl)ethan-1-one",
+        ),
+        (
+            "CC(=O)c1ccc2c(c1)nc(CN([13c]1[13cH][13cH][13cH][13cH][13cH]1)C)n2C",
+            "1-(1-methyl-2-{[N-methyl(1,2,3,4,5,6-13C6)anilino]methyl}-1H-1,3-benzimidazol-5-yl)ethan-1-one",
+        ),
+    ],
+)
+def test_nuclides_of_an_anilino_ring_inside_a_compound_substituent_are_cited_before_anilino(smiles, expected):
+    # P-82.2.1, P-82.6: the enclosed anilino prefix of a larger substituent cites the labels of its own ring
+    assert smiles_to_iupac(smiles) == expected
