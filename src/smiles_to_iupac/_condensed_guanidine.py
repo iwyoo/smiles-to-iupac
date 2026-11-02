@@ -96,12 +96,28 @@ def _link_entries(mol, graph, bridges, pair, halogens, aromatic_atoms):
     return [name_branch(graph, n, bridge, halogens, aromatic_atoms, mol=mol) for n in graph[bridge] if n not in pair]
 
 
+def _bridge_bond_is_stereo(mol, bridges):
+    """A specified double bond to a bridging nitrogen: the skeleton names carry their double bonds on the terminal imino
+    groups, so a descriptor for this tautomer would be cited for a bond the named structure does not have."""
+    for element in Chem.FindPotentialStereo(mol):
+        if element.type != Chem.StereoType.Bond_Double or element.specified != Chem.StereoSpecified.Specified:
+            continue
+        bond = mol.GetBondWithIdx(element.centeredOn)
+        if bond.GetBeginAtomIdx() in bridges or bond.GetEndAtomIdx() in bridges:
+            return True
+    return False
+
+
 def name_condensed_guanidine(mol) -> str:
     found = _chain(mol)
     if found is None or len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("not a condensed guanidine")
     order, bridges = found
     count = len(order)
+    if _bridge_bond_is_stereo(mol, bridges):
+        raise UnsupportedStructure(
+            "the configuration of a C=N bond to the bridging nitrogen of a condensed guanidine is not cited by any name of its skeleton"
+        )
     if mol.GetNumAtoms() == 3 * count + 1:
         return _plain_name(count)
     return _substituted_name(mol, order, bridges)
