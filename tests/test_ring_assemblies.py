@@ -549,3 +549,19 @@ def test_substituted_amines_of_a_ring_assembly(smiles, expected):
 )
 def test_assembly_of_saturated_heteromonocycles_as_parent_group_and_linker(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1(C3CCCC34CCCC4)CCCC12CCCC2", "1,1'-bi(spiro[4.4]nonane)"),
+        ("C1=CC2(OC1)CCCC2C1=CC2(OC1)CCCC2", "3,6'-bi(1-oxaspiro[4.4]non-3-ene)"),
+        (
+            "CN1c2ccccc2CC12C=CC=C(C3=CC=CC4(O3)N(C)c3ccccc3C4)O2",
+            "1,1\u2033-dimethyl-1,1\u2033,3,3\u2033-tetrahydro-6\u2032,6\u2034-bi(spiro[indole-2,2\u2032-pyran])",
+        ),
+    ],
+)
+def test_two_identical_spiro_systems_joined_by_a_single_bond_form_a_ring_assembly(smiles, expected):
+    # P-28.1 lists spiro systems among the cyclic systems of a ring assembly; the second unit's primes add to its own
+    assert smiles_to_iupac(smiles) == expected
