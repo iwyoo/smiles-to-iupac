@@ -6085,6 +6085,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     if stereo_context:
         stereo_context["used"] &= used_before
     if primaries:
+        if context:
+            context["consumed"] = set(settled)
         token = SUBSTITUTED_AMINE_PREFIX.set(True)
         try:
             as_prefix = _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, "amine", None, (), None)

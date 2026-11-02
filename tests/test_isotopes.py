@@ -1310,3 +1310,14 @@ def test_nuclides_of_a_chain_between_two_different_amide_groups_are_cited_in_the
     # P-82.2.1, P-44.1: the amide that is not the parent is an acylamino prefix on the labelled chain
     smiles = "[2H]C([2H])(C)C(C)(NC(=O)c1ccccc1)C(C)NC(=O)c1ccccc1C"
     assert smiles_to_iupac(smiles) == "N-[3-benzamido-3-methyl(4,4-2H2)pentan-2-yl]-2-methylbenzamide"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[3H]C([3H])(c1ccccc1N)N(C)C", "2-[(dimethylamino)(3H2)methyl]aniline"),
+        ("[2H]C(=O)N(C)C1CCCCC1NC(=O)C", "N-{2-[(2H)formyl(methyl)amino]cyclohexyl}acetamide"),
+    ],
+)
+def test_nuclides_of_a_substituent_with_a_disubstituted_nitrogen_are_cited(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
