@@ -6748,7 +6748,7 @@ def _junction_kind(atom, unit_atoms=frozenset()):
     if atom.GetAtomicNum() == 6:
         return 6
     return atom.GetAtomicNum(), tuple(
-        sorted(("ring" if n.IsInRing() else n.GetAtomicNum()) for n in atom.GetNeighbors() if n.GetIdx() not in unit_atoms)
+        sorted((("ring" if n.IsInRing() else n.GetAtomicNum()) for n in atom.GetNeighbors() if n.GetIdx() not in unit_atoms), key=str)
     )
 
 
