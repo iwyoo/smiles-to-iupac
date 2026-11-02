@@ -461,7 +461,7 @@ def _acid_candidates(mol):
     parts = []
     for atom in mol.GetAtoms():
         z = atom.GetAtomicNum()
-        if atom.GetIdx() not in anion_atoms:
+        if atom.GetIdx() not in anion_atoms or atom.HasProp("_named_prefix"):
             continue
         if z in _LOCANT or z in _CHALCOGEN_STEMS:
             found = _parse(mol, atom)

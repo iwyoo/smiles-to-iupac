@@ -493,3 +493,21 @@ def test_bridge_between_base_and_sugar_is_not_a_retained_nucleoside(smiles, expe
 )
 def test_labelled_nucleoside_is_named_systematically_with_its_nuclides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "NC(=O)c1ccc(OCC(O)CSc2nc3c(N)ncnc3n2[C@@H]2O[C@H](CO)[C@@H](O)[C@H]2O)cc1",
+            "4-[3-({6-amino-9-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-9H-purin-8-yl}sulfanyl)-2-hydroxypropoxy]benzamide",
+        ),
+        (
+            "CN(C)C(=O)c1ccc(OCC(O)CSc2nc3c(N)ncnc3n2[C@@H]2O[C@H](CO)[C@@H](O)[C@H]2O)cc1",
+            "4-[3-({6-amino-9-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-9H-purin-8-yl}sulfanyl)-2-hydroxypropoxy]-N,N-dimethylbenzamide",
+        ),
+    ],
+)
+def test_nucleoside_placeholder_atom_is_not_read_as_an_acid_centre(smiles, expected):
+    # P-14.3: the working atom that stands for the nucleoside never reaches the senior-group choice
+    assert smiles_to_iupac(smiles) == expected
