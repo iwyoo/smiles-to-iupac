@@ -304,7 +304,7 @@ def ester_words(esters):
     for anion, locants in sorted(esters, key=lambda item: alpha_sort_key(item[0])):
         count = len(locants)
         joined = ",".join(map(str, locants))
-        compound = " " in anion or bool(re.match(r"[\d(\[{]", anion))
+        compound = " " in anion or bool(re.match(r"[\d(\[{]", anion)) or bool(re.fullmatch(r"[a-z]+carbamate", anion))
         if count == 1:
             words.append(f"{joined}-{enclose(anion)}" if compound else f"{joined}-{anion}")
         elif compound or anion == "phosphate":

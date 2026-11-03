@@ -1047,3 +1047,16 @@ def test_ester_word_of_a_sugar_encloses_an_acyl_anion_that_carries_its_own_locan
 def test_ring_n_oxide_oxygen_is_not_taken_for_the_carboxylate_of_an_n_acyl_amino_acid(smiles, expected):
     # P-41: a zwitterion outranks an acid; a real ring cation keeps its amino acid name
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCNC(=O)O[C@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O", "α-D-galactopyranose 1-(ethylcarbamate)"),
+        ("CCCCCCCNC(=O)OC[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "D-glucitol 1-(heptylcarbamate)"),
+        ("NC(=O)O[C@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O", "α-D-galactopyranose 1-carbamate"),
+    ],
+)
+def test_substituted_carbamate_anion_of_a_carbohydrate_ester_is_enclosed(smiles, expected):
+    # P-16.5.1.1, P-102.5.6.1.1: a locant must not run into the substituent prefix of the anion
+    assert smiles_to_iupac(smiles) == expected
