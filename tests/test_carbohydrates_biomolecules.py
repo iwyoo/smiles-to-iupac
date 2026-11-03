@@ -1034,3 +1034,16 @@ def test_n_acyl_amino_acid_acyl_prefix_on_a_ring_parent_is_enclosed(smiles, expe
 def test_ester_word_of_a_sugar_encloses_an_acyl_anion_that_carries_its_own_locants(smiles, expected):
     # P-102.5.6.1.1, P-16.5.1.1: the ester locant must not run into the locants of the acid component
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(NCC(=O)O)c1cccc[n+]1[O-]", "2-[(carboxymethyl)carbamoyl]pyridine 1-oxide"),
+        ("C[C@H](NC(=O)c1cccc[n+]1[O-])C(=O)O", "2-{[(1S)-1-carboxyethyl]carbamoyl}pyridine 1-oxide"),
+        ("OC(=O)CNC(=O)c1ccc[n+](C)c1", "N-(1-methylpyridin-1-ium-3-carbonyl)glycine"),
+    ],
+)
+def test_ring_n_oxide_oxygen_is_not_taken_for_the_carboxylate_of_an_n_acyl_amino_acid(smiles, expected):
+    # P-41: a zwitterion outranks an acid; a real ring cation keeps its amino acid name
+    assert smiles_to_iupac(smiles) == expected
