@@ -6327,6 +6327,7 @@ def _backbone_polyamine(mol, graph, halogens, aromatic_atoms, nitrogens):
         parent = editable.GetMol()
         for a in parent.GetAtoms():
             if a.HasProp("_cut_amine_n"):
+                a.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
                 a.SetFormalCharge(0)
                 a.SetIntProp("_capacity", 2)
                 a.SetNumExplicitHs(2)
@@ -6651,6 +6652,7 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
     for a in parent.GetAtoms():
         if a.HasProp("_cut_amine_n") and not a.IsInRing():
             a.SetIntProp("_capacity", mol.GetAtomWithIdx(n_idx).GetTotalNumHs())
+            a.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
             a.SetFormalCharge(0)
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)

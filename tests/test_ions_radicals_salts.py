@@ -2502,3 +2502,21 @@ def test_spiro_ring_system_on_an_aromatic_ring_cation_is_a_substituent_of_the_ca
 def test_carboxylate_inside_the_acyl_group_of_an_amide_beside_a_carboxylate_parent(smiles, expected):
     # P-65.6.2.3.1: every carboxylate that is not the parent is cited as the prefix carboxylato, not carboxy
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "CC#C[N@@+](CC)(C)[C@H]1CCc2ccc(O)cc2C1",
+            "(2S,R)-N-ethyl-7-hydroxy-N-methyl-N-(prop-1-yn-1-yl)-1,2,3,4-tetrahydronaphthalen-2-aminium",
+        ),
+        (
+            "CC#C[N@@+](CC)(c1ccc(F)cc1)[C@H]1CCc2ccccc2C1",
+            "(2S,R)-N-ethyl-N-(4-fluorophenyl)-N-(prop-1-yn-1-yl)-1,2,3,4-tetrahydronaphthalen-2-aminium",
+        ),
+    ],
+)
+def test_ammonium_centre_cut_off_as_an_amine_parent_keeps_no_chirality(smiles, expected):
+    # P-73.1.1.2, P-93.5.1: the CIP labelling of the ring parent must not see the substituent-less nitrogen as a centre
+    assert smiles_to_iupac(smiles) == expected
