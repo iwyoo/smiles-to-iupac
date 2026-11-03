@@ -1622,3 +1622,18 @@ def test_nitrogen_with_two_sulfinyl_groups_is_an_n_acyl_sulfinamide(smiles, expe
 def test_multiplied_sulfonate_keeps_the_configuration_of_the_diyl_group(smiles, expected):
     # P-65.6.3.2.2, P-92.1.2: the descriptors of the organyl group follow from the whole structure
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CS(=S)(=N)N", "methanesulfonimidothioamide"),
+        ("S=S(N)(=N)C", "methanesulfonimidothioamide"),
+        ("N=S(C)(N)=S", "methanesulfonimidothioamide"),
+        ("CS(=[Se])(=NC)NNC", "N',N''-dimethylmethanesulfonimidoselenohydrazide"),
+        ("[Se]=S(NNC)(C)=NC", "N',N''-dimethylmethanesulfonimidoselenohydrazide"),
+    ],
+)
+def test_sulfonimidothioamide_is_named_from_whichever_chalcogen_is_written_first(smiles, expected):
+    # P-65.3.2.3, P-66.4.1.1: the amide nitrogens belong to the sulfur atom that carries them, not to the terminal thio atom
+    assert smiles_to_iupac(smiles) == expected

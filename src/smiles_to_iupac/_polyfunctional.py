@@ -8509,13 +8509,20 @@ def _ring_prefix_text(entries, locants, n_names, group_count=2):
     return format_substituent_prefixes(_with_n_names(grouped, n_names, locants, group_count)) if (grouped or n_names) else ""
 
 
+def _nitrogen_bearing_chalcogen(mol, owned, default=None):
+    """The S, Se or Te atom that carries the nitrogens of the group, not a terminal thio, seleno or telluro atom of it."""
+    chalcogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)]
+    bonded = [a for a in chalcogens if any(n.GetAtomicNum() == 7 and n.GetIdx() in owned for n in mol.GetAtomWithIdx(a).GetNeighbors())]
+    return next(iter(bonded or chalcogens), default)
+
+
 def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
     """N-prefix names of the imidic or hydrazonic acid groups that carry substituents on their =N atom; with several
     groups each is located by the position of its attachment (P-16.9.2: 'N1,N4-dihydroxybutanediimidic acid')."""
     carbon_centre = spec_from_key(cls).center == "C"
     members = {}
     for carbon, owned in groups.get(cls, {}).items():
-        centre = carbon if carbon_centre else next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
+        centre = carbon if carbon_centre else _nitrogen_bearing_chalcogen(mol, owned, carbon)
         members[centre] = (carbon, owned)
     for group_cls, ring_atom, owned in ring_groups:
         if group_cls == cls:
@@ -8556,7 +8563,7 @@ def _n_branch(located, graph, root, nitrogen, halogens, aromatic_atoms, mol):
 
 def _imidamide_cited(mol, graph, halogens, aromatic_atoms, owned):
     """{nitrogen: [(name, compound)]} of the substituents on the nitrogens of a sulfonimidamide-type group."""
-    centre = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52))
+    centre = _nitrogen_bearing_chalcogen(mol, owned)
     nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
     return {
         a: [
@@ -8573,7 +8580,7 @@ def _imidamide_roles(mol, graph, owned, cited, preferred=frozenset()):
     bond, then primes on the terminal nitrogen of a hydrazide, the imido nitrogens (more substituents, then the
     alphanumerically first, then the `preferred` modified one) and the terminal nitrogens of hydrazono groups
     (P-66.4.1.1, P-14.3.5)."""
-    centre = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52))
+    centre = _nitrogen_bearing_chalcogen(mol, owned)
     nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
     bonded = [a for a in nitrogens if mol.GetBondBetweenAtoms(centre, a) is not None]
     amino = next(a for a in bonded if mol.GetBondBetweenAtoms(centre, a).GetBondTypeAsDouble() == 1.0)
@@ -8614,7 +8621,7 @@ def _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     members = _group_members(mol, groups, ring_groups, cls)
     entries = []
     for carbon, identity, owned, anchor in members:
-        acyl = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
+        acyl = _nitrogen_bearing_chalcogen(mol, owned, carbon)
         alpha = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and acyl in graph[a])
         beta = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and a != alpha)
         rest = tuple(a for a in graph[carbon] if a not in owned)
