@@ -73,7 +73,14 @@ def _acylated_cation_anion(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
-    carboxylates = [a for a in charged if a.GetFormalCharge() == -1 and a.GetAtomicNum() == 8 and a.GetDegree() == 1]
+    carboxylates = [
+        a
+        for a in charged
+        if a.GetFormalCharge() == -1
+        and a.GetAtomicNum() == 8
+        and a.GetDegree() == 1
+        and a.GetNeighbors()[0].GetAtomicNum() == 6
+    ]
     cations = [a for a in charged if a not in carboxylates]
     if len(carboxylates) != 1 or not cations:
         return None
