@@ -1984,3 +1984,16 @@ def test_stereogenic_hydride_atom_with_a_carboxylic_acid_suffix_takes_the_descri
 def test_stereogenic_diester_with_a_ring_substituted_methyl_ester_cites_the_descriptor(smiles, expected):
     # P-65.6.3.2.3, P-92.1: one of two equally long ester alkyls is the ester word, the other ester a prefix
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(C)(C)OC(=O)COCCOCCOCCOCC(=O)O", "tert-butyl hydrogen 3,6,9,12-tetraoxatetradecane-1,14-dioate"),
+        ("COC(=O)COCCOCCOCCOCC(=O)O", "methyl hydrogen 3,6,9,12-tetraoxatetradecane-1,14-dioate"),
+        ("CC(C)(C)OC(=O)CCOCCOCCOCCOCCC(=O)O", "tert-butyl hydrogen 4,7,10,13-tetraoxahexadecane-1,16-dioate"),
+    ],
+)
+def test_half_ester_of_a_skeletal_replacement_diacid_cites_hydrogen(smiles, expected):
+    # P-65.6.2.3.1, P-65.6.3.2.1: the free acid group of a polybasic acid ester is cited as 'hydrogen'
+    assert smiles_to_iupac(smiles) == expected

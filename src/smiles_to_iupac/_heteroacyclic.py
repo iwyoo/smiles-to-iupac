@@ -916,4 +916,10 @@ def name_heteroacyclic_ester(mol):
         entry = counts.setdefault(organyl, [0, compound])
         entry[0] += 1
     pendants = _multiplied([(n, compound, k, []) for n, (k, compound) in counts.items()])
+    carboxyls = {match[0] for match in acid.GetSubstructMatches(Chem.MolFromSmarts("[CX3](=O)[OX2H1]"))}
+    free = len(carboxyls) - len(terminal)
+    if free > 0:
+        from ._numerals import multiplying_prefix
+
+        pendants += " " + ("hydrogen" if free == 1 else multiplying_prefix(free) + "hydrogen")
     return f"{pendants} {anion_name(name)}"
