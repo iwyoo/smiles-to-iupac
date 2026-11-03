@@ -211,7 +211,7 @@ def _letter_locants(mol, modified):
     located = []
     for a in sorted(modified, key=lambda a: (number.get(centre[a], 0), a)):
         primes = seen[centre[a]] = seen.get(centre[a], -1) + 1
-        located.append((a, f"{mol.GetAtomWithIdx(a).GetSymbol()}{number.get(centre[a], '')}{"'" * primes}"))
+        located.append((a, mol.GetAtomWithIdx(a).GetSymbol() + str(number.get(centre[a], "")) + "'" * primes))
     return located
 
 
