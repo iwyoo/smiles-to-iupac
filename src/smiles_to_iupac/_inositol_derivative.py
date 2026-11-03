@@ -129,13 +129,15 @@ def ester_anion(mol, oxygen, acyl):
         branch.add(current)
         stack.extend(n for n in graph[current] if n not in branch)
     editable = Chem.RWMol(mol)
+    editable.GetAtomWithIdx(oxygen).SetBoolProp("_cut_oxygen", True)
     for index in sorted(set(range(mol.GetNumAtoms())) - branch, reverse=True):
         editable.RemoveAtom(index)
     for atom in editable.GetAtoms():
         if atom.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED:
             return None
-        atom.SetNoImplicit(False)
-        atom.SetNumExplicitHs(0)
+        if atom.HasProp("_cut_oxygen"):
+            atom.SetNoImplicit(False)
+            atom.SetNumExplicitHs(0)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
     try:
