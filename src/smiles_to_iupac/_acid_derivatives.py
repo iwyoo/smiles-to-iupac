@@ -689,6 +689,7 @@ def _diyl_name(mol, atoms, attachments):
         editable.RemoveAtom(idx)
     polyol = editable.GetMol()
     Chem.SanitizeMol(polyol)
+    match_cip_labels(mol, polyol, dict(enumerate(sorted(atoms))))
     name = smiles_to_iupac(Chem.MolToSmiles(polyol))
     if hydroxy:
         name = name.replace("iodo", "hydroxy")
