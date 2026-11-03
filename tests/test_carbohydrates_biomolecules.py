@@ -794,6 +794,8 @@ def test_intramolecular_anhydro_sugars(smiles, expected):
         pytest.param("C[C@H](N)C(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](C)C(=O)O", "L-alanyl-L-tryptophyl-L-alanine", id="indole_side_chain"),
         pytest.param("C[C@H](N)C(=O)N[C@@H](Cc1c[nH]cn1)C(=O)O", "L-alanyl-L-histidine", id="imidazole_side_chain"),
         pytest.param("O=C(NCC(=O)O)C[C@H](N)C(=O)NCC(=O)O", "L-aspartoyldiglycine", id="both_carboxyls_of_a_dicarboxylic_amino_acid"),
+        pytest.param("CC(=O)N(C(C)=O)[C@@H](C)C(=O)NCC(N)=O", "N,N-diacetyl-L-alanylglycinamide", id="two_acyl_groups_on_the_n_terminal_nitrogen"),
+        pytest.param("CC(=O)N(C(C)=O)[C@@H](C(C)C)C(=O)NCC(N)=O", "N,N-diacetyl-L-valylglycinamide", id="two_acyl_groups_on_a_valine_n_terminal_nitrogen"),
     ],
 )
 def test_peptide_acyl_names(smiles, expected):

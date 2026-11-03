@@ -393,6 +393,7 @@ class CompoundPrefix(str):
 
 ISOTOPE_LABELS = contextvars.ContextVar("isotope_labels", default=None)
 FORCED_BRANCH_NAMES = contextvars.ContextVar("forced_branch_names", default=None)
+FORCED_CONSUMED = contextvars.ContextVar("forced_consumed", default=None)
 
 
 def _labelled_amino_prefix(name, graph, root, coming_from, labelled, halogens, mol, aromatic_atoms, unsaturated):
@@ -1198,6 +1199,9 @@ _LEADING_LOCANTED_NUCLIDE = re.compile(r"\([\d,]+-\d+[A-Z]")
 def _name_branch_isotopes(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     forced = FORCED_BRANCH_NAMES.get()
     if forced and mol is not None and mol.GetNumAtoms() == forced[0] and root in forced[1]:
+        consumed = FORCED_CONSUMED.get()
+        if consumed is not None:
+            consumed.add(root)
         return forced[1][root]
     context = ISOTOPE_LABELS.get()
     if not context:
