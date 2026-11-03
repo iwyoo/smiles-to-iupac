@@ -290,3 +290,16 @@ def test_small_ring_system_is_not_a_des_seco_or_nor_natural_product(smiles, expe
 def test_double_bond_geometry_alone_does_not_make_a_neolignane_of_a_styryl_arene(smiles, expected):
     # P-101.2.0, P-101.2.1.3: no stereocentre in the skeleton, so the systematic name applies
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)OC1=Cc2ccccc2OC1c1ccccc1", "flav-3-en-3-yl hydrogen carbonate"),
+        ("OC(=O)CCC(=O)OC1=Cc2ccccc2OC1c1ccccc1", "4-[(flav-3-en-3-yl)oxy]-4-oxobutanoic acid"),
+        ("OC(=O)C(=O)OC1C(C)(C)SC2N1C(=O)C2N", "[(6-amino-2,2-dimethylpenam-3-yl)oxy](oxo)acetic acid"),
+    ],
+)
+def test_polybasic_acid_monoester_of_a_retained_parent_skeleton(smiles, expected):
+    # P-65.6.2.3.2, P-65.6.3.2.3, P-41: hydrogen carbonate; a free carboxylic acid group keeps the acid as parent
+    assert smiles_to_iupac(smiles) == expected

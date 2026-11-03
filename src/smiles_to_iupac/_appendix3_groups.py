@@ -133,7 +133,25 @@ def _o_acyl(mol, oxygen, parent, mapped):
         return None
     if len(_double_oxygens(mol, acyl.GetIdx())) != 1:
         return None
+    if _free_carboxyl_beyond(mol, acyl.GetIdx(), oxygen):
+        return None
     return acyl.GetIdx()
+
+
+def _free_carboxyl_beyond(mol, acyl, oxygen):
+    """A free carboxylic acid group in the acid part of an O-acyl group, which outranks the ester (P-41, P-65.6.3.2.3)."""
+    seen, stack = {acyl, oxygen}, [acyl]
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            if n.GetIdx() in seen:
+                continue
+            seen.add(n.GetIdx())
+            stack.append(n.GetIdx())
+            if n.GetAtomicNum() == 6 and n.GetIdx() != acyl:
+                hydroxyl = [m for m in n.GetNeighbors() if m.GetAtomicNum() == 8 and m.GetDegree() == 1 and m.GetTotalNumHs() == 1]
+                if hydroxyl and len(_double_oxygens(mol, n.GetIdx())) == 1:
+                    return True
+    return False
 
 
 def _amine_nitrogen(mol, nitrogen, anchor, mapped):

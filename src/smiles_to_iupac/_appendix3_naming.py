@@ -207,6 +207,8 @@ def _ester_alkyls(mol, graph, halogens, members, sort_key):
 
 def _acid_anion(mol, mapped, group, context):
     name = _acid_name(mol, mapped, group.root, group.extra["acyl"], context)
+    if name == "carbonic acid":
+        return "hydrogen carbonate"
     return name[: -len("ic acid")] + "ate"
 
 
