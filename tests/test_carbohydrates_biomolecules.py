@@ -1091,3 +1091,18 @@ def test_enclosed_substituent_on_the_alpha_nitrogen_of_a_c_terminal_amide_is_n2(
 def test_multi_residue_peptidyl_prefix_is_enclosed(smiles, expected):
     # P-16.5.1.1, P-103.2.5: a chain of residue acyl groups is one compound prefix
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(Cc1cc2ccccc2[nH]1)OC1C(O)C(O)C(O)C(O)C1O", "2,3,4,5,6-pentahydroxycyclohexyl (1H-indol-2-yl)acetate"),
+        (
+            "O=C(Cc1cc2ccccc2[nH]1)OC1[C@@H](O)[C@H](O)C(O)[C@H](O)[C@H]1O",
+            "(2R,3S,5R,6S)-2,3,4,5,6-pentahydroxycyclohexyl (1H-indol-2-yl)acetate",
+        ),
+    ],
+)
+def test_aromatic_nh_of_a_cyclitol_ester_acid_keeps_its_hydrogen(smiles, expected):
+    # P-65.6.3.2.1: the acid part is named as the free acid, whose pyrrole nitrogen keeps its hydrogen
+    assert smiles_to_iupac(smiles) == expected
