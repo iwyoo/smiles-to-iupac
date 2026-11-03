@@ -1106,3 +1106,9 @@ def test_multi_residue_peptidyl_prefix_is_enclosed(smiles, expected):
 def test_aromatic_nh_of_a_cyclitol_ester_acid_keeps_its_hydrogen(smiles, expected):
     # P-65.6.3.2.1: the acid part is named as the free acid, whose pyrrole nitrogen keeps its hydrogen
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_ketone_between_two_identical_sugars_cites_both_glycosyl_groups():
+    # P-102.6.1.4, P-64.2: the glycosyl group replaced by a placeholder must itself be cited in the name of the rest
+    smiles = "O=C([C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)[C@@H]2O[C@H](CO)[C@H](O)[C@H](O)[C@H]2O"
+    assert smiles_to_iupac(smiles) == "bis(β-D-galactopyranosyl)methanone"
