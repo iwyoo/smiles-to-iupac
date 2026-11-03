@@ -10,7 +10,7 @@ from ._diester_ring_diyl import _system_of
 from ._dipolar import _smiles_with_order
 from ._isotope_labels import restore_labels, split_isotopes
 from ._ring_system_seniority import ring_seniority_key
-from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS, name_branch
+from ._substituents import FORCED_BRANCH_NAMES, FORCED_CONSUMED, ISOTOPE_LABELS, name_branch
 
 
 def _acyl_roots(mol, nitrogen, carbon_chalcogens=(8,)):
@@ -245,13 +245,16 @@ def diacylamine_name(mol):
     forced = forced_for_unlabelled(stand_in, position, {old_to_new[r]: names[r] for r in donors})
     from .core import smiles_to_iupac
 
+    consumed = set()
     token = FORCED_BRANCH_NAMES.set(forced)
+    used = FORCED_CONSUMED.set(consumed)
     try:
         name = smiles_to_iupac(smiles)
     except UnsupportedStructure:
         return None
     finally:
+        FORCED_CONSUMED.reset(used)
         FORCED_BRANCH_NAMES.reset(token)
-    if not name.endswith("amide") or any(f"{donor_name}" not in name for donor_name, _ in names.values()):
+    if not consumed >= set(forced[1]) or not name.endswith("amide") or any(f"{donor_name}" not in name for donor_name, _ in names.values()):
         return None
     return name
