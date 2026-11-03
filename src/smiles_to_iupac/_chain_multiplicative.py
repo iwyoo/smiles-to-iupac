@@ -763,8 +763,15 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     if len(ctx.used) != len(branch_stereo[0]) + len(chain_stereo):
         return None
     unit, attach = units[0]
+    from ._substituents import BRANCH_STEREO, BRANCH_STEREO_MOL
+
     try:
-        _, _, parts = _select(unit, attach)
+        tokens = (BRANCH_STEREO.set(None), BRANCH_STEREO_MOL.set(None))
+        try:
+            _, _, parts = _select(unit, attach)
+        finally:
+            BRANCH_STEREO.reset(tokens[0])
+            BRANCH_STEREO_MOL.reset(tokens[1])
     except UnsupportedStructure:
         parts = None if stereo or unit_stereo else _ring_nitrogen_ketone_unit(unit, attach)
         if parts is None:
