@@ -6097,6 +6097,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             ISOTOPE_LABELS.reset(unlabelled)
         if result is None:
             continue
+        if result[1].count("azaniumyl") > sum(a.GetFormalCharge() == 1 and a.GetAtomicNum() == 7 for a in parent.GetAtoms()):
+            continue
         if stereo_context:
             used_by[c] = set(stereo_context["used"]) - used_before
         if primaries and (mapped not in result[2][4] or any(name not in result[1] for name, *_ in n_names)):
