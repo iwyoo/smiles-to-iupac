@@ -3063,3 +3063,21 @@ def test_carbamate_anion_with_two_different_substituents_cites_n_locants(smiles,
 def test_two_identical_amino_acyl_groups_on_a_prefix_nitrogen_are_both_cited(smiles, expected):
     # P-103.2.2.2, P-16.3.1: the second glycyl group is not dropped from the prefix
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "O=S1(=O)N=C(Nc2nccs2)c2ccccc21",
+            "N-(1,1-dioxo-1H-1λ6,2-benzothiazol-3-yl)-1,3-thiazol-2-amine",
+        ),
+        (
+            "O=S1(=O)N=C(Nc2ccccn2)c2ccccc21",
+            "N-(1,1-dioxo-1H-1λ6,2-benzothiazol-3-yl)pyridin-2-amine",
+        ),
+    ],
+)
+def test_amine_parent_never_cites_its_neutral_nitrogen_as_azaniumyl(smiles, expected):
+    # P-62.2.1.1, P-41: a neutral amino nitrogen is no cationic prefix, so the heteroaryl amine is the parent
+    assert smiles_to_iupac(smiles) == expected
