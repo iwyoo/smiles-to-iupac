@@ -1410,3 +1410,21 @@ def test_multiplied_linker_is_not_attached_to_a_nitrogen_that_is_not_the_parent_
 def test_multiplied_chain_parent_keeps_a_three_membered_ring_in_the_linker(smiles, expected):
     # P-15.3.1.1, P-15.3.1.3: the chain bearing the suffix is the repeated parent; the ring is part of the linking group
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "C/C(CN(CCNC=O)CCNC=O)=N\\O",
+            "N,N'-({[(2E)-2-(hydroxyimino)propyl]azanediyl}di(ethane-2,1-diyl))diformamide",
+        ),
+        (
+            "C/C(CN(CCNC=O)CCNC=O)=N/O",
+            "N,N'-({[(2Z)-2-(hydroxyimino)propyl]azanediyl}di(ethane-2,1-diyl))diformamide",
+        ),
+    ],
+)
+def test_repeated_unit_is_named_without_the_stereo_context_of_the_whole_molecule(smiles, expected):
+    # P-15.3.1.1, P-93.5.1: the oxime double bond of the central part is cited with the central part
+    assert smiles_to_iupac(smiles) == expected
