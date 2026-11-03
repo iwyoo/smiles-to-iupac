@@ -174,6 +174,9 @@ def _acyl_prefix(mol, subtree, root, parent):
     for idx in sorted(set(range(mol.GetNumAtoms())) - subtree, reverse=True):
         rw.RemoveAtom(idx)
     sub = rw.GetMol()
+    for cut_atom in sub.GetAtoms():
+        if cut_atom.HasProp("_anion"):
+            cut_atom.ClearProp("_anion")
     try:
         Chem.SanitizeMol(sub)
     except Chem.MolSanitizeException as error:
@@ -224,6 +227,13 @@ def _acyl_prefix(mol, subtree, root, parent):
     if zwitterion and probe.endswith("ate"):
         probe = probe[: -len("ate")] + "ic acid"
     name = acyl_name(probe)
+    from ._anion import ANION_PROP
+
+    anionic = [a for a in subtree if mol.GetAtomWithIdx(a).HasProp(ANION_PROP) and mol.GetAtomWithIdx(a).GetAtomicNum() == 8]
+    if anionic:
+        if len(anionic) != len(others) or len(re.findall(r"carboxy(?!l)", name)) != len(others):
+            raise UnsupportedStructure("an anionic group inside this acyl group is not a carboxylate of the prefix")
+        name = re.sub(r"carboxy(?!l)", "carboxylato", name)
     _cite_stereo_of_acyl(mol, acid, sorted(subtree), adjusted, name)
     if centre_cited:
         from ._hetero_prefixes import _stereo_cited
