@@ -133,3 +133,16 @@ def test_nucleotide_names_without_a_preferred_form_warn(smiles, expected):
 )
 def test_nucleotide_anions_and_salts(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=c1ccn([C@@H]2O[C@H](CO)[C@@H](O)[C@H]2OC2OCCO2)c(=O)[nH]1", "2′-O-(1,3-dioxolan-2-yl)uridine"),
+        ("O=c1ccn([C@@H]2O[C@H](CO)[C@@H](O)[C@H]2OC2OCCCO2)c(=O)[nH]1", "2′-O-(1,3-dioxan-2-yl)uridine"),
+        ("Nc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](OC2OCCO2)[C@H]1O", "3′-O-(1,3-dioxolan-2-yl)adenosine"),
+    ],
+)
+def test_orthoformate_ring_on_a_sugar_oxygen_is_a_substituent_not_a_carbonate(smiles, expected):
+    # P-105.2, P-63.2: a carbon with three single-bonded oxygens is not a carbonate carbon
+    assert smiles_to_iupac(smiles) == expected

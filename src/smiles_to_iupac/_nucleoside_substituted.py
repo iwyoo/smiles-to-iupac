@@ -508,9 +508,11 @@ def _is_carboxylic_acyl(mol, root):
 
 def _is_plain_carbonate_carbon(mol, root):
     atom = mol.GetAtomWithIdx(root)
-    return atom.GetAtomicNum() == 6 and sorted(
-        n.GetAtomicNum() for n in atom.GetNeighbors()
-    ) == [8, 8, 8]
+    return (
+        atom.GetAtomicNum() == 6
+        and sorted(n.GetAtomicNum() for n in atom.GetNeighbors()) == [8, 8, 8]
+        and any(b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds())
+    )
 
 
 class _Analysis:
