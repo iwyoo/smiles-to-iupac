@@ -1019,3 +1019,25 @@ def test_organyl_acid_units_of_phosphorus_on_one_component(smiles, expected):
 def test_nitrogen_with_two_phosphinoyl_groups_is_an_n_acyl_phosphinic_amide():
     # P-66.1.2: the two equal acid centres are joined through nitrogen, not through an organyl group
     assert smiles_to_iupac("CP(=O)(C)N(C)P(=O)(C)C") == "N-(dimethylphosphinoyl)-N,P,P-trimethylphosphinic amide"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "COC(=O)NCCOP(=O)(O)OP(=O)(O)O",
+            "methyl {2-[(1,3,3-trihydroxy-1,3-dioxo-1\u03bb5,3\u03bb5-diphosphoxan-1-yl)oxy]ethyl}carbamate",
+        ),
+        (
+            "CC(C)(C)OC(=O)NCCOP(=O)(O)OP(=O)(Oc1ccccc1)Oc1ccccc1",
+            "tert-butyl {2-[(1-hydroxy-1,3-dioxo-3,3-diphenoxy-1\u03bb5,3\u03bb5-diphosphoxan-1-yl)oxy]ethyl}carbamate",
+        ),
+        (
+            "CC(=O)NCCOP(=O)(O)OP(=O)(Oc1ccccc1)Oc1ccccc1",
+            "3-(2-acetamidoethyl) 1,1-diphenyl hydrogen diphosphate",
+        ),
+    ],
+)
+def test_diphosphate_beside_a_carbamate_ester_is_a_prefix_of_the_carbamate(smiles, expected):
+    # P-65.6.3.3.2.1, P-41: the diphosphate locants only apply when every ester link belongs to the diphosphate
+    assert smiles_to_iupac(smiles) == expected
