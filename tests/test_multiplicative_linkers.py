@@ -1352,3 +1352,21 @@ def test_multiplied_ring_cites_the_descriptors_of_its_alkenyl_substituents(smile
 def test_multiplied_linker_arms_must_agree_in_configuration(smiles, expected):
     # P-15.3.2.1, P-93.4.2.1.1: a double bond that differs between the arms makes the units unlike, so no multiplication
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "c1ccc2c(OCC3CO3)c(OCC3CO3)ccc2c1",
+            "2,2'-[naphthalene-1,2-diylbis(oxymethylene)]bis(oxirane)",
+        ),
+        (
+            "c1ccc2c(OCC3COCCO3)c(OCC3COCCO3)ccc2c1",
+            "2,2'-[naphthalene-1,2-diylbis(oxymethylene)]bis(1,4-dioxane)",
+        ),
+    ],
+)
+def test_multiplied_monocycle_whose_monosubstituted_locant_is_omitted(smiles, expected):
+    # P-14.3.4.2(c), P-15.3.1.3: the junction of the multiplied ring keeps its locant in the multiplicative name
+    assert smiles_to_iupac(smiles) == expected

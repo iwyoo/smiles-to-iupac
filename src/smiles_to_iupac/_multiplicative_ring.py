@@ -638,7 +638,16 @@ def bare_polycyclic_unit(mol, atoms, junction, name_function=None):
     name = probe_name(Chem.MolToSmiles(probe), name_function)
     consume_labels(atoms)
     match = re.fullmatch(r"(\d+[a-z]?['′]*)-iodo-?(.+)", name)
+    omitted = re.fullmatch(r"iodo-?(.+)", name)
+    if match is None and omitted is not None and _single_ring(mol, atoms):
+        hetero = any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in atoms)
+        locant, parent = ("2" if hetero else "1"), omitted.group(1)
+        return UnitText(parent, locant, False, any(ch.isdigit() for ch in parent))
     if match is None:
         raise UnsupportedStructure(f"could not read the junction locant from {name!r}")
     locant, parent = match.groups()
     return UnitText(parent, locant, False, any(ch.isdigit() for ch in parent))
+
+
+def _single_ring(mol, atoms):
+    return sum(1 for ring in mol.GetRingInfo().AtomRings() if set(ring) <= set(atoms)) == 1
