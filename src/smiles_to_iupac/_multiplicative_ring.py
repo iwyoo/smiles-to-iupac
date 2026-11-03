@@ -519,8 +519,9 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
 
     rings, atoms = _system_of(mol, next(iter(ring_atoms)))
     free_atoms = [a for a, _ in attachments]
-    if directed is not None and (len(free_atoms) != 2 or _swappable(mol, atoms, directed)):
+    if directed is not None and len(free_atoms) != 2:
         return None
+    swappable = directed is not None and _swappable(mol, atoms, directed)
     blocked = {external for _, external in attachments}
     if len(free_atoms) not in _VALENCE_COUNTS:
         return None
@@ -541,7 +542,10 @@ def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
         tail = re.search(r"-(\d+[a-z]?),(\d+[a-z]?)-(?:di)yl$", name)
         if not tail or found[2].get(unit_side) is None or found[2].get(centre_side) is None:
             return None
-        order = [str(found[2][centre_side]), str(found[2][unit_side])] if found[2][unit_side] < found[2][centre_side] else sorted(tail.groups(), key=lambda x: (int(re.sub(r'\D', '', x)), x))
+        if swappable:
+            order = sorted(tail.groups(), key=lambda x: (int(re.sub(r"\D", "", x)), x), reverse=True)
+        else:
+            order = [str(found[2][centre_side]), str(found[2][unit_side])] if found[2][unit_side] < found[2][centre_side] else sorted(tail.groups(), key=lambda x: (int(re.sub(r'\D', '', x)), x))
         name = name[: tail.start(1)] + ",".join(order) + name[tail.end(2) :]
     if first is not None and first in found[2]:
         tail = re.search(r"-(\d+[a-z]?(?:,\d+[a-z]?)+)-(?:di|tri|tetra)yl$", name)
@@ -603,6 +607,8 @@ def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=
         raise UnsupportedStructure(f"could not read the junction locant from {name!r}")
     match = matches[0]
     before, after = name[: match.start()], name[match.end():]
+    if sum(before.count(c) - before.count(d) for c, d in ("()", "[]", "{}")) > 0:
+        return None
     if before.endswith("-") and match.group(2) == "" and after[:1].isalpha():
         before = before[:-1]
     text = before + after
