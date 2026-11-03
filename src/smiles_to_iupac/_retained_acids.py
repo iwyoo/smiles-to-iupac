@@ -7,11 +7,13 @@ import re
 
 from ._common import alpha_sort_key
 from ._multiplicative_text import enclose
+from ._peptide import _RESIDUES, _acyl
 from ._substituents import prefix_multiplier
 
 _HETERO_LOCANT = re.compile(r"[NOS]['′]*(?:,[NOS]['′]*)*-")
 _SUBSTITUTED_RETAINED_ACYL = re.compile(r"(?<=.)(?:acetyl|formyl)$")
 _HYDRIDE_ACYL = re.compile(r"(?<=.)(?:thioyl|selenoyl|telluroyl|imidoyl|hydrazonoyl|carbonyl|sulfonyl|sulfinyl|selenonyl|seleninyl|telluronyl|tellurinyl)$")
+_RESIDUE_ACYL = re.compile(r"(?<![a-z])(?:%s)(?![a-z])" % "|".join(sorted({_acyl(base) for base in _RESIDUES}, key=len, reverse=True)))
 _ENDINGS = {"acid": "ic acid", "anion": "ate", "acyl": "yl", "acylium": "ylium"}
 _OXALIC = {"acid": "oxalic acid", "anion": "oxalate", "acyl": "oxalyl", "acylium": "oxalylium"}
 _OXAMIC = {"acid": "oxamic acid", "anion": "oxamate", "acyl": "oxamoyl", "acylium": "oxamoylium"}
@@ -82,4 +84,5 @@ def is_compound_acyl(name):
         or bool(_HETERO_LOCANT.match(name))
         or bool(_SUBSTITUTED_RETAINED_ACYL.search(name))
         or bool(_HYDRIDE_ACYL.search(name))
+        or len(_RESIDUE_ACYL.findall(name)) > 1
     )
