@@ -698,6 +698,12 @@ def _evaluate(
     sugar_atoms = {by_map[m] for m in _SUGAR_RING if m in by_map}
     if any(base_atoms.intersection(ring) and sugar_atoms.intersection(ring) for ring in mol.GetRingInfo().AtomRings()):
         raise _NotNucleosideReading
+    query_bonds = {frozenset((match[b.GetBeginAtomIdx()], match[b.GetEndAtomIdx()])) for b in query.GetBonds()}
+    if any(
+        b.GetBeginAtomIdx() in core and b.GetEndAtomIdx() in core and frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())) not in query_bonds
+        for b in mol.GetBonds()
+    ):
+        raise _NotNucleosideReading
     absent = frozenset(fixed_absent) | {m for m, s in plan.items() if s == "absent"}
     an = _Analysis(parent, order, absent, by_map, core)
     for idx in core:

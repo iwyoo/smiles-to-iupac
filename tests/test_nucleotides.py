@@ -159,3 +159,21 @@ def test_orthoformate_ring_on_a_sugar_oxygen_is_a_substituent_not_a_carbonate(sm
 def test_cyano_carbon_on_a_chalcogen_of_a_nucleoside_base_is_not_a_nitrile(smiles, expected):
     # P-65.2.2: thiocyanate and selenocyanate groups are prefixes of the nucleoside, not nitrile senior groups
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@@H]2O[C@@H]21",
+            "[(1R,2R,4R,5R)-4-(6-amino-9H-purin-9-yl)-3,6-dioxabicyclo[3.1.0]hexan-2-yl]methanol",
+        ),
+        (
+            "OC[C@H]1O[C@@H](n2ccc(N)nc2=O)[C@@H]2O[C@@H]21",
+            "4-amino-1-[(1R,2R,4R,5R)-4-(hydroxymethyl)-3,6-dioxabicyclo[3.1.0]hexan-2-yl]pyrimidin-2(1H)-one",
+        ),
+    ],
+)
+def test_ether_between_two_sugar_carbons_is_not_a_deoxy_nucleoside(smiles, expected):
+    # P-102.5.3.1, P-102.5.6.7.1: the bridging oxygen is no hydroxy group, so the sugar is not deoxy
+    assert smiles_to_iupac(smiles) == expected
