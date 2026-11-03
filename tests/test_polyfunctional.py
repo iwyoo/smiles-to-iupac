@@ -2010,3 +2010,22 @@ def test_half_ester_of_a_skeletal_replacement_diacid_cites_hydrogen(smiles, expe
 def test_ester_locants_are_cited_when_the_ends_of_the_skeletal_replacement_diacid_differ(smiles, expected):
     # P-65.6.3.3.2.1: when necessary, locants are cited at the front of the organyl groups
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1C[C@H](OS(C)(=O)=O)[C@@H](OS(C)(=O)=O)O1", "(2R,3S)-oxolane-2,3-diyl dimethanesulfonate"),
+        (
+            "CC1(C)O[C@H](OS(C)(=O)=O)[C@@H](OS(C)(=O)=O)O1",
+            "(4R,5R)-2,2-dimethyl-1,3-dioxolane-4,5-diyl dimethanesulfonate",
+        ),
+        (
+            "O=S(=O)(O[C@@H]1OCC=C[C@@H]1OS(=O)(=O)C(F)(F)F)C(F)(F)F",
+            "(2S,3S)-3,6-dihydro-2H-pyran-2,3-diyl ditrifluoromethanesulfonate",
+        ),
+    ],
+)
+def test_ring_diyl_diester_cites_the_descriptors_of_the_ester_not_of_its_polyol(smiles, expected):
+    # P-92.1.3, P-93.5.1: a sulfonyloxy oxygen outranks the ring oxygen, a hydroxy oxygen does not
+    assert smiles_to_iupac(smiles) == expected
