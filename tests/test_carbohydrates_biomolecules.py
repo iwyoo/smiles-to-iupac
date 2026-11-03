@@ -1062,3 +1062,19 @@ def test_ring_n_oxide_oxygen_is_not_taken_for_the_carboxylate_of_an_n_acyl_amino
 def test_substituted_carbamate_anion_of_a_carbohydrate_ester_is_enclosed(smiles, expected):
     # P-16.5.1.1, P-102.5.6.1.1: a locant must not run into the substituent prefix of the anion
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[C@H](N)C(=O)N(c1ccc(O)cc1)[C@@H](C)C(N)=O", "L-alanyl-N2-(4-hydroxyphenyl)-L-alaninamide"),
+        ("C[C@H](N)C(=O)N(CC(C)=O)[C@@H](C)C(N)=O", "L-alanyl-N2-(2-oxopropyl)-L-alaninamide"),
+        (
+            "CC(=O)N[C@@H](C)C(=O)N(c1ccc(O)c(O)c1)[C@@H](CS)C(N)=O",
+            "N-acetyl-L-alanyl-N2-(3,4-dihydroxyphenyl)-L-cysteinamide",
+        ),
+    ],
+)
+def test_enclosed_substituent_on_the_alpha_nitrogen_of_a_c_terminal_amide_is_n2(smiles, expected):
+    # P-103.2.1, P-103.2.7: with the amide nitrogen present the alpha nitrogen is N2
+    assert smiles_to_iupac(smiles) == expected

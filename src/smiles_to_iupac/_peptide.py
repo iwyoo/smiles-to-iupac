@@ -50,8 +50,38 @@ def _last_forms(base):
 
 _C_TERMINAL_AMIDE = Chem.MolFromSmarts("[CX4]-[CX3;!R](=O)-[NX3;!R]")
 _LEADING_LOCANT = re.compile(r"[A-Z]\d*(?:,[A-Z]\d*)*-")
-_ALPHA_N_SEGMENT = re.compile(r"(?P<locants>N(?:,N)*)-(?:di|tri)?(?P<name>[a-z]+)-")
-_ALPHA_N_PREFIX = re.compile(r"^(?P<prefix>(?:N(?:,N)*-(?:di|tri)?[a-z]+-)+)(?=[LD]-|[a-z])")
+_ALPHA_N_LOCANTS = re.compile(r"(N(?:,N)*)-(?:di|tri)?")
+_ALPHA_N_WORD = re.compile(r"[a-z]+")
+_CLOSING = {"(": ")", "[": "]", "{": "}"}
+
+
+def _alpha_n_prefix(residue):
+    """([(count of N locants, name)], end of the prefix) for the N-substituents leading an amino acid name, a name being
+    a lowercase word or a group in enclosing marks; None when there are none."""
+    position, segments = 0, []
+    while (locants := _ALPHA_N_LOCANTS.match(residue, position)) is not None:
+        start = locants.end()
+        if residue[start : start + 1] in _CLOSING:
+            depth, end = 0, start
+            for end in range(start, len(residue)):
+                depth += (residue[end] in _CLOSING) - (residue[end] in _CLOSING.values())
+                if depth == 0:
+                    break
+            else:
+                break
+            name, after = residue[start : end + 1], end + 1
+        else:
+            word = _ALPHA_N_WORD.match(residue, start)
+            if word is None:
+                break
+            name, after = word.group(), word.end()
+        if residue[after : after + 1] != "-":
+            break
+        segments.append((locants.group(1).count("N"), name))
+        position = after + 1
+    if not segments or not re.match(r"[LD]-|[a-z]", residue[position:]):
+        return None
+    return segments, position
 
 
 def _amide_residue(piece):
@@ -96,13 +126,13 @@ def _amide_residue(piece):
         return None
     if not residue.endswith("ine") or " " in residue:
         return None
-    alpha = _ALPHA_N_PREFIX.match(residue)
+    alpha = _alpha_n_prefix(residue)
     if alpha is not None:
         # P-103.2.1: with the amide nitrogen present, the alpha nitrogen is N2 and the amide nitrogen N1
         names = [("N1", name) for _, name in names]
-        for found in _ALPHA_N_SEGMENT.finditer(alpha.group("prefix")):
-            names += [("N2", found.group("name"))] * (found.group("locants").count("N"))
-        residue = residue[alpha.end("prefix") :]
+        for count, name in alpha[0]:
+            names += [("N2", name)] * count
+        residue = residue[alpha[1] :]
     prefix = format_n_prefix(names)
     return (f"{prefix}-" if prefix else "") + residue[:-1] + "amide"
 
