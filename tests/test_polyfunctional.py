@@ -1971,3 +1971,16 @@ def test_single_specified_centre_of_a_symmetric_parent_takes_the_lowest_locant(s
 def test_stereogenic_hydride_atom_with_a_carboxylic_acid_suffix_takes_the_descriptor_of_the_whole_structure(smiles, expected):
     # P-92.1.2: the carbon of the suffix group ranks as a ligand of the stereogenic atom
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("COC(=O)[C@@H](N)C(=O)OCc1ccccc1", "methyl (2R)-2-amino-3-(benzyloxy)-3-oxopropanoate"),
+        ("COC(=O)[C@@H](C)C(=O)OCC1CCCCC1", "methyl (2R)-3-(cyclohexylmethoxy)-2-methyl-3-oxopropanoate"),
+        ("COC(=O)[C@@]1(C(=O)OCc2ccccc2)CCCN1", "methyl (2R)-2-[(benzyloxy)carbonyl]pyrrolidine-2-carboxylate"),
+    ],
+)
+def test_stereogenic_diester_with_a_ring_substituted_methyl_ester_cites_the_descriptor(smiles, expected):
+    # P-65.6.3.2.3, P-92.1: one of two equally long ester alkyls is the ester word, the other ester a prefix
+    assert smiles_to_iupac(smiles) == expected

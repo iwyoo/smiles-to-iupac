@@ -250,6 +250,27 @@ def _parent_among_unlike_rings(mol, graph, matches):
     return best[1]
 
 
+def _parent_among_tied_chains(mol, graph, matches):
+    """Alkyl groups of equal length on the esters of one stereogenic acid: one is the ester word, the other ester stays a
+    prefix of the acid anion that cites the descriptor (P-65.6.3.2.3); the earlier name is the parent."""
+    if not any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
+        return None
+    units = _ranked_units(mol, graph, matches)
+    if units is None or len(units) < 2 or any(u[0] != "chain" or len(u[2]) != 1 for u in units):
+        return None
+    results = []
+    for _, _, body, atoms in units:
+        on = [m for m in matches if m[3].GetIdx() in atoms]
+        result = _best_for_option(mol, graph, "chain", body, atoms, on)
+        if result is not None:
+            results.append(result)
+    if not results:
+        return None
+    best = min(results, key=lambda result: (result[0], alpha_sort_key(result[1])))
+    skeleton_nuclides({a: p for a, p in best[2].items()})
+    return best[1]
+
+
 def _arm(mol, graph, start, ester_oxygen):
     """(arm atoms from the ester carbon, joint atom) of an unbranched, unsubstituted chain that ends in a ring atom."""
     arm, previous, node = [start], ester_oxygen, start
@@ -272,7 +293,10 @@ def _star_group(mol, graph, matches):
     """P-65.6.3.3.4.2: esters of one acid whose alcohol carbons end identical chains joined to a ring system are named
     as the ring diyl multiplied by the chain diyl, 'cyclohexane-1,1-diyldi(propane-3,1-diyl) diacetate'; the other
     esters stay acyloxy prefixes of the ring."""
-    anions = acid_anions(mol, matches)
+    try:
+        anions = acid_anions(mol, matches)
+    except UnsupportedStructure:
+        return None
     by_anion = {}
     for match, anion in zip(matches, anions):
         by_anion.setdefault(anion, []).append(match)
@@ -350,6 +374,7 @@ def name_diester_ring_diyl(mol, matches):
             _assembly_diyl_esters(mol, graph, matches)
             or _star_group(mol, graph, matches)
             or _parent_among_unlike_rings(mol, graph, matches)
+            or _parent_among_tied_chains(mol, graph, matches)
         )
         if star is None:
             raise
