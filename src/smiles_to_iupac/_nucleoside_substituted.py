@@ -1312,7 +1312,7 @@ _SENIOR_SMARTS = (
     ("anhydride", Chem.MolFromSmarts("[CX3](=O)[OX2][CX3]=O")),
     ("ester", Chem.MolFromSmarts("[CX3](=O)[OX2][#6]")),
     ("amide", Chem.MolFromSmarts("[CX3](=O)[NX3]")),
-    ("nitrile", Chem.MolFromSmarts("[CX2]#[NX1]")),
+    ("nitrile", Chem.MolFromSmarts("[CX2;!$([CX2]-[#7,#8,#16,#34])]#[NX1]")),
     ("aldehyde", Chem.MolFromSmarts("[CX3H1]=O")),
     ("sulfonic acid", Chem.MolFromSmarts("[SX4](=O)(=O)[OX2H1]")),
     ("acyl halide", Chem.MolFromSmarts("[CX3](=O)[F,Cl,Br,I;X1]")),

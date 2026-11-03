@@ -146,3 +146,16 @@ def test_nucleotide_anions_and_salts(smiles, expected):
 def test_orthoformate_ring_on_a_sugar_oxygen_is_a_substituent_not_a_carbonate(smiles, expected):
     # P-105.2, P-63.2: a carbon with three single-bonded oxygens is not a carbonate carbon
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("N#CSc1nc2c(N)ncnc2n1[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O", "8-(thiocyanato)adenosine"),
+        ("N#CSc1nc2c(=O)[nH]c(N)nc2n1[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O", "8-(thiocyanato)guanosine"),
+        ("N#C[Se]c1nc2c(N)ncnc2n1[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O", "8-(selenocyanato)adenosine"),
+    ],
+)
+def test_cyano_carbon_on_a_chalcogen_of_a_nucleoside_base_is_not_a_nitrile(smiles, expected):
+    # P-65.2.2: thiocyanate and selenocyanate groups are prefixes of the nucleoside, not nitrile senior groups
+    assert smiles_to_iupac(smiles) == expected
