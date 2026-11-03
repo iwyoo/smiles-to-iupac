@@ -7,7 +7,14 @@ the carrier from the resulting name.
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix, halogen_substituents
+from ._common import (
+    HALOGEN_PREFIXES,
+    InternalInvariantError,
+    RuleUndefinedStructure,
+    UnsupportedStructure,
+    halogen_prefix,
+    halogen_substituents,
+)
 from ._multiplicative_groups import KETONE_LIKE
 
 SUFFIX_CARRIERS = {
@@ -145,7 +152,7 @@ def probe_name(smiles, name_function=None):
     _state["depth"] += 1
     try:
         return name_function(smiles)
-    except UnsupportedStructure:
+    except (UnsupportedStructure, RuleUndefinedStructure, InternalInvariantError):
         raise
     except Exception as error:
         raise UnsupportedStructure(f"auxiliary probe could not be named: {error}") from error
