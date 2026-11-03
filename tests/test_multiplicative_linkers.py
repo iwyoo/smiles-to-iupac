@@ -1388,3 +1388,25 @@ def test_multiplied_monocycle_whose_monosubstituted_locant_is_omitted(smiles, ex
 def test_multiplied_linker_is_not_attached_to_a_nitrogen_that_is_not_the_parent_amides(smiles, expected):
     # P-15.3.2, P-44.1.2.2: the ring amide is the repeated parent, so the multivalent group runs between its nitrogens
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "OC(=O)CCC1OC1CCC1OC1CCC(=O)O",
+            "3,3'-[ethane-1,2-diyldi(oxirane-3,2-diyl)]dipropanoic acid",
+        ),
+        (
+            "OC(=O)CCC1NC1CCC1NC1CCC(=O)O",
+            "3,3'-[ethane-1,2-diyldi(aziridine-3,2-diyl)]dipropanoic acid",
+        ),
+        (
+            "OCCC1OC1CCC1OC1CCO",
+            "2,2'-[ethane-1,2-diyldi(oxirane-3,2-diyl)]di(ethan-1-ol)",
+        ),
+    ],
+)
+def test_multiplied_chain_parent_keeps_a_three_membered_ring_in_the_linker(smiles, expected):
+    # P-15.3.1.1, P-15.3.1.3: the chain bearing the suffix is the repeated parent; the ring is part of the linking group
+    assert smiles_to_iupac(smiles) == expected
