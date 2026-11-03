@@ -389,7 +389,7 @@ def _glycosyl_on_parent(mol, link, sugar, name):
     """The parent that carries a glycosyl group on the carbon `link` (P-102.6.1.4): the sugar is swapped for a
     placeholder substituent whose name is supplied while the rest is named."""
     from .core import _name_mol
-    from ._substituents import FORCED_BRANCH_NAMES
+    from ._substituents import FORCED_BRANCH_NAMES, FORCED_CONSUMED
 
     editable = Chem.RWMol(mol)
     placeholder = editable.AddAtom(Chem.Atom(6))
@@ -401,13 +401,18 @@ def _glycosyl_on_parent(mol, link, sugar, name):
         Chem.SanitizeMol(reduced)
     except Exception:
         return None
+    consumed = set()
     token = FORCED_BRANCH_NAMES.set((reduced.GetNumAtoms(), {placeholder - len(sugar): (name, True)}))
+    used = FORCED_CONSUMED.set(consumed)
     try:
         found = _name_mol(reduced)
     except UnsupportedStructure:
         return None
     finally:
+        FORCED_CONSUMED.reset(used)
         FORCED_BRANCH_NAMES.reset(token)
+    if placeholder - len(sugar) not in consumed:
+        return None
     return found if name in found and "methyl" not in found.replace(name, "") else None
 
 
