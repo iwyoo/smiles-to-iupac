@@ -12,6 +12,7 @@ from ._appendix3_groups import SENIORITY
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    alpha_sort_key,
     halogen_substituents,
     multiplied_word,
 )
@@ -185,16 +186,19 @@ def _others(mol, nitrogen, *excluded):
 
 
 def _ester_alkyls(mol, graph, halogens, members, sort_key):
-    names = {}
-    for group in members:
-        oxygen, alkyl = group.extra["oxygen"], group.extra["alkyl"]
-        names[group.label] = name_branch(graph, alkyl, oxygen, halogens, frozenset(), mol=mol, unsaturated=True)
-    distinct = {n for n, _ in names.values()}
+    named = [
+        (group.label, name_branch(graph, group.extra["alkyl"], group.extra["oxygen"], halogens, frozenset(), mol=mol, unsaturated=True))
+        for group in members
+    ]
+    distinct = {n for _, (n, _) in named}
     if len(distinct) == 1:
-        name, compound = next(iter(names.values()))
+        name, compound = named[0][1]
         if len(members) > 1:
             return multiplying_prefix(len(members), compound=compound) + (f"({name})" if compound else name)
         return name
+    if len({label for label, _ in named}) < len(named):
+        return " ".join(sorted((name for _, (name, _) in named), key=alpha_sort_key))
+    names = dict(named)
     by_name = {}
     for label, (name, compound) in names.items():
         by_name.setdefault(name, (compound, []))[1].append(label)

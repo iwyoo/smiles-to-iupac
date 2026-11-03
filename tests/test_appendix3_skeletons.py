@@ -308,3 +308,22 @@ def test_monoterpenes_keep_their_systematic_names(smiles, expected):
 def test_tropane_skeleton_is_named_by_von_baeyer_nomenclature(smiles, expected):
     # P-64.7.1, P-101.7.2: the von Baeyer name is the PIN; tropane is a Table 10.1 name for general nomenclature
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "CC(C)(C)OC(=O)C1(C(=O)OCCBr)CS[C@@H]2C(N)C(=O)N2C1",
+            "2-bromoethyl tert-butyl 7-aminocepham-3,3-dicarboxylate",
+        ),
+        ("CC(C)(C)OC(=O)C1(C(=O)OC)CS[C@@H]2CC(=O)N2C1", "tert-butyl methyl cepham-3,3-dicarboxylate"),
+        (
+            "CC(C)(C)OC(=O)C1(C(=O)OC)C(C)(C)S[C@@H]2CC(=O)N12",
+            "tert-butyl methyl 2,2-dimethylpenam-3,3-dicarboxylate",
+        ),
+    ],
+)
+def test_two_different_esters_on_one_position_of_a_skeleton_are_both_cited(smiles, expected):
+    # P-65.6.3.2.1, P-65.6.3.3: the alkyl groups of an unsymmetrical polyester are cited in alphanumerical order
+    assert smiles_to_iupac(smiles) == expected
