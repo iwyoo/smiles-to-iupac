@@ -1370,3 +1370,21 @@ def test_multiplied_linker_arms_must_agree_in_configuration(smiles, expected):
 def test_multiplied_monocycle_whose_monosubstituted_locant_is_omitted(smiles, expected):
     # P-14.3.4.2(c), P-15.3.1.3: the junction of the multiplied ring keeps its locant in the multiplicative name
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "O=C(CCCCCNC(=O)c1ccccc1)NCCNC(=O)CCCCCNC(=O)c1ccccc1",
+            "N,N'-{ethane-1,2-diylbis[azanediyl(6-oxohexane-6,1-diyl)]}dibenzamide",
+        ),
+        (
+            "O=C(CCNC(=O)c1ccccc1)NCCSSCCNC(=O)CCNC(=O)c1ccccc1",
+            "N,N'-{disulfanediylbis[ethane-2,1-diylazanediyl(3-oxopropane-3,1-diyl)]}dibenzamide",
+        ),
+    ],
+)
+def test_multiplied_linker_is_not_attached_to_a_nitrogen_that_is_not_the_parent_amides(smiles, expected):
+    # P-15.3.2, P-44.1.2.2: the ring amide is the repeated parent, so the multivalent group runs between its nitrogens
+    assert smiles_to_iupac(smiles) == expected

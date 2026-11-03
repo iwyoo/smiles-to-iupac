@@ -725,6 +725,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
                 return None
             lead, text = numbered
             return f"{lead}{_linker_text(branches, central, arm_parts)}{multiplier_word(count, False)}{unit_phrase(text, '')}"
+        if unit_kind == "amide" and not _attach_is_parent_nitrogen(units[0]):
+            return None
         if unit_kind in ("amide", "amine", "imine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif unit_kind == "urea":
@@ -901,6 +903,29 @@ def _cited_unit_stereo(units, unit_kind):
     ordered = sorted(per_unit, key=lambda labels: tuple(0 if code in ("R", "Z") else 1 for _, code in labels))
     cited = [f"{locant}{chr(39) * i}{code}" for i, labels in enumerate(ordered) for locant, code in labels]
     return plain, f"({','.join(cited)})-"
+
+
+def _attach_is_parent_nitrogen(unit_pair):
+    """Whether the nitrogen that carries the multiplied group is the nitrogen of the parent amide of the unit, as the
+    locant 'N' of the multiplied amide says (P-15.3.2); a senior ring amide elsewhere in the unit makes it a substituent."""
+    from .core import smiles_to_iupac
+
+    unit, attach = unit_pair
+    editable = Chem.RWMol(unit)
+    for atom in editable.GetAtoms():
+        if is_prefix_placeholder(atom):
+            continue
+        if atom.GetIdx() != attach and atom.GetAtomMapNum() and atom.GetNoImplicit() and atom.GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED:
+            atom.SetNumExplicitHs(atom.GetNumExplicitHs() + 1)
+        atom.SetAtomMapNum(0)
+    iodine = editable.AddAtom(Chem.Atom(53))
+    editable.AddBond(attach, iodine, Chem.BondType.SINGLE)
+    try:
+        Chem.SanitizeMol(editable)
+        name = smiles_to_iupac(Chem.MolToSmiles(editable))
+    except (Chem.MolSanitizeException, UnsupportedStructure):
+        return True
+    return "N-iodo" in name
 
 
 def _unit_name_by_pipeline(unit, unit_kind):
