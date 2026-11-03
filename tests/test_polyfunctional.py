@@ -1997,3 +1997,16 @@ def test_stereogenic_diester_with_a_ring_substituted_methyl_ester_cites_the_desc
 def test_half_ester_of_a_skeletal_replacement_diacid_cites_hydrogen(smiles, expected):
     # P-65.6.2.3.1, P-65.6.3.2.1: the free acid group of a polybasic acid ester is cited as 'hydrogen'
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(C)(C)OC(=O)CCOCOCOCOCOCC(=O)O", "14-tert-butyl 1-hydrogen 3,5,7,9,11-pentaoxatetradecane-1,14-dioate"),
+        ("CC(C)(C)OC(=O)COCOCOCOCOCCC(=O)O", "1-tert-butyl 14-hydrogen 3,5,7,9,11-pentaoxatetradecane-1,14-dioate"),
+        ("COC(=O)CCOCOCOCOCOCC(=O)OCC", "1-ethyl 14-methyl 3,5,7,9,11-pentaoxatetradecane-1,14-dioate"),
+    ],
+)
+def test_ester_locants_are_cited_when_the_ends_of_the_skeletal_replacement_diacid_differ(smiles, expected):
+    # P-65.6.3.3.2.1: when necessary, locants are cited at the front of the organyl groups
+    assert smiles_to_iupac(smiles) == expected

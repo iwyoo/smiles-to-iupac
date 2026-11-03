@@ -5,6 +5,7 @@ group, give '3,6,9,12-tetraoxatetradecanedioic acid'.
 """
 
 import itertools
+import re
 
 from rdkit import Chem
 
@@ -918,8 +919,67 @@ def name_heteroacyclic_ester(mol):
     pendants = _multiplied([(n, compound, k, []) for n, (k, compound) in counts.items()])
     carboxyls = {match[0] for match in acid.GetSubstructMatches(Chem.MolFromSmarts("[CX3](=O)[OX2H1]"))}
     free = len(carboxyls) - len(terminal)
+    located = _located_end_groups(mol, graph, terminal, removed, name, halogens)
+    if located is not None:
+        return f"{located} {anion_name(name)}"
     if free > 0:
         from ._numerals import multiplying_prefix
 
         pendants += " " + ("hydrogen" if free == 1 else multiplying_prefix(free) + "hydrogen")
     return f"{pendants} {anion_name(name)}"
+
+
+_REPLACEMENT_LOCANTS = re.compile(r"((?:\d+,)*\d+)-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca|undeca|dodeca)?(?:oxa|thia|aza|selena|tellura)")
+
+
+def _located_end_groups(mol, graph, terminal, removed, name, halogens):
+    """P-65.6.3.3.2.1: the organyl groups (and 'hydrogen') of the two ends of a dioic acid whose ends differ, each with
+    the locant of its carboxyl group in front, 'tert-butyl' on locant 14 and 'hydrogen' on 1; None when the ends are
+    equivalent, equally esterified or not the two ends of one chain."""
+    from ._common import alpha_sort_key
+
+    ends = {}
+    for acyl, oxygen, root, _ in terminal:
+        ends[acyl] = (oxygen, root)
+    for match in mol.GetSubstructMatches(Chem.MolFromSmarts("[CX3](=O)[OX2H1]")):
+        ends.setdefault(match[0], None)
+    if len(ends) != 2:
+        return None
+    first, last = sorted(ends)
+    previous = {first: None}
+    queue = [first]
+    while queue:
+        node = queue.pop(0)
+        for n in graph[node]:
+            if n not in previous and n not in removed and mol.GetAtomWithIdx(n).GetDegree() > 1:
+                previous[n] = node
+                queue.append(n)
+    if last not in previous:
+        return None
+    path = [last]
+    while path[-1] != first:
+        path.append(previous[path[-1]])
+    path.reverse()
+    size = len(path)
+    forward = {i for i, atom in enumerate(path, start=1) if mol.GetAtomWithIdx(atom).GetAtomicNum() != 6}
+    reverse = {size + 1 - i for i in forward}
+    cited = {int(x) for group in _REPLACEMENT_LOCANTS.findall(name) for x in group.split(",")}
+    if forward == reverse or not cited:
+        return None
+    if cited == forward:
+        locants = {first: 1, last: size}
+    elif cited == reverse:
+        locants = {first: size, last: 1}
+    else:
+        return None
+    labels = {}
+    for acyl, found in ends.items():
+        if found is None:
+            labels[acyl] = ("hydrogen", False)
+        else:
+            organyl, compound = name_branch(graph, found[1], found[0], halogens, mol=mol)
+            labels[acyl] = (organyl, compound)
+    if labels[first] == labels[last]:
+        return None
+    items = sorted(((labels[a], locants[a]) for a in ends), key=lambda item: alpha_sort_key(item[0][0]))
+    return " ".join(f"{locant}-{'(' + label + ')' if compound else label}" for (label, compound), locant in items)
