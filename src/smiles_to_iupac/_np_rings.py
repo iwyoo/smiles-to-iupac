@@ -7,7 +7,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._fusion_bridged import GENERAL_BRIDGE_WORDS, Part, _kekule, _prefix_text, _units_of, bridge_assemblies
-from ._np_core import FACES, loc_key
+from ._np_core import FACES
 
 
 @dataclass

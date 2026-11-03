@@ -149,7 +149,6 @@ def _senior_by_acid(mol, graph, matches, units):
     """Equally ranked alkyl groups of esters of different acids: the ester of the acid with the longest chain is the
     principal one and the other is cited as a prefix (P-44.1.2.2, P-65.6.3.2.3); rings and ties keep the units."""
     from ._common import component_subgraph, longest_chains
-    from ._diester_anions import _acyl_component
 
     if any(u[0] != "chain" for u in units) or mol.GetRingInfo().NumRings():
         return units

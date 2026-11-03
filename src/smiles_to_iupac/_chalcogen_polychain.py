@@ -108,7 +108,6 @@ def _name_with_parent(mol, graph, order):
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     entries, covered = [], set(run)
-    element = mol.GetAtomWithIdx(order[0]).GetAtomicNum()
     others = set(_STEMS)
     for end in dict.fromkeys((order[0], order[-1])):
         for root in (n for n in graph[end] if n not in run):

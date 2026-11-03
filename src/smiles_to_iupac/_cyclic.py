@@ -30,7 +30,6 @@ Fused, bridged, and spiro ring systems are out of scope for this module and
 raise NotImplementedError.
 """
 
-from rdkit import Chem
 
 from ._multiplicative_text import enclose
 from ._common import (

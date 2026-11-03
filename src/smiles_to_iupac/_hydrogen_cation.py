@@ -9,7 +9,6 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
 from ._numerals import numerical_term
 
 _STAND_INS = (("[Li+]", "lithium"), ("[Cs+]", "caesium"), ("[Rb+]", "rubidium"), ("[K+]", "potassium"), ("[Na+]", "sodium"))

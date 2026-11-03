@@ -361,7 +361,6 @@ def _multiplicative_assembly(mol, centres):
             )
     except DecompositionRejected:
         return None
-    represented = set(atoms).union(*(components[cid][1] for cid, _, _ in arm_chain))
     for element_kind, idx, _ in stereo:
         if (element_kind, idx) not in ctx.used:
             return None
