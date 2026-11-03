@@ -2480,3 +2480,25 @@ def test_spiro_ring_system_on_an_aromatic_ring_cation_is_a_substituent_of_the_ca
     # P-24.5, P-73.1.1.2, P-29.2: the spiro system is numbered without the aromatic ring of the cation
     smiles = "C[n+]1ccccc1-c1ccc2c(c1)C1(CCCC1)CC2"
     assert smiles_to_iupac(smiles) == "2-[2′,3′-dihydrospiro[cyclopentane-1,1′-inden]-6′-yl]-1-methylpyridin-1-ium"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "O=C([O-])c1cccc(NC(=O)C2CCCCC2C(=O)[O-])c1",
+            "3-[(2-carboxylatocyclohexane-1-carbonyl)amino]benzoate",
+        ),
+        (
+            "O=C([O-])c1cccc(NC(=O)C2CC=CCC2C(=O)[O-])c1",
+            "3-[(6-carboxylatocyclohex-3-ene-1-carbonyl)amino]benzoate",
+        ),
+        (
+            "O=C([O-])c1cccc(NC(=O)C(C)C(C)C(=O)[O-])c1",
+            "3-[(3-carboxylato-2-methylbutanoyl)amino]benzoate",
+        ),
+    ],
+)
+def test_carboxylate_inside_the_acyl_group_of_an_amide_beside_a_carboxylate_parent(smiles, expected):
+    # P-65.6.2.3.1: every carboxylate that is not the parent is cited as the prefix carboxylato, not carboxy
+    assert smiles_to_iupac(smiles) == expected
