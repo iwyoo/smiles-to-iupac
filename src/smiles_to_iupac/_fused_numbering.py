@@ -49,13 +49,21 @@ def _shape_tables(n):
     return ([Fraction(-k, n) % 1 for k in range(n)],)
 
 
+def _canonical_cycle(ring):
+    """The ring from its lowest atom, towards its lower neighbour: the drawings depend on the order and the start of
+    the rings, which RDKit gives differently from one release to the next, so the rings are sorted by their atoms."""
+    start = ring.index(min(ring))
+    cycle = ring[start:] + ring[:start]
+    return cycle if cycle[1] < cycle[-1] else [cycle[0], *cycle[:0:-1]]
+
+
 class FusedSystem:
     """Rings (clockwise atom cycles in one planar embedding), their shared bonds and the periphery."""
 
     def __init__(self, mol):
         self.mol = mol
         Chem.GetSymmSSSR(mol)
-        rings = [list(r) for r in mol.GetRingInfo().AtomRings()]
+        rings = sorted(_canonical_cycle(list(r)) for r in mol.GetRingInfo().AtomRings())
         if not rings:
             raise UnsupportedStructure("a ring system without rings has no fusion numbering")
         bond_rings = defaultdict(list)
