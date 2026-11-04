@@ -1637,3 +1637,16 @@ def test_multiplied_sulfonate_keeps_the_configuration_of_the_diyl_group(smiles, 
 def test_sulfonimidothioamide_is_named_from_whichever_chalcogen_is_written_first(smiles, expected):
     # P-65.3.2.3, P-66.4.1.1: the amide nitrogens belong to the sulfur atom that carries them, not to the terminal thio atom
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("COC(=O)c1ccc(S(N)(=O)=NC)cc1", "methyl 4-(S-amino-N-methylsulfonimidoyl)benzoate"),
+        ("COC(=O)c1ccc(S(N)(=O)=NC(C)=O)cc1", "methyl 4-(N-acetyl-S-aminosulfonimidoyl)benzoate"),
+        ("COC(=O)c1ccc(S(N(C)C)(=O)=NCC)cc1", "methyl 4-[S-(dimethylamino)-N-ethylsulfonimidoyl]benzoate"),
+    ],
+)
+def test_sulfonimidoyl_prefix_cites_the_substituents_on_its_imino_nitrogen(smiles, expected):
+    # P-65.3.2.2, P-14.5.1: the =N-R substituent takes the locant N and stands in alphanumerical order
+    assert smiles_to_iupac(smiles) == expected

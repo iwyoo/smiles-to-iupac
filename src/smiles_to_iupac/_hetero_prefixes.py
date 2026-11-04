@@ -2160,6 +2160,17 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         mark(None, POLYACID_SUBSTITUENT_REASON)
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
     located = f"{center}-" if zx == 7 and ("NH" in symbols or "NNH2" in symbols) and center in ("S", "Se", "Te") else ""
+    imino_subs = [
+        name_branch(graph, nb, n, halogens, aromatic_atoms, mol=mol)
+        for n, e in oxo
+        if e == "NH"
+        for nb in graph[n]
+        if nb != root
+    ]
+    if imino_subs:
+        cited = [(located and f"{center}-", z_name, z_compound), *(("N-", name, compound) for name, compound in imino_subs)]
+        cited.sort(key=lambda item: alpha_sort_key(item[1]))
+        return "-".join(f"{label}{_enclose(name, compound) if compound else name}" for label, name, compound in cited) + acyl, True
     return located + (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True
 
 
