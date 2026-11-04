@@ -227,7 +227,25 @@ def _carries_principal_group(mol, comps):
     scope = set().union(*(c["atoms"] for c in comps))
     if any(a.GetFormalCharge() == 1 and a.GetDegree() == 4 and a.GetIdx() in scope for a in mol.GetAtoms()):
         return False
+    if _ring_cation_centres(mol, scope):
+        return False
     return any(a.GetIdx() not in scope and a.GetAtomicNum() != 6 and a.GetAtomicNum() not in _HALOGENS for a in mol.GetAtoms())
+
+
+def _ring_cation_centres(mol, scope):
+    """The saturated ring atoms that carry a hydron or a fourth substituent: each takes the suffix 'ium' (P-73.1.1.2)."""
+    from ._polycation import _CATION_VALENCE
+
+    return sorted(
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetIdx() in scope
+        and a.GetFormalCharge() == 1
+        and not a.GetIsAromatic()
+        and a.GetAtomicNum() in _CATION_VALENCE
+        and a.GetDegree() + a.GetTotalNumHs() == _CATION_VALENCE[a.GetAtomicNum()]
+        and all(b.GetBondTypeAsDouble() == 1.0 for b in a.GetBonds())
+    )
 
 
 def _unique(orders):
@@ -547,6 +565,7 @@ def _analyse(mol, atoms=None, outer=frozenset()):
         projections[i] = table
     return SimpleNamespace(
         comps=comps, spiro=spiro, info=info, cationic=cationic,
+        ring_cations=[a for a in _ring_cation_centres(mol, scope) if a not in info],
         anionic=[s for s in spiro if mol.GetAtomWithIdx(s).GetFormalCharge() < 0], named=named,
         anion_word={s: "uide" if mol.GetAtomWithIdx(s).GetAtomicNum() in _GROUP_13 else "ide" for s in spiro}, inner=inner, names=names, spiro_in=spiro_in,
         capable=capable, polycyclic_bonds=polycyclic_bonds, monocyclic_bonds=monocyclic_bonds,
@@ -654,7 +673,7 @@ def _ending_text(ene, ending):
             locants = found[1]
             text += f"-{','.join(locants)}-" + ("ylium" if len(locants) == 1 else f"{_BIS[len(locants)]}(ylium)")
             initial = initial or ("y" if len(locants) == 1 else "b")
-        elif found[0] in ("ide", "uide"):
+        elif found[0] in ("ium", "ide", "uide"):
             kind, locants = found
             text += f"-{','.join(locants)}-" + (kind if len(locants) == 1 else f"{multiplying_prefix(len(locants))}{kind}")
             initial = initial or kind[0]
@@ -852,7 +871,8 @@ def _best_numbering(ctx, mol, graph, cited, ring_atoms, saturated, choices, cent
         dehydro_key = [_lk(l) for l in _dehydro_locants(ctx, locant_of)]
         unsaturation = sorted(choice[1] + [_lk(x) for x in sol.ene] + dehydro_key)
         configuration = tuple(0 if code in "Rr" else 1 for _, code in sorted(((_lk(locant_of[a]), code) for a, code in centres if a in locant_of)))
-        key = (*_ranked(ctx, mol, sol), choice[0], unsaturation, dehydro_key, locant_set, citation_prefix, configuration)
+        cations = sorted(_lk(locant_of[a]) for a in ctx.ring_cations)
+        key = (*_ranked(ctx, mol, sol), choice[0], cations, unsaturation, dehydro_key, locant_set, citation_prefix, configuration)
         if best is None or key < best[0]:
             best = (key, sol, choice[2], grouped)
     return best
@@ -892,8 +912,11 @@ def _with_anion_prefixes(mol, ctx):
 
 
 def _ionic_endings(ctx, sol):
-    """The cumulative 'ylium' and 'uide' suffixes of the charged spiro atoms, cationic ones first (P-74.1.1)."""
+    """The cumulative 'ium', 'ylium' and 'uide' suffixes of the charged ring atoms, cationic ones first (P-74.1.1)."""
     endings = []
+    ring_locants = sorted((sol.locant_of[a] for a in ctx.ring_cations), key=_lk)
+    if ring_locants:
+        endings.append(("ium", ring_locants))
     for kind, atoms in (
         ("ylium", ctx.cationic),
         ("ide", [s for s in ctx.anionic if ctx.anion_word[s] == "ide"]),

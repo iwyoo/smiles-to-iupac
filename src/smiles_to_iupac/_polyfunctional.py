@@ -1716,6 +1716,8 @@ def _attach(name, placed, center, kind, oxide_labels=None):
         raise UnsupportedStructure("the ring nitrogen is not numbered in the parent hydride")
     if kind == "oxide":
         return f"{name} {locant}-{_oxide_word(1, (oxide_labels or {}).get(center, ()))}"
+    if kind == "ium" and name.endswith("e]"):
+        return f"{name[:-2]}]-{locant}-ium"
     if not name.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
     if kind == "chalcogenium":
@@ -2011,6 +2013,35 @@ def _ylium_inserted(name, base, center, placed):
     return f"{name[:start]}-{locant}-ylium{tail}"
 
 
+def _fusion_onium_centre(base, center):
+    atom = base.GetAtomWithIdx(center)
+    return atom.GetAtomicNum() == 7 and atom.GetDegree() == 4 and not atom.GetFormalCharge() and sum(b.IsInRing() for b in atom.GetBonds()) == 3
+
+
+def _name_fusion_onium(base, center, labels):
+    """A nitrogen shared by fused rings that carries a fourth substituent is the cation of the fusion parent hydride's
+    nitrogen, not a nitrogen of four bonds in a von Baeyer name (P-73.1.1.2)."""
+    from ._diester_ring_diyl import CATION_CENTRES
+
+    editable = Chem.RWMol(base)
+    editable.GetAtomWithIdx(center).SetBoolProp("_ring_cation_centre", True)
+    editable.GetAtomWithIdx(center).SetBoolProp("_saturated_onium_centre", True)
+    marked = editable.GetMol()
+    marked.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(marked)
+    token = CATION_CENTRES.set(((center, "ium"),))
+    ring_token = RING_CENTER.set(True)
+    parent_token = CATION_PARENT.set(True)
+    atom_token = CATION_RING_ATOM.set(center)
+    try:
+        return _name_labelled(marked, labels or {}, lambda name, placed: _cation_inserted(name, marked, center, placed))
+    finally:
+        CATION_RING_ATOM.reset(atom_token)
+        CATION_PARENT.reset(parent_token)
+        RING_CENTER.reset(ring_token)
+        CATION_CENTRES.reset(token)
+
+
 def _name_ring_center(base, center, kind, probe=None, labels=None, oxide_labels=None):
     from ._diester_ring_diyl import _system_of
 
@@ -2033,6 +2064,11 @@ def _name_ring_center(base, center, kind, probe=None, labels=None, oxide_labels=
         marked = Chem.Mol(base)
         marked.GetAtomWithIdx(center).SetBoolProp(CATION_INSERT_PROP, True)
         return _name_labelled(marked, labels or {}, lambda name, placed: _cation_inserted(name, base, center, placed))
+    if kind == "ium" and probe is None and _fusion_onium_centre(base, center):
+        try:
+            return _name_fusion_onium(base, center, labels)
+        except UnsupportedStructure:
+            pass
     if not labels and len(_system_of(base, center)[1]) == base.GetNumAtoms():
         try:
             name, placed = _bare_ring_name(base, center)
