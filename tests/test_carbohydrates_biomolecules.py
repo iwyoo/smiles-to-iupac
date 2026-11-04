@@ -1112,3 +1112,21 @@ def test_ketone_between_two_identical_sugars_cites_both_glycosyl_groups():
     # P-102.6.1.4, P-64.2: the glycosyl group replaced by a placeholder must itself be cited in the name of the rest
     smiles = "O=C([C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)[C@@H]2O[C@H](CO)[C@H](O)[C@H](O)[C@H]2O"
     assert smiles_to_iupac(smiles) == "bis(β-D-galactopyranosyl)methanone"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "O=C(Cc1c[nH]c2ccccc12)OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O",
+            "β-D-glucopyranose 6-[(1H-indol-3-yl)acetate]",
+        ),
+        (
+            "O=C(Cc1c[nH]c2ccccc12)OC[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O",
+            "methyl β-D-glucopyranoside 6-[(1H-indol-3-yl)acetate]",
+        ),
+    ],
+)
+def test_aromatic_nh_of_a_sugar_ester_acid_keeps_its_hydrogen(smiles, expected):
+    # P-65.6.3.2.1: the cut-out sugar unit leaves the pyrrole nitrogen of the acyl group untouched
+    assert smiles_to_iupac(smiles) == expected
