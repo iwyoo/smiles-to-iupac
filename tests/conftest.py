@@ -1,10 +1,12 @@
+import os
 import signal
 import time
 
 import pytest
 
-TEST_SECONDS = 5
-SESSION_SECONDS = 20
+# SMILES_TO_IUPAC_TEST_SECONDS / SMILES_TO_IUPAC_SESSION_SECONDS: 0 removes the limit (a release run needs every test)
+TEST_SECONDS = int(os.environ.get("SMILES_TO_IUPAC_TEST_SECONDS", 5))
+SESSION_SECONDS = int(os.environ.get("SMILES_TO_IUPAC_SESSION_SECONDS", 20))
 _started = time.monotonic()
 
 
@@ -14,12 +16,16 @@ def pytest_sessionstart(session):
 
 
 def pytest_runtest_setup(item):
-    if time.monotonic() - _started > SESSION_SECONDS:
+    if SESSION_SECONDS and time.monotonic() - _started > SESSION_SECONDS:
         pytest.skip(f"the {SESSION_SECONDS} s budget of this worker is used up")
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item):
+    if not TEST_SECONDS:
+        yield
+        return
+
     def stop(*_):
         raise TimeoutError(f"over the {TEST_SECONDS} s limit of one test")
 
