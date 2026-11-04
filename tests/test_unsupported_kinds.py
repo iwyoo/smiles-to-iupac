@@ -101,3 +101,24 @@ def test_identical_carbamate_components_are_refused_not_an_internal_error(smiles
 def test_biguanide_stereo_on_the_bridging_nitrogen_is_refused_not_cited_on_a_bond_the_name_lacks(smiles):
     with pytest.raises(UnsupportedStructure):
         name(smiles)
+
+
+@pytest.mark.parametrize("error", [RuleUndefinedStructure, InternalInvariantError, UnsupportedStructure])
+def test_probe_name_keeps_the_kind_of_a_library_error(error):
+    from smiles_to_iupac._multiplicative_prefix import probe_name
+
+    def refuse(_smiles):
+        raise error("probe")
+
+    with pytest.raises(error):
+        probe_name("CC", refuse)
+
+
+def test_probe_name_reports_a_foreign_error_as_unsupported():
+    from smiles_to_iupac._multiplicative_prefix import probe_name
+
+    def fail(_smiles):
+        raise KeyError("probe")
+
+    with pytest.raises(UnsupportedStructure):
+        probe_name("CC", fail)
