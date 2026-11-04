@@ -774,7 +774,7 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
         if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND
         and not (
             mol.GetAtomWithIdx(a).GetAtomicNum() in _TRIVALENT_RING_HETERO
-            and mol.GetAtomWithIdx(a).GetDegree() == 3
+            and sum(1 for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in skeleton_atoms) == 3
             and not mol.GetAtomWithIdx(a).GetFormalCharge()
             and mol.GetRingInfo().NumAtomRings(a) > 1
         )

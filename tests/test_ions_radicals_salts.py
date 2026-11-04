@@ -1724,6 +1724,9 @@ def test_polycations_of_ylium_groups_on_one_skeleton(smiles, expected):
         pytest.param("C[C@H]1CCC[N+]2(C1)CCCC2", "(7S)-7-methyl-5λ5-azaspiro[4.5]decan-5-ylium", id="spiro_ammonium_with_a_stereocentre"),
         pytest.param("[P+]12(c3ccccc3-c3ccccc31)c1ccccc1-c1ccccc12", "5H-5λ5,5′-spirobi[benzo[b]phosphindol]-5-ylium", id="spiro_atom_cation_of_mancude_components_keeps_its_indicated_hydrogen"),
         pytest.param("C1CC2CC[S+]1CC2", "1λ4-thiabicyclo[2.2.2]octan-1-ylium", id="bridgehead_cation_by_the_lambda_convention"),
+        pytest.param("CC[NH+]1CCC2(CC1)CCc1ccccc12", "1′-ethyl-2,3-dihydrospiro[indene-1,4′-piperidin]-1′-ium", id="ring_cation_beside_a_polycyclic_spiro_component"),
+        pytest.param("O=C1NC2(CC[NH2+]CC2)c2ccccc21", "3-oxo-2,3-dihydrospiro[isoindole-1,4′-piperidin]-1′-ium", id="ring_cation_outranks_the_lactam_of_a_spiro_union"),
+        pytest.param("C[N+]12CCc3ccccc3C1CCCC2", "5-methyl-1,3,4,6,7,11b-hexahydro-2H-pyrido[2,1-a]isoquinolin-5-ium", id="quaternary_nitrogen_at_a_ring_fusion"),
     ],
 )
 def test_cationic_centres_named_by_skeletal_replacement_and_lambda_parents(smiles, expected):
