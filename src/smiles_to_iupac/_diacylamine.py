@@ -2,6 +2,8 @@
 amide, e.g. N-acetylbenzamide, N,N-di(cyclohexanecarbonyl)cyclohexanecarboxamide. The other acyl groups are stood in
 for by methyl groups whose names are replaced by the acyl prefixes, so the amide is named with its usual N-prefixes."""
 
+import re
+
 from rdkit import Chem
 
 from ._chalcogenourea import has_acid_derivative_senior_to_amide
@@ -255,6 +257,8 @@ def diacylamine_name(mol):
     finally:
         FORCED_CONSUMED.reset(used)
         FORCED_BRANCH_NAMES.reset(token)
-    if not consumed >= set(forced[1]) or not name.endswith("amide") or any(f"{donor_name}" not in name for donor_name, _ in names.values()):
+    if not consumed >= set(forced[1]) or not name.endswith("amide"):
+        return None
+    if any(not re.search(rf"N[\d',N]*-(?:di|tri)?[(\[{{]?{re.escape(donor_name)}", name) for donor_name, _ in names.values()):
         return None
     return name

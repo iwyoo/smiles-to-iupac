@@ -1130,3 +1130,21 @@ def test_ketone_between_two_identical_sugars_cites_both_glycosyl_groups():
 def test_aromatic_nh_of_a_sugar_ester_acid_keeps_its_hydrogen(smiles, expected):
     # P-65.6.3.2.1: the cut-out sugar unit leaves the pyrrole nitrogen of the acyl group untouched
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "NC(=O)C1CCN(C(=O)C(=O)N(C(C)=O)C)CC1",
+            "1-{[acetyl(methyl)amino](oxo)acetyl}piperidine-4-carboxamide",
+        ),
+        (
+            "NC(=O)C1CCN(C(=O)C(=O)N(C(C)=O)c2ccccc2)CC1",
+            "1-[(N-acetylanilino)(oxo)acetyl]piperidine-4-carboxamide",
+        ),
+    ],
+)
+def test_n_acyl_group_inside_a_prefix_beside_an_amide_parent_keeps_its_acyl_group(smiles, expected):
+    # P-65.1.7: an imide acyl group cited inside a prefix is not a stand-in methyl group of the parent amide
+    assert smiles_to_iupac(smiles) == expected
