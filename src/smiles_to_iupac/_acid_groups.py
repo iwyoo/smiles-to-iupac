@@ -1,7 +1,7 @@
 """Recognition of acid groups and their functional-replacement analogues on a
 carbon, sulfur, selenium or tellurium centre (P-65.1.3-P-65.1.5, P-65.3.1)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ._acid_lexicon import AcidSpec, make_spec
 
@@ -16,6 +16,7 @@ class AcidGroup:
     owned: set
     n_substituents: list
     n_atom: int = None
+    n_slots: list = field(default_factory=list)
 
 
 def _bond(mol, a, b):
@@ -80,6 +81,7 @@ def acid_group_at(mol, idx, hetero_attach=False):
     if center is None or atom.GetFormalCharge() or atom.GetIsotope():
         return None
     oxo, y, owned, n_sub, n_atom, anion = [], None, set(), [], None, False
+    n_slots = []
     attachments = []
     for n in atom.GetNeighbors():
         slot = _oxo_slot(mol, idx, n)
@@ -88,6 +90,7 @@ def acid_group_at(mol, idx, hetero_attach=False):
             owned |= slot[1]
             if slot[2]:
                 n_sub, n_atom = slot[2], n.GetIdx()
+                n_slots.append((n.GetIdx(), slot[2]))
             continue
         chain = _y_chain(mol, idx, n)
         if chain is None:
@@ -110,4 +113,4 @@ def acid_group_at(mol, idx, hetero_attach=False):
             return None
     elif len(oxo) not in (1, 2) or atom.GetDegree() != len(oxo) + 2:
         return None
-    return AcidGroup(idx, make_spec(center, oxo, y, anion), owned, n_sub, n_atom)
+    return AcidGroup(idx, make_spec(center, oxo, y, anion), owned, n_sub, n_atom, n_slots)

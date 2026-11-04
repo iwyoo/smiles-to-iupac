@@ -8538,6 +8538,15 @@ def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, c
         if group is None or not group.n_substituents:
             continue
         located = ("N", anchor, centre, tuple(a for a in graph[centre] if a not in owned)) if len(members) > 1 else "N"
+        if len(group.n_slots) > 1 and len(members) == 1:
+            slots = []
+            for n_atom, subs in group.n_slots:
+                named = [_n_branch("N", graph, n, n_atom, halogens, aromatic_atoms, mol) for n in subs]
+                slots.append((sorted(alpha_sort_key(name) for name, _ in named), named))
+            for rank, (_, named) in enumerate(sorted(slots, key=lambda slot: slot[0])):
+                for name, compound in named:
+                    entries.append((name, compound, "N" + "'" * rank))
+            continue
         for n in group.n_substituents:
             name, compound = _n_branch(located, graph, n, group.n_atom, halogens, aromatic_atoms, mol)
             entries.append((name, compound, located))
