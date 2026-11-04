@@ -881,6 +881,19 @@ def _acid_piece_rank(mol, frags, acid_pieces, r_pieces, piece):
     return carboxylic, len(acid_pieces[piece]), _acid_rank(mol, frags[piece], acid_pieces[piece], r_pieces.get(piece, []))
 
 
+_PARENT_ATOM_SENIORITY = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52, 6)
+
+
+def _alcohol_atom_seniority(mol, links):
+    """Of two acids of equal rank the one esterified with a carbon atom, a true ester, is the anion of the name and the
+    other is cited as an acyloxy prefix; among pseudoesters the senior atom wins (P-65.6.3.4, P-44.1.2)."""
+    last = len(_PARENT_ATOM_SENIORITY)
+    return max(
+        (z == 6, -(_PARENT_ATOM_SENIORITY.index(z) if z in _PARENT_ATOM_SENIORITY else last))
+        for z in (mol.GetAtomWithIdx(l.far).GetAtomicNum() for l in links)
+    )
+
+
 def _polyester_with_acyloxy_groups(mol, links):
     """P-65.6.3.3.4.2: '2-(acetyloxy)ethyl methyl ethane-1,2-diyl dibutanedioate': an acyl group that is the only ester
     of its acid and ranks below the others is an acyloxy prefix of an organyl group, not an anion of the name."""
@@ -1202,7 +1215,9 @@ def name_ester(mol, links):
                         {mol.GetAtomWithIdx(l.far).GetAtomicNum() for l in esters}
                     ) == 1:
                         raise
-    principal = max(acid_pieces, key=lambda i: _acid_piece_rank(mol, frags, acid_pieces, r_pieces, i))
+    principal = max(
+        acid_pieces, key=lambda i: (_acid_piece_rank(mol, frags, acid_pieces, r_pieces, i), _alcohol_atom_seniority(mol, acid_pieces[i]))
+    )
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])
     acid_atoms = component[0][component[1][chosen[0].center]]

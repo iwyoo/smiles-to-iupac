@@ -1440,3 +1440,17 @@ def test_solvent_beside_an_organometallic_compound(smiles, expected):
 )
 def test_boranones_and_boramidic_acid_esters(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(=O)OC[Si](C)(C)OC(C)=O", "[(acetyloxy)di(methyl)silyl]methyl acetate"),
+        ("O=C(C)O[Si](C)(C)COC(C)=O", "[(acetyloxy)di(methyl)silyl]methyl acetate"),
+        ("CC(=O)OC[Ge](C)(C)OC(C)=O", "[(acetyloxy)di(methyl)germyl]methyl acetate"),
+        ("O=C(C)O[Ge](C)(C)COC(C)=O", "[(acetyloxy)di(methyl)germyl]methyl acetate"),
+    ],
+)
+def test_true_ester_is_the_name_when_a_pseudoester_of_the_same_acid_is_present(smiles, expected):
+    # P-65.6.3.4: an acyl group on silicon or germanium is a pseudoester; the carbon ester is named, whatever the atom order
+    assert smiles_to_iupac(smiles) == expected
