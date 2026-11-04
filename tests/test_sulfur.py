@@ -1650,3 +1650,16 @@ def test_sulfonimidothioamide_is_named_from_whichever_chalcogen_is_written_first
 def test_sulfonimidoyl_prefix_cites_the_substituents_on_its_imino_nitrogen(smiles, expected):
     # P-65.3.2.2, P-14.5.1: the =N-R substituent takes the locant N and stands in alphanumerical order
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CS(O)(=NC)=NCC", "N-ethyl-N'-methylmethanesulfonodiimidic acid"),
+        ("CS(O)(=NC)=NC", "N,N'-dimethylmethanesulfonodiimidic acid"),
+        ("CS(Cl)(=NC)=NC", "N,N'-dimethylmethanesulfonodiimidoyl chloride"),
+    ],
+)
+def test_sulfonodiimidic_group_cites_the_substituents_of_both_imino_nitrogens(smiles, expected):
+    # P-65.3.1, P-65.1.7: N and N' locate the substituents of the two =N atoms
+    assert smiles_to_iupac(smiles) == expected
