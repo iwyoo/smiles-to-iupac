@@ -229,7 +229,8 @@ def _unit_molecule(mol, graph, unit, groups, children):
     for atom in editable.GetAtoms():
         if atom.GetIntProp("_orig") == unit.exo and unit.exo_kind != "oxygen":
             atom.SetAtomicNum(8)
-        if atom.GetIntProp("_orig") not in unit.carbons and atom.GetIntProp("_orig") in keep:
+        origin = atom.GetIntProp("_orig")
+        if origin not in unit.carbons and origin in keep and any(n.GetIdx() not in keep for n in mol.GetAtomWithIdx(origin).GetNeighbors()):
             atom.SetNoImplicit(False)
             atom.SetNumExplicitHs(0)
     sub = editable.GetMol()
