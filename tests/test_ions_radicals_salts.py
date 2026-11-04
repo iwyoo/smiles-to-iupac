@@ -746,6 +746,8 @@ def test_carbanide_salt_names():
             "(2S)-2-{[(2S)-2-azaniumyl-3-methylbutanoyl]amino}propanoate",
             id="descriptors_of_both_residues",
         ),
+        pytest.param("C[B-]1(C)OCC[NH2+]1", "2,2-dimethyl-1,3,2-oxazaborolidin-3-ium-2-uide", id="ring_ammonium_bonded_to_a_ring_boranuide"),
+        pytest.param("[BH2-]1[NH2+]Cc2ccccc2O1", "2H-1,3,2-benzoxazaborinin-3(4H)-ium-2-uide", id="ring_ammonium_and_boranuide_of_a_benzo_fused_ring"),
     ],
 )
 def test_zwitterion_name(smiles, expected):
