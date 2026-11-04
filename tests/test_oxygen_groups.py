@@ -1637,3 +1637,19 @@ def test_lactone_carbonyl_is_oxo_beside_two_ester_groups_of_one_alcohol_componen
 def test_multiplied_half_esters_of_carbonic_acid_keep_the_hydrogen(smiles, expected):
     # P-65.6.2.3.2: a carbonic acid residue that keeps its hydroxy group is a hydrogen carbonate
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("COCCOCCOCCOCCOCCC(=NC)OC", "methyl N-methyl-2,5,8,11,14-pentaoxaheptadecan-17-imidate"),
+        ("CCOCCOCCOCCOCCC(=NC)O", "N-methyl-3,6,9,12-tetraoxapentadecan-15-imidic acid"),
+        (
+            "CCC(=O)NCCOCCOCCOCCOCCC(=NC)OC",
+            "methyl N-methyl-17-oxo-4,7,10,13-tetraoxa-16-azanonadecan-1-imidate",
+        ),
+    ],
+)
+def test_imidic_acid_on_a_replacement_chain_cites_the_nitrogen_substituent(smiles, expected):
+    # P-65.1.3.1.1: the imino nitrogen substituent takes the locant N like that of an amide
+    assert smiles_to_iupac(smiles) == expected

@@ -636,7 +636,7 @@ def _evaluate(
                         if neighbor != carbon:
                             name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                             nitrogen_entries.setdefault("N" + "'" * rank, []).append((name, compound))
-        elif principal in (*_AMIDE_CLASSES, "amidine"):
+        elif principal in (*_AMIDE_CLASSES, "amidine") or (principal is not None and principal.startswith("acid:") and ":NH:" in principal):
             primes = ("N", "N'", "N''", "N'''")
             for rank, carbon in enumerate(sorted(on_chain, key=position_of.get)):
                 nitrogens = sorted(
