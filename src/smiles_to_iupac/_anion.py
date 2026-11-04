@@ -68,7 +68,11 @@ def _is_isocyano_carbon(atom):
 
 
 def _is_nitro_oxygen(atom):
-    return _is_isocyano_carbon(atom) or (atom.GetAtomicNum() != 6 and any(n.GetFormalCharge() > 0 for n in atom.GetNeighbors()))
+    mol = atom.GetOwningMol()
+    return _is_isocyano_carbon(atom) or (
+        atom.GetAtomicNum() != 6
+        and any(n.GetFormalCharge() > 0 and not mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).IsInRing() for n in atom.GetNeighbors())
+    )
 
 
 def anion_atoms(mol):
@@ -214,7 +218,10 @@ def marked_neutral(mol):
 
 
 def _is_nitro_nitrogen(atom):
-    return atom.GetAtomicNum() == 7 and any(n.GetFormalCharge() < 0 for n in atom.GetNeighbors())
+    mol = atom.GetOwningMol()
+    return atom.GetAtomicNum() == 7 and any(
+        n.GetFormalCharge() < 0 and not mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).IsInRing() for n in atom.GetNeighbors()
+    )
 
 
 _CARBANIDE_PARENT = re.compile(r"(?:-\d+(?:,\d+)*-(?:di|tri|tetra)?|an(?:e(?:di|tri|tetra))?)ide$")

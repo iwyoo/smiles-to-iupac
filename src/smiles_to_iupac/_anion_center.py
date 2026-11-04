@@ -55,7 +55,7 @@ def name_center_anion(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
     centers = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0 and not _is_nitro_oxygen(a)]
-    from ._anion import _is_ammonium_prefix
+    from ._anion import _is_ammonium_prefix, _is_nitro_nitrogen
 
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a)]
     ring_cations = [a for a in cations if not _is_ammonium_prefix(a)]
@@ -161,11 +161,8 @@ def _centre_substituents(mol, host, center):
 
 
 def _is_nitro_oxygen(atom):
-    return any(n.GetFormalCharge() > 0 for n in atom.GetNeighbors())
-
-
-def _is_nitro_nitrogen(atom):
-    return atom.GetAtomicNum() == 7 and any(n.GetFormalCharge() < 0 for n in atom.GetNeighbors())
+    mol = atom.GetOwningMol()
+    return any(n.GetFormalCharge() > 0 and not mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).IsInRing() for n in atom.GetNeighbors())
 
 
 def _is_plain_amino_nitrogen(nitrogen, oxide):
@@ -320,8 +317,10 @@ def _name_ring_zwitterion(mol, centers, cation):
     if any(a.GetAtomicNum() not in _PARENTS and a.GetAtomicNum() != 6 for a in centers):
         raise UnsupportedStructure("this skeletal anionic atom is not supported yet")
     kinds = [_center_kind(a, _standard(a), preferred="ide") for a in centers]
-    if any(word != "ide" or lam for word, lam in kinds):
-        raise UnsupportedStructure("only plain ide centers beside a ring cation are supported here")
+    words = {word for word, _ in kinds}
+    if len(words) != 1 or any(lam for _, lam in kinds):
+        raise UnsupportedStructure("only plain ide or only plain uide centers beside a ring cation are supported here")
+    (word,) = words
     editable = Chem.RWMol(mol)
     for center in centers:
         atom = editable.GetAtomWithIdx(center.GetIdx())
@@ -342,7 +341,7 @@ def _name_ring_zwitterion(mol, centers, cation):
     indices = [a.GetIdx() for a in centers]
     if any(i not in atoms for i in indices):
         return None
-    key_centers = [(cation.GetIdx(), "ium")] + [(i, "ide") for i in indices]
+    key_centers = [(cation.GetIdx(), "ium")] + [(i, word) for i in indices]
     found = evaluate_skeleton(
         base, adjacency(base), "ring", rings, atoms, [cation.GetIdx()], set(), "ium", key_centers=key_centers
     )
@@ -352,7 +351,7 @@ def _name_ring_zwitterion(mol, centers, cation):
     if not 1 <= len(locants) <= 3:
         raise UnsupportedStructure("this zwitterionic ring system has no supported number of anionic centers")
     count = {1: "", 2: "di", 3: "tri"}[len(locants)]
-    return f"{found[1]}-{','.join(str(x) for x in locants)}-{count}ide"
+    return f"{found[1]}-{','.join(str(x) for x in locants)}-{count}{word}"
 
 
 def _standard(atom):
