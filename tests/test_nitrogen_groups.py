@@ -3081,3 +3081,12 @@ def test_two_identical_amino_acyl_groups_on_a_prefix_nitrogen_are_both_cited(smi
 def test_amine_parent_never_cites_its_neutral_nitrogen_as_azaniumyl(smiles, expected):
     # P-62.2.1.1, P-41: a neutral amino nitrogen is no cationic prefix, so the heteroaryl amine is the parent
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_acetamido_prefix_is_not_changed_by_an_earlier_amide_demoted_to_a_prefix():
+    # P-66.1.1.4.3: a fragment cut off as an acylamino group is named from the fragment and the marks it carries
+    from smiles_to_iupac import _hetero_prefixes
+
+    _hetero_prefixes._FRAGMENT_NAMES.clear()
+    assert smiles_to_iupac("CC(C)[C@H](NC(C)=O)C(=O)c1ccc(C(=O)O)cc1") == "4-(N-acetyl-L-valyl)benzoic acid"
+    assert smiles_to_iupac("CC(=O)NCC(N)=O") == "2-acetamidoacetamide"
