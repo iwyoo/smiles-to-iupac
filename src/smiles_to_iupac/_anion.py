@@ -6,13 +6,12 @@ names the neutral molecule with only the marked groups eligible as the
 principal group, and the neutral suffix is then swapped for its anion form.
 """
 
-import contextlib
 import contextvars
 import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, specified_stereo_elements
+from ._common import UnsupportedStructure
 from ._numerals import COUNT_WORDS
 
 ANION_PROP = "_anion"

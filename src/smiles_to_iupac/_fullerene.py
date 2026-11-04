@@ -8,7 +8,7 @@ from functools import lru_cache
 import networkx as nx
 from rdkit import Chem
 
-from ._common import RuleUndefinedStructure, UnsupportedStructure
+from ._common import RuleUndefinedStructure
 from ._fullerene_spiral import match_c84_isomer
 from ._fullerene_symmetry import read_cage
 from ._pin import mark

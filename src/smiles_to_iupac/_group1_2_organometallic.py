@@ -135,7 +135,6 @@ def name_group1_2_organometallic(mol) -> str:
 
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
-        is_metal_halogen = has_halide and idx == halogen_neighbors[0].GetIdx()
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in phenyl_atoms:

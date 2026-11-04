@@ -354,7 +354,6 @@ def sugar_carboxylate_name(mol):
     """P-72.2.2.2.1.1, P-102.5.6.6.2.1, P-102.5.6.6.4: the carboxylate of an aldonic, uronic or glycosiduronic acid keeps
     the sugar-style name of the acid, whose 'ic acid' ending becomes 'ate' ('D-gluconate', 'α-D-glucopyranuronate')."""
     from ._glycoside import has_glycoside_shape, name_glycoside
-    from .core import smiles_to_iupac
 
     anions = mol.GetSubstructMatches(_CARBOXYLATE)
     if len(anions) != 1 or len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() and a.GetIdx() != anions[0][2] for a in mol.GetAtoms()):

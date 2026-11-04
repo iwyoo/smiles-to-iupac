@@ -18,7 +18,6 @@ from ._common import (
     halogen_substituents,
     multiplied_word,
     specified_stereocenters,
-    substituent_locant_set_and_citation,
     superscript_locant,
     von_baeyer_bond_citation,
 )
