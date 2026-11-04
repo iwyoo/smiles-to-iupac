@@ -1555,3 +1555,17 @@ def test_bridge_with_a_substituent_is_not_named():
 
 def test_arene_bridged_macrocycle_with_a_ring_heteroatom_and_a_suffix_group_is_a_von_baeyer_lactam():
     assert smiles_to_iupac("O=C1CCCCc2cccc(c2)CCCCN1") == "6-azabicyclo[10.3.1]hexadeca-1(16),12,14-trien-7-one"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC1C2CC3CC1C1C3C21", "octahydro-1,4-methanocyclopropa[cd]pentalen-2-ol"),
+        ("C1C2CC3C(O)C1C1C2C31", "octahydro-1,4-methanocyclopropa[cd]pentalen-2-ol"),
+        ("C12C3CC4C(O)C(C3)C1C42", "octahydro-1,4-methanocyclopropa[cd]pentalen-2-ol"),
+        ("CC1C2CC3CC1C1C3C21", "2-methyloctahydro-1,4-methanocyclopropa[cd]pentalene"),
+    ],
+)
+def test_peri_fused_cage_is_numbered_the_same_whatever_order_the_ring_perception_gives(smiles, expected):
+    # P-25.3.3, P-25.4.3.4: the numbering follows from the structure; it must not change with the RDKit release
+    assert smiles_to_iupac(smiles) == expected
