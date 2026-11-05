@@ -357,6 +357,7 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees, stereo=Non
         _assembly_stereo_prefix,
         _assembly_replacement,
         _assembly_spec,
+        _junction_is_ylidene,
         _locant_order,
         _replacement_junction_ok,
     )
@@ -370,7 +371,10 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees, stereo=Non
     elif not any(s.replaced for s in specs) and _bare_key(mol, set(rings[0])) != _bare_key(mol, set(rings[1])):
         return None
     joins = [(a, b) for a in rings[0] for b in rings[1] if mol.GetBondBetweenAtoms(a, b) is not None]
-    if len(joins) != 1 or mol.GetBondBetweenAtoms(*joins[0]).GetBondTypeAsDouble() != 1.0 or not _replacement_junction_ok(mol, specs, joins[0]):
+    if len(joins) != 1 or not _replacement_junction_ok(mol, specs, joins[0]):
+        return None
+    ylidene = _junction_is_ylidene(mol, joins[0], specs)
+    if ylidene is None:
         return None
     roots = [
         (r, n.GetIdx())
@@ -394,7 +398,7 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees, stereo=Non
     for info in grouped.values():
         info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    base = _assembly_base(specs, locants, joins[0], elide=True)
+    base = _assembly_base(specs, locants, joins[0], elide=True, ylidene=ylidene)
     if mixed:
         if any(order not in SUFFIX_OF_ORDER for order in orders.values()):
             return None

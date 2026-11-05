@@ -5267,7 +5267,7 @@ def _junction_is_ylidene(mol, join, specs):
     order = mol.GetBondBetweenAtoms(*join).GetBondTypeAsDouble()
     if order == 1.0:
         return False
-    if order == 2.0 and all(sp.kind in ("cycloalkane", "cycloalkene") for sp in specs):
+    if order == 2.0 and all(sp.kind in ("cycloalkane", "cycloalkene") or (sp.hetero is not None and sp.name) for sp in specs):
         return True
     return None
 
@@ -5280,6 +5280,9 @@ def _assembly_base(specs, locants, join, elide, ylidene=False):
         return "1,1'-biphenyl"
     unprimed, primed = sorted(join, key=lambda atom: locants[atom][0])
     spots = f"{locants[unprimed][1]},{locants[primed][1]}'"
+    if ylidene and spec.hetero is not None:
+        stem = f"{spec.parent[:-1] if spec.parent.endswith('e') else spec.parent}ylidene"
+        return f"{spots}-bi({stem})" if re.search(r"[\d\[-]", stem) else f"{spots}-bi{stem}"
     if ylidene:
         return f"{spots}-bi({spec.parent[:-3]}ylidene)"
     parent = spec.parent
