@@ -117,9 +117,15 @@ def _inorganic_center(mol, idx):
     atom = mol.GetAtomWithIdx(idx)
     oxo = [n for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 2.0]
     chalcogen = atom.GetAtomicNum() in _CHALCOGEN_CENTERS
-    if len(oxo) > (2 if chalcogen else 1) or any(n.GetAtomicNum() != 8 or n.GetDegree() != 1 for n in oxo):
+    if len(oxo) > (2 if chalcogen else 1) or any(n.GetAtomicNum() not in (8, 16, 34, 52) or n.GetDegree() != 1 for n in oxo):
         return None
     rest = [n for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 1.0]
+    if any(n.GetAtomicNum() != 8 for n in oxo) and (
+        any(n.GetAtomicNum() == 6 for n in rest)
+        or any(m.GetAtomicNum() in (8, 16, 34, 52) for n in rest for m in n.GetNeighbors() if m.GetIdx() != idx)
+    ):
+        # a thiono centre with a P-C bond or a chalcogen-chalcogen link keeps its own naming path, which cites their locants
+        return None
     direct = [n for n in rest if n.GetAtomicNum() == atom.GetAtomicNum()]
     rest = [n for n in rest if n not in direct]
     if len(oxo) + len(rest) + len(direct) != atom.GetDegree() or any(
