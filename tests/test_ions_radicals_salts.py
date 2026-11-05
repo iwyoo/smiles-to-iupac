@@ -453,6 +453,9 @@ def test_onium_cations_of_the_other_mononuclear_hydrides(smiles, expected):
         pytest.param("[OH2+]C1CCCCC1", "cyclohexyloxidanium", id="ring_substituent"),
         pytest.param("Cc1ccccc1[OH2+]", "(2-methylphenyl)oxidanium", id="substituted_phenyl"),
         pytest.param("CC(=O)C[O+](C)C", "dimethyl(2-oxopropyl)oxidanium", id="ketone_group_in_a_substituent"),
+        pytest.param("[NH3+]SC", "(methylsulfanyl)azanium", id="chalcogen_group_on_azanium"),
+        pytest.param("C[OH+]N", "amino(methyl)oxidanium", id="nitrogen_group_on_oxidanium"),
+        pytest.param("[NH2+]=P", "phosphanylideneazanium", id="ylidene_group_of_phosphorus_on_azanium"),
     ],
 )
 def test_oxonium_substituent_groups(smiles, expected):
