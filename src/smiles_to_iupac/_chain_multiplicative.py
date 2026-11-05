@@ -285,6 +285,8 @@ def _components(mol, graph, span):
 
 
 def _merge_assemblies(mol, graph, comp_of, components):
+    from ._multiplicative import _bare_key
+
     parent = {cid: cid for cid in components}
 
     def find(c):
@@ -295,7 +297,13 @@ def _merge_assemblies(mol, graph, comp_of, components):
     for atom, cid in comp_of.items():
         for n in graph[atom]:
             other = comp_of.get(n)
-            if other is not None and other != cid and components[cid][0] == "ring" and components[other][0] == "ring":
+            if (
+                other is not None
+                and other != cid
+                and components[cid][0] == "ring"
+                and components[other][0] == "ring"
+                and _bare_key(mol, components[cid][1]) == _bare_key(mol, components[other][1])
+            ):
                 parent[find(cid)] = find(other)
     groups = {}
     for cid in components:
