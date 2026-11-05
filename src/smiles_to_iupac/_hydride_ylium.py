@@ -111,6 +111,7 @@ _ONIUM_STEM = {
     52: "tellanium", 17: "chloranium", 35: "bromanium", 53: "iodanium", 83: "bismuthanium",
 }
 _ONIUM_NEIGHBOURS = (6, 7, 8, 9, 16, 17, 34, 35, 52, 53)
+_ONIUM_GROUP_ELEMENTS = (6, 7, 8, 9, 15, 16, 17, 33, 34, 35, 51, 52, 53)
 
 
 _HYPERVALENT = {15, 16, 17, 33, 34, 35, 51, 52, 53}
@@ -141,8 +142,7 @@ def _onium_center(mol):
     if any(b.GetBondTypeAsDouble() > (3.0 if triple_allowed else 2.0) for b in atom.GetBonds()):
         return None
     if atom.GetAtomicNum() in (7, 8, 16):
-        oxygen_allowed = {7: (6, 8, 9, 17, 35, 53), 16: (6, 7, 8, 9, 17, 35, 53)}.get(atom.GetAtomicNum(), (6, 9, 17, 35, 53))
-        if any(n.GetAtomicNum() not in oxygen_allowed for n in atom.GetNeighbors()):
+        if any(n.GetAtomicNum() not in _ONIUM_GROUP_ELEMENTS or n.GetAtomicNum() == atom.GetAtomicNum() for n in atom.GetNeighbors()):
             return None
     elif any(n.GetAtomicNum() not in _ONIUM_NEIGHBOURS or n.GetAtomicNum() == atom.GetAtomicNum() for n in atom.GetNeighbors()):
         return None
