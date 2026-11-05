@@ -565,3 +565,26 @@ def test_assembly_of_saturated_heteromonocycles_as_parent_group_and_linker(smile
 def test_two_identical_spiro_systems_joined_by_a_single_bond_form_a_ring_assembly(smiles, expected):
     # P-28.1 lists spiro systems among the cyclic systems of a ring assembly; the second unit's primes add to its own
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C1CCC(=C2CCC(=O)N2)N1", "[2,2'-bipyrrolidinylidene]-5,5'-dione"),
+        (
+            "CCN1C(=S)SC(=C2SC(=S)N(CC)C2=S)C1=S",
+            "3,3'-diethyl[5,5'-bi(1,3-thiazolidinylidene)]-2,2',4,4'-tetrathione",
+        ),
+    ],
+)
+def test_identical_saturated_heterocycles_joined_by_a_double_bond_form_a_ylidene_assembly(smiles, expected):
+    # P-28.2.2, P-28.4.1: the double-bond junction takes 'bi(...ylidene)' of the parent hydride name, with the suffix on the assembly
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_ylidene_assembly_is_the_multiplied_linker_of_identical_groups():
+    # P-28.2.2, P-15.3: the assembly with two free valences is a diyl group of a multiplicative name
+    assert (
+        smiles_to_iupac("CC(=O)C1CCC(=C2CCC(C(C)=O)CC2)CC1")
+        == "1,1'-([1,1'-bi(cyclohexylidene)]-4,4'-diyl)di(ethan-1-one)"
+    )

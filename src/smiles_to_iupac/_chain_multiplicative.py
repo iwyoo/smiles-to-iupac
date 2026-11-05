@@ -242,7 +242,8 @@ def _grow_assembly(mol, graph, span):
                 continue
             for member in system:
                 for n in graph[member]:
-                    if n in span or not mol.GetAtomWithIdx(n).IsInRing() or mol.GetBondBetweenAtoms(member, n).GetBondTypeAsDouble() != 1.0:
+                    junction = mol.GetBondBetweenAtoms(member, n)
+                    if n in span or not mol.GetAtomWithIdx(n).IsInRing() or junction.GetBondTypeAsDouble() not in (1.0, 2.0) or junction.GetIsAromatic():
                         continue
                     other = _ring_system_of(mol, n)
                     if other and not other & span and _bare_key(mol, other) == _bare_key(mol, system):
