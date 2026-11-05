@@ -1378,3 +1378,27 @@ def test_nuclide_of_a_labelled_ring_in_an_anilino_prefix_is_cited_before_anilino
 def test_nuclides_of_an_anilino_ring_inside_a_compound_substituent_are_cited_before_anilino(smiles, expected):
     # P-82.2.1, P-82.6: the enclosed anilino prefix of a larger substituent cites the labels of its own ring
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[2H]N(N=CC)c1ccccc1Cl", "1-(2-chlorophenyl)-2-ethylidene(1-2H)hydrazine"),
+        ("[2H]N(N=CC)c1ccccc1[N+](=O)[O-]", "1-ethylidene-2-(2-nitrophenyl)(2-2H)hydrazine"),
+    ],
+)
+def test_nuclide_on_a_hydrazine_nitrogen_is_cited_whatever_the_groups_on_the_aryl_ring(smiles, expected):
+    # P-82.2.1: the other heteroatoms of the carbon groups do not stop the descriptor from standing before the hydride
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[2H]C1([2H])N(C(=O)C)CCN(C(=O)C)C1", "1,1'-[(2,2-2H2)piperazine-1,4-diyl]di(ethan-1-one)"),
+        ("[2H]C1([2H])N(C(=O)C)CCCN(C(=O)C)C1", "1,1'-[(2,2-2H2)-1,4-diazepane-1,4-diyl]di(ethan-1-one)"),
+    ],
+)
+def test_nuclides_of_a_multiplied_heterocyclic_linker_are_cited_in_its_diyl_name(smiles, expected):
+    # P-82.2.1: a hyphen follows the descriptor when the parent name opens with a locant
+    assert smiles_to_iupac(smiles) == expected

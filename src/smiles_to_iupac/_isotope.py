@@ -99,15 +99,22 @@ def name_isotope_hydride(mol) -> str:
     return text + parent
 
 
-def _substituted_hydride(mol):
-    """(chain atoms, substituent roots by chain atom) of an unbranched acyclic chain of one hydride-forming element that
-    carries only carbon groups, else None: 'methylhydrazine', 'dimethylphosphane'."""
-    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+def _substituted_hydride(mol, anchors):
+    """(chain atoms, substituent roots by chain atom) of an unbranched acyclic chain of the hydride-forming element of the
+    `anchors` (the modified atoms) that carries only carbon groups, else None: 'methylhydrazine', 'dimethylphosphane'."""
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
-    elements = {a.GetAtomicNum() for a in mol.GetAtoms() if a.GetAtomicNum() not in (1, 6)}
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in anchors}
     if len(elements) != 1 or (z := next(iter(elements))) not in _MONONUCLEAR_HYDRIDES:
         return None
-    chain_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == z}
+    chain_atoms, queue = set(anchors), list(anchors)
+    while queue:
+        for n in mol.GetAtomWithIdx(queue.pop()).GetNeighbors():
+            if n.GetAtomicNum() == z and n.GetIdx() not in chain_atoms:
+                chain_atoms.add(n.GetIdx())
+                queue.append(n.GetIdx())
+    if any(mol.GetAtomWithIdx(i).GetFormalCharge() for i in chain_atoms):
+        return None
     degrees = {i: sum(1 for n in mol.GetAtomWithIdx(i).GetNeighbors() if n.GetIdx() in chain_atoms) for i in chain_atoms}
     ends = [i for i, d in degrees.items() if d <= 1]
     if any(d > 2 for d in degrees.values()) or len(ends) != (2 if len(chain_atoms) > 1 else 1):
@@ -153,7 +160,7 @@ def has_isotope_substituted_hydride_shape(mol) -> bool:
     if split is None:
         return False
     clean, labels, _ = split
-    found = _substituted_hydride(clean)
+    found = _substituted_hydride(clean, labels)
     if found is None or not all(a in found[0] for a in labels):
         return False
     try:
@@ -181,7 +188,7 @@ def _labelled_hydride_name(mol):
     from ._substituents import name_branch
 
     clean, labels, _ = split_isotopes(mol)
-    chain, roots = _substituted_hydride(clean)
+    chain, roots = _substituted_hydride(clean, labels)
     graph = adjacency(clean)
     halogens = halogen_substituents(clean)
     z = clean.GetAtomWithIdx(chain[0]).GetAtomicNum()

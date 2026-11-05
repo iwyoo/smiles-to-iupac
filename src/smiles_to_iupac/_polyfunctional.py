@@ -7390,7 +7390,8 @@ def _ring_linker_name(mol, graph, stereo):
 
             try:
                 found = evaluate_skeleton(
-                    mol, graph, "ring", member_rings, ring_set, [r for r, _ in attachments], arms[0] | arms[1], "yl"
+                    mol, graph, "ring", member_rings, ring_set, [r for r, _ in attachments], arms[0] | arms[1], "yl",
+                    nuclides=labelled,
                 )
             except UnsupportedStructure:
                 found = None
