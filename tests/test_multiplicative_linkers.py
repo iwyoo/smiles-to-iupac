@@ -1300,6 +1300,18 @@ def test_functionalised_parents_joined_through_ring_nitrogens_are_multiplied_on_
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("OCC1CCCN1c1ccc(N2CCCC2CO)cc1", "[1,4-phenylenedi(pyrrolidine-1,2-diyl)]dimethanol"),
+        ("NC(C)c1ncc(-c2ccc(-c3cnc(C(C)N)[nH]3)cc2)[nH]1", "1,1'-[1,4-phenylenedi(1H-imidazole-5,2-diyl)]di(ethan-1-amine)"),
+    ],
+)
+def test_identical_rings_joined_through_a_different_arylene_are_units_of_a_concatenated_linker(smiles, expected):
+    # P-15.3.1.2.1.1, P-28.2: only identical rings form an assembly; a phenylene between two other rings is the linker
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("O=C(O)CN(CC(=O)O)C1CCCCC1N(CC(=O)O)CC(=O)O", "2,2',2'',2'''-(cyclohexane-1,2-diyldinitrilo)tetraacetic acid"),
         ("O=C(O)CN(CC(=O)O)c1ccccc1N(CC(=O)O)CC(=O)O", "2,2',2'',2'''-(1,2-phenylenedinitrilo)tetraacetic acid"),
     ],
