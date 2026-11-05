@@ -724,7 +724,7 @@ def test_branched_polyacid_substituent_is_flagged_as_not_preferred():
         ("OC(=O)CCP(=O)(N(C)C)N(C)C", "3-(tetramethylphosphorodiamidoyl)propanoic acid"),
         ("OC(=O)CCP(=S)(OC)OC", "3-(dimethoxyphosphorothioyl)propanoic acid"),
         ("OC(=O)CCP(=S)(S)S", "3-trithiophosphonopropanoic acid"),
-        ("COP(=S)(OC)ON1CCCC1", "1-[(dimethoxyphosphorothioyl)oxy]pyrrolidine"),
+        ("COP(=S)(OC)ON1CCCC1", "O,O-dimethyl O-(pyrrolidin-1-yl) phosphorothioate"),
         ("COP(=N)(OC)ON1CCCC1", "1-[(dimethoxyphosphorimidoyl)oxy]pyrrolidine"),
         ("CP(=O)(NOS(C)(=O)=O)C", "N-[(methanesulfonyl)oxy]-P,P-dimethylphosphinic amide"),
     ],
@@ -1040,4 +1040,16 @@ def test_nitrogen_with_two_phosphinoyl_groups_is_an_n_acyl_phosphinic_amide():
 )
 def test_diphosphate_beside_a_carbamate_ester_is_a_prefix_of_the_carbamate(smiles, expected):
     # P-65.6.3.3.2.1, P-41: the diphosphate locants only apply when every ester link belongs to the diphosphate
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCOP(=S)(OCC)OCCOP(=S)(OCC)OCC", "tetraethyl O,O′-ethane-1,2-diyl diphosphorothioate"),
+        ("CCOP(=S)(OCC)SCSP(=S)(OCC)OCC", "tetraethyl S,S′-methanediyl diphosphorodithioate"),
+    ],
+)
+def test_thiophosphoric_esters_on_one_diyl_component_are_multiplied_like_phosphates(smiles, expected):
+    # P-67.1.3.2, P-65.6.3.2.2: a thiono sulfur does not stop the identical ester groups from sharing the diyl component
     assert smiles_to_iupac(smiles) == expected
