@@ -651,8 +651,9 @@ def _evaluate_skeleton(
         parent = numbering.text(free, valence, substituted, suffix)
     finally:
         ENCLOSE_MULTIPARENT.reset(enclose_token)
-    if nuclides and parent[:1].isalpha() and not (numbering.hydro or numbering.added or numbering.ih):
-        parent = skeleton_nuclides({a: p for a, p in position_of.items() if a in (pool if kind == "ring" else position_of)}, False) + parent
+    if nuclides and not (numbering.hydro or numbering.added or numbering.ih):
+        descriptor = skeleton_nuclides({a: p for a, p in position_of.items() if a in (pool if kind == "ring" else position_of)}, False)
+        parent = descriptor + ("-" if descriptor and parent[:1].isdigit() else "") + parent
     if mixed:
         parent = _mixed_valence_text(parent, free, valence, position_of, orders)
         if parent is None:
