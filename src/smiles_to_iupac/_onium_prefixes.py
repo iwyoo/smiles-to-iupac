@@ -20,6 +20,22 @@ def _nitro_part(mol, atom):
     return atom.GetAtomicNum() == 8 and any(is_nitro_nitrogen(mol, n.GetIdx()) for n in atom.GetNeighbors())
 
 
+def is_acid_anion_oxygen(mol, atom):
+    """The terminal O(-) of a carboxylate, sulfonate or phosphinate-type group: it is cited as 'carboxylato', 'sulfonato' or
+    an 'oxido' prefix when the group stands on a cation (P-72.2.2.2.1)."""
+    if atom.GetAtomicNum() != 8 or atom.GetFormalCharge() != -1 or atom.GetDegree() != 1 or atom.GetIsotope():
+        return False
+    (centre,) = atom.GetNeighbors()
+    return (
+        centre.GetAtomicNum() in (6, 15, 16)
+        and not centre.GetFormalCharge()
+        and any(
+            n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(centre.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in centre.GetNeighbors()
+        )
+    )
+
+
 def only_nitro_charges_besides(mol, center):
     """No charged atom other than `center` and the charge-separated nitro groups: an anionic group elsewhere makes the
     molecule a zwitterion named on the anion."""
@@ -52,12 +68,14 @@ def centre_descriptor(mol, center):
     return f"({codes[0]})-"
 
 
-def onium_name(mol, center, stem):
+def onium_name(mol, center, stem, acid_anions=False):
     """`stem` ('sulfanium', ...) preceded by the prefixes of every group bonded to `center`."""
     for atom in mol.GetAtoms():
         if atom.GetIdx() == center.GetIdx():
             continue
-        if atom.GetIsotope() or atom.GetNumRadicalElectrons() or (atom.GetFormalCharge() and not _nitro_part(mol, atom)):
+        if atom.GetIsotope() or atom.GetNumRadicalElectrons() or (
+            atom.GetFormalCharge() and not _nitro_part(mol, atom) and not (acid_anions and is_acid_anion_oxygen(mol, atom))
+        ):
             raise UnsupportedStructure("charged, radical or isotopically modified atoms are not supported yet")
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)

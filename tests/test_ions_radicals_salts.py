@@ -758,14 +758,16 @@ def test_zwitterion_name(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("[NH3+]C(=O)[O-]", id="ammonium_bonded_directly_to_carboxylate_carbon_raises"),
+        pytest.param("CCCC[NH2+]C(=O)[O-]", "butyl(carboxylato)azanium", id="ammonium_on_carboxylate_carbon"),
+        pytest.param("CCCC[N+](C)(C)S(=O)(=O)[O-]", "butyldi(methyl)(sulfonato)azanium", id="quaternary_ammonium_on_sulfonate_sulfur"),
+        pytest.param("CC[NH2+]OS(=O)(=O)[O-]", "ethyl(sulfonatooxy)azanium", id="ammonium_on_oxygen_of_sulfate"),
     ],
 )
-def test_zwitterion_ionic_center_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_ammonium_bonded_to_the_acid_centre_is_the_parent_with_an_anionic_prefix(smiles, expected):
+    with pytest.warns(NonPreferredNameWarning, match="P-74.1.3"):
+        assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

@@ -13,7 +13,8 @@ from rdkit import Chem
 
 from ._common import CATIONIC_AMINES, UnsupportedStructure
 from ._hetero_prefixes import is_functional_carbon
-from ._onium_prefixes import centre_descriptor, onium_name
+from ._onium_prefixes import centre_descriptor, is_acid_anion_oxygen, onium_name
+from ._pin import mark
 
 
 def has_ammonium_shape(mol) -> bool:
@@ -47,6 +48,41 @@ def has_ammonium_shape(mol) -> bool:
         and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble() == 1.0
         for neighbor in nitrogen.GetNeighbors()
     )
+
+
+def has_acid_anion_on_nitrogen_shape(mol) -> bool:
+    """One acyclic +1 nitrogen bonded by single bonds to atoms of C, O, P or S, and one acid anion (carboxylate, sulfonate,
+    phosphinate type) whose centre is bonded to that nitrogen directly or through one oxygen: the cation and the anion
+    share no carbon chain (P-74.1.3), so the anion has no parent hydride to name."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    cations = [a for a in charged if a.GetFormalCharge() == 1]
+    anions = [a for a in charged if is_acid_anion_oxygen(mol, a)]
+    if len(charged) != 2 or len(cations) != 1 or len(anions) != 1 or len(Chem.GetMolFrags(mol)) > 1:
+        return False
+    (nitrogen,), (anion,) = cations, anions
+    if (
+        nitrogen.GetAtomicNum() != 7
+        or nitrogen.IsInRing()
+        or nitrogen.GetIsotope()
+        or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
+        or any(
+            n.GetAtomicNum() not in (6, 8, 15, 16) or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+            for n in nitrogen.GetNeighbors()
+        )
+    ):
+        return False
+    (centre,) = anion.GetNeighbors()
+    reached = {n.GetIdx() for n in nitrogen.GetNeighbors()}
+    reached |= {m.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 8 for m in n.GetNeighbors()}
+    return centre.GetIdx() in reached
+
+
+def name_acid_anion_on_nitrogen(mol) -> str:
+    """The cation is the parent, with the acid anion cited as a 'carboxylato', 'sulfonato' or 'oxido' prefix of 'azanium';
+    the Blue Book's anionic parent has no carbon to attach to here."""
+    (nitrogen,) = (a for a in mol.GetAtoms() if a.GetFormalCharge() == 1)
+    name = centre_descriptor(mol, nitrogen) + onium_name(mol, nitrogen, "azanium", acid_anions=True)
+    return mark(name, "the Blue Book names a zwitterion on its anionic parent (P-74.1.3), which has no carbon to hold the cation here")
 
 
 def has_polyammonium_shape(mol) -> bool:
