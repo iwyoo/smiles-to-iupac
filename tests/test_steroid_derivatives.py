@@ -182,3 +182,15 @@ def test_double_bond_to_the_extra_side_chain_carbon_takes_a_compound_locant():
 def test_ring_closed_through_the_extra_side_chain_carbon_is_a_substituent_of_the_shorter_parent():
     smiles = "O=C1OC(C(C)C2CCC3C4CCC5CCCCC5(C)C4CCC23C)CC(C)C1C"
     assert smiles_to_iupac(smiles) == "17-[1-(4,5-dimethyl-6-oxooxan-2-yl)ethyl]androstane"
+
+
+@pytest.mark.parametrize(
+    "tail,expected",
+    [
+        ("C(C)COC(C)=O", "2-(3-oxoandrost-4-en-17β-yl)propyl acetate"),
+        ("CCOS(=O)(=O)O", "3-oxopregn-4-en-21-yl hydrogen sulfate"),
+    ],
+)
+def test_ester_of_a_steroid_enone_is_named_as_an_ester(tail, expected):
+    smiles = f"C[C@]12CC[C@H]3[C@@H](CCC4=CC(=O)CC[C@@]43C)[C@@H]1CC[C@@H]2{tail}"
+    assert smiles_to_iupac(smiles) == expected

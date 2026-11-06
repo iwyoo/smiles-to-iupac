@@ -163,7 +163,7 @@ from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import amine_suffix_capacity, name_heteroacyclic, has_carbonless_acyl
 from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multiplicative
 from ._chain_multiplicative import has_chain_multiplicative_shape
-from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
+from ._np import _NO_PIN, PREFERRED_OPERATIONS, name_natural_product_ranked
 from ._steroid_named import name_steroid
 from ._polyfunctional import AMINIUM, CATION_RING_ATOM, FORCED_PRINCIPAL, RING_CENTER, name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
@@ -1331,14 +1331,16 @@ def _name_unabridged_body(smiles: str) -> str:
                     else ()
                 ),
             ):
+                marks = reason_count()
                 try:
                     candidate = namer(parsed)
                 except UnsupportedStructure:
                     continue
                 if candidate is None or not nuclides_cited(parsed, candidate):
                     continue
+                natural_parent = _NO_PIN in reasons_since(marks)
                 # these namers do not cite stereodescriptors, so a flat name would silently drop the stereo
-                if stereo_specified and namer is not name_acid_salt and not _cites_every_stereo_element(parsed, candidate):
+                if stereo_specified and namer is not name_acid_salt and not natural_parent and not _cites_every_stereo_element(parsed, candidate):
                     continue
                 return candidate
         if parsed is not None and parsed.GetRingInfo().NumRings() == 3 and sum(a.GetAtomicNum() == 8 for a in parsed.GetAtoms()) >= 8 and has_sugar_dianhydride_shape(parsed):
