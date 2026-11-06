@@ -682,6 +682,7 @@ def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, e
         pytest.param("CP(=O)(OC)OP(=O)(O)c1ccccc1", "O1-methyl hydrogen 1-methyl-3-phenyldiphosphonate", id="ester_locant_when_two_arrangements_exist"),
         pytest.param("ClCCP(=O)(O)OP(=O)(O)C", "1-(2-chloroethyl)-3-methyldiphosphonic acid", id="compound_organyl_enclosed"),
         pytest.param("CP(=O)(O)P(=O)(O)C", "1,2-dimethylhypodiphosphonic acid", id="directly_joined_centres"),
+        pytest.param("Clc1ccc(cc1)B(O)OB(O)c1ccc(Cl)cc1", "1,3-bis(4-chlorophenyl)diboronic acid", id="boron_centres_carry_the_organyl_groups"),
     ],
 )
 def test_organyl_derivatives_of_diphosphonic_acid(smiles, expected):
