@@ -5838,6 +5838,19 @@ _RING_SUFFIX = _RingSuffix({
 _DIACYLGUANIDINE = Chem.MolFromSmarts("[CX3](=O)[NX3][CX3](=[NX2])[NX3][CX3]=O")
 
 
+def _with_located_prefix_marks(mol, n_names):
+    """`mol` with an isotope mark on each nitrogen that carries a supplied prefix, so that rings differing only in such a
+    prefix are not taken as identical units (P-15.3)."""
+    located = {(entry[2][1], entry[0]) for entry in n_names if len(entry) > 2 and entry[2]}
+    if not located:
+        return mol
+    names = sorted({name for _, name in located})
+    marked = Chem.RWMol(mol)
+    for atom, name in located:
+        marked.GetAtomWithIdx(atom).SetIsotope(900 + names.index(name))
+    return marked
+
+
 def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names=(), stereo=None):
     """(principal group count, (key, name, parts)) of the monocycle bearing
     the most principal groups, or None."""
@@ -5880,7 +5893,7 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         leading = [c for c in leading if system_rank(c) == senior]
     if len(leading) == 1:
         return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
-    ranks = CanonicalRankAtoms(label_marked(mol), breakTies=False)
+    ranks = CanonicalRankAtoms(_with_located_prefix_marks(label_marked(mol), n_names), breakTies=False)
     if len({ranks[next(iter(c[3]))[1]] for c in leading}) == 1 and not mol.HasSubstructMatch(_DIACYLGUANIDINE):
         raise UnsupportedStructure("several rings bear the principal group; a multiplicative name is needed")
     ranked = _isolated_candidates(
