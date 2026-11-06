@@ -628,6 +628,9 @@ def _name_checked(smiles: str) -> str:
             return hydrogen_salt
     name = cite_spiro_stereo(smiles, cite_axial_stereo(smiles, _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))))
     mol = _parse_smiles(smiles)
+    if mol is not None and _ring_triple_bond_uncited(mol, name) and has_fused_ring_yne_shape(mol):
+        with contextlib.suppress(UnsupportedStructure):
+            name = name_fused_ring_yne(mol)
     if mol is not None:
         if not nuclides_cited(mol, name):
             raise InternalInvariantError(f"a name without every nuclide of {smiles!r} left the naming pipeline: {name!r}")
@@ -665,12 +668,16 @@ def _require_cumulated_ring_atoms_cited(mol, name):
             raise UnsupportedStructure("a ring atom with two ring double bonds needs the delta convention (P-25.7.2)")
 
 
-def _require_ring_triple_bonds_cited(mol, name):
+def _ring_triple_bond_uncited(mol, name):
     ring_triple = any(
         b.GetBondTypeAsDouble() == 3.0 and b.IsInRing() and b.GetBeginAtom().GetAtomicNum() == 6 and b.GetEndAtom().GetAtomicNum() == 6
         for b in mol.GetBonds()
     )
-    if ring_triple and "yn" not in name and "dehydro" not in name:
+    return ring_triple and "yn" not in name and "dehydro" not in name
+
+
+def _require_ring_triple_bonds_cited(mol, name):
+    if _ring_triple_bond_uncited(mol, name):
         raise UnsupportedStructure("the name does not cite the ring triple bond")
 
 

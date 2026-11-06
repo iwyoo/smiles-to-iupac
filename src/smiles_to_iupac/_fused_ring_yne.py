@@ -21,8 +21,8 @@ _MULTIPLIER = {1: "di", 2: "tetra", 3: "hexa"}
 
 
 def _triple_bonds(mol):
-    bonds = [b for b in mol.GetBonds() if b.GetBondTypeAsDouble() == 3.0]
-    if not bonds or len(bonds) > len(_MULTIPLIER) or not all(b.IsInRing() for b in bonds):
+    bonds = [b for b in mol.GetBonds() if b.GetBondTypeAsDouble() == 3.0 and b.IsInRing()]
+    if not bonds or len(bonds) > len(_MULTIPLIER):
         return None
     if any(a.GetAtomicNum() != 6 for b in bonds for a in (b.GetBeginAtom(), b.GetEndAtom())):
         return None
@@ -116,7 +116,7 @@ def _candidate(dehydro, rest, parent_word):
     hydro = [int(n) for n in re.findall(r"\d+", hydro_match.group(1).split("hydro")[0])] if hydro_match else []
     indicated = [int(n) for n in re.findall(r"(\d+)[a-z]?H-", tail[:block])]
     prefix = ",".join(map(str, sorted(dehydro))) + "-" + _MULTIPLIER[len(dehydro) // 2] + "dehydro"
-    text = head + ("-" if head and not head.endswith("-") else "") + prefix + ("-" if tail[0].isdigit() else "") + tail
+    text = head + ("-" if head and not head.endswith(("-", "(", "[", "{")) else "") + prefix + ("-" if tail[0].isdigit() else "") + tail
     return (indicated, sorted(hydro + dehydro), dehydro), text
 
 
@@ -130,10 +130,10 @@ def name_fused_ring_yne(mol) -> str:
     multiplier = _MULTIPLIER[len(bonds)]
     found = []
     iodo = _probe_name(mol, bonds, 53)
-    match = re.search(rf"(?:^|-)((?:\d+,)+\d+)-{multiplier}iodo-?", iodo) if iodo else None
+    match = re.search(rf"(?:^|[-(\[{{])((?:\d+,)+\d+)-{multiplier}iodo-?", iodo) if iodo else None
     if match:
-        before, after = iodo[: match.start()], iodo[match.end():]
-        rest = before + ("-" if before and after[:1].isdigit() else "") + after
+        before, after = iodo[: match.start() + (match.group(0)[0] in "([{")], iodo[match.end():]
+        rest = before + ("-" if before and before[-1] not in "([{" and after[:1].isdigit() else "") + after
         candidate = _candidate([int(n) for n in match.group(1).split(",")], rest, parent_word)
         if candidate:
             found.append(candidate)
