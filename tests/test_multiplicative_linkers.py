@@ -1216,6 +1216,7 @@ def test_hydrazide_and_amidoxime_units_joined_by_a_linker(smiles, expected):
         pytest.param("Cc1cc(ccc1N)N=Nc1ccc(N)c(C)c1", "4,4'-diazenediylbis(2-methylaniline)", id="azo_linker_between_substituted_units"),
         pytest.param("Nc1ccc(NNc2ccc(N)cc2)cc1", "4,4'-(hydrazine-1,2-diyl)dianiline", id="hydrazine_linker"),
         pytest.param("Nc1ccc(N=Nc2ccc(N)c(C)c2)cc1", "4-[(4-aminophenyl)diazenyl]-2-methylaniline", id="different_units_are_not_multiplied"),
+        pytest.param("CNc1ccc(Cc2ccc(N)cc2)cc1", "4-[(4-aminophenyl)methyl]-N-methylaniline", id="units_differing_in_an_nitrogen_prefix_are_not_multiplied"),
         pytest.param(
             "OC(=O)C(=O)NCCN(CC)C(=O)C(O)=O",
             "({2-[ethyl(oxalo)amino]ethyl}amino)(oxo)acetic acid",
