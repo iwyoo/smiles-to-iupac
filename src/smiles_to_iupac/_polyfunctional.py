@@ -7894,7 +7894,7 @@ def _nitrogen_acyl(mol, carbon):
         (n.GetAtomicNum() not in (6, 7) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0)
         or (
             n.GetAtomicNum() == 7
-            and any(b.GetBondTypeAsDouble() != 1.0 and b.GetOtherAtom(n).GetAtomicNum() not in (16, 34, 52) for b in n.GetBonds())
+            and any(b.GetBondTypeAsDouble() != 1.0 and not b.IsInRing() and b.GetOtherAtom(n).GetAtomicNum() not in (16, 34, 52) for b in n.GetBonds())
         )
         for n in atom.GetNeighbors()
     )
@@ -8019,9 +8019,12 @@ def _carbamoyl_on(mol, atom, nitrogen):
         and not chalcogens[0].GetFormalCharge()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), chalcogens[0].GetIdx()).GetBondTypeAsDouble() == 2.0
         and not amino[0].GetFormalCharge()
-        and not amino[0].IsInRing()
         and mol.GetBondBetweenAtoms(atom.GetIdx(), amino[0].GetIdx()).GetBondTypeAsDouble() == 1.0
-        and _acyl_nitrogen_arm(mol, amino[0], atom.GetIdx())
+        and (
+            _ring_nitrogen_acyl(mol, amino[0], atom.GetIdx())
+            if amino[0].IsInRing()
+            else _acyl_nitrogen_arm(mol, amino[0], atom.GetIdx())
+        )
     )
 
 
