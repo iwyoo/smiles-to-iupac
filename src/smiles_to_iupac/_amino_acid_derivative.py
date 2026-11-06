@@ -18,7 +18,7 @@ from ._proline import has_proline_shape, name_proline
 
 _TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
-_ESTER = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2;!R]([#6,#14,$([#7;R])])")
+_ESTER = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2;!R]([#6,#13,#14,#31,#32,#49,#50,#81,#82,#83,$([#5,#7,#15,#33,#51;R])])")
 _ACYL_HALIDE = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[F,Cl,Br,I;X1]")
 _FREE_ACID = Chem.MolFromSmarts("[CX3;$(C-[#6])](=O)[OX2H1]")
 
