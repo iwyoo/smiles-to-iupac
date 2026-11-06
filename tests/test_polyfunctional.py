@@ -1430,6 +1430,7 @@ def test_skeletal_replacement_chains_with_adjacent_chalcogen_atoms(smiles, expec
             "FC(=O)NSNCON=CC=NOCNSNC(F)=O",
             "6,11-dioxa-3,14-dithia-2,4,7,10,13,15-hexaazahexadeca-7,9-diene-1,16-dioyl difluoride",
         ),
+        ("CO/N=C(C)/C(C)=N/OCc1ccccc1N", "2-[(3E,5E)-4,5-dimethyl-2,7-dioxa-3,6-diazaocta-3,5-dien-1-yl]aniline"),
         ("C[SiH2]C[SiH2]C[SiH2]C[SiH2]C=O", "2,4,6,8-tetrasilanonan-1-al"),
         ("N#C[SiH2]C[SiH2]C[SiH2]C[SiH2]C#N", "2,4,6,8-tetrasilanonane-1,9-dinitrile"),
         ("CNC(=O)[SiH2]C[SiH2]C[SiH2]C[SiH2]C", "N-methyl-2,4,6,8-tetrasilanonan-1-amide"),
