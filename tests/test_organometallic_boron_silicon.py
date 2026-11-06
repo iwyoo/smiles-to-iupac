@@ -1454,3 +1454,15 @@ def test_boranones_and_boramidic_acid_esters(smiles, expected):
 def test_true_ester_is_the_name_when_a_pseudoester_of_the_same_acid_is_present(smiles, expected):
     # P-65.6.3.4: an acyl group on silicon or germanium is a pseudoester; the carbon ester is named, whatever the atom order
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC[Bi](CC)OC(=O)C", "diethylbismuthanyl acetate"),
+        ("CC(=O)O[Bi](C)OC(C)=O", "methylbismuthanediyl diacetate"),
+        ("C[Ge](C)(C)OC(=O)CN", "trimethylgermyl glycinate"),
+    ],
+)
+def test_bismuth_and_amino_acid_pseudoesters(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

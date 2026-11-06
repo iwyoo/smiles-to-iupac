@@ -1,4 +1,4 @@
-"""Polyesters of Group 13 or 14 hydrides (pseudoesters, P-65.6.3.4.1, P-68.1.5.2.3, P-68.2.6.2): the atom, or the chain of
+"""Polyesters of Group 13 or 14 hydrides and of bismuthane (pseudoesters, P-65.6.3.4.1, P-68.1.5.2.3, P-68.2.6.2): the atom, or the chain of
 such atoms with the heteroatoms between them, is the multivalent group cited before the multiplied acid anions,
 'alumanetriyl tri(octadecanoate)', '1,1,3,3-tetramethyldistannoxane-1,3-diyl dipropanoate'."""
 
@@ -11,7 +11,7 @@ from ._diester_anions import acid_anions, cite_anions
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._substituents import cited_branch_stereo, format_mononuclear_prefixes, name_branch
 
-_HOSTS = (13, 14, 31, 32, 49, 50, 81, 82)
+_HOSTS = (13, 14, 31, 32, 49, 50, 81, 82, 83)
 _BRIDGES = (8, 16, 34, 52)
 _VALENCE_WORD = {2: "diyl", 3: "triyl", 4: "tetrayl"}
 
