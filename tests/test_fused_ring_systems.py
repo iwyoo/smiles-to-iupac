@@ -1116,6 +1116,10 @@ def test_identical_fused_systems_choose_the_parent_by_substituents(smiles, expec
         pytest.param("C1#CCCCC#Cc2ccccc12", "5,6,10,11-tetradehydro-8,9-dihydro-7H-benzo[9]annulene", id="two_triple_bonds"),
         pytest.param("OC1CC#Cc2ccccc12", "3,4-didehydro-1,2-dihydronaphthalen-1-ol", id="suffix_after_the_parent"),
         pytest.param("O=C1NC(=O)C2C3C#CC(CC3)C12", "5,6-didehydro-3a,4,7,7a-tetrahydro-1H-4,7-ethanoisoindole-1,3(2H)-dione", id="bridge_between_fused_rings"),
+        pytest.param(
+            "CC(=O)Nc1ccc2c(c1)CCC#CCC2", "N-(7,8-didehydro-5,6,9,10-tetrahydrobenzo[8]annulen-2-yl)acetamide", id="ring_as_a_substituent_group"
+        ),
+        pytest.param("N#Cc1ccc2c(c1)CCC#CCC2", "7,8-didehydro-5,6,9,10-tetrahydrobenzo[8]annulene-2-carbonitrile", id="nitrile_beside_the_ring_triple_bond"),
     ],
 )
 def test_ring_triple_bond_of_a_fused_ring_system(smiles, expected):
