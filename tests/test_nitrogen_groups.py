@@ -809,6 +809,8 @@ def test_thioacyl_group_on_a_thiohydrazide(smiles, expected):
         pytest.param("c1ccccc1C(=O)NNC(=S)Nc1ccccc1", "N'-(phenylcarbamothioyl)benzohydrazide", id="carbamothioyl_keeps_the_carboxylic_hydrazide_parent"),
         pytest.param("CC(=S)NNC(N)=O", "N'-carbamoylethanethiohydrazide", id="thiohydrazide_with_carbamoyl"),
         pytest.param("CC(=O)NNC(=S)NN", "N'-(hydrazinecarbothioyl)acetohydrazide", id="hydrazinyl_on_the_carbamothioyl_nitrogen"),
+        pytest.param("CC(=O)NNC(=S)N1CCNCC1", "N'-(piperazine-1-carbothioyl)acetohydrazide", id="ring_nitrogen_carbothioyl"),
+        pytest.param("CC(=O)NNC(=O)n1cccc1", "N'-(1H-pyrrole-1-carbonyl)acetohydrazide", id="aromatic_ring_nitrogen_carbonyl"),
         pytest.param("NNC(=O)CCC(=S)NN", "4-hydrazinyl-4-sulfanylidenebutanehydrazide", id="oxygen_hydrazide_is_the_parent_beside_a_thiohydrazide"),
     ],
 )
