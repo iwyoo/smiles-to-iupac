@@ -42,6 +42,7 @@ class Outranked(UnsupportedStructure):
     """A group outside the parent ranks above the parent, so no modification of the parent gives a name."""
 _COUNTED = {
     "acid": "[CX3](=O)[OX2H1]",
+    "ester": "[$([CX3](=O)[#6]),$([SX4](=O)=O),$([PX4]=O)][OX2;!R][#6]",
     "amide": "[CX3,SX4,PX4;!R](=O)[NX3;!R]",
     "nitrile": "[CX2]#[NX1]",
     "aldehyde": "[CX3H1](=O)[#6]",
@@ -327,7 +328,7 @@ def principal_groups_left_outside(mol, classes, principal, mapped=frozenset()):
         if smarts is None:
             continue
         found = [m for m in mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)) if not mapped.issuperset(m)]
-        inside = len(classes.get(cls, []))
+        inside = len(classes.get(cls, [])) + (len(classes.get("ester_o", [])) if cls == "ester" else 0)
         if len(found) <= inside:
             continue
         pure = [m for m in found if not mapped.intersection(m)]

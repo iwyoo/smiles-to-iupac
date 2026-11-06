@@ -15,6 +15,7 @@ from ._np_config import configuration
 from ._np_core import FACES, loc_key
 from ._np_match import skeleton_has_stereo
 from ._np_name import (
+    FREE_VALENCE,
     _ACYL_SUFFIX,
     _PREFIX,
     _SENIORITY,
@@ -338,13 +339,14 @@ def build(cand, view):
     if chain is not None:
         name = chain[2].replace(chain[3], _enclose_group(body), 1)
     nondet = nondetachable_cost(cand)
+    is_group = any(a.GetAtomMapNum() == FREE_VALENCE for a in view.mol.GetAtoms())
     rearranged = any(op[0] == "seco" for op in cand.skel.ops) or bool(cand.cyclo)
     removed = sorted((loc_key(op[1])[1] for op in cand.skel.ops if op[0] == "nor"), reverse=True)
     inserted = sorted((_homo_position(op) for op in cand.skel.ops if op[0] == "homo"), reverse=True)
     first = next((text for _, text in sorted(config.parent) if text[-1] in "αβ"), "")
     return Built(
         name, cost, (cost, nondet > 0 or bool(fused_comps) or bool(bridge_comps) or bool(spiro_comps), -len(mapping), rearranged, tuple(-n for n in removed), tuple(-n for n in inserted), len(config.parent) + len(config.side)),
-        config.implied_total, config.implied_cited, first[-1] if first else "", len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced),
+        config.implied_total, config.implied_cited, first[-1] if first else "", len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) + (len(bridge_comps) if is_group else 0),
     )
 
 

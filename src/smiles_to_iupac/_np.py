@@ -1,5 +1,6 @@
 """Names of natural products on the semisystematic parents of Table 10.1 (P-101)."""
 
+import re
 from collections import Counter
 from functools import lru_cache
 
@@ -19,6 +20,7 @@ from ._np_text import stem_info
 from ._substituents import FORCED_BRANCH_NAMES, ISOTOPE_LABELS
 
 PREFERRED_OPERATIONS = 2
+_CIP_DESCRIPTOR = re.compile(r"\d[′']*[RS]\b")
 _NO_PIN = "P-101 identifies no preferred IUPAC names for natural-product parent structures"
 SYSTEMATIC_PREFERRED = {"tropane", "bornane", "carane", "fenchane", "pinane", "thujane", "p-menthane", "bisabolane"}
 _MIN_HEAVY_ATOMS = 9
@@ -497,10 +499,13 @@ def semisystematic_groups(mol, graph, attachments):
     whole, part = Chem.Mol(mol), Chem.Mol(fragment)
     assign_cip_labels(whole)
     assign_cip_labels(part)
+    cites_labels = _CIP_DESCRIPTOR.search(found[0]) is not None
     for position, atom in enumerate(keep):
-        if atom in branch and whole.GetAtomWithIdx(atom).HasProp("_CIPCode") != part.GetAtomWithIdx(position).HasProp("_CIPCode"):
+        if not cites_labels or atom not in branch:
+            continue
+        if whole.GetAtomWithIdx(atom).HasProp("_CIPCode") != part.GetAtomWithIdx(position).HasProp("_CIPCode"):
             return None
-        if atom in branch and part.GetAtomWithIdx(position).HasProp("_CIPCode") and part.GetAtomWithIdx(position).GetProp("_CIPCode") != whole.GetAtomWithIdx(atom).GetProp("_CIPCode"):
+        if part.GetAtomWithIdx(position).HasProp("_CIPCode") and part.GetAtomWithIdx(position).GetProp("_CIPCode") != whole.GetAtomWithIdx(atom).GetProp("_CIPCode"):
             return None
     _cite_stereo(mol, branch)
     return mark(found[0], _NO_PIN), True
