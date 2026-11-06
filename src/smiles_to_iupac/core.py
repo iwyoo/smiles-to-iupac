@@ -116,7 +116,14 @@ from ._hetero_ring_amine import has_hetero_ring_amine_shape, name_hetero_ring_am
 from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, name_ring_amine
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
-from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium, name_polyammonium
+from ._ammonium import (
+    has_acid_anion_on_nitrogen_shape,
+    has_ammonium_shape,
+    has_polyammonium_shape,
+    name_acid_anion_on_nitrogen,
+    name_ammonium,
+    name_polyammonium,
+)
 from ._uronium import has_uronium_shape, name_uronium
 from ._polycation import has_polycation_shape, has_ring_nitrenium_shape, name_polycation
 from ._polyspiro_union import has_spiro_union_shape, name_spiro_union
@@ -2068,6 +2075,7 @@ def _name_mol(mol) -> str:
                 pass
     for has_shape, namer in (
         (_has_isotope_label, _name_isotope_label),
+        (has_acid_anion_on_nitrogen_shape, name_acid_anion_on_nitrogen),
         (has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine),
         (has_uronium_shape, name_uronium),
         # A radical ion on an ionic suffix group (P-75.3.1's 'aminiumyl'
