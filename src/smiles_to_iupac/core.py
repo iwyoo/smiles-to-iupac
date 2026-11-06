@@ -355,6 +355,8 @@ from ._von_baeyer_heteroatom import (
     name_von_baeyer_heteroatom_multi,
     name_von_baeyer_heteroatom_multi_polycyclic,
     name_von_baeyer_heteroatom_polycyclic,
+    has_unsaturated_ring_bonds,
+    name_unsaturated_heteroatom_polycyclic,
 )
 
 
@@ -1788,6 +1790,9 @@ def _run_fallbacks(smiles, original):
         name = _name_via_fallbacks(mol)
         if name is not None:
             return name
+        with contextlib.suppress(UnsupportedStructure):
+            if has_unsaturated_ring_bonds(mol):
+                return name_unsaturated_heteroatom_polycyclic(mol)
         if skeletal_without_suffixes is not None:
             return mark(skeletal_without_suffixes, _NO_PIN_SKELETAL_AMINE)
         try:
@@ -2419,7 +2424,7 @@ def _name_mol(mol) -> str:
     # _von_baeyer_heteroatom.py's module docstring.
     for ring_count in (3, 4, 5, 6):
         polycyclic_hetero_core = find_polycyclic_core(mol, ring_count)
-        if polycyclic_hetero_core is None:
+        if polycyclic_hetero_core is None or has_unsaturated_ring_bonds(mol):
             continue
         if has_single_ring_heteroatom_shape_polycyclic(mol, polycyclic_hetero_core):
             return name_von_baeyer_heteroatom_polycyclic(mol, polycyclic_hetero_core, ring_count)
