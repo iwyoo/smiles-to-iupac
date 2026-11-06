@@ -827,14 +827,20 @@ def skeletal_substituent(mol, graph, root, coming_from):
     if root not in eligible:
         return None
     adj = {a: [n for n in graph[a] if n in arm] for a in arm}
+    outer = BRANCH_STEREO.get()
+    atom_codes = {a: c for a, c in outer["atoms"].items() if a in arm} if outer else {}
+    bond_codes = {b: c for b, c in outer["bonds"].items() if b[0] in arm and b[1] in arm} if outer else {}
     best = None
     for path in _paths(adj, eligible):
         if root not in path or not _acceptable_path(mol, path):
             continue
         for chain in (path, path[::-1]):
-            candidate = _evaluate(mol, graph, chain, None, {}, set(), {}, {}, attach=root, blocked=frozenset({coming_from}))
+            candidate = _evaluate(mol, graph, chain, None, {}, set(), atom_codes, bond_codes, attach=root, blocked=frozenset({coming_from}))
             if candidate is not None and (best is None or candidate[0] < best[0]):
                 best = candidate
+    if best and outer:
+        outer["used"].update(("atom", a) for a in atom_codes)
+        outer["used"].update(("bond", b) for b in bond_codes)
     return (best[1], True) if best else None
 
 
