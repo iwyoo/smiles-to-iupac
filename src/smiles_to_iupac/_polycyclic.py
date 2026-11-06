@@ -465,7 +465,7 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
     return locant_set, citation_locants, name
 
 
-def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
+def name_polycyclic_unsaturated(mol, core, ring_count, bonds, hetero=None) -> str:
     """P-31.1.4.1's simple case and P-31.1.4.2's compound-locant case for a
     ring_count>=3 polycyclic, mirroring `_bicyclic._name_bicyclic_
     unsaturated` exactly: every candidate numbering
@@ -497,11 +497,17 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
         body, needs_stem_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
         suffixed_parent = parent[:-3] + ("a" if needs_stem_a else "") + "-" + body
         substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
-        key = outer_key + _candidate_key(
-            suffixed_parent,
-            substituents,
-            suffix_locant=(compound_count, primary_locant_set, full_locant_set, ene_locant_set, z_locants),
-        )
+        unsaturation = (compound_count, primary_locant_set, full_locant_set, ene_locant_set, z_locants)
+        if hetero is None:
+            key = outer_key + _candidate_key(suffixed_parent, substituents, suffix_locant=unsaturation)
+        else:
+            heteroatom_key, prefix = hetero(full_order)
+            key = outer_key + _candidate_key(
+                suffixed_parent,
+                substituents,
+                heteroatom_locant=(heteroatom_key, unsaturation),
+                nondetachable_prefix=prefix,
+            )
         key = key[:-1] + (stereo_prefix + key[-1],)
         if best_key is None or key < best_key:
             best_key = key
@@ -515,13 +521,17 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
     return best_key[-1]
 
 
-def name_polycycloalkane(mol, core, ring_count) -> str:
-    validate_atoms_and_bonds(mol)
+def ring_bonds_kekulized(mol):
     mol = kekulized_copy(mol)
     ring_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.IsInRing()}
-    bonds = [b for b in non_single_bonds(mol) if b[0] in ring_atoms and b[1] in ring_atoms]
+    return mol, [b for b in non_single_bonds(mol) if b[0] in ring_atoms and b[1] in ring_atoms]
+
+
+def name_polycycloalkane(mol, core, ring_count) -> str:
+    validate_atoms_and_bonds(mol)
+    mol, bonds = ring_bonds_kekulized(mol)
     if bonds:
-        return _name_polycyclic_unsaturated(mol, core, ring_count, bonds)
+        return name_polycyclic_unsaturated(mol, core, ring_count, bonds)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
