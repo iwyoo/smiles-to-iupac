@@ -530,15 +530,22 @@ def _oximino_nitrogen(mol, nitrogen, origin):
 
 
 def _amino_hydrazone_nitrogen(mol, nitrogen, origin):
-    """Whether the only other neighbour of `nitrogen` is a free amino group: the hydrazone nitrogen of a carbamohydrazonoyl
-    group."""
+    """Whether the only other neighbour of `nitrogen` is an amino group, free or carrying plain carbon groups: the hydrazone
+    nitrogen of a carbamohydrazonoyl group."""
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != origin]
     return (
         len(others) == 1
         and others[0].GetAtomicNum() == 7
-        and others[0].GetDegree() == 1
         and not others[0].GetFormalCharge()
+        and not others[0].IsInRing()
         and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), others[0].GetIdx()).GetBondTypeAsDouble() == 1.0
+        and all(
+            c.GetAtomicNum() == 6
+            and not is_functional_carbon(mol, c.GetIdx())
+            and mol.GetBondBetweenAtoms(others[0].GetIdx(), c.GetIdx()).GetBondTypeAsDouble() == 1.0
+            for c in others[0].GetNeighbors()
+            if c.GetIdx() != nitrogen.GetIdx()
+        )
     )
 
 
