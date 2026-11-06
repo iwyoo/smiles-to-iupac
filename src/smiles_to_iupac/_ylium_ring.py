@@ -204,7 +204,7 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None, group=None):
             raise UnsupportedStructure("ide and uide centres together on a cationic ring are not supported yet")
         anion_locants = sorted((numbering[index[a]] for a in anions), key=_locant_key)
         name += f"-{','.join(anion_locants)}-{_MULTIPLIER[len(anion_locants)]}{words.pop()}"
-    return grouped, name, {a: numbering[index[a]] for a in group}
+    return grouped, name, {a: numbering[index[a]] for a in group}, {a: numbering[index[a]] for a in order}
 
 
 def _name_monocyclic_ylium(mol, graph, system, centres, anions, group):
@@ -230,7 +230,7 @@ def _name_monocyclic_ylium(mol, graph, system, centres, anions, group):
     locants = sorted(str(locant_of[a]) for a in centres)
     multiplier = _MULTIPLIER[len(locants)]
     stem = core if multiplier or not core.endswith("e") else core[:-1]
-    return grouped, f"{stem}-{','.join(locants)}-{multiplier}ylium", {a: str(locant_of[a]) for a in group}
+    return grouped, f"{stem}-{','.join(locants)}-{multiplier}ylium", {a: str(locant_of[a]) for a in group}, {a: str(v) for a, v in locant_of.items()}
 
 
 def name_ylium_ring(mol, group=None, word="", monocycle=False) -> str:
@@ -260,16 +260,16 @@ def name_ylium_ring(mol, group=None, word="", monocycle=False) -> str:
             locant_set, _, citation = substituent_locant_set_and_citation(grouped)
             key = (sorted(_locant_key(str(locant_of[a])) for a in group), locant_set, citation)
             if best is None or key < best[0]:
-                best = (key, grouped, core, {a: str(locant_of[a]) for a in group})
+                best = (key, grouped, core, {a: str(locant_of[a]) for a in group}, {a: str(v) for a, v in locant_of.items()})
     if best is not None:
-        _, grouped, core, group_locants = best
+        _, grouped, core, group_locants, ring_locants = best
     else:
         try:
             ring_bonds = sum(1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in system and b.GetEndAtomIdx() in system)
             if ring_bonds == len(system) and not monocycle:
                 raise UnsupportedStructure("a cationic monocycle is named by the λ ring route only")
             name_system = _name_monocyclic_ylium if ring_bonds == len(system) else _name_fused_ylium
-            grouped, core, group_locants = name_system(mol, graph, system, set(centres), anions, group)
+            grouped, core, group_locants, ring_locants = name_system(mol, graph, system, set(centres), anions, group)
         except UnsupportedStructure as error:
             raise UnsupportedStructure("this cationic ring is not one of the ylium rings with a retained or lambda name") from error
     if group:
@@ -278,7 +278,19 @@ def name_ylium_ring(mol, group=None, word="", monocycle=False) -> str:
         suffix = _MULTIPLIER[count] + word if word.startswith("a") else multiplying_prefix(count, compound=True) + f"({word})" if count > 1 else word
         core += f"-{','.join(locants)}-{suffix}"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    return f"{prefix}-{core}" if prefix and core[0].isdigit() else prefix + core
+    name = f"{prefix}-{core}" if prefix and core[0].isdigit() else prefix + core
+    return _ring_descriptors(mol, ring_locants) + name
+
+
+def _ring_descriptors(mol, ring_locants):
+    """The CIP descriptors of the stereogenic ring atoms, cited with their locants in front of the name (P-91.2)."""
+    probe = Chem.Mol(mol)
+    assign_cip_labels(probe)
+    cited = sorted(
+        ((ring_locants[a.GetIdx()], a.GetProp("_CIPCode")) for a in probe.GetAtoms() if a.GetIdx() in ring_locants and a.HasProp("_CIPCode")),
+        key=lambda item: _locant_key(item[0]),
+    )
+    return f"({','.join(locant + code for locant, code in cited)})-" if cited else ""
 
 
 def name_monocyclic_ylium_ring(mol):
