@@ -104,6 +104,7 @@ def has_group_senior_to_urea(mol, core_atoms, hydrazide_junior=False, junior_cor
     than a nitro group's: the class that outranks urea as the parent (P-41, P-66.1.6.1.1.5). With `hydrazide_junior`
     an acyl or sulfonyl group on a nitrogen of the core makes a hydrazide, which ranks below an amidine (P-41).
     `junior_cores` are carbons of urea groups ranking equal to or below the parent urea (P-41, P-45.2)."""
+    from ._phosphonic_acid import charged_prefix_group_atoms
     from ._polyfunctional import _acyloxy_amine_oxygen
 
     for query in _SENIOR_TO_UREA:
@@ -115,10 +116,13 @@ def has_group_senior_to_urea(mol, core_atoms, hydrazide_junior=False, junior_cor
             for match in mol.GetSubstructMatches(query)
         ):
             return True
+    prefix_charges = charged_prefix_group_atoms(mol)
     return any(
-        a.GetFormalCharge() and a.GetIdx() not in core_atoms and not is_nitro_nitrogen(mol, a.GetIdx()) and not any(
-            is_nitro_nitrogen(mol, n.GetIdx()) for n in a.GetNeighbors()
-        )
+        a.GetFormalCharge()
+        and a.GetIdx() not in core_atoms
+        and a.GetIdx() not in prefix_charges
+        and not is_nitro_nitrogen(mol, a.GetIdx())
+        and not any(is_nitro_nitrogen(mol, n.GetIdx()) for n in a.GetNeighbors())
         for a in mol.GetAtoms()
     )
 

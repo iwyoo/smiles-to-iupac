@@ -2476,7 +2476,8 @@ def test_formazan_substituent_groups_and_linkers_are_retained_prefixes(smiles, e
     [
         ("C1CCC([N+]#[C-])CC1", "isocyanocyclohexane"),
         ("OC(=O)c1ccc(cc1)[N+]#[C-]", "4-isocyanobenzoic acid"),
-        ("CC(C)(C)N=C(C(=O)O)C(C)(O[N+](=O)[O-])C", "2-(tert-butylimino)-3-methyl-3-(nitrooxy)butanoic acid"),
+        ("[C-]#[N+]c1ccc(NC(=S)NC)cc1", "N-(4-isocyanophenyl)-N'-methylthiourea"),
+        ("CC(C)(C)N=C(C(=O)O)C(C)(O[N+](=O)[O-])C","2-(tert-butylimino)-3-methyl-3-(nitrooxy)butanoic acid"),
         ("C1CCC(CC1)N=C=NC1CCCCC1", "dicyclohexylmethanediimine"),
         ("CN=C=NCC", "N-ethyl-N'-methylmethanediimine"),
         ("N=C=NC", "N-methylmethanediimine"),
