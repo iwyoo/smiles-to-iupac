@@ -671,9 +671,29 @@ def _sulfonyl_acyl_on(mol, atom, nitrogen):
     ]
     return (
         len(rest) == 1
-        and rest[0].GetAtomicNum() == 6
         and mol.GetBondBetweenAtoms(atom.GetIdx(), rest[0].GetIdx()).GetBondTypeAsDouble() == 1.0
-        and not is_functional_carbon(mol, rest[0].GetIdx())
+        and (
+            (rest[0].GetAtomicNum() == 6 and not is_functional_carbon(mol, rest[0].GetIdx()))
+            or _sulfamoyl_nitrogen(mol, rest[0], atom)
+        )
+    )
+
+
+def _sulfamoyl_nitrogen(mol, nitrogen, sulfur):
+    """The nitrogen of a sulfamoyl group -SO2-N< whose other substituents are hydrogen, plain carbon groups or further
+    sulfonyl groups, all cited inside the 'sulfamoyl' prefix (P-66.1.1.4.4)."""
+    if nitrogen.GetAtomicNum() != 7 or nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
+        return False
+    return all(
+        n.GetIdx() == sulfur.GetIdx()
+        or (
+            n.GetAtomicNum() == 6
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and not _double_oxygens(mol, n.GetIdx())
+            and not is_functional_carbon(mol, n.GetIdx())
+        )
+        or _sulfonyl_acyl_on(mol, n, nitrogen)
+        for n in nitrogen.GetNeighbors()
     )
 
 
