@@ -542,6 +542,21 @@ def _ring_nitrogen_ketone_unit(unit, attach):
     return name, "methanone", "", None
 
 
+def _stereo_ring_nitrogen_ketone_unit(unit_stereo, parts_atoms, units):
+    """The name parts of identical ring-nitrogen pseudoketone units whose ring stereocentres are cited inside the unit
+    name, '[(2S)-2-methylpyrrolidin-1-yl]methanone' (P-93.6); None when the units differ or a descriptor is left uncited."""
+    if any(kind != "atom" for kind, _, _ in unit_stereo):
+        return None
+    found = []
+    for atoms, unit_attach in zip(parts_atoms, units):
+        parts = _ring_nitrogen_ketone_unit(*unit_attach)
+        cited = len(re.findall(r"\d[a-z]?[RS]\b", parts[0])) if parts else 0
+        if cited != sum(1 for _, where, _ in unit_stereo if where in atoms):
+            return None
+        found.append(parts)
+    return found[0] if all(parts == found[0] for parts in found) else None
+
+
 def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene_unit=None, anion=None):
     from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
@@ -782,13 +797,19 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             BRANCH_STEREO.reset(tokens[0])
             BRANCH_STEREO_MOL.reset(tokens[1])
     except UnsupportedStructure:
-        parts = None if stereo or unit_stereo else _ring_nitrogen_ketone_unit(unit, attach)
+        cited_in_unit = bool(unit_stereo) and len(unit_stereo) == len(stereo)
+        if cited_in_unit:
+            parts = _stereo_ring_nitrogen_ketone_unit(unit_stereo, parts_atoms, units)
+        else:
+            parts = None if stereo or unit_stereo else _ring_nitrogen_ketone_unit(unit, attach)
         if parts is None:
             amine = None if stereo or unit_stereo else _amine_arm(unit, attach)
             if amine is None:
                 return None
             lead = ",".join(str(amine[1]) + "'" * i for i in range(count)) + "-"
             return f"{lead}{linker}{multiplier_word(count, True)}{enclose(amine[0])}"
+        if cited_in_unit:
+            unit_stereo = []
     if unit_stereo:
         if any(element[0] == "isotope" for element in unit_stereo):
             return None
