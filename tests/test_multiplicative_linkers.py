@@ -1494,3 +1494,14 @@ def test_n_acylhydrazides_joined_through_a_heteroatom_are_multiplied_with_their_
 )
 def test_identical_units_with_a_symmetric_numbering_cite_the_stereo_at_the_lower_locant(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CNC(=O)c1cc(Oc2cc(C(=O)NC)cc([N+](=O)[O-])c2)cc([N+](=O)[O-])c1", "3,3'-oxybis(N-methyl-5-nitrobenzamide)"),
+        ("CNC(=O)c1cc(NC(=O)Nc2cc(C(=O)NC)cc(Cl)c2)cc(Cl)c1", "3,3'-[carbonylbis(azanediyl)]bis(5-chloro-N-methylbenzamide)"),
+    ],
+)
+def test_n_substituted_benzamide_units_with_a_ring_substituent_are_multiplied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
