@@ -7204,6 +7204,13 @@ def _multiplicative_name(mol, stereo=None):
         if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] in ("amine", "imine"):
             continue
         unit, attach = units[0]
+        from ._chain_multiplicative import _unit_forced_names
+        from ._substituents import FORCED_BRANCH_NAMES
+
+        unit_forced = _unit_forced_names(mol, parts_atoms, units)
+        if unit_forced is False:
+            continue
+        forced_token = FORCED_BRANCH_NAMES.set(unit_forced)
         try:
             if labelled:
                 parts = _unit_parts(unit, attach, parts_atoms[0])
@@ -7211,6 +7218,8 @@ def _multiplicative_name(mol, stereo=None):
                 _, _, parts = _select(unit, attach)
         except UnsupportedStructure:
             continue
+        finally:
+            FORCED_BRANCH_NAMES.reset(forced_token)
         stereo_text = ""
         plain_stereo = [element for element in stereo or () if element[0] != "isotope"]
         if plain_stereo:

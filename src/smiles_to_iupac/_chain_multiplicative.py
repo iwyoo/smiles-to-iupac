@@ -542,6 +542,23 @@ def _ring_nitrogen_ketone_unit(unit, attach):
     return name, "methanone", "", None
 
 
+def _unit_forced_names(mol, parts_atoms, units):
+    """The forced branch names of the structure restated for the first unit (None when there are none, False when the units
+    carry different ones): a stand-in group named in the whole structure keeps its name in the unit cut from it."""
+    from ._substituents import FORCED_BRANCH_NAMES
+
+    outer = FORCED_BRANCH_NAMES.get()
+    if not outer or mol.GetNumAtoms() != outer[0]:
+        return outer
+    per_unit = []
+    for atoms, (unit, _) in zip(parts_atoms, units):
+        index = {orig: i for i, orig in enumerate(sorted(atoms))}
+        per_unit.append({index[a]: name for a, name in outer[1].items() if a in index})
+    if any(sorted(found.values()) != sorted(per_unit[0].values()) for found in per_unit[1:]):
+        return False
+    return units[0][0].GetNumAtoms(), per_unit[0]
+
+
 def _leading_descriptors(text):
     found = re.match(r"\(((?:\d+[a-z]?[RS],)*\d+[a-z]?[RS])\)-", text)
     return found.group(1) if found else ""
@@ -805,15 +822,19 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
     if len(ctx.used) + len(ring_labels) != len(branch_stereo[0]) + len(chain_stereo):
         return None
     unit, attach = units[0]
-    from ._substituents import BRANCH_STEREO, BRANCH_STEREO_MOL
+    from ._substituents import BRANCH_STEREO, BRANCH_STEREO_MOL, FORCED_BRANCH_NAMES
 
+    unit_forced = _unit_forced_names(mol, parts_atoms, units)
+    if unit_forced is False:
+        return None
     try:
-        tokens = (BRANCH_STEREO.set(None), BRANCH_STEREO_MOL.set(None))
+        tokens = (BRANCH_STEREO.set(None), BRANCH_STEREO_MOL.set(None), FORCED_BRANCH_NAMES.set(unit_forced))
         try:
             _, _, parts = _select(unit, attach)
         finally:
             BRANCH_STEREO.reset(tokens[0])
             BRANCH_STEREO_MOL.reset(tokens[1])
+            FORCED_BRANCH_NAMES.reset(tokens[2])
     except UnsupportedStructure:
         cited_in_unit = bool(unit_stereo) and len(unit_stereo) == len(stereo)
         if cited_in_unit:
