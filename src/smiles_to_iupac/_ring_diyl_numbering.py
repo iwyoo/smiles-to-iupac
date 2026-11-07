@@ -1266,6 +1266,12 @@ def _bridged_numberings(mol, skeleton_atoms):
             if not any(
                 mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() != 1.0 and n in capable for n in adj[a]
             )
+        } | {
+            a
+            for a in capable
+            if mol.GetAtomWithIdx(a).GetAtomicNum() == 7
+            and mol.GetAtomWithIdx(a).GetTotalNumHs()
+            and adj[a] & oxo_all & suffix_atoms
         }
         position_of = {a: _locant(str(p)) if not isinstance(p, int) else p for a, p in parent.position_of.items()}
         if any(position_of.get(a) is None for a in capable):
