@@ -1455,3 +1455,20 @@ def test_repeated_unit_is_named_without_the_stereo_context_of_the_whole_molecule
 )
 def test_identical_ring_nitrogen_pseudoketone_units_cite_their_ring_stereo_inside_a_multiplicative_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        (
+            "OC[C@H]1CCCN1c1cccc(N2CCC[C@@H]2CO)c1",
+            "[(2R,2'R)-1,3-phenylenedi(pyrrolidine-1,2-diyl)]dimethanol",
+        ),
+        (
+            "OC[C@H]1CCCN1CCN1CCC[C@@H]1CO",
+            "[(2R,2'R)-ethane-1,2-diyldi(pyrrolidine-1,2-diyl)]dimethanol",
+        ),
+    ],
+)
+def test_ring_diyl_arms_with_identical_stereocentres_cite_their_descriptors_in_front_of_the_linker(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
