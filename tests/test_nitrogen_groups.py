@@ -3093,3 +3093,14 @@ def test_acetamido_prefix_is_not_changed_by_an_earlier_amide_demoted_to_a_prefix
     _hetero_prefixes._FRAGMENT_NAMES.clear()
     assert smiles_to_iupac("CC(C)[C@H](NC(C)=O)C(=O)c1ccc(C(=O)O)cc1") == "4-(N-acetyl-L-valyl)benzoic acid"
     assert smiles_to_iupac("CC(=O)NCC(N)=O") == "2-acetamidoacetamide"
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CC(=O)N=NC(C)=O", "diacetyldiazene"),
+        ("CC(=O)N=NC(=O)N1CCCCC1", "acetyl(piperidine-1-carbonyl)diazene"),
+    ],
+)
+def test_acyl_groups_on_the_diazene_nitrogens_are_prefixes_of_the_diazene(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
