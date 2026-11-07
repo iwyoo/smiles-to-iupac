@@ -2208,17 +2208,16 @@ def _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others):
     """P(=O)(X)(Y)- as 'phosphono' (X = Y = hydroxy), '(X)(Y)phosphoryl', or '(R)(R')phosphinoyl' when both are carbon
     groups (P-67.1.4.1.1.3, P-67.1.4.1.3)."""
     from ._oxoacid_acyl import infix_acyl_name, oxoacid_chain_group
-    from ._substituents import BRANCH_STEREO, format_mononuclear_prefixes, name_branch
+    from ._substituents import format_mononuclear_prefixes, name_branch
 
     attach = next((n for n in graph[root] if n not in others), None)
-    stereo = BRANCH_STEREO.get()
     if attach is not None:
         chain = oxoacid_chain_group(mol, graph, root, attach, halogens, aromatic_atoms)
         if chain is not None:
             return chain
-        infix = None if stereo and root in stereo["atoms"] else infix_acyl_name(mol, graph, root, attach, halogens, aromatic_atoms)
+        infix = infix_acyl_name(mol, graph, root, attach, halogens, aromatic_atoms)
         if infix is not None:
-            return infix
+            return _with_centre_descriptor(infix[0], infix[1], root)
     oxo = [
         n
         for n in others
