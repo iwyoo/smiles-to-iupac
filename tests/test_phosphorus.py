@@ -1054,3 +1054,15 @@ def test_diphosphate_beside_a_carbamate_ester_is_a_prefix_of_the_carbamate(smile
 def test_thiophosphoric_esters_on_one_diyl_component_are_multiplied_like_phosphates(smiles, expected):
     # P-67.1.3.2, P-65.6.3.2.2: a thiono sulfur does not stop the identical ester groups from sharing the diyl component
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCOC(=O)[C@H](C)N[P@](=O)(C)Oc1ccccc1", "ethyl N-[(S)-methyl(phenoxy)phosphoryl]-L-alaninate"),
+        ("CCOC(=O)CN[P@@](=O)(CO)Oc1ccccc1", "ethyl N-[(R)-(hydroxymethyl)(phenoxy)phosphoryl]glycinate"),
+    ],
+)
+def test_stereogenic_phosphoryl_group_on_an_amino_acid_nitrogen_cites_its_descriptor(smiles, expected):
+    # P-93.3.4.1, P-67.1.4.1: a specified phosphorus is named as the phosphoryl group, not as the acyl group of an acid
+    assert smiles_to_iupac(smiles) == expected
