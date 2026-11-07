@@ -1753,6 +1753,16 @@ def _name_standalone(mol):
     return name
 
 
+def _name_standalone_or_diazene(mol):
+    """An acyl group on a diazene nitrogen that no acid or amide parent names is a prefix of the diazene (P-68.3.1.3.1)."""
+    if not has_diazene_shape(mol):
+        return _name_standalone(mol)
+    try:
+        return _name_standalone(mol)
+    except UnsupportedStructure:
+        return name_diazene(mol)
+
+
 def _run_fallbacks(smiles, original):
     mol = _parse_smiles(smiles)
     key = Chem.MolToSmiles(mol)
@@ -2677,7 +2687,7 @@ def _name_mol(mol) -> str:
         if has_guanidine_shape(mol):
             return name_guanidine(mol)
         if has_amide_shape(mol):
-            return _name_standalone(mol)
+            return _name_standalone_or_diazene(mol)
         # An imide (-C(=O)-NH-C(=O)-) is named as an N-acyl amide; it must be routed before the generic carbonyl
         # fallback below, which would otherwise misname each acyl carbon as a plain aldehyde.
         if has_imide_shape(mol):
@@ -2708,7 +2718,7 @@ def _name_mol(mol) -> str:
             # carbohydrate name.
             if has_open_chain_2_ketose_shape(mol):
                 return name_open_chain_2_ketose(mol)
-            return _name_standalone(mol)
+            return _name_standalone_or_diazene(mol)
         # One of the 9 retained-name inositol stereoisomers (P-104.2.1) is
         # itself a plain cyclohexane-1,2,3,4,5,6-hexol shape, so it must be
         # routed before the generic systematic fallback below, which would

@@ -62,7 +62,8 @@ Recommendations ("the Blue Book"):
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than the two diazene nitrogens, carbon, halogen, and
-  hydrogen.
+  hydrogen, except the carbonyl oxygen and amide nitrogen of an acyl group
+  on a diazene nitrogen (an acyl prefix, P-68.3.1.3.1).
 - An unsaturated substituent, an aromatic substituent other than a plain,
   unsubstituted phenyl (a substituted or heteroaromatic ring, e.g.), or a
   ring other than a plain phenyl substituent.
@@ -92,9 +93,48 @@ from ._substituents import format_mononuclear_prefixes, name_branch
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
 
+def _acyl_atoms(mol):
+    """Carbonyl carbons bonded to a nitrogen that is double bonded to another nitrogen, with their oxygens."""
+    found = set()
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 7 or atom.IsInRing():
+            continue
+        if not any(
+            n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in atom.GetNeighbors()
+        ):
+            continue
+        for carbon in atom.GetNeighbors():
+            if carbon.GetAtomicNum() != 6 or carbon.GetIsAromatic():
+                continue
+            oxygens = [
+                n.GetIdx()
+                for n in carbon.GetNeighbors()
+                if n.GetAtomicNum() == 8
+                and n.GetDegree() == 1
+                and not n.GetFormalCharge()
+                and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            ]
+            if oxygens:
+                found |= {carbon.GetIdx(), *oxygens}
+    return found
+
+
+def _acyl_amide_nitrogens(mol, acyl):
+    return {
+        n.GetIdx()
+        for c in acyl
+        if mol.GetAtomWithIdx(c).GetAtomicNum() == 6
+        for n in mol.GetAtomWithIdx(c).GetNeighbors()
+        if n.GetAtomicNum() == 7 and n.GetDegree() == 3 and not n.GetFormalCharge()
+    }
+
+
 def _azo_pairs(mol):
-    """Every N=N pair when each nitrogen of the molecule belongs to one (degree <= 2, no charge); [] otherwise."""
-    nitrogens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7]
+    """Every N=N pair when each nitrogen of the molecule belongs to one (degree <= 2, no charge) or is the amide
+    nitrogen of an acyl group on the diazene; [] otherwise."""
+    amide = _acyl_amide_nitrogens(mol, _acyl_atoms(mol))
+    nitrogens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetIdx() not in amide]
     if len(nitrogens) < 2 or len(nitrogens) % 2:
         return []
     pairs, seen = [], set()
@@ -132,7 +172,10 @@ def has_diazene_shape(mol) -> bool:
 
 def check_diazene_scope(mol, pairs):
     aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
+    acyl = _acyl_atoms(mol)
     for atom in mol.GetAtoms():
+        if atom.GetIdx() in acyl:
+            continue
         if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than the diazene's own two nitrogens "
@@ -146,7 +189,7 @@ def check_diazene_scope(mol, pairs):
 
     azo = {atom.GetIdx() for pair in pairs for atom in pair}
     if any(
-        not (a in azo and b in azo) and not (a in aromatic_atoms and b in aromatic_atoms)
+        not (a in azo and b in azo) and not (a in aromatic_atoms and b in aromatic_atoms) and not (a in acyl and b in acyl)
         for a, b, _ in non_single_bonds(mol)
     ):
         raise UnsupportedStructure(
