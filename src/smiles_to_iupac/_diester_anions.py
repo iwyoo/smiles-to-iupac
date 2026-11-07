@@ -217,7 +217,7 @@ _INORGANIC_ANIONS = {
 
 def inorganic_anion_name(mol, centre):
     """Anion of a sulfur or phosphorus acid esterified once, its remaining hydroxyl groups cited as 'hydrogen' (P-67.1.3.2)."""
-    if any(n.GetAtomicNum() == 6 for n in centre.GetNeighbors()):
+    if any(n.GetAtomicNum() in (6, 7) for n in centre.GetNeighbors()):
         return _organyl_acid_anion(mol, centre)
     doubled = sum(
         1 for n in centre.GetNeighbors() if mol.GetBondBetweenAtoms(centre.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0

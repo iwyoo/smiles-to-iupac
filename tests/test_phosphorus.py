@@ -1066,3 +1066,15 @@ def test_thiophosphoric_esters_on_one_diyl_component_are_multiplied_like_phospha
 def test_stereogenic_phosphorus_in_an_acyl_prefix_cites_its_descriptor_inside_the_preferred_prefix(smiles, expected):
     # P-67.1.4.1.1.5, P-93.3.4.1: the descriptor leads the concatenated prefix, never the whole ester name
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("NP(=O)(O)OCCCOP(N)(=O)O", "propane-1,3-diyl bis(hydrogen phosphoramidate)"),
+        ("OP(=O)(O)OCCSCCOP(=O)(O)O", "sulfanediyldi(ethane-2,1-diyl) bis(dihydrogen phosphate)"),
+    ],
+)
+def test_acid_groups_esterified_by_one_diyl_component_are_multiplied_whatever_the_amide_or_thioether(smiles, expected):
+    # P-65.6.3.2.2, P-67.1.3.2: identical hydrogen esters of a phosphorus acid share the diyl component
+    assert smiles_to_iupac(smiles) == expected
