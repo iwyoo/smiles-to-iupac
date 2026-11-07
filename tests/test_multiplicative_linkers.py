@@ -1483,3 +1483,14 @@ def test_ring_diyl_arms_with_identical_stereocentres_cite_their_descriptors_in_f
 )
 def test_n_acylhydrazides_joined_through_a_heteroatom_are_multiplied_with_their_acyl_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("O[C@H]1CCCC(O)C1OC1C(O)CCC[C@@H]1O", "(1S,1'S)-2,2'-oxydi(cyclohexane-1,3-diol)"),
+        ("O[C@@H]1CCC(O)C1OC1C(O)CC[C@H]1O", "(1R,1'R)-2,2'-oxydi(cyclopentane-1,3-diol)"),
+    ],
+)
+def test_identical_units_with_a_symmetric_numbering_cite_the_stereo_at_the_lower_locant(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
