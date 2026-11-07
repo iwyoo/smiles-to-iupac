@@ -150,6 +150,6 @@ def diacylhydrazine_name(mol):
         return None
     finally:
         FORCED_BRANCH_NAMES.reset(token)
-    if not name.endswith("hydrazide") or any(_retained_polycycle_names(donor_name) not in name for donor_name, _ in names.values()):
+    if not name.endswith(("hydrazide", "hydrazide)")) or any(_retained_polycycle_names(donor_name) not in name for donor_name, _ in names.values()):
         return None
     return name

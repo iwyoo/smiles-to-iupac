@@ -1472,3 +1472,14 @@ def test_identical_ring_nitrogen_pseudoketone_units_cite_their_ring_stereo_insid
 )
 def test_ring_diyl_arms_with_identical_stereocentres_cite_their_descriptors_in_front_of_the_linker(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("O=C(NNC(C)=O)CCSCCC(=O)NNC(C)=O", "3,3'-sulfanediylbis(N'-acetylpropanehydrazide)"),
+        ("O=C(NNC(C)=O)CCNCCC(=O)NNC(C)=O", "3,3'-azanediylbis(N'-acetylpropanehydrazide)"),
+    ],
+)
+def test_n_acylhydrazides_joined_through_a_heteroatom_are_multiplied_with_their_acyl_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
