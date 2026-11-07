@@ -269,14 +269,25 @@ def _substituted_amine_at(mol, groups, ring_atom, root):
     return next((g for g in groups if g.name == "amine" and g.anchor == root), None)
 
 
+def _substituted_amide_at(mol, groups, ring_atom, root):
+    """The carboxamide group on `ring_atom` whose nitrogen carries carbon substituents of its own (P-66.1.2)."""
+    for g in groups:
+        if g.name == "amide" and g.ring_atom == ring_atom and g.anchor == root:
+            nitrogen = [a for a in g.atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
+            if len(nitrogen) == 1 and mol.GetAtomWithIdx(nitrogen[0]).GetTotalNumHs() < 2:
+                return g, nitrogen[0]
+    return None
+
+
 def _nitrogen_entries(mol, amine_roots, amine_count, locants, groups, name_function):
     """N-locant prefixes of the substituted amine groups of a unit: 'N' for a single amine suffix, 'N1', 'N3' when the
     suffix is multiplied (P-62.2.2)."""
     entries = []
     for r, nitrogen in amine_roots:
         locant = "N" if amine_count == 1 else f"N{locants[r]}"
+        ring_neighbors = {x.GetIdx() for x in mol.GetAtomWithIdx(r).GetNeighbors()}
         for neighbor in mol.GetAtomWithIdx(nitrogen).GetNeighbors():
-            if neighbor.GetIdx() != r:
+            if neighbor.GetIdx() != r and neighbor.GetIdx() not in ring_neighbors:
                 name, compound = prefix_name(mol, neighbor.GetIdx(), nitrogen, "amine", name_function, groups)
                 entries.append((locant, name, compound))
     return entries
@@ -330,6 +341,11 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
             group = _substituted_amine_at(mol, groups, r, n)
             if group is not None:
                 amine_roots.append((r, n))
+        if group is None:
+            substituted_amide = _substituted_amide_at(mol, groups, r, n)
+            if substituted_amide is not None:
+                group = substituted_amide[0]
+                amine_roots.append((r, substituted_amide[1]))
         if group is not None and group.rank == principal and group.name in _SUFFIX_WORDS:
             if suffix_name not in (None, group.name):
                 return None
