@@ -3115,3 +3115,14 @@ def test_acyl_groups_on_the_diazene_nitrogens_are_prefixes_of_the_diazene(smiles
 )
 def test_imidoyloxy_and_imidoylsulfanyl_on_an_amide_nitrogen_are_n_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CS(=O)(=O)N(C)S(=O)(=O)NC(C)=O", "N-[(methanesulfonyl)(methyl)sulfamoyl]acetamide"),
+        ("CS(=O)(=O)N(CC)S(=O)(=O)N(C)C(=O)C", "N-[ethyl(methanesulfonyl)sulfamoyl]-N-methylacetamide"),
+    ],
+)
+def test_sulfamoyl_group_with_a_second_sulfonyl_is_an_n_prefix_of_a_carboxamide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
