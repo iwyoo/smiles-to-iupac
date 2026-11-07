@@ -83,6 +83,7 @@ _CLASS_PATTERNS = [
     ("thiol", f"[SX2H1;!R]{_NOT_CARBONYL}", 0),
     ("hydroperoxide", "[OX2H1][OX2;!R][#6]", 0),
     ("amine", f"[NX3;!R;!$(N~[!#6;!#1]);!$(N[CX3]=[O,S,N]);!$(N-[#6]#*)]{_NOT_CARBONYL}", 0),
+    ("amine", "[NX3H2;!R]-[#7;R;X3]", 0),
     ("imine", "[CX3;!R;!$(C-[O,N,S,Se,Te])]=[NX2;!R;!$(N-[!#6;!#8])]", 0),
 ]
 
@@ -207,7 +208,11 @@ def classify(mol):
     ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
     for name, query, anchor in _CLASS_QUERIES + ([_AMMONIUM_QUERY] if CATIONIC_AMINES.get() else []):
         for match in mol.GetSubstructMatches(query):
-            if any(a in ring_atoms for i, a in enumerate(match) if i != anchor and mol.GetAtomWithIdx(a).GetAtomicNum() != 6):
+            if any(
+                a in ring_atoms
+                for i, a in enumerate(match)
+                if i != anchor and mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and not (name == "amine" and i == 1)
+            ):
                 return None
             anchor_atom = match[anchor]
             ring_neighbors = [n.GetIdx() for n in mol.GetAtomWithIdx(anchor_atom).GetNeighbors() if n.GetIdx() in ring_atoms]
