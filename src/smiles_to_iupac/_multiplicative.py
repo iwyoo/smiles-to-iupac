@@ -784,9 +784,22 @@ def _unit_descriptors(mol, selected, unit):
         found = evaluate_skeleton(probe, adjacency(probe), "ring", rings, atoms, [], set(), "")
         if found is None or str(found[2][new_of[u.junction]]) != str(unit.junction_locant):
             raise UnsupportedStructure("the numbering of a unit with stereo elements differs from its multiplicative name")
-        position_of = {old: found[2][new] for old, new in new_of.items() if new in found[2]}
-        labels = [(_stereo_locant(e, position_of), c) for e, c in on_system]
-        labelled.append(tuple(sorted(labels, key=lambda lc: _locant_sort_key(lc[0]))))
+        new_position = {new: found[2][new] for new in new_of.values() if new in found[2]}
+        junction = new_of[u.junction]
+        numberings = [
+            alternative
+            for match in probe.GetSubstructMatches(probe, uniquify=False)
+            if all(match[new] in new_position for new in new_position)
+            and (alternative := {new: new_position[match[new]] for new in new_position})[junction] == new_position[junction]
+        ] or [new_position]
+        options = []
+        for numbering in numberings:
+            position_of = {old: numbering[new] for old, new in new_of.items() if new in numbering}
+            labels = sorted(
+                ((_stereo_locant(e, position_of), c) for e, c in on_system), key=lambda lc: _locant_sort_key(lc[0])
+            )
+            options.append((tuple(_locant_sort_key(loc) for loc, _ in labels), tuple(c not in "ZRMr" for _, c in labels), tuple(labels)))
+        labelled.append(min(options)[2])
     if len(set(labelled)) != 1:
         return False
     if not labelled[0]:
