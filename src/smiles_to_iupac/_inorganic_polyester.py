@@ -24,6 +24,9 @@ def _centre_match(mol, atom):
         if n.GetAtomicNum() == 6 and z != 16 and order == 1.0 and not n.GetFormalCharge():
             organyl += 1
             continue
+        if z == 15 and n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2 and not n.GetFormalCharge():
+            organyl += 1
+            continue
         if n.GetFormalCharge():
             return None
         if order == 2.0 and n.GetDegree() == 1 and n.GetAtomicNum() in (8, 16):
@@ -48,13 +51,25 @@ def _centre_match(mol, atom):
     return atom, doubled[0] if doubled else atom, esters[0], carbon
 
 
+def _thioether_sulfur(atom):
+    return (
+        atom.GetAtomicNum() == 16
+        and atom.GetDegree() == 2
+        and not atom.GetTotalNumHs()
+        and not atom.GetFormalCharge()
+        and not atom.GetIsotope()
+        and not atom.IsInRing()
+        and all(n.GetAtomicNum() == 6 and atom.GetOwningMol().GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0 for n in atom.GetNeighbors())
+    )
+
+
 def inorganic_ester_matches(mol):
     """The esterified acid centres when every functional group of the molecule is one of them, else []."""
     if len(Chem.GetMolFrags(mol)) > 1:
         return []
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() in _CENTRES and not atom.GetIsAromatic() and atom.GetDegree() > 1:
+        if atom.GetAtomicNum() in _CENTRES and not atom.GetIsAromatic() and atom.GetDegree() > 1 and not _thioether_sulfur(atom):
             match = _centre_match(mol, atom)
             if match is None:
                 return []
@@ -66,7 +81,7 @@ def inorganic_ester_matches(mol):
         if atom.GetIdx() in owned:
             continue
         if atom.GetFormalCharge() or atom.GetIsotope() or not (
-            atom.GetAtomicNum() in (6, 8, *HALOGEN_PREFIXES) or (atom.GetAtomicNum() in (7, 16) and atom.GetIsAromatic())
+            atom.GetAtomicNum() in (6, 8, *HALOGEN_PREFIXES) or (atom.GetAtomicNum() in (7, 16) and atom.GetIsAromatic()) or _thioether_sulfur(atom)
         ):
             return []
         if atom.GetAtomicNum() == 8 and (atom.GetDegree() > 2 or (atom.IsInRing() and not atom.GetIsAromatic())):
