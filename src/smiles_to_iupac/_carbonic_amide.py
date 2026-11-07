@@ -556,6 +556,64 @@ def hydrazine_dicarboxamide_name(mol):
     return None
 
 
+def _primary_carboxamide(carbon, nitrogen):
+    """(carbonyl carbon, amide nitrogen) when `carbon` is a -CO-NH2 group on `nitrogen`, else None."""
+    if carbon.GetAtomicNum() != 6 or carbon.GetDegree() != 3 or carbon.IsInRing():
+        return None
+    chalcogen = _carbonyl_chalcogen(carbon)
+    amides = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetIdx() != nitrogen.GetIdx()]
+    if chalcogen is None or chalcogen.GetAtomicNum() != 8 or len(amides) != 1 or amides[0].GetDegree() != 1:
+        return None
+    return carbon, amides[0]
+
+
+def hydrazine_1_1_dicarboxamide_name(mol):
+    """Hydrazine-1,1-dicarboxamide: two carbamoyl groups on one nitrogen, the other nitrogen carrying hydrogen, carbon
+    groups or an ylidene group (P-66.1.1.1.1.3, P-68.3.1.2); the amide nitrogens are NH2 only."""
+    if len(Chem.GetMolFrags(mol)) != 1 or any(
+        a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()
+    ):
+        return None
+    graph = adjacency(mol)
+    for bond in mol.GetBonds():
+        if bond.GetBondTypeAsDouble() != 1.0 or bond.IsInRing():
+            continue
+        for first, second in ((bond.GetBeginAtom(), bond.GetEndAtom()), (bond.GetEndAtom(), bond.GetBeginAtom())):
+            if first.GetAtomicNum() != 7 or second.GetAtomicNum() != 7 or first.GetDegree() != 3 or first.IsInRing() or second.IsInRing():
+                continue
+            groups = [pair for carbon in first.GetNeighbors() if carbon.GetIdx() != second.GetIdx() and (pair := _primary_carboxamide(carbon, first))]
+            if len(groups) != 2:
+                continue
+            ylidene = [n for n in second.GetNeighbors() if n.GetIdx() != first.GetIdx()]
+            core = {first.GetIdx(), second.GetIdx(), *(a.GetIdx() for pair in groups for a in pair), *(_carbonyl_chalcogen(c).GetIdx() for c, _ in groups)}
+            if has_group_senior_to_urea(mol, core):
+                continue
+            halogens = halogen_substituents(mol)
+            aromatic = frozenset(x.GetIdx() for x in mol.GetAtoms() if x.GetIsAromatic())
+            names, covered = [], set()
+            for root in ylidene:
+                if root.GetAtomicNum() != 6:
+                    names = None
+                    break
+                arm = _arm_atoms(graph, root.GetIdx(), second.GetIdx())
+                if second.GetIdx() in arm or covered & arm or core & arm:
+                    names = None
+                    break
+                if any(mol.GetAtomWithIdx(i).GetAtomicNum() not in _UREA_SUBSTITUENT_ELEMENTS for i in arm):
+                    names = None
+                    break
+                covered |= arm
+                names.append(name_branch(graph, root.GetIdx(), second.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True))
+            if names is None or len(core) + len(covered) != mol.GetNumAtoms():
+                continue
+            prefixes = {}
+            for name, compound in names:
+                prefixes.setdefault(name, {"locants": [], "compound": compound})["locants"].append(2)
+            head = format_substituent_prefixes(prefixes) if prefixes else ""
+            return f"{head}hydrazine-1,1-dicarboxamide"
+    return None
+
+
 def _hydrazine_dicarboxamide(mol, graph, found, nitro):
     halogens = halogen_substituents(mol)
     aromatic = frozenset(x.GetIdx() for x in mol.GetAtoms() if x.GetIsAromatic())
