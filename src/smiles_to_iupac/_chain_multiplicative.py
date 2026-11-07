@@ -15,7 +15,7 @@ from ._diacyl_linker import acyl_part, diacyl_linker, diamido_linker
 from ._hetero_prefixes import is_functional_carbon, is_sulfone_like
 from ._multiplicative import _Context
 from ._multiplicative_groups import terminal_ligand
-from ._multiplicative_linker import DecompositionRejected, name_component
+from ._multiplicative_linker import DecompositionRejected, Part, name_component
 from ._multiplicative_prefix import cited_linker_substituents
 from ._multiplicative_text import (
     enclose,
@@ -542,6 +542,15 @@ def _ring_nitrogen_ketone_unit(unit, attach):
     return name, "methanone", "", None
 
 
+def _leading_descriptors(text):
+    found = re.match(r"\(((?:\d+[a-z]?[RS],)*\d+[a-z]?[RS])\)-", text)
+    return found.group(1) if found else ""
+
+
+def _without_leading_descriptors(text):
+    return re.sub(r"^\((?:\d+[a-z]?[RS],)*\d+[a-z]?[RS]\)-", "", text)
+
+
 def _stereo_ring_nitrogen_ketone_unit(unit_stereo, parts_atoms, units):
     """The name parts of identical ring-nitrogen pseudoketone units whose ring stereocentres are cited inside the unit
     name, '[(2S)-2-methylpyrrolidin-1-yl]methanone' (P-93.6); None when the units differ or a descriptor is left uncited."""
@@ -782,9 +791,18 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         ):
             return f"{stereo_text}{lead}{linker}{multiplier_word(count, True)}{enclose(text)}"
         return f"{stereo_text}{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, '')}"
-    linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
-    if len(ctx.used) != len(branch_stereo[0]) + len(chain_stereo):
+    ring_labels = [label for part in arm_parts for label in re.findall(r"(\d+[a-z]?[RS])\b", _leading_descriptors(part.text))]
+    if ring_labels:
+        arm_parts = [Part(_without_leading_descriptors(part.text), part.has_prefix, part.has_locants) for part in arm_parts]
+        cited = [
+            re.sub(r"([RS])$", lambda m: chr(39) * i + m.group(1), label)
+            for i in range(branches)
+            for label in ring_labels
+        ]
+        central = Part(f"({','.join(cited)})-{central.text}", central.has_prefix, central.has_locants)
+    linker = _linker_text(branches, central, arm_parts)
+    if len(ctx.used) + len(ring_labels) != len(branch_stereo[0]) + len(chain_stereo):
         return None
     unit, attach = units[0]
     from ._substituents import BRANCH_STEREO, BRANCH_STEREO_MOL
