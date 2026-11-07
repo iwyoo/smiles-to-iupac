@@ -1222,7 +1222,12 @@ def name_ester(mol, links):
                     ) == 1:
                         raise
     principal = max(
-        acid_pieces, key=lambda i: (_acid_piece_rank(mol, frags, acid_pieces, r_pieces, i), _alcohol_atom_seniority(mol, acid_pieces[i]))
+        acid_pieces,
+        key=lambda i: (
+            _acid_piece_rank(mol, frags, acid_pieces, r_pieces, i),
+            _alcohol_atom_seniority(mol, acid_pieces[i]),
+            -sum(1 for a in frags[i] if mol.GetAtomWithIdx(a).GetFormalCharge()),
+        ),
     )
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])

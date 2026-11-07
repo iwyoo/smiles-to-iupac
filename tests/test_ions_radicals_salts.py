@@ -2531,3 +2531,11 @@ def test_carboxylate_inside_the_acyl_group_of_an_amide_beside_a_carboxylate_pare
 def test_ammonium_centre_cut_off_as_an_amine_parent_keeps_no_chirality(smiles, expected):
     # P-73.1.1.2, P-93.5.1: the CIP labelling of the ring parent must not see the substituent-less nitrogen as a centre
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    ["[O-]C(=O)OCCOC(=O)O", "C(COC(=O)[O-])OC(=O)O", "OC(=O)OCCOC(=O)[O-]"],
+)
+def test_charged_carbonic_half_ester_is_named_whatever_the_atom_order(smiles):
+    assert smiles_to_iupac(smiles) == "2-(carboxylatooxy)ethyl hydrogen carbonate"
