@@ -352,7 +352,7 @@ def name_polycarbonic_amide(mol):
 
 
 def polycarbonic_amide_name(mol):
-    if not _plain(mol):
+    if not _plain(mol, stereo=True):
         return None
     graph = adjacency(mol)
     for start in mol.GetAtoms():

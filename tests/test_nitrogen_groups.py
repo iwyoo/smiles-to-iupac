@@ -3137,3 +3137,17 @@ def test_sulfamoyl_group_with_a_second_sulfonyl_is_an_n_prefix_of_a_carboxamide(
 )
 def test_two_carbamoyl_groups_on_one_hydrazine_nitrogen_are_a_1_1_dicarboxamide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        (
+            "CC(/C=C\\c1ccccc1)=NC(=S)NC(N)=S",
+            "N1-[(3Z)-4-phenylbut-3-en-2-ylidene]-2-imido-1,3-dithiodicarbonic diamide",
+        ),
+        ("CC(/C=C/C)=NC(=O)NC(N)=O", "N1-[(3E)-pent-3-en-2-ylidene]-2-imidodicarbonic diamide"),
+    ],
+)
+def test_stereodefined_substituents_of_an_imidodicarbonic_diamide_cite_their_descriptors(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
