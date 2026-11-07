@@ -48,6 +48,7 @@ from ._carbonic_amide import (
     cyanamide_name,
     name_labelled_cyanamide,
     diazenecarbohydrazide_name,
+    hydrazine_1_1_dicarboxamide_name,
     hydrazine_dicarboxamide_name,
     name_polycarbonic_amide,
     polycarbonic_amide_name,
@@ -1284,6 +1285,7 @@ def _name_unabridged_body(smiles: str) -> str:
                 or cyanamide_name(parsed)
                 or carbonohydrazonic_diamide_name(parsed)
                 or hydrazine_dicarboxamide_name(parsed)
+                or hydrazine_1_1_dicarboxamide_name(parsed)
                 or diazenecarbohydrazide_name(parsed)
             )
             if carbonic_amide is not None:

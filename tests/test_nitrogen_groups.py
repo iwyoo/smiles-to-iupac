@@ -3126,3 +3126,14 @@ def test_imidoyloxy_and_imidoylsulfanyl_on_an_amide_nitrogen_are_n_prefixes(smil
 )
 def test_sulfamoyl_group_with_a_second_sulfonyl_is_an_n_prefix_of_a_carboxamide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("NC(=O)N(N)C(N)=O", "hydrazine-1,1-dicarboxamide"),
+        ("CC=NN(C(N)=O)C(N)=O", "2-ethylidenehydrazine-1,1-dicarboxamide"),
+    ],
+)
+def test_two_carbamoyl_groups_on_one_hydrazine_nitrogen_are_a_1_1_dicarboxamide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
