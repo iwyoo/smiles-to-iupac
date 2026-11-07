@@ -1569,3 +1569,14 @@ def test_arene_bridged_macrocycle_with_a_ring_heteroatom_and_a_suffix_group_is_a
 def test_peri_fused_cage_is_numbered_the_same_whatever_order_the_ring_perception_gives(smiles, expected):
     # P-25.3.3, P-25.4.3.4: the numbering follows from the structure; it must not change with the RDKit release
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("O=c1ccc2c([nH]1)C1CCC2C1", "5,6,7,8-tetrahydro-5,8-methanoquinolin-2(1H)-one"),
+        ("O=c1ccc2c([nH]1)CC1CCC2C1", "1,5,6,7,8,9-hexahydro-2H-5,8-methanocyclohepta[b]pyridin-2-one"),
+    ],
+)
+def test_bridged_fused_pyridone_with_a_ring_nh_takes_added_hydrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
