@@ -1074,9 +1074,18 @@ def _acyloxy_on_nitrogen(mol, oxygen, nitrogen):
     return (
         acyl is not None
         and acyl.GetAtomicNum() in (6, 15, 16)
-        and (_acyl_chalcogen_of(mol, acyl) is not None or _cyano_carbon(mol, acyl))
+        and (_acyl_chalcogen_of(mol, acyl) is not None or _cyano_carbon(mol, acyl) or _imidic_acyl_carbon(mol, acyl))
         and _acyloxy_amine_oxygen(mol, near, acyl.GetIdx())
     )
+
+
+def _imidic_acyl_carbon(mol, atom):
+    """A carbon whose only multiple bond is an =N to an acyclic neutral nitrogen: the acyl carbon of an imidic acid, cited
+    as an 'imidoyl' prefix when it is joined to an amide nitrogen through oxygen or a heavier chalcogen (P-65.1.3.1.2)."""
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetFormalCharge():
+        return False
+    doubles = [b.GetOtherAtom(atom) for b in atom.GetBonds() if b.GetBondTypeAsDouble() != 1.0]
+    return len(doubles) == 1 and doubles[0].GetAtomicNum() == 7 and not doubles[0].IsInRing() and not doubles[0].GetFormalCharge()
 
 
 def _sulfonyl_groups_on(mol, carbon):

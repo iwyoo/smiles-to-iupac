@@ -3104,3 +3104,14 @@ def test_acetamido_prefix_is_not_changed_by_an_earlier_amide_demoted_to_a_prefix
 )
 def test_acyl_groups_on_the_diazene_nitrogens_are_prefixes_of_the_diazene(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CC(=N)ONC(C)=O", "N-[(ethanimidoyl)oxy]acetamide"),
+        ("CC(=O)NSC(C)=N", "N-(ethanimidoylsulfanyl)acetamide"),
+    ],
+)
+def test_imidoyloxy_and_imidoylsulfanyl_on_an_amide_nitrogen_are_n_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
