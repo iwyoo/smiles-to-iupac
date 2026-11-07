@@ -369,8 +369,9 @@ def _acid_name(mol, keep, caps, skip=()):
     """Name of the free acid made of the atoms `keep` of `mol` with a hydroxy group on every atom of `caps`."""
     acid, index = _capped_acid(mol, keep, caps, skip)
     match_cip_labels(mol, acid, {i: idx for idx, i in index.items()})
+    capped = {index[c] for c in caps if c in index}
     for atom in acid.GetAtoms():
-        if atom.GetAtomicNum() in (15, 16):
+        if atom.GetAtomicNum() in (15, 16) and any(n.GetIdx() in capped for n in atom.GetNeighbors()):
             # the descriptor of a stereogenic acid centre is cited in front of the anion, not inside the acid name
             atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     return _free_acid_name(acid)
@@ -2343,7 +2344,7 @@ def _stereogenic_phosphorus_ester(mol, name):
     if len(centres) != 1 or centres[0] not in {l.center for l in find_links(mol)[0]}:
         return name
     code = next((c for kind, idx, c in specified_stereo_elements(mol) or () if kind == "atom" and idx == centres[0]), None)
-    if code is None:
+    if code is None or re.search(rf"[\[{{(]\({code}\)-", name):
         return name
     cations, _, anion = name.rpartition(" ")
     centre = mol.GetAtomWithIdx(centres[0])

@@ -1059,10 +1059,10 @@ def test_thiophosphoric_esters_on_one_diyl_component_are_multiplied_like_phospha
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("CCOC(=O)[C@H](C)N[P@](=O)(C)Oc1ccccc1", "ethyl N-[(S)-methyl(phenoxy)phosphoryl]-L-alaninate"),
-        ("CCOC(=O)CN[P@@](=O)(CO)Oc1ccccc1", "ethyl N-[(R)-(hydroxymethyl)(phenoxy)phosphoryl]glycinate"),
+        ("CCOC(=O)[C@H](C)N[P@](=O)(C)Oc1ccccc1", "ethyl N-[(S)-phenoxy(methylphosphonoyl)]-L-alaninate"),
+        ("CCOC(=O)CC[P@@](=O)(CC)Oc1ccccc1", "ethyl 3-[(R)-phenoxy(ethylphosphonoyl)]propanoate"),
     ],
 )
-def test_stereogenic_phosphoryl_group_on_an_amino_acid_nitrogen_cites_its_descriptor(smiles, expected):
-    # P-93.3.4.1, P-67.1.4.1: a specified phosphorus is named as the phosphoryl group, not as the acyl group of an acid
+def test_stereogenic_phosphorus_in_an_acyl_prefix_cites_its_descriptor_inside_the_preferred_prefix(smiles, expected):
+    # P-67.1.4.1.1.5, P-93.3.4.1: the descriptor leads the concatenated prefix, never the whole ester name
     assert smiles_to_iupac(smiles) == expected
