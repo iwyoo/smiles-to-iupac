@@ -1505,3 +1505,15 @@ def test_identical_units_with_a_symmetric_numbering_cite_the_stereo_at_the_lower
 )
 def test_n_substituted_benzamide_units_with_a_ring_substituent_are_multiplied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("Nn1ccc(CCc2ccn(N)n2)n1", "3,3'-(ethane-1,2-diyl)bis(1H-pyrazol-1-amine)", id="aromatic_units"),
+        pytest.param("NN1CCC(CC1)CC1CCN(N)CC1", "4,4'-methylenedi(piperidin-1-amine)", id="saturated_units"),
+    ],
+)
+def test_units_with_an_amino_group_on_a_ring_nitrogen_are_multiplied(smiles, expected):
+    # P-62.2.1.3, P-15.3.1.1 (c), P-44.1.1: the amine on a ring nitrogen is the principal group of each unit
+    assert smiles_to_iupac(smiles) == expected

@@ -215,7 +215,7 @@ def principal_rank_of(groups, atoms):
 def _is_primary(mol, group):
     if group.name not in _PRIMARY_NITROGEN:
         return True
-    nitrogen = [a for a in group.atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
+    nitrogen = [a for a in group.atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(a).IsInRing()]
     return len(nitrogen) == 1 and mol.GetAtomWithIdx(nitrogen[0]).GetTotalNumHs() == 2
 
 
