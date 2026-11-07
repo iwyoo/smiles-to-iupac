@@ -1441,3 +1441,17 @@ def test_multiplied_chain_parent_keeps_a_three_membered_ring_in_the_linker(smile
 def test_repeated_unit_is_named_without_the_stereo_context_of_the_whole_molecule(smiles, expected):
     # P-15.3.1.1, P-93.5.1: the oxime double bond of the central part is cited with the central part
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("C[C@H]1CCCN1C(=O)c1ccc(C(=O)N2CCC[C@@H]2C)cc1", "(1,4-phenylene)bis[(2S)-2-methylpyrrolidin-1-ylmethanone]"),
+        (
+            "C[C@@H]1CCC[C@H](C)N1C(=O)c1ccc(C(=O)N2[C@H](C)CCC[C@@H]2C)cc1",
+            "(1,4-phenylene)bis[(2R,6S)-2,6-dimethylpiperidin-1-ylmethanone]",
+        ),
+    ],
+)
+def test_identical_ring_nitrogen_pseudoketone_units_cite_their_ring_stereo_inside_a_multiplicative_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
