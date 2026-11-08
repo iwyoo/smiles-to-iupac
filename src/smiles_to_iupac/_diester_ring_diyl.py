@@ -250,13 +250,20 @@ def _parent_among_unlike_rings(mol, graph, matches):
 
 
 def _parent_among_tied_chains(mol, graph, matches):
-    """Alkyl groups of equal length on the esters of one stereogenic acid: one is the ester word, the other ester stays a
-    prefix of the acid anion that cites the descriptor (P-65.6.3.2.3); the earlier name is the parent."""
-    if not any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
-        return None
+    """Alkyl groups of equal length on the esters of one acid: one is the ester word and the other ester stays a prefix
+    (P-65.6.3.2.3); the parent has the most substituent prefixes, then the lower locants, then the earlier name
+    (P-45.2.1, P-45.2.2, P-45.5). Units that symmetry makes equivalent keep their multiplicative name."""
     units = _ranked_units(mol, graph, matches)
     if units is None or len(units) < 2 or any(u[0] != "chain" or len(u[2]) != 1 for u in units):
         return None
+    stereo = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms())
+    if not stereo:
+        ring_info = mol.GetRingInfo()
+        if any(ring_info.NumAtomRings(n) for u in units for a in u[3] for n in graph[a] if n not in u[3]):
+            return None
+        ranks = Chem.CanonicalRankAtoms(mol, breakTies=False)
+        if len({frozenset(ranks[m[3].GetIdx()] for m in matches if m[3].GetIdx() in u[3]) for u in units}) == 1:
+            return None
     results = []
     for _, _, body, atoms in units:
         on = [m for m in matches if m[3].GetIdx() in atoms]
@@ -265,7 +272,7 @@ def _parent_among_tied_chains(mol, graph, matches):
             results.append(result)
     if not results:
         return None
-    best = min(results, key=lambda result: (result[0], alpha_sort_key(result[1])))
+    best = min(results, key=lambda result: (0 if stereo else -len(result[0][5]), result[0], alpha_sort_key(result[1])))
     skeleton_nuclides({a: p for a, p in best[2].items()})
     return best[1]
 

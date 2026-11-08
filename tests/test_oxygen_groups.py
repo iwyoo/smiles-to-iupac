@@ -1653,3 +1653,15 @@ def test_multiplied_half_esters_of_carbonic_acid_keep_the_hydrogen(smiles, expec
 def test_imidic_acid_on_a_replacement_chain_cites_the_nitrogen_substituent(smiles, expected):
     # P-65.1.3.1.1: the imino nitrogen substituent takes the locant N like that of an amide
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)OCCNC(=O)COC(C)=O", "2-{[2-(acetyloxy)ethyl]amino}-2-oxoethyl acetate", id="amide_link"),
+        pytest.param("CC(=O)OCC(C)OCC(C)OC(C)=O", "2-[2-(acetyloxy)propoxy]propyl acetate", id="ether_link"),
+    ],
+)
+def test_two_unlike_alcohol_chains_of_one_acid_are_ranked_by_their_substituents(smiles, expected):
+    # P-65.6.3.3.4.2, P-45.2.1, P-45.2.2: the chain with the most substituent prefixes is the alcoholic component
+    assert smiles_to_iupac(smiles) == expected
