@@ -4321,9 +4321,13 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             raise UnsupportedStructure("a ring assembly inside a unit is not supported yet")
         return _finish(assembly[1])
 
-    ring_best = _best_ring(
-        mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], n_names, stereo
-    )
+    ring_occurrences = [g for g in ring_groups if g[0] == principal]
+    try:
+        ring_best = _best_ring(mol, graph, halogens, aromatic_atoms, principal, ring_occurrences, n_names, stereo)
+    except UnsupportedStructure:
+        if chain_best is None or chain_count <= len(ring_occurrences):
+            raise
+        ring_best = None
     ring_count = ring_best[0] if ring_best else 0
 
     ring_needed = total_principal

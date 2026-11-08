@@ -600,3 +600,15 @@ def test_ylidene_assembly_is_the_multiplied_linker_of_identical_groups():
 def test_ring_assembly_of_identical_heterocycles_is_the_parent_beside_a_ring_with_a_group(smiles, expected):
     # P-28.2.1, P-44.1.1, P-44.1.2.2: as many principal groups as the benzene ring, and the senior ring system
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OCC(CO)Oc1ccc(-c2ccc(O)cc2)cc1", "2-[(4'-hydroxy[1,1'-biphenyl]-4-yl)oxy]propane-1,3-diol", id="ether_link"),
+        pytest.param("OCC(CO)c1ccc(-c2ccc(O)cc2)cc1", "2-(4'-hydroxy[1,1'-biphenyl]-4-yl)propane-1,3-diol", id="carbon_link"),
+    ],
+)
+def test_diol_chain_outranks_a_ring_assembly_with_one_hydroxy_group(smiles, expected):
+    # P-44.1.1, P-28.2.1: two hydroxy groups on the chain, one on the assembly, so the assembly is a prefix
+    assert smiles_to_iupac(smiles) == expected
