@@ -6133,9 +6133,8 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             named = _backbone_polyamine(mol, graph, halogens, aromatic_atoms, [*amine_nitrogens, *primary_nitrogens])
             if named is not None:
                 return named
-            if _share_chain_backbone(mol, graph, [*amine_nitrogens, *primary_nitrogens]) and _longest_chain_joins_one_substituted_amine(
-                mol, graph, amine_nitrogens, primary_nitrogens
-            ):
+            shared = _share_chain_backbone(mol, graph, [*amine_nitrogens, *primary_nitrogens])
+            if not shared or _longest_chain_joins_one_substituted_amine(mol, graph, amine_nitrogens, primary_nitrogens):
                 return _one_of_substituted_amines(
                     mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens, primaries=True
                 )

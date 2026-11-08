@@ -3151,3 +3151,15 @@ def test_two_carbamoyl_groups_on_one_hydrazine_nitrogen_are_a_1_1_dicarboxamide(
 )
 def test_stereodefined_substituents_of_an_imidodicarbonic_diamide_cite_their_descriptors(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CN(C)c1ccc(CNCc2ccc(CN)cc2)cc1", "4-[({[4-(aminomethyl)phenyl]methyl}amino)methyl]-N,N-dimethylaniline", id="aniline_parent"),
+        pytest.param("Cc1nc(N(C)CC2(N(C)C)CCC2)sc1CN", "5-(aminomethyl)-N-{[1-(dimethylamino)cyclobutyl]methyl}-N,4-dimethyl-1,3-thiazol-2-amine", id="heterocycle_parent"),
+    ],
+)
+def test_several_amines_on_separate_skeletons_the_ring_bearing_nitrogen_is_the_parent(smiles, expected):
+    # P-62.2.2.1, P-44.1.2.2: one amine group per candidate parent, so the senior ring is the parent and the other amines are prefixes
+    assert smiles_to_iupac(smiles) == expected
