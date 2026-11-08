@@ -176,7 +176,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         if (
             mol.GetAtomWithIdx(z_idx).GetFormalCharge()
             or mol.GetAtomWithIdx(z_idx).HasProp("_cationic_amine")
-            or any(_bond(mol, z_idx, n) != 1.0 for n in subs if not (x == "NH" and _ylidene_carbon(mol, z_idx, n, subs)))
+            or any(_bond(mol, z_idx, n) != 1.0 for n in subs if not (x in ("NH", "S", "Se", "Te") and _ylidene_carbon(mol, z_idx, n, subs)))
         ):
             return None
         if mol.GetAtomWithIdx(z_idx).IsInRing() and not (subs and (x in ("O", "S", "Se", "Te") or (x == "NH" and not n_entries))):

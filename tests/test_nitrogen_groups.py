@@ -3187,3 +3187,15 @@ def test_acyl_on_the_aromatic_ring_nitrogen_of_a_ring_imine_is_the_ketone_and_th
 def test_carbonate_on_the_nitrogen_of_a_carbamate_is_an_acyloxy_prefix(smiles, expected):
     # P-65.6.3.4.1, P-65.6.3.2.1: an acyclic nitrogen gives no ester, so the carbonate is a prefix of the carbamate
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("COC(C)=Nc1cc(C(=O)O)ccc1C", "3-[(1-methoxyethylidene)amino]-4-methylbenzoic acid", id="imidate_carbon"),
+        pytest.param("CN(C)C=NC(=S)N1CCN(C(=O)O)CC1", "4-{[(dimethylamino)methylidene]carbamothioyl}piperazine-1-carboxylic acid", id="thioacyl_amidine"),
+    ],
+)
+def test_ylidene_prefix_with_alkoxy_or_on_a_thioacyl_nitrogen_beside_an_acid(smiles, expected):
+    # P-29.3.2, P-62.3.1.1: the N=C unit is an (ylideneamino) or ylidene-carbamothioyl prefix of the acid parent
+    assert smiles_to_iupac(smiles) == expected
