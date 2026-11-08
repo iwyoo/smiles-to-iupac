@@ -1698,6 +1698,19 @@ def chain_multiplicative_name(mol, stereo):
     return name.replace("(1,2-dioxoethane-1,2-diyl)", "oxalyl") if name else name
 
 
+def _carbonyl_between_nitrogens(mol, atom):
+    """A bare carbonyl carbon whose two other bonds go to nitrogen: the `carbonyl` linker of two acylated nitrogens."""
+    oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
+    nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
+    return (
+        atom.GetDegree() == 3
+        and len(oxygens) == 1
+        and oxygens[0].GetDegree() == 1
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), oxygens[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+        and len(nitrogens) == 2
+    )
+
+
 def _chain_multiplicative_name(mol, stereo):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
@@ -1788,7 +1801,7 @@ def _chain_multiplicative_name(mol, stereo):
             elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide", "imine") and r in anchors:
                 other = mol.GetAtomWithIdx(h)
                 ok = bond.GetBondTypeAsDouble() == 1.0 and (
-                    (other.GetAtomicNum() == 6 and not is_functional_carbon(mol, h))
+                    (other.GetAtomicNum() == 6 and (not is_functional_carbon(mol, h) or _carbonyl_between_nitrogens(mol, other)))
                     or (other.GetAtomicNum() not in (6, 7) and h in linkers)
                 )
                 target = nitrogen
