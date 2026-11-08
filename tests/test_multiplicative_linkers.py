@@ -1565,3 +1565,15 @@ def test_triazene_between_identical_units_is_a_multiplicative_linker(smiles, exp
 def test_identical_amide_units_joined_through_a_carbonyl_are_multiplied(smiles, expected):
     # P-15.3.1.1, P-15.3.2, P-66.1.2: the carbonyl between the two amide nitrogens is the multiplicative group
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("N=C1SCC(=O)N1CCN1C(=N)SCC1=O", "3,3'-(ethane-1,2-diyl)bis(2-imino-1,3-thiazolidin-4-one)", id="imino_prefix_on_lactam_units"),
+        pytest.param("N=C1CCCN1CCN1CCCC1=N", "1,1'-(ethane-1,2-diyl)di(pyrrolidin-2-imine)", id="imine_suffix_on_ring_units"),
+    ],
+)
+def test_units_with_an_exocyclic_ring_imine_are_multiplied(smiles, expected):
+    # P-15.3.2, P-62.3.1.1, P-62.3.1.2: the ring C=NH is the imine suffix or, beside a ring ketone, the imino prefix of each unit
+    assert smiles_to_iupac(smiles) == expected
