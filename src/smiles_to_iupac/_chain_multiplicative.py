@@ -734,7 +734,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         nuclides = any(element[0] == "isotope" for element in stereo)
         if (nuclides and (unit_kind == "ester" or any(element[0] != "isotope" for element in stereo))) or any(branch_stereo):
             return None
-        if unit_stereo and unit_kind not in _STEREO_UNIT_KINDS and unit_kind != "hydride":
+        if unit_stereo and unit_kind not in _STEREO_UNIT_KINDS and unit_kind not in ("hydride", "ester"):
             return None
         chain_unit = _substituted_chain_unit(mol, graph, roots[0], parts_atoms[0]) if unit_kind == "hydride" else None
         stereo_text = ""
@@ -747,6 +747,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
         elif unit_stereo and unit_kind == "hydride":
             codes = {element[1]: element[2] for element in unit_stereo if element[0] == "atom"}
             names = {_whole_molecule_descriptor(_unit_name_by_pipeline(unit, unit_kind), codes.get(root)) for (unit, _), root in zip(units, roots)}
+            text = names.pop() if len(names) == 1 else None
+        elif unit_stereo and unit_kind == "ester":
+            names = {_unit_name_by_pipeline(unit, unit_kind) for unit, _ in units}
             text = names.pop() if len(names) == 1 else None
         elif unit_stereo:
             cited = _cited_unit_stereo(units, unit_kind)
