@@ -3,6 +3,7 @@
 first), single and homonuclear heteroatom groups, and ring components.
 """
 
+import itertools
 from dataclasses import dataclass
 
 from ._acid_lexicon import SULFONYL_CENTRES, acyl_suffix, make_spec
@@ -110,6 +111,11 @@ def _primary(mol, group):
     return len(hetero) == 1 and mol.GetAtomWithIdx(hetero[0]).GetTotalNumHs() == 2
 
 
+def _multiple_bond_orders(mol, atoms):
+    bonds = (mol.GetBondBetweenAtoms(a, b) for a, b in itertools.combinations(atoms, 2))
+    return [b.GetBondTypeAsDouble() for b in bonds if b is not None and b.GetBondTypeAsDouble() != 1]
+
+
 def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None, whole=None):
     ends = [a for a, _, _ in attachments]
     walk, seen = [ends[0]], {ends[0]}
@@ -124,9 +130,12 @@ def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None,
         position = {a: i + 1 for i, a in enumerate(order)}
         cited = sorted((position[a], *_entry(mol, a, root, ctx)) for a, root in pend)
         free = (position[directed[0]], position[directed[1]]) if directed else (1, len(atoms))
-        key = (free, tuple(p for p, _, _ in cited), tuple(n for _, n, _ in cited))
+        ene = tuple(
+            i + 1 for i in range(len(order) - 1) if mol.GetBondBetweenAtoms(order[i], order[i + 1]).GetBondTypeAsDouble() == 2.0
+        )
+        key = (free, ene, tuple(p for p, _, _ in cited), tuple(n for _, n, _ in cited))
         if best is None or key < best[0]:
-            best = (key, cited, free)
+            best = (key, cited, free, ene)
     grouped = {}
     for p, name, compound in best[1]:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(p)
@@ -134,6 +143,8 @@ def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None,
     n = len(atoms)
     free = best[2]
     name = whole or multiplied_word(n, stem)
+    if best[3]:
+        name = f"{name[: -len('ane')]}-{best[3][0]}-ene"
     body = f"{name}-{free[1]},{free[0]}-diyl" if directed else f"{name}-1,{n}-diyl"
     return Part(prefix + body, bool(prefix), True)
 
@@ -264,11 +275,7 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
                     return Part("diazenediyl", False, False)
             elif len(atoms) == 2 and mol.GetBondBetweenAtoms(*atoms).GetBondTypeAsDouble() == 2 and not pend:
                 return Part("di" + _CHAIN_STEMS[z][:-3] + "enediyl", False, False)
-            elif any(
-                mol.GetBondBetweenAtoms(a, b) is not None and mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1
-                for a in atoms
-                for b in atoms
-            ):
+            elif (orders := _multiple_bond_orders(mol, atoms)) and orders != [2.0]:
                 raise UnsupportedStructure("an unsaturated heteroatom chain other than a doubly bonded pair is not supported as a linker")
             return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z], directed, whole)
         run = _ligated_chalcogen_run(mol, atoms, attachments) if directed is None else None
