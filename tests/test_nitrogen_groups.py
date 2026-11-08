@@ -3175,3 +3175,15 @@ def test_several_amines_on_separate_skeletons_the_ring_bearing_nitrogen_is_the_p
 def test_acyl_on_the_aromatic_ring_nitrogen_of_a_ring_imine_is_the_ketone_and_the_imine_a_prefix(smiles, expected):
     # P-64.1.2.1, P-62.3.1.2, P-41: the pseudoketone is senior to the imine, whose nitrogen is cited inside the ring substituent
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)(C)OC(=O)ON(C)C(=O)OC(C)(C)C", "tert-butyl [(tert-butoxycarbonyl)oxy](methyl)carbamate", id="methyl_on_nitrogen"),
+        pytest.param("COC(=O)ON(C(=O)OC)C(c1ccccc1)C1CC1", "methyl [cyclopropyl(phenyl)methyl][(methoxycarbonyl)oxy]carbamate", id="branched_substituent"),
+    ],
+)
+def test_carbonate_on_the_nitrogen_of_a_carbamate_is_an_acyloxy_prefix(smiles, expected):
+    # P-65.6.3.4.1, P-65.6.3.2.1: an acyclic nitrogen gives no ester, so the carbonate is a prefix of the carbamate
+    assert smiles_to_iupac(smiles) == expected
