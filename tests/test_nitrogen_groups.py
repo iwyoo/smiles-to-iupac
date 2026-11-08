@@ -3163,3 +3163,15 @@ def test_stereodefined_substituents_of_an_imidodicarbonic_diamide_cite_their_des
 def test_several_amines_on_separate_skeletons_the_ring_bearing_nitrogen_is_the_parent(smiles, expected):
     # P-62.2.2.1, P-44.1.2.2: one amine group per candidate parent, so the senior ring is the parent and the other amines are prefixes
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CN=c1ccccn1C(C)=O", "1-[2-(methylimino)pyridin-1(2H)-yl]ethan-1-one", id="acetyl"),
+        pytest.param("CC(C)N=c1ccccn1C(=O)c1ccc(F)cc1F", "(2,4-difluorophenyl){2-[(propan-2-yl)imino]pyridin-1(2H)-yl}methanone", id="aroyl"),
+    ],
+)
+def test_acyl_on_the_aromatic_ring_nitrogen_of_a_ring_imine_is_the_ketone_and_the_imine_a_prefix(smiles, expected):
+    # P-64.1.2.1, P-62.3.1.2, P-41: the pseudoketone is senior to the imine, whose nitrogen is cited inside the ring substituent
+    assert smiles_to_iupac(smiles) == expected
