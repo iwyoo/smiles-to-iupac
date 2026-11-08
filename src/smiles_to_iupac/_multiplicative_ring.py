@@ -48,6 +48,7 @@ _SUFFIX_WORDS = _SuffixWords({
     "peroxol": "peroxol",
     **{name: name for name in PEROXOL_SUFFIXES},
     "carboxylic_acid": "carboxylic acid",
+    "dithioic": "carbodithioic acid",
     "sulfonic_acid": "sulfonic acid",
     "amide": "carboxamide",
     "thioamide": "carbothioamide",

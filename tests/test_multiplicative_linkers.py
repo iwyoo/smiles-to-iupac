@@ -1625,3 +1625,15 @@ def test_hydrazide_units_joined_through_an_ylidene_chain_are_multiplied(smiles, 
 def test_stereo_acid_parts_are_multiplied_on_a_diyl_component_with_amide_groups(smiles, expected):
     # P-65.6.3.2.2, P-93.5.1.4: identical acid components with the same configuration share the diyl component
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("S=C(S)c1ccc(Cc2ccc(C(=S)S)cc2)cc1", "4,4'-methylenedi(benzene-1-carbodithioic acid)", id="benzene_units"),
+        pytest.param("S=C(S)c1ccc(OCCOc2ccc(C(=S)S)cc2)cc1", "4,4'-[ethane-1,2-diylbis(oxy)]di(benzene-1-carbodithioic acid)", id="ether_linker"),
+    ],
+)
+def test_ring_units_with_a_carbodithioic_acid_group_are_multiplied(smiles, expected):
+    # P-15.3.2, P-65.1.5.1: the dithio acid is the principal group of each identical ring unit
+    assert smiles_to_iupac(smiles) == expected
