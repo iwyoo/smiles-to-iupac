@@ -1677,3 +1677,15 @@ def test_two_unlike_alcohol_chains_of_one_acid_are_ranked_by_their_substituents(
 def test_all_oxygen_carbamic_group_outranks_a_thioester_on_the_ring(smiles, expected):
     # P-41, P-65.1.2.3: the all-oxygen acid and its esters are senior to the chalcogen analogues
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=S(=O)(Cl)Oc1ccc(OS(=O)(=O)Cl)cc1", "1,4-phenylene bis(sulfurochloridate)", id="ring_diyl"),
+        pytest.param("O=S(=O)(F)OCCCOS(=O)(=O)F", "propane-1,3-diyl bis(sulfurofluoridate)", id="chain_diyl"),
+    ],
+)
+def test_two_sulfuric_halide_ester_groups_share_one_diyl_component(smiles, expected):
+    # P-65.6.3.2.2, P-16.3.6: the identical acid words of one diyl component are multiplied with bis
+    assert smiles_to_iupac(smiles) == expected
