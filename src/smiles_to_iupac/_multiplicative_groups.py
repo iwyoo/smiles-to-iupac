@@ -267,6 +267,7 @@ def classify(mol):
             continue
         if z == 6 and any(
             b.GetBondTypeAsDouble() >= 2
+            and not b.IsInRing()
             and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52)
             and not _hydrazinediylidene_nitrogen(b.GetOtherAtom(atom))
             for b in atom.GetBonds()

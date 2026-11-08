@@ -1517,3 +1517,15 @@ def test_n_substituted_benzamide_units_with_a_ring_substituent_are_multiplied(sm
 def test_units_with_an_amino_group_on_a_ring_nitrogen_are_multiplied(smiles, expected):
     # P-62.2.1.3, P-15.3.1.1 (c), P-44.1.1: the amine on a ring nitrogen is the principal group of each unit
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("N#CC1CC(CCC2=NOC(C#N)C2)=NO1", "3,3'-(ethane-1,2-diyl)bis(4,5-dihydro-1,2-oxazole-5-carbonitrile)", id="nitrile_on_oxazoline"),
+        pytest.param("NC1CC(CCC2=NOC(N)C2)=NO1", "3,3'-(ethane-1,2-diyl)bis(4,5-dihydro-1,2-oxazol-5-amine)", id="amine_on_oxazoline"),
+    ],
+)
+def test_units_with_a_ring_double_bond_are_multiplied_whatever_their_suffix(smiles, expected):
+    # P-15.3.1.1, P-15.3.2: a double bond inside the ring is part of the unit's skeleton, not a group senior to the suffix
+    assert smiles_to_iupac(smiles) == expected
