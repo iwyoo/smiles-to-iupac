@@ -220,7 +220,7 @@ def _center(mol, idx):
         return _halogen_oxoacid_center(mol, idx)
     if atom.GetAtomicNum() in _INORGANIC_CENTERS and not (atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing()):
         return _inorganic_center(mol, idx)
-    if atom.GetAtomicNum() in _CHALCOGEN_CENTERS and _acylated_oxoacid_center(mol, atom):
+    if atom.GetAtomicNum() in _CHALCOGEN_CENTERS and (_acylated_oxoacid_center(mol, atom) or _halosulfate_ester(atom)):
         return _inorganic_center(mol, idx)
     symbol = _CENTERS.get(atom.GetAtomicNum())
     if symbol is None or atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing():
@@ -256,6 +256,15 @@ def _center(mol, idx):
     if kind == "acyl" and positions[0][1] == "N":
         return None
     return kind, oxo, positions
+
+
+def _halosulfate_ester(atom):
+    """The sulfur of an ester of a sulfuric acid halide, -O-SO2-X (P-65.3.2.2)."""
+    if atom.GetAtomicNum() != 16 or atom.GetFormalCharge() or atom.GetDegree() != 4 or atom.IsInRing():
+        return False
+    oxo = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
+    halogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in _HALIDES and n.GetDegree() == 1]
+    return len(oxo) == 2 and len(halogens) == 1
 
 
 def _inorganic_anhydride(near, far):
@@ -618,13 +627,13 @@ def in_acid_derivative_scope(mol):
     )
 
 
-_PNICTOGEN_ACID_WORD = re.compile(r"phosph|arsen|arson|stib")
+_MONONUCLEAR_ACID_WORD = re.compile(r"phosph|arsen|arson|stib|sulfuro")
 
 
-def _names_one_pnictogen_centre(anion):
-    """'diphosphorodichloridate' would name the P-O-P acid, so the word of one phosphorus or arsenic centre takes
-    'bis' (P-16.3.6)."""
-    return _PNICTOGEN_ACID_WORD.search(anion) is not None
+def _names_one_mononuclear_acid_centre(anion):
+    """'diphosphorodichloridate' would name the P-O-P acid, so the word of one phosphorus, arsenic or sulfuric halide
+    centre takes 'bis' (P-16.3.6)."""
+    return _MONONUCLEAR_ACID_WORD.search(anion) is not None
 
 
 def _multiplied(entries):
@@ -799,7 +808,7 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
         n.GetAtomicNum() == 7 and n.GetDegree() > 1 for n in mol.GetAtomWithIdx(first[0].center).GetNeighbors()
     )
     replaced_anion = anion.startswith(("thio", "seleno", "telluro")) and mol.GetAtomWithIdx(first[0].center).GetAtomicNum() != 6
-    compound = not anion.isalpha() or n_substituted or replaced_anion or _names_one_pnictogen_centre(anion)
+    compound = not anion.isalpha() or n_substituted or replaced_anion or _names_one_mononuclear_acid_centre(anion)
     multiplier = multiplying_prefix(len(centers), compound=compound)
     anion_text = f"{multiplier}{enclose(anion)}" if compound else multiplier + anion
     if modified and any(len(_oxo_slots(mol, l.center)) + 1 > 1 for l in hub_links):
