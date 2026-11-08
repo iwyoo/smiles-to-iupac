@@ -1665,3 +1665,15 @@ def test_imidic_acid_on_a_replacement_chain_cites_the_nitrogen_substituent(smile
 def test_two_unlike_alcohol_chains_of_one_acid_are_ranked_by_their_substituents(smiles, expected):
     # P-65.6.3.3.4.2, P-45.2.1, P-45.2.2: the chain with the most substituent prefixes is the alcoholic component
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)N1CCN(C(=S)SC)CC1", "4-[(methylsulfanyl)carbonothioyl]piperazine-1-carboxylic acid", id="free_carbamic_acid"),
+        pytest.param("CC(C)(C)OC(=O)N1CCN(C(=S)OC)CC1", "tert-butyl 4-(methoxycarbonothioyl)piperazine-1-carboxylate", id="carbamate_ester"),
+    ],
+)
+def test_all_oxygen_carbamic_group_outranks_a_thioester_on_the_ring(smiles, expected):
+    # P-41, P-65.1.2.3: the all-oxygen acid and its esters are senior to the chalcogen analogues
+    assert smiles_to_iupac(smiles) == expected
