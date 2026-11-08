@@ -205,6 +205,11 @@ def _derivative_name(mol):
         if not ammoniums or groups:
             return None
         return f"{_cation_stem(name_histidine(acid))}({ammoniums}+)"
+    if groups and not (carboxylates or ammoniums) and len(groups) == 1 and has_proline_shape(acid):
+        anion = _anion_stem(name_proline(acid))
+        if anion is None or neutral.HasSubstructMatch(_FREE_ACID):
+            return None
+        return _ester_words(groups, None, anion)
     if not _has_plain(acid):
         return None
     found = _match(acid)

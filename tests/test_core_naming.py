@@ -1084,3 +1084,15 @@ def test_descriptor_is_the_cip_label_of_the_structure_as_given(smiles):
     rdCIPLabeler.AssignCIPLabels(mol)
     expected = [a.GetProp("_CIPCode") for a in mol.GetAtoms() if a.HasProp("_CIPCode")]
     assert re.findall(r"\(\d+([RS])\)", smiles_to_iupac(smiles)) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C(O[Si](C)(C)C)[C@@H]1CCCN1", "trimethylsilyl L-prolinate", id="proline_silyl_ester"),
+        pytest.param("C[C@H](N)C(=O)N1CCC[C@H]1C(=O)O[Ge](C)(C)C", "trimethylgermyl L-alanyl-L-prolinate", id="dipeptide_ending_in_proline"),
+    ],
+)
+def test_proline_ester_of_an_element_substituted_alcohol_is_named_on_the_retained_name(smiles, expected):
+    # P-103.2.6, P-65.6.3.2.1: the ester of proline cites its alcohol component whatever the element bonded to the ester oxygen
+    assert smiles_to_iupac(smiles) == expected
