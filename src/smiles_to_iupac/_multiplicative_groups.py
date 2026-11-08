@@ -10,6 +10,7 @@ from rdkit import Chem
 
 SUFFIX_RANKS = {
     "carboxylic_acid": 10,
+    "dithioic": 10.5,
     "sulfonic_acid": 11,
     "sulfinic_acid": 12,
     "ester": 21,
@@ -51,6 +52,7 @@ _CHALCOGEN2 = "[OX2,SX2,SeX2,TeX2;!R]"
 
 _CLASS_PATTERNS = [
     ("carboxylic_acid", "[CX3](=O)[OX2H1]", 0),
+    ("dithioic", "[CX3](=[SX1])[SX2H1]", 0),
     ("sulfonic_acid", "[SX4](=O)(=O)[OX2H1]", 0),
     ("sulfinic_acid", "[SX3](=O)[OX2H1]", 0),
     ("ester", "[CX3](=O)[OX2;!R][#6]", 0),

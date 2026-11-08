@@ -19,6 +19,7 @@ from ._multiplicative_groups import KETONE_LIKE
 
 SUFFIX_CARRIERS = {
     "carboxylic_acid": ("C(=O)O", "benzoic acid"),
+    "dithioic": ("C(=S)S", "benzene-1-carbodithioic acid"),
     "sulfonic_acid": ("S(=O)(=O)O", "benzene-1-sulfonic acid"),
     "amide": ("C(N)=O", "benzamide"),
     "hydrazide": ("C(=O)NN", "benzohydrazide"),
