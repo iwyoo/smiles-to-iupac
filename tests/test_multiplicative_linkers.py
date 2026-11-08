@@ -1649,3 +1649,15 @@ def test_ring_units_with_a_carbodithioic_acid_group_are_multiplied(smiles, expec
 def test_substituted_sulfinic_acid_units_are_multiplied(smiles, expected):
     # P-15.3.2, P-65.3.1: the sulfinic acid is the principal group of each identical substituted ring unit
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NC(=Nc1ccc(N=C(N)c2ncccn2)cc1)c1ncccn1", "N',N'''-(1,4-phenylene)di(pyrimidine-2-carboximidamide)", id="arylene_linker"),
+        pytest.param("NC(=NCCN=C(N)c1ccccc1)c1ccccc1", "N',N'''-(ethane-1,2-diyl)dibenzenecarboximidamide", id="alkanediyl_linker"),
+    ],
+)
+def test_carboximidamide_units_are_joined_through_their_imine_nitrogens(smiles, expected):
+    # P-15.3.2, P-66.4.1, P-41: the amidine outranks the amine, so the imine nitrogens N' and N''' carry the linker
+    assert smiles_to_iupac(smiles) == expected

@@ -780,7 +780,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain", unit_group=None, ocene
             return f"{lead}{_linker_text(branches, central, arm_parts)}{multiplier_word(count, False)}{unit_phrase(text, '')}"
         if unit_kind == "amide" and not _attach_is_parent_nitrogen(units[0]):
             return None
-        if unit_kind in ("amide", "amine", "imine"):
+        if unit_kind == "amidine":
+            lead = ",".join("N'" + "'" * (2 * i) for i in range(count)) + "-"
+        elif unit_kind in ("amide", "amine", "imine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif unit_kind == "urea":
             lead = ",".join("N" + "'" * (2 * i) for i in range(count)) + "-"
@@ -940,7 +942,7 @@ def _unsubstituted_anion(unit):
     )
 
 
-_STEREO_UNIT_KINDS = ("amide", "amine", "imine")
+_STEREO_UNIT_KINDS = ("amide", "amidine", "amine", "imine")
 _UNSUBSTITUTED_PARENT = re.compile(r"[a-z]+(?:-\d+[a-z]?(?:,\d+[a-z]?)*-[a-z]+)+")
 _UNIT_DESCRIPTOR = re.compile(r"\((\d+[a-z]?[RSEZ](?:,\d+[a-z]?[RSEZ])*)\)-")
 _UNIT_LABEL = re.compile(r"(\d+[a-z]?)([RSEZ])")
@@ -1022,7 +1024,7 @@ def _unit_name_by_pipeline(unit, unit_kind):
         name = smiles_to_iupac(Chem.MolToSmiles(editable))
     except UnsupportedStructure:
         return None
-    if unit_kind == "amide":
+    if unit_kind in ("amide", "amidine"):
         return name if name.endswith("amide") else None
     if unit_kind == "imine":
         return name if name.endswith("imine") else None
@@ -1795,13 +1797,14 @@ def _chain_multiplicative_name(mol, stereo):
                 ok = (
                     h in linkers
                     and not (principal == "ketone" and r in anchors and not is_sulfone_like(mol, mol.GetAtomWithIdx(h)))
+                    and not (principal == "amidine" and r in anchors)
                 ) or (
                     not (principal == "aldehyde" and r in anchors)
                     and mol.GetAtomWithIdx(h).IsInRing()
                     and bond.GetBondTypeAsDouble() in (1.0, 2.0)
                 )
                 target = candidates
-            elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide", "imine") and r in anchors:
+            elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide", "imine", "amidine") and r in anchors:
                 other = mol.GetAtomWithIdx(h)
                 ok = bond.GetBondTypeAsDouble() == 1.0 and (
                     (other.GetAtomicNum() == 6 and (not is_functional_carbon(mol, h) or _carbonyl_between_nitrogens(mol, other)))
@@ -1824,7 +1827,9 @@ def _chain_multiplicative_name(mol, stereo):
         if name is not None:
             return name
     for arms in _rank_candidates(nitrogen, anchors, heads, mol):
-        name = _attempt(mol, graph, stereo, arms, "imine" if principal == "imine" else "amide", _unit_group_name(mol, principal, heads))
+        name = _attempt(
+            mol, graph, stereo, arms, {"imine": "imine", "amidine": "amidine"}.get(principal, "amide"), _unit_group_name(mol, principal, heads)
+        )
         if name is not None:
             return name
     for arms in _rank_candidates(amine_nitrogen, anchors, heads, mol, strict=True):
