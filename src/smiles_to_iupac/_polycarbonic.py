@@ -113,9 +113,9 @@ def _chain_setup(mol, substituted=False):
             elif atom.GetAtomicNum() == 7 and not atom.GetFormalCharge() and not atom.IsInRing() and (
                 (atom.GetDegree() == 2 and atom.GetTotalNumHs() == 1) or (substituted and atom.GetDegree() == 3 and not atom.GetTotalNumHs())
             ):
-                far = [m for m in graph[n] if m != c and m in centers]
-                if len(far) == 1:
-                    bridges.setdefault(frozenset((c, far[0])), n)
+                for far in (m for m in graph[n] if m != c and m in centers):
+                    bridges.setdefault(frozenset((c, far)), n)
+    bridges = _without_substituent_centres(mol, bridges)
     chains = _bridged_groups(centers, bridges)
     if len(chains) != 1:
         raise UnsupportedStructure("the carbonic units are not joined in a single chain")
@@ -128,6 +128,22 @@ def _chain_setup(mol, substituted=False):
     if len(ends) != 2 or any(d > 2 for d in degree.values()):
         raise UnsupportedStructure("a branched polycarbonic acid is not named by P-65.2.3")
     return graph, bridges, ends, len(centers)
+
+
+def _without_substituent_centres(mol, bridges):
+    """A nitrogen that joins three carbonic centres carries the chain in its two chalcogen-oxo centres; the imidoyl or
+    carbonimidoyl centre on it is a substituent group (P-65.2.3.1.2)."""
+    by_bridge = {}
+    for pair, bridge in bridges.items():
+        if isinstance(bridge, int):
+            by_bridge.setdefault(bridge, set()).update(pair)
+    drop = set()
+    for members in by_bridge.values():
+        if len(members) > 2:
+            oxo = {c for c in members if _oxo_word(mol, c, True)[0] in _SYMBOL.values()}
+            if len(oxo) == 2:
+                drop |= members - oxo
+    return {pair: bridge for pair, bridge in bridges.items() if not pair & drop}
 
 
 def _walk(bridges, start, n):
