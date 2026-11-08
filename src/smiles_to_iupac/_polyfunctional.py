@@ -441,7 +441,7 @@ def _acyl_on_chain_nitrogen(mol, carbon, nitrogen):
     """An acyl carbon on a nitrogen inside a chalcogen chain: the chain joins two acylated nitrogens, which are the units
     of a multiplicative name (P-15.3.1.1)."""
     return (
-        carbon.GetAtomicNum() == 6
+        (carbon.GetAtomicNum() == 6 or _sulfonyl_type_centre(mol, carbon))
         and not carbon.GetFormalCharge()
         and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() == 1.0
         and bool(_double_oxygens(mol, carbon.GetIdx()))
