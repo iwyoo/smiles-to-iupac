@@ -588,3 +588,15 @@ def test_ylidene_assembly_is_the_multiplied_linker_of_identical_groups():
         smiles_to_iupac("CC(=O)C1CCC(=C2CCC(C(C)=O)CC2)CC1")
         == "1,1'-([1,1'-bi(cyclohexylidene)]-4,4'-diyl)di(ethan-1-one)"
     )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("Nc1cccc(-c2ccc(-c3ncccc3N)cn2)c1", "6'-(3-aminophenyl)[2,3'-bipyridin]-3-amine", id="heterocycle_assembly_beside_benzene_amine"),
+        pytest.param("Nc1ccc(-c2ccc(-c3ccc(N)s3)s2)cc1", "5'-(4-aminophenyl)[2,2'-bithiophen]-5-amine", id="bithiophene_with_aminophenyl"),
+    ],
+)
+def test_ring_assembly_of_identical_heterocycles_is_the_parent_beside_a_ring_with_a_group(smiles, expected):
+    # P-28.2.1, P-44.1.1, P-44.1.2.2: as many principal groups as the benzene ring, and the senior ring system
+    assert smiles_to_iupac(smiles) == expected

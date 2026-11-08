@@ -4309,6 +4309,13 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     assembly = _assembly_parent(
         mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], stereo, n_names
     )
+    if assembly is None and principal is not None and not n_names:
+        relaxed = _assembly_parent(
+            mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], stereo,
+            allow_outside=True,
+        )
+        if relaxed is not None and _assembly_outranks_rings(mol, relaxed, [g for g in ring_groups if g[0] == principal]):
+            assembly = relaxed
     if assembly is not None and assembly[0] >= chain_count:
         if attach is not None:
             raise UnsupportedStructure("a ring assembly inside a unit is not supported yet")
@@ -5473,7 +5480,7 @@ def _assembly_group_label(mol, graph, ring_atoms, root, locants, core):
     return descriptor(labelled, positions, omit, capacity=capacity) + core
 
 
-def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names=()):
+def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, n_names=(), allow_outside=False):
     """P-28: two identical benzene or cycloalkane rings joined by a single
     bond -- [1,1'-biphenyl]-4-ol, 4-nitro-1,1'-biphenyl. Returns
     (principal count, (key, name, parts)) or None when `mol` is not one."""
@@ -5516,7 +5523,9 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     best = None
     for i, first in enumerate(all_rings):
         for second in all_rings[i + 1 :]:
-            found = _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, [first, second], n_names)
+            found = _pair_assembly(
+                mol, graph, halogens, aromatic_atoms, principal, occurrences, [first, second], n_names, allow_outside
+            )
             if found is None:
                 continue
             ylidene = _junction_is_ylidene(mol, found[2], [_assembly_spec(mol, graph, first, True), _assembly_spec(mol, graph, second, True)])
@@ -5526,6 +5535,28 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
             if best is None or key < best[0]:
                 best = (key, (found[0], found[1]))
     return best[1] if best else None
+
+
+def _assembly_outranks_rings(mol, assembly, occurrences):
+    """Whether the ring assembly that holds only some of the principal groups is the parent: it holds more of them than
+    any other ring system, or as many and is the senior ring system (P-44.1.1, P-44.1.2.2)."""
+    from ._diester_ring_diyl import _system_of
+
+    pair_atoms = set(assembly[1][2][4])
+    outside = [o for o in occurrences if o[1] not in pair_atoms]
+    systems = {}
+    for o in outside:
+        found = _system_of(mol, o[1])
+        if found is None:
+            return False
+        systems.setdefault(frozenset(found[1]), []).append(o)
+    if not systems:
+        return True
+    most = max(len(v) for v in systems.values())
+    if assembly[0] != most:
+        return assembly[0] > most
+    own = ring_seniority_key(mol, pair_atoms, assembly=True)
+    return all(own < ring_seniority_key(mol, set(atoms)) for atoms, v in systems.items() if len(v) == most)
 
 
 def _hydro_pair_rings(mol, graph, rings):
@@ -5665,13 +5696,19 @@ def _system_set_assembly(mol, graph, halogens, aromatic_atoms, stereo, atoms, me
     return None
 
 
-def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings, n_names=()):
+def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings, n_names=(), allow_outside=False):
     """The assembly name of two directly joined identical rings with every other part of `mol` cited as a
-    substituent; None when the pair is not such an assembly or leaves a principal group outside it."""
+    substituent; None when the pair is not such an assembly or leaves a principal group outside it, unless
+    `allow_outside` keeps only the groups inside the pair and cites the others as prefixes."""
     if set(rings[0]) & set(rings[1]):
         return None
-    if occurrences and any(o[1] not in set(rings[0]) | set(rings[1]) for o in occurrences):
-        return None
+    pair_atoms = set(rings[0]) | set(rings[1])
+    if occurrences and any(o[1] not in pair_atoms for o in occurrences):
+        if not allow_outside:
+            return None
+        occurrences = [o for o in occurrences if o[1] in pair_atoms]
+        if not occurrences:
+            return None
     specs = [_assembly_spec(mol, graph, r, True) for r in rings]
     hydro_rings = _hydro_pair_rings(mol, graph, rings) if all(sp is not None for sp in specs) else []
     name_specs = specs
