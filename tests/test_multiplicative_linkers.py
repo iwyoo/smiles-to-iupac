@@ -1661,3 +1661,15 @@ def test_substituted_sulfinic_acid_units_are_multiplied(smiles, expected):
 def test_carboximidamide_units_are_joined_through_their_imine_nitrogens(smiles, expected):
     # P-15.3.2, P-66.4.1, P-41: the amidine outranks the amine, so the imine nitrogens N' and N''' carry the linker
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("S=C(NCCNC(=S)c1ccccc1)c1ccccc1", "N,N'-(ethane-1,2-diyl)dibenzenecarbothioamide", id="alkanediyl_linker"),
+        pytest.param("S=C(Nc1ccc(NC(=S)c2ccccc2)cc1)c1ccccc1", "N,N'-(1,4-phenylene)dibenzenecarbothioamide", id="arylene_linker"),
+    ],
+)
+def test_carbothioamide_units_are_joined_through_their_nitrogens(smiles, expected):
+    # P-15.3.2, P-66.1.1.1: the thioamide nitrogens N and N' carry the linker like those of the amides
+    assert smiles_to_iupac(smiles) == expected
