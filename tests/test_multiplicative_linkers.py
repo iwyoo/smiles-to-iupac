@@ -1553,3 +1553,15 @@ def test_central_carbon_with_a_substituted_hydrazone_group_is_a_substituted_mult
 def test_triazene_between_identical_units_is_a_multiplicative_linker(smiles, expected):
     # P-68.3.1.4.2, P-15.3.2, P-21.2.2: the nitrogen chain is the diyl group of triaz-1-ene
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C(NC(=O)NC(=O)c1ccccc1)c1ccccc1", "N,N'-carbonyldibenzamide", id="aroyl_units"),
+        pytest.param("O=C(NC(=O)NC(=O)C1CCCCC1)C1CCCCC1", "N,N'-carbonyldicyclohexanecarboxamide", id="cycloalkanoyl_units"),
+    ],
+)
+def test_identical_amide_units_joined_through_a_carbonyl_are_multiplied(smiles, expected):
+    # P-15.3.1.1, P-15.3.2, P-66.1.2: the carbonyl between the two amide nitrogens is the multiplicative group
+    assert smiles_to_iupac(smiles) == expected
