@@ -1078,3 +1078,15 @@ def test_stereogenic_phosphorus_in_an_acyl_prefix_cites_its_descriptor_inside_th
 def test_acid_groups_esterified_by_one_diyl_component_are_multiplied_whatever_the_amide_or_thioether(smiles, expected):
     # P-65.6.3.2.2, P-67.1.3.2: identical hydrogen esters of a phosphorus acid share the diyl component
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)N1CCC(P(=O)(OC)OC)CC1", "4-(dimethoxyphosphoryl)piperidine-1-carboxylic acid"),
+        ("CC(C)(C)OC(=O)N1CCC(P(=O)(O)OCC)CC1", "tert-butyl 4-[ethoxy(hydroxy)phosphoryl]piperidine-1-carboxylate"),
+    ],
+)
+def test_free_carbamic_acid_on_a_ring_nitrogen_outranks_the_esters_of_a_phosphorus_acid(smiles, expected):
+    # P-41, P-42.3: class 7b (carbonic acid derivatives) is senior to class 7c, so the phosphonate esters are prefixes
+    assert smiles_to_iupac(smiles) == expected

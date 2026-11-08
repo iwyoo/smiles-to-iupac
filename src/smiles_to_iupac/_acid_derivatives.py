@@ -1136,7 +1136,16 @@ def _senior_acid_esters(mol, links):
 
 
 def _senior_kind_has_no_ester(mol, links):
-    """A kind of noncarbon acid that ranks above every one carrying an ester is a free acid, named as the parent elsewhere."""
+    """A kind of noncarbon acid that ranks above every one carrying an ester, or a free carbon-based acid above the esters of
+    noncarbon acids (P-41 classes 7a and 7b before 7c), is a free acid, named as the parent elsewhere."""
+    ester_class = min((_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) for l in links if l.kind == "ester"), default=None)
+    if ester_class is not None and any(
+        (found := _center(mol, a.GetIdx())) is not None
+        and _ACID_CLASS_RANK.get(found[0], 3) < ester_class
+        and _free_groups(mol, a.GetIdx())
+        for a in mol.GetAtoms()
+    ):
+        return True
     acidic = _acidic_kinds(mol)
     chosen = min((_acid_kind_key(mol, l.center, acidic) for l in links if l.kind == "ester"), default=())
     present = [_acid_kind_key(mol, a.GetIdx(), acidic) for a in mol.GetAtoms()]
