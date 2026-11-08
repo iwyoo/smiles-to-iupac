@@ -1637,24 +1637,33 @@ def azine_nitrogen(mol, nitrogen, origin):
 
 
 def _chain_amidine_ylidene(mol, graph, root, coming_from):
-    """A carbon joined to `coming_from` by a double bond that carries one plain carbon group and amino groups: the
-    ylidene end of a chain, as in '1-aminoethylidene', not an amidine group of its own. `coming_from` may carry a carbon,
-    a sulfonyl centre or an ether oxygen."""
+    """A carbon joined to `coming_from` by a double bond that carries one plain carbon group and amino, alkoxy or
+    alkylsulfanyl groups: the ylidene end of a chain, as in '1-aminoethylidene', not an amidine group of its own.
+    `coming_from` may carry a carbon, a sulfonyl centre or an ether oxygen."""
     atom = mol.GetAtomWithIdx(root)
     if atom.IsInRing() or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 2.0:
         return False
     others = [mol.GetAtomWithIdx(n) for n in graph[root] if n != coming_from]
     carbons = [a for a in others if a.GetAtomicNum() == 6]
     amino = [a for a in others if a.GetAtomicNum() == 7]
+    ethers = [
+        a for a in others
+        if a.GetAtomicNum() in (8, 16) and a.GetDegree() == 2 and not a.GetFormalCharge() and not a.IsInRing()
+        and all(n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx()) for n in a.GetNeighbors() if n.GetIdx() != root)
+    ]
     return (
         len(carbons) == 1
-        and len(amino) == len(others) - 1
-        and bool(amino)
+        and len(amino) + len(ethers) == len(others) - 1
+        and bool(amino or ethers)
         and not is_functional_carbon(mol, carbons[0].GetIdx())
         and all(
             not a.GetFormalCharge() and mol.GetBondBetweenAtoms(root, a.GetIdx()).GetBondTypeAsDouble() == 1.0
             and (
-                all(n.GetAtomicNum() in (6, 7, 8) and not n.GetFormalCharge() for n in a.GetNeighbors() if n.GetIdx() != root)
+                all(
+                    (n.GetAtomicNum() in (6, 7, 8) or _sulfonyl_centre(mol, n)) and not n.GetFormalCharge()
+                    for n in a.GetNeighbors()
+                    if n.GetIdx() != root
+                )
                 or azine_nitrogen(mol, a, root)
             )
             for a in amino
