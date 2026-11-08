@@ -1589,3 +1589,15 @@ def test_units_with_an_exocyclic_ring_imine_are_multiplied(smiles, expected):
 def test_thiol_units_on_a_branched_linker_and_phenol_over_thiol(smiles, expected):
     # P-15.3.2, P-41, P-63.1.5: the alcohol class is senior to its thiol analogue, so the phenol is the unit parent
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NC(=S)c1ccc(Sc2ccc(C(N)=S)cc2)cc1", "4,4'-sulfanediyldi(benzene-1-carbothioamide)", id="benzene_units"),
+        pytest.param("NC(=S)c1ccnc(Sc2cc(C(N)=S)ccn2)c1", "2,2'-sulfanediyldi(pyridine-4-carbothioamide)", id="pyridine_units"),
+    ],
+)
+def test_ring_units_with_a_carbothioamide_group_are_multiplied(smiles, expected):
+    # P-15.3.2, P-66.1.1.1.1.3: the carbothioamide unit keeps its suffix when two identical units are joined
+    assert smiles_to_iupac(smiles) == expected
