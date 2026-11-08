@@ -1047,8 +1047,8 @@ def test_diphosphate_beside_a_carbamate_ester_is_a_prefix_of_the_carbamate(smile
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("CCOP(=S)(OCC)OCCOP(=S)(OCC)OCC", "tetraethyl O,O′-ethane-1,2-diyl diphosphorothioate"),
-        ("CCOP(=S)(OCC)SCSP(=S)(OCC)OCC", "tetraethyl S,S′-methanediyl diphosphorodithioate"),
+        ("CCOP(=S)(OCC)OCCOP(=S)(OCC)OCC", "tetraethyl O,O′-ethane-1,2-diyl bis(phosphorothioate)"),
+        ("CCOP(=S)(OCC)SCSP(=S)(OCC)OCC", "tetraethyl S,S′-methanediyl bis(phosphorodithioate)"),
     ],
 )
 def test_thiophosphoric_esters_on_one_diyl_component_are_multiplied_like_phosphates(smiles, expected):
@@ -1089,4 +1089,16 @@ def test_acid_groups_esterified_by_one_diyl_component_are_multiplied_whatever_th
 )
 def test_free_carbamic_acid_on_a_ring_nitrogen_outranks_the_esters_of_a_phosphorus_acid(smiles, expected):
     # P-41, P-42.3: class 7b (carbonic acid derivatives) is senior to class 7c, so the phosphonate esters are prefixes
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=P(Cl)(Cl)OCCOP(=O)(Cl)Cl", "ethane-1,2-diyl bis(phosphorodichloridate)", id="halidate"),
+        pytest.param("CP(=O)(OC)OCCOP(=O)(C)OC", "dimethyl ethane-1,2-diyl bis(methylphosphonate)", id="phosphonate"),
+    ],
+)
+def test_diester_of_a_phosphorus_acid_multiplies_the_acid_word_with_bis(smiles, expected):
+    # P-16.3.6: 'diphosphoro...' would name the P-O-P acid
     assert smiles_to_iupac(smiles) == expected

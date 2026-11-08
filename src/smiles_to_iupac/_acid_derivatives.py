@@ -618,6 +618,15 @@ def in_acid_derivative_scope(mol):
     )
 
 
+_PNICTOGEN_ACID_WORD = re.compile(r"phosph|arsen|arson|stib")
+
+
+def _names_one_pnictogen_centre(anion):
+    """'diphosphorodichloridate' would name the P-O-P acid, so the word of one phosphorus or arsenic centre takes
+    'bis' (P-16.3.6)."""
+    return _PNICTOGEN_ACID_WORD.search(anion) is not None
+
+
 def _multiplied(entries):
     """Citation of the organyl groups in alphanumerical order with multipliers and element letters;
     entries are (name, compound, count, letters) tuples."""
@@ -790,7 +799,7 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
         n.GetAtomicNum() == 7 and n.GetDegree() > 1 for n in mol.GetAtomWithIdx(first[0].center).GetNeighbors()
     )
     replaced_anion = anion.startswith(("thio", "seleno", "telluro")) and mol.GetAtomWithIdx(first[0].center).GetAtomicNum() != 6
-    compound = not anion.isalpha() or n_substituted or replaced_anion
+    compound = not anion.isalpha() or n_substituted or replaced_anion or _names_one_pnictogen_centre(anion)
     multiplier = multiplying_prefix(len(centers), compound=compound)
     anion_text = f"{multiplier}{enclose(anion)}" if compound else multiplier + anion
     if modified and any(len(_oxo_slots(mol, l.center)) + 1 > 1 for l in hub_links):
