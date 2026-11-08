@@ -264,7 +264,8 @@ def _halosulfate_ester(atom):
         return False
     oxo = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
     halogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in _HALIDES and n.GetDegree() == 1]
-    return len(oxo) == 2 and len(halogens) == 1
+    ester_oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 2]
+    return len(oxo) == 2 and len(halogens) == 1 and len(ester_oxygens) == 1
 
 
 def _inorganic_anhydride(near, far):
