@@ -1577,3 +1577,15 @@ def test_identical_amide_units_joined_through_a_carbonyl_are_multiplied(smiles, 
 def test_units_with_an_exocyclic_ring_imine_are_multiplied(smiles, expected):
     # P-15.3.2, P-62.3.1.1, P-62.3.1.2: the ring C=NH is the imine suffix or, beside a ring ketone, the imino prefix of each unit
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)(c1ccc(S)cc1)c1ccc(S)cc1", "4,4'-(propane-2,2-diyl)di(benzene-1-thiol)", id="thiol_units_branched_linker"),
+        pytest.param("CC(C)(c1ccc(O)c(S)c1)c1ccc(O)c(S)c1", "4,4'-(propane-2,2-diyl)bis(2-sulfanylphenol)", id="phenol_outranks_thiol"),
+    ],
+)
+def test_thiol_units_on_a_branched_linker_and_phenol_over_thiol(smiles, expected):
+    # P-15.3.2, P-41, P-63.1.5: the alcohol class is senior to its thiol analogue, so the phenol is the unit parent
+    assert smiles_to_iupac(smiles) == expected

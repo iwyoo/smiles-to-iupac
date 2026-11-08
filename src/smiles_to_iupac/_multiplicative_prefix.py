@@ -29,7 +29,7 @@ SUFFIX_CARRIERS = {
     "nitrile": ("C#N", "benzonitrile"),
     "aldehyde": ("C=O", "benzaldehyde"),
     "alcohol": ("O", "phenol"),
-    "thiol": ("S", "benzenethiol"),
+    "thiol": ("S", "benzene-1-thiol"),
     "amine": ("N", "aniline"),
 }
 

@@ -29,7 +29,7 @@ SUFFIX_RANKS = {
     "selone": 27.2,
     "tellone": 27.3,
     "alcohol": 28,
-    "thiol": 28,
+    "thiol": 28.1,
     "hydroperoxide": 29,
     "amine": 30,
     "imine": 32,
