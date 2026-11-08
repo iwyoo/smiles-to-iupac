@@ -29,7 +29,7 @@ _CLASS_OF_UNIT_GROUP = {
     "cation": 0,
     "carboxylic_acid": 7, "sulfonic_acid": 7, "sulfinic_acid": 7, "acid": 7, "thioic": 7, "peroxoic": 7, "imidic": 7, "sulfonic": 7,
     "ester": 9, "sulfonate_ester": 9, "acyl_halide": 10, "sulfonyl_halide": 10,
-    "amide": 11, "sulfonamide": 11, "chalcogen_amide": 11, "amidine": 11, "hydrazide": 12,
+    "amide": 11, "sulfonamide": 11, "thioamide": 11, "selenoamide": 11, "telluroamide": 11, "amidine": 11, "hydrazide": 12,
     "nitrile": 14, "aldehyde": 15,
 }
 _HETERONE_CLASS = 15.5
