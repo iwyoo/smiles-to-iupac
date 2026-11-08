@@ -68,19 +68,57 @@ def _arms(mol):
     for start in mol.GetAtoms():
         if not _is_imine_nitrogen(start):
             continue
-        for center in start.GetNeighbors():
-            ends = [n for n in center.GetNeighbors() if n.GetIdx() != start.GetIdx()]
-            if (
-                center.GetAtomicNum() == 6
-                and not center.IsInRing()
-                and center.GetDegree() == 2
-                and len(ends) == 1
-                and _is_imine_nitrogen(ends[0])
-                and start.GetIdx() < ends[0].GetIdx()
-                and mol.GetBondBetweenAtoms(start.GetIdx(), center.GetIdx()).GetBondTypeAsDouble() == 2.0
-                and mol.GetBondBetweenAtoms(center.GetIdx(), ends[0].GetIdx()).GetBondTypeAsDouble() == 2.0
-            ):
-                yield [center], [start, ends[0]], "(methanediylidene)"
+        for first in start.GetNeighbors():
+            if mol.GetBondBetweenAtoms(start.GetIdx(), first.GetIdx()).GetBondTypeAsDouble() != 2.0:
+                continue
+            chain = _carbon_chain(mol, first)
+            if chain is None:
+                continue
+            hooks = [
+                (n, c)
+                for c in chain
+                for n in c.GetNeighbors()
+                if n.GetIdx() != start.GetIdx() and _is_imine_nitrogen(n) and mol.GetBondBetweenAtoms(c.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            ]
+            if len(hooks) != 1 or start.GetIdx() > hooks[0][0].GetIdx():
+                continue
+            order = [c.GetIdx() for c in chain]
+            attached = sorted(order.index(i) + 1 for i in (first.GetIdx(), hooks[0][1].GetIdx()))
+            reverse = sorted(len(order) + 1 - a for a in attached)
+            locants = min(attached, reverse)
+            length = len(order)
+            if length == 1:
+                word = "methanediylidene"
+            else:
+                word = f"{alkane_name(length)}-{locants[0]},{locants[1]}-diylidene"
+            yield chain, [start, hooks[0][0]], f"({word})"
+
+
+def _carbon_chain(mol, first):
+    """The carbons of the unbranched acyclic chain containing `first`, in chain order, or None."""
+    seen, queue = {first.GetIdx()}, [first]
+    while queue:
+        atom = queue.pop()
+        for n in atom.GetNeighbors():
+            if n.GetAtomicNum() == 6 and n.GetIdx() not in seen and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0:
+                if n.IsInRing():
+                    return None
+                seen.add(n.GetIdx())
+                queue.append(n)
+    chain = [mol.GetAtomWithIdx(i) for i in seen]
+    if any(a.IsInRing() or sum(1 for n in a.GetNeighbors() if n.GetIdx() in seen) > 2 for a in chain):
+        return None
+    if len(chain) > 1:
+        ends = [a for a in chain if sum(1 for n in a.GetNeighbors() if n.GetIdx() in seen) == 1]
+        if len(ends) != 2:
+            return None
+        ordered, previous, current = [ends[0]], None, ends[0]
+        while len(ordered) < len(chain):
+            following = next(n for n in current.GetNeighbors() if n.GetIdx() in seen and (previous is None or n.GetIdx() != previous.GetIdx()))
+            ordered.append(following)
+            previous, current = current, following
+        return ordered
+    return chain
 
 
 def _side(mol, blocked, nitrogen):
@@ -166,7 +204,7 @@ def name_nitrogen_methylene_multiplicative(mol):
             continue
         if nitrogens == 1 and (_NITROGEN_PREFIX.search(unit_name) or _has_heteroatom_neighbor(pair[0], path[0])):
             continue
-        if ylidene_linker is not None and not unit_name.endswith("amide"):
+        if ylidene_linker is not None and not unit_name.endswith(("amide", "hydrazide")):
             continue
         if ylidene_linker is None and len(path) > 1 and not unit_name.endswith(("hydrazide", "imine")):
             continue

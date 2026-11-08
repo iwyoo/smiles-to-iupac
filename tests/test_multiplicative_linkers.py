@@ -1601,3 +1601,15 @@ def test_thiol_units_on_a_branched_linker_and_phenol_over_thiol(smiles, expected
 def test_ring_units_with_a_carbothioamide_group_are_multiplied(smiles, expected):
     # P-15.3.2, P-66.1.1.1.1.3: the carbothioamide unit keeps its suffix when two identical units are joined
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C(NN=CC=NNC(=O)c1ccccc1)c1ccccc1", "N',N'''-(ethane-1,2-diylidene)dibenzohydrazide", id="unbranched"),
+        pytest.param("CC(=NNC(=O)c1ccccc1)C(C)=NNC(=O)c1ccccc1", "N',N'''-(butane-2,3-diylidene)dibenzohydrazide", id="branched_chain"),
+    ],
+)
+def test_hydrazide_units_joined_through_an_ylidene_chain_are_multiplied(smiles, expected):
+    # P-15.3.2: the chain with a C=N bond to each terminal nitrogen is the diylidene linker of two identical hydrazides
+    assert smiles_to_iupac(smiles) == expected
