@@ -1613,3 +1613,15 @@ def test_ring_units_with_a_carbothioamide_group_are_multiplied(smiles, expected)
 def test_hydrazide_units_joined_through_an_ylidene_chain_are_multiplied(smiles, expected):
     # P-15.3.2: the chain with a C=N bond to each terminal nitrogen is the diylidene linker of two identical hydrazides
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C/C=C/C(=O)OCC(=O)N1CCN(C(=O)COC(=O)/C=C/C)CC1", "piperazine-1,4-diylbis(2-oxoethane-2,1-diyl) bis[(2E)-but-2-enoate]", id="ring_amide_linker"),
+        pytest.param("C/C=C/C(=O)OCC(=O)NCCNC(=O)COC(=O)/C=C/C", "ethane-1,2-diylbis[azanediyl(2-oxoethane-2,1-diyl)] bis[(2E)-but-2-enoate]", id="chain_amide_linker"),
+    ],
+)
+def test_stereo_acid_parts_are_multiplied_on_a_diyl_component_with_amide_groups(smiles, expected):
+    # P-65.6.3.2.2, P-93.5.1.4: identical acid components with the same configuration share the diyl component
+    assert smiles_to_iupac(smiles) == expected
