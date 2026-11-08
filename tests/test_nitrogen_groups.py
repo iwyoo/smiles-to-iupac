@@ -3199,3 +3199,15 @@ def test_carbonate_on_the_nitrogen_of_a_carbamate_is_an_acyloxy_prefix(smiles, e
 def test_ylidene_prefix_with_alkoxy_or_on_a_thioacyl_nitrogen_beside_an_acid(smiles, expected):
     # P-29.3.2, P-62.3.1.1: the N=C unit is an (ylideneamino) or ylidene-carbamothioyl prefix of the acid parent
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)ONNS(=O)(=O)c1ccc(C)cc1", "N'-(acetyloxy)-4-methylbenzene-1-sulfonohydrazide", id="sulfonohydrazide"),
+        pytest.param("CC(=O)ONNS(=O)c1ccc(C)cc1", "N'-(acetyloxy)-4-methylbenzene-1-sulfinohydrazide", id="sulfinohydrazide"),
+    ],
+)
+def test_acyloxy_on_the_terminal_nitrogen_of_a_sulfonohydrazide_is_a_prefix(smiles, expected):
+    # P-66.3.1.1, P-65.6.3.2.3: the hydrazide outranks the ester, which is cited as an acyloxy prefix with N'
+    assert smiles_to_iupac(smiles) == expected
