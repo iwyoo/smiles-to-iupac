@@ -3211,3 +3211,15 @@ def test_ylidene_prefix_with_alkoxy_or_on_a_thioacyl_nitrogen_beside_an_acid(smi
 def test_acyloxy_on_the_terminal_nitrogen_of_a_sulfonohydrazide_is_a_prefix(smiles, expected):
     # P-66.3.1.1, P-65.6.3.2.3: the hydrazide outranks the ester, which is cited as an acyloxy prefix with N'
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CSC(=N)N(C(=O)OC(C)(C)C)C(=O)OC(C)(C)C", "di-tert-butyl N2-[C-(methylsulfanyl)carbonimidoyl]-2-imidodicarbonate", id="ester"),
+        pytest.param("COC(=N)N(C(=O)O)C(=O)O", "N2-(C-methoxycarbonimidoyl)-2-imidodicarbonic acid", id="free_acid"),
+    ],
+)
+def test_imidodicarbonate_nitrogen_carries_a_carbonimidoyl_group_with_a_chalcogen_substituent(smiles, expected):
+    # P-65.2.3.1.2, P-65.1.3.1.2: the imidoyl centre on the bridging nitrogen is a prefix, not a third carbonic unit
+    assert smiles_to_iupac(smiles) == expected
