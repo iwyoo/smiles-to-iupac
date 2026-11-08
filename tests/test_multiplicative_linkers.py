@@ -1541,3 +1541,15 @@ def test_units_with_a_ring_double_bond_are_multiplied_whatever_their_suffix(smil
 def test_central_carbon_with_a_substituted_hydrazone_group_is_a_substituted_multiplicative_group(smiles, expected):
     # P-15.3.1.2.1.2, P-68.3.1.2: the hydrazone on the central carbon is a prefix of the multiplying group
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("N#Cc1ccc(N=NNc2ccc(C#N)cc2)cc1", "4,4'-(triaz-1-ene-1,3-diyl)dibenzonitrile", id="nitrile_units"),
+        pytest.param("CN(N=Nc1nonc1N)c1nonc1N", "4,4'-(3-methyltriaz-1-ene-1,3-diyl)bis(1,2,5-oxadiazol-3-amine)", id="amine_units_substituted_linker"),
+    ],
+)
+def test_triazene_between_identical_units_is_a_multiplicative_linker(smiles, expected):
+    # P-68.3.1.4.2, P-15.3.2, P-21.2.2: the nitrogen chain is the diyl group of triaz-1-ene
+    assert smiles_to_iupac(smiles) == expected
