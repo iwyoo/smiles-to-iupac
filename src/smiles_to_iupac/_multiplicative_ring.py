@@ -50,6 +50,7 @@ _SUFFIX_WORDS = _SuffixWords({
     "carboxylic_acid": "carboxylic acid",
     "dithioic": "carbodithioic acid",
     "sulfonic_acid": "sulfonic acid",
+    "sulfinic_acid": "sulfinic acid",
     "amide": "carboxamide",
     "thioamide": "carbothioamide",
     "selenoamide": "carboselenoamide",
