@@ -1759,7 +1759,7 @@ def _chain_multiplicative_name(mol, stereo):
                 return name
         return None
     principal, anchors, heads = found
-    from ._polyfunctional import _SENIORITY, AMINIUM
+    from ._polyfunctional import _CHALCOGEN_AMIDE_CLASSES, _SENIORITY, AMINIUM
 
     cationic_parent = principal == "amine" and AMINIUM.get() is True
     acyl_prefixes = (
@@ -1804,7 +1804,7 @@ def _chain_multiplicative_name(mol, stereo):
                     and bond.GetBondTypeAsDouble() in (1.0, 2.0)
                 )
                 target = candidates
-            elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide", "imine", "amidine") and r in anchors:
+            elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide", "imine", "amidine", *_CHALCOGEN_AMIDE_CLASSES) and r in anchors:
                 other = mol.GetAtomWithIdx(h)
                 ok = bond.GetBondTypeAsDouble() == 1.0 and (
                     (other.GetAtomicNum() == 6 and (not is_functional_carbon(mol, h) or _carbonyl_between_nitrogens(mol, other)))
