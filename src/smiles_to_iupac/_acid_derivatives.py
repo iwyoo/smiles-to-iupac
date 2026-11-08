@@ -1135,14 +1135,30 @@ def _senior_acid_esters(mol, links):
     return [l for l in links if l.kind != "ester" or rank[id(l)] == top]
 
 
+def _chalcogen_replacements(mol, idx):
+    """The sulfur, selenium or tellurium atoms bonded to the acid centre: the all-oxygen acid outranks its chalcogen
+    analogues (P-41, P-65.1.2)."""
+    return sum(1 for n in mol.GetAtomWithIdx(idx).GetNeighbors() if n.GetAtomicNum() in (16, 34, 52))
+
+
 def _senior_kind_has_no_ester(mol, links):
     """A kind of noncarbon acid that ranks above every one carrying an ester, or a free carbon-based acid above the esters of
     noncarbon acids (P-41 classes 7a and 7b before 7c), is a free acid, named as the parent elsewhere."""
-    ester_class = min((_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3) for l in links if l.kind == "ester"), default=None)
-    if ester_class is not None and any(
+    ester_key = min(
+        ((_ACID_CLASS_RANK.get(_center(mol, l.center)[0], 3), _chalcogen_replacements(mol, l.center)) for l in links if l.kind == "ester"),
+        default=None,
+    )
+    ester_centres = {l.center for l in links if l.kind == "ester"}
+    if ester_key is not None and any(
         (found := _center(mol, a.GetIdx())) is not None
-        and _ACID_CLASS_RANK.get(found[0], 3) < ester_class
         and _free_groups(mol, a.GetIdx())
+        and (
+            _ACID_CLASS_RANK.get(found[0], 3) < ester_key[0]
+            or (
+                (_ACID_CLASS_RANK.get(found[0], 3), _chalcogen_replacements(mol, a.GetIdx())) < ester_key
+                and not any(o.GetAtomicNum() == 8 and any(m.GetIdx() in ester_centres for m in o.GetNeighbors()) for o in a.GetNeighbors())
+            )
+        )
         for a in mol.GetAtoms()
     ):
         return True
