@@ -1637,3 +1637,15 @@ def test_stereo_acid_parts_are_multiplied_on_a_diyl_component_with_amide_groups(
 def test_ring_units_with_a_carbodithioic_acid_group_are_multiplied(smiles, expected):
     # P-15.3.2, P-65.1.5.1: the dithio acid is the principal group of each identical ring unit
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=S(O)c1cc(Cc2ccc(Cl)c(S(=O)O)c2)ccc1Cl", "3,3'-methylenebis(6-chlorobenzene-1-sulfinic acid)", id="carbon_linker"),
+        pytest.param("O=S(O)c1cc(S(=O)(=O)c2ccc(C)c(S(=O)O)c2)ccc1C", "3,3'-sulfonylbis(6-methylbenzene-1-sulfinic acid)", id="sulfonyl_linker"),
+    ],
+)
+def test_substituted_sulfinic_acid_units_are_multiplied(smiles, expected):
+    # P-15.3.2, P-65.3.1: the sulfinic acid is the principal group of each identical substituted ring unit
+    assert smiles_to_iupac(smiles) == expected
